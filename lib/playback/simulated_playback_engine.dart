@@ -3,9 +3,8 @@ import 'dart:async';
 import '../domain/library_models.dart';
 import 'playback_engine.dart';
 
-/// A UI-development engine. Its clock lives inside the engine so widgets never
-/// synthesize playback progress. It will be replaced by the real media adapter
-/// after the Windows/Android vertical playback spike.
+/// A deterministic development and test engine. Production startup uses the
+/// just_audio adapter; this engine lets tests exercise UI state without media.
 class SimulatedPlaybackEngine implements PlaybackEngine {
   final StreamController<PlaybackSnapshot> _snapshots =
       StreamController<PlaybackSnapshot>.broadcast(sync: true);

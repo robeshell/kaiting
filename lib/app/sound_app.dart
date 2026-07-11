@@ -5,14 +5,16 @@ import 'package:flutter/material.dart';
 
 import '../core/sound_theme.dart';
 import '../domain/library_models.dart';
+import '../library/library_repository.dart';
 import '../playback/playback_controller.dart';
 import '../playback/playback_engine.dart';
 import '../presentation/app_shell.dart';
 
 class SoundApp extends StatefulWidget {
-  const SoundApp({required this.engine, super.key});
+  const SoundApp({required this.engine, this.repository, super.key});
 
   final PlaybackEngine engine;
+  final LibraryRepository? repository;
 
   @override
   State<SoundApp> createState() => _SoundAppState();
@@ -99,7 +101,7 @@ class _SoundAppState extends State<SoundApp> {
       theme: SoundTheme.light,
       darkTheme: SoundTheme.dark,
       themeMode: ThemeMode.dark,
-      home: AppShell(playback: _playback),
+      home: AppShell(playback: _playback, libraryRepository: widget.repository),
     );
   }
 }

@@ -10,12 +10,12 @@ void main() {
     final engine = ManualPlaybackEngine();
     final controller = SoundPlaybackController(
       engine: engine,
-      initialQueue: demoAlbums.first.tracks,
+      initialQueue: const [_firstTrack, _secondTrack],
     );
     addTearDown(controller.dispose);
     addTearDown(engine.dispose);
 
-    final track = demoAlbums.first.tracks.first;
+    const track = _firstTrack;
     await controller.playTrack(track);
     engine.emitPosition(const Duration(seconds: 19));
 
@@ -30,8 +30,8 @@ void main() {
     addTearDown(controller.dispose);
     addTearDown(engine.dispose);
 
-    final first = demoAlbums.first.tracks.first;
-    final second = demoAlbums[1].tracks.first;
+    const first = _firstTrack;
+    const second = _secondTrack;
     await controller.playTrack(first);
     final oldSession = controller.snapshot.sessionId;
     await controller.playTrack(second);
@@ -50,6 +50,27 @@ void main() {
     expect(controller.snapshot.position, Duration.zero);
   });
 }
+
+const _firstTrack = Track(
+  id: 'first',
+  title: 'First',
+  artist: 'Test Artist',
+  albumTitle: 'Test Album',
+  duration: Duration(minutes: 3),
+  source: SourceKind.local,
+  mediaUri: 'file:///first.mp3',
+);
+
+const _secondTrack = Track(
+  id: 'second',
+  title: 'Second',
+  artist: 'Test Artist',
+  albumTitle: 'Test Album',
+  duration: Duration(minutes: 4),
+  source: SourceKind.local,
+  trackNumber: 2,
+  mediaUri: 'file:///second.flac',
+);
 
 class ManualPlaybackEngine implements PlaybackEngine {
   final _controller = StreamController<PlaybackSnapshot>.broadcast(sync: true);

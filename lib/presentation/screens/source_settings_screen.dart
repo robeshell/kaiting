@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/sound_theme.dart';
@@ -100,7 +101,7 @@ class _SourceSettingsScreenState extends State<SourceSettingsScreen> {
         ),
         const SizedBox(height: 6),
         const Text(
-          '管理音乐所在的位置。连接信息和纳入资料库的文件夹彼此独立。',
+          '管理纳入资料库的本地音乐文件夹。',
           style: TextStyle(color: Colors.white54, fontSize: 13),
         ),
         const SizedBox(height: 30),
@@ -167,23 +168,16 @@ class _SourceSettingsScreenState extends State<SourceSettingsScreen> {
             );
           },
         ),
-        const SizedBox(height: 14),
-        const _SourceCard(
-          icon: Icons.cloud_rounded,
-          iconColor: SoundColors.webDav,
-          title: '家庭 NAS',
-          subtitle: 'https://nas.local/dav',
-          status: '在线 · 上次扫描于 8 分钟前',
-          folders: ['音乐/华语', '音乐/欧美'],
-        ),
         const SizedBox(height: 30),
         const _FirstReleaseNote(),
-        const SizedBox(height: 14),
-        OutlinedButton.icon(
-          onPressed: widget.onOpenPlaybackValidation,
-          icon: const Icon(Icons.science_outlined),
-          label: const Text('打开播放验证工具'),
-        ),
+        if (kDebugMode) ...[
+          const SizedBox(height: 14),
+          OutlinedButton.icon(
+            onPressed: widget.onOpenPlaybackValidation,
+            icon: const Icon(Icons.science_outlined),
+            label: const Text('打开播放验证工具（Debug）'),
+          ),
+        ],
       ],
     );
   }
@@ -430,7 +424,7 @@ class _FirstReleaseNote extends StatelessWidget {
           SizedBox(width: 12),
           Expanded(
             child: Text(
-              '首个验证版本只实现本地文件夹和 WebDAV。SMB、在线歌词与在线封面会等播放底座稳定后再评估。',
+              '当前版本已接通本地文件夹；WebDAV 来源管理会在本地资料库纵向链路完成后接入。',
               style: TextStyle(
                 fontSize: 12,
                 height: 1.5,

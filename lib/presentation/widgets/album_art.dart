@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../domain/library_models.dart';
+import 'artwork_image_provider.dart';
 
 class AlbumArt extends StatelessWidget {
   const AlbumArt({
@@ -16,6 +17,7 @@ class AlbumArt extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final imageProvider = artworkImageProvider(album.artworkUri);
     final art = Container(
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(borderRadius),
@@ -34,55 +36,72 @@ class AlbumArt extends StatelessWidget {
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(borderRadius),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            Positioned(
-              right: -24,
-              top: -24,
-              child: _Disc(color: Colors.white.withValues(alpha: 0.08)),
-            ),
-            Positioned(
-              left: 16,
-              right: 16,
-              bottom: 16,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    album.title,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontSize: 18,
-                      height: 1.05,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -0.4,
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    album.artist.toUpperCase(),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: Colors.white.withValues(alpha: 0.62),
-                      fontSize: 9,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: 1.2,
-                    ),
-                  ),
-                ],
+        child: imageProvider == null
+            ? _ArtworkPlaceholder(album: album)
+            : Image(
+                image: imageProvider,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => _ArtworkPlaceholder(album: album),
               ),
-            ),
-          ],
-        ),
       ),
     );
 
     if (size == null) return AspectRatio(aspectRatio: 1, child: art);
     return SizedBox.square(dimension: size, child: art);
+  }
+}
+
+class _ArtworkPlaceholder extends StatelessWidget {
+  const _ArtworkPlaceholder({required this.album});
+
+  final Album album;
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        Positioned(
+          right: -24,
+          top: -24,
+          child: _Disc(color: Colors.white.withValues(alpha: 0.08)),
+        ),
+        Positioned(
+          left: 16,
+          right: 16,
+          bottom: 16,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                album.title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  height: 1.05,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: -0.4,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                album.artist.toUpperCase(),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.62),
+                  fontSize: 9,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 }
 

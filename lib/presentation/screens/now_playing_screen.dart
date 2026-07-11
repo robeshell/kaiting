@@ -18,7 +18,8 @@ class NowPlayingScreen extends StatelessWidget {
     return AnimatedBuilder(
       animation: playback,
       builder: (context, _) {
-        final track = playback.currentTrack ?? demoAlbums.first.tracks.first;
+        final track = playback.currentTrack;
+        if (track == null) return const _NoTrackPlaying();
         final album = albumForTrack(track);
         final snapshot = playback.snapshot;
         return Scaffold(
@@ -106,6 +107,36 @@ class NowPlayingScreen extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _NoTrackPlaying extends StatelessWidget {
+  const _NoTrackPlaying();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
+        child: Stack(
+          children: [
+            Positioned(
+              left: 20,
+              top: 10,
+              child: IconButton.filledTonal(
+                onPressed: () => Navigator.of(context).pop(),
+                icon: const Icon(Icons.keyboard_arrow_down_rounded),
+              ),
+            ),
+            const Center(
+              child: Text(
+                '当前没有正在播放的歌曲',
+                style: TextStyle(color: Colors.white54),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -302,7 +333,30 @@ class _LyricsPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final lyrics = track.lyrics.isEmpty ? _fallbackLyrics : track.lyrics;
+    final lyrics = track.lyrics;
+    if (lyrics.isEmpty) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '歌词',
+            style: TextStyle(
+              color: Colors.white.withValues(alpha: 0.55),
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const Expanded(
+            child: Center(
+              child: Text(
+                '这首歌曲没有内嵌歌词',
+                style: TextStyle(color: Colors.white54),
+              ),
+            ),
+          ),
+        ],
+      );
+    }
     var active = 0;
     for (var index = 0; index < lyrics.length; index++) {
       if (lyrics[index].time <= position + const Duration(milliseconds: 80)) {
@@ -352,8 +406,3 @@ class _LyricsPanel extends StatelessWidget {
     );
   }
 }
-
-const _fallbackLyrics = [
-  LyricLine(Duration.zero, '纯音乐，请欣赏'),
-  LyricLine(Duration(seconds: 12), '♪'),
-];

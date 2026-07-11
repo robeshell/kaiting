@@ -79,10 +79,7 @@ class JustAudioPlaybackEngine implements PlaybackEngine {
     final resource = track.mediaUri?.trim();
     if (resource == null || resource.isEmpty) {
       _loading = false;
-      _publish(
-        PlaybackPhase.error,
-        errorMessage: '这是一条设计演示数据，请从「播放验证」选择真实音频文件。',
-      );
+      _publish(PlaybackPhase.error, errorMessage: '这首歌曲没有可播放的媒体地址。');
       return;
     }
 
@@ -92,11 +89,21 @@ class JustAudioPlaybackEngine implements PlaybackEngine {
       final uri = Uri.tryParse(resource);
       final isRemote =
           uri != null && (uri.scheme == 'http' || uri.scheme == 'https');
-      final loadedDuration = isRemote
-          ? await _player.setUrl(resource, headers: track.httpHeaders)
-          : await _player.setFilePath(
-              uri?.scheme == 'file' ? uri!.toFilePath() : resource,
-            );
+      final Duration? loadedDuration;
+      if (isRemote) {
+        loadedDuration = await _player.setUrl(
+          resource,
+          headers: track.httpHeaders,
+        );
+      } else if (uri != null && uri.scheme.isNotEmpty && uri.scheme != 'file') {
+        loadedDuration = await _player.setAudioSource(
+          just_audio.AudioSource.uri(uri),
+        );
+      } else {
+        loadedDuration = await _player.setFilePath(
+          uri?.scheme == 'file' ? uri!.toFilePath() : resource,
+        );
+      }
       if (_disposed || operationSession != _sessionId) return;
       _position = _positionGate.normalize(
         _player.position,

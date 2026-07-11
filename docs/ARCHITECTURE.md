@@ -94,6 +94,18 @@ dart compile js -O4 -o web/drift_worker.dart.js tool/drift_worker.dart
 The `web/sqlite3.wasm` binary must match the `sqlite3` version resolved in
 `pubspec.lock`.
 
+## Production data policy
+
+- Screens consume `LibraryRepository`; production code must not seed a demo
+  catalog, fake source, fake playlist, fake lyric, or fake current track.
+- Empty, loading, unavailable, and error cases are explicit UI states. Missing
+  content is never hidden by plausible-looking sample content.
+- Deterministic fixtures and simulated playback belong under `test/`.
+  Developer playback validation may exist in production sources only behind
+  `kDebugMode` or explicit `SOUND_VALIDATION_*` build definitions.
+- Visual artwork fallbacks may derive color and typography from real album
+  metadata, but they do not invent library entities or playback state.
+
 ## Local directory access
 
 - `LocalDirectoryAccess` is the platform-independent grant contract. A grant

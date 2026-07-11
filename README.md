@@ -18,7 +18,7 @@ from explicit platform-independent contracts.
   Android, AVPlayer on Apple platforms, and WinRT MediaPlayer on Windows;
   widget tests inject `SimulatedPlaybackEngine`.
 - The playback validation screen opens a real local file or an authenticated
-  WebDAV media URL without adding either source to the demo library.
+  WebDAV media URL without indexing it into the library.
 - `PlaybackEngine` snapshots are the sole authority for playback position.
 - Playback session generations reject callbacks from previously loaded tracks.
 - A Drift/SQLite v1 repository now persists sources, artists, albums, tracks,
@@ -33,15 +33,19 @@ from explicit platform-independent contracts.
   duration, cover, genre, year, and embedded lyrics into one atomic repository
   batch. Android SAF scanning and deletion-aware rescanning pass on an Android
   16 ARM64 emulator.
+- Library and album-detail screens now consume the persisted repository. Real
+  media URIs, artwork, metadata, and lyrics flow into playback; loading, empty,
+  and repository-error states replace the former built-in demo catalog.
 - Local MP3 and FLAC playback plus a 120-second seek pass on macOS and Android;
   none of the recorded local runs regressed position.
 - Authenticated WebDAV MP3 playback and byte-range seeking now pass with the
   just_audio adapter on macOS and Android. In the throttled fixture, a
   120-second seek opens a range near byte 5 MB and resumes in about 0.04 seconds
   on macOS and 0.7-1.0 seconds on Android.
-- Real repository-backed library screens, background playback, system media
-  controls, and the production WebDAV flow remain unfinished. Windows and
-  iPhone/iPad runtime validation are still pending on suitable hosts/devices.
+- Background playback, system media controls, search, and the production
+  WebDAV flow remain unfinished. Repository-backed screens still need runtime
+  regression on Windows and iPhone/iPad when suitable hosts/devices are
+  available.
 
 ## Run
 

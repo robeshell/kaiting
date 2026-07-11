@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../core/sound_theme.dart';
@@ -11,6 +12,7 @@ import '../library/scanning/local_media_catalog_factory.dart';
 import '../playback/playback_controller.dart';
 import '../sources/local/local_directory_access_factory.dart';
 import '../sources/local/local_source_service.dart';
+import 'controllers/library_catalog_controller.dart';
 import 'screens/album_detail_screen.dart';
 import 'screens/library_screen.dart';
 import 'screens/now_playing_screen.dart';
@@ -23,9 +25,10 @@ enum AppSection { library, search, sources }
 const _compactMiniPlayerBottomGap = 10.0;
 
 class AppShell extends StatefulWidget {
-  const AppShell({required this.playback, super.key});
+  const AppShell({required this.playback, this.libraryRepository, super.key});
 
   final SoundPlaybackController playback;
+  final LibraryRepository? libraryRepository;
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -35,20 +38,31 @@ class _AppShellState extends State<AppShell> {
   AppSection _section = AppSection.library;
   Album? _selectedAlbum;
   bool _showPlaybackValidation = false;
-  LibraryRepository? _libraryRepository;
+  late final LibraryRepository _libraryRepository;
+  late final bool _ownsLibraryRepository;
+  late final LibraryCatalogController _libraryCatalog;
   LocalSourceService? _localSourceService;
   LocalLibraryScanner? _localLibraryScanner;
 
+  @override
+  void initState() {
+    super.initState();
+    _ownsLibraryRepository = widget.libraryRepository == null;
+    _libraryRepository =
+        widget.libraryRepository ?? DriftLibraryRepository.defaults();
+    _libraryCatalog = LibraryCatalogController(repository: _libraryRepository);
+  }
+
   LocalSourceService get _sources {
     return _localSourceService ??= LocalSourceService(
-      repository: _libraryRepository ??= DriftLibraryRepository.defaults(),
+      repository: _libraryRepository,
       directoryAccess: createLocalDirectoryAccess(),
     );
   }
 
   LocalLibraryScanner get _scanner {
     return _localLibraryScanner ??= LocalLibraryScanner(
-      repository: _libraryRepository ??= DriftLibraryRepository.defaults(),
+      repository: _libraryRepository,
       catalog: createLocalMediaCatalog(),
     );
   }
@@ -62,6 +76,7 @@ class _AppShellState extends State<AppShell> {
   }
 
   void _openNowPlaying() {
+    if (widget.playback.currentTrack == null) return;
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => NowPlayingScreen(playback: widget.playback),
@@ -93,8 +108,10 @@ class _AppShellState extends State<AppShell> {
               )
             : switch (_section) {
                 AppSection.library => LibraryScreen(
+                  catalog: _libraryCatalog,
                   onOpenAlbum: (album) =>
                       setState(() => _selectedAlbum = album),
+                  onManageSources: () => _selectSection(AppSection.sources),
                 ),
                 AppSection.search => const _SearchPlaceholder(),
                 AppSection.sources => SourceSettingsScreen(
@@ -175,10 +192,8 @@ class _AppShellState extends State<AppShell> {
 
   @override
   void dispose() {
-    final repository = _libraryRepository;
-    if (repository != null) {
-      unawaited(repository.close());
-    }
+    _libraryCatalog.dispose();
+    if (_ownsLibraryRepository) unawaited(_libraryRepository.close());
     super.dispose();
   }
 }
@@ -254,25 +269,14 @@ class _Sidebar extends StatelessWidget {
                 icon: Icons.grid_view_rounded,
                 onTap: () => onSelect(AppSection.library),
               ),
-              const _SidebarHeading('播放清单'),
-              _SidebarRow(
-                label: '我喜欢的音乐',
-                icon: Icons.favorite_rounded,
-                accent: true,
-                onTap: () {},
-              ),
-              _SidebarRow(
-                label: '夜间驾驶',
-                icon: Icons.nightlight_outlined,
-                onTap: () {},
-              ),
               const Spacer(),
-              _SidebarRow(
-                label: '播放验证',
-                icon: Icons.science_outlined,
-                accent: true,
-                onTap: onOpenPlaybackValidation,
-              ),
+              if (kDebugMode)
+                _SidebarRow(
+                  label: '播放验证（Debug）',
+                  icon: Icons.science_outlined,
+                  accent: true,
+                  onTap: onOpenPlaybackValidation,
+                ),
               _SidebarRow(
                 label: '设置',
                 icon: Icons.settings_outlined,

@@ -67,6 +67,11 @@ class _Hero extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxWidth < 680;
+        final metadata = [
+          if (album.genre?.trim().isNotEmpty == true) album.genre!,
+          if (album.year != null) '${album.year}',
+          '${album.tracks.length} 首歌',
+        ].join(' · ');
         final details = Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisAlignment: MainAxisAlignment.end,
@@ -105,7 +110,7 @@ class _Hero extends StatelessWidget {
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
                 Text(
-                  '${album.genre} · ${album.year} · ${album.tracks.length} 首歌',
+                  metadata,
                   style: const TextStyle(fontSize: 13, color: Colors.white54),
                 ),
                 SourceBadge(album.source),
@@ -116,10 +121,12 @@ class _Hero extends StatelessWidget {
               spacing: 10,
               children: [
                 FilledButton.icon(
-                  onPressed: () => playback.playTrack(
-                    album.tracks.first,
-                    queue: album.tracks,
-                  ),
+                  onPressed: album.tracks.isEmpty
+                      ? null
+                      : () => playback.playTrack(
+                          album.tracks.first,
+                          queue: album.tracks,
+                        ),
                   icon: const Icon(Icons.play_arrow_rounded),
                   label: const Text('播放'),
                   style: FilledButton.styleFrom(
@@ -127,17 +134,6 @@ class _Hero extends StatelessWidget {
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(
                       horizontal: 20,
-                      vertical: 15,
-                    ),
-                  ),
-                ),
-                FilledButton.tonalIcon(
-                  onPressed: () {},
-                  icon: const Icon(Icons.shuffle_rounded),
-                  label: const Text('随机播放'),
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 18,
                       vertical: 15,
                     ),
                   ),
@@ -225,7 +221,7 @@ class _TrackRow extends StatelessWidget {
                       size: 18,
                     )
                   : Text(
-                      '${track.trackNumber}',
+                      track.trackNumber > 0 ? '${track.trackNumber}' : '–',
                       style: const TextStyle(color: Colors.white54),
                     ),
             ),
@@ -239,12 +235,7 @@ class _TrackRow extends StatelessWidget {
                 ),
               ),
             ),
-            Icon(
-              Icons.favorite_border_rounded,
-              size: 16,
-              color: Colors.white.withValues(alpha: 0.42),
-            ),
-            const SizedBox(width: 24),
+            const SizedBox(width: 12),
             Text(
               formatDuration(track.duration),
               style: const TextStyle(

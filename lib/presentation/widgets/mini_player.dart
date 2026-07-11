@@ -25,7 +25,8 @@ class MiniPlayer extends StatelessWidget {
     return AnimatedBuilder(
       animation: playback,
       builder: (context, _) {
-        final track = playback.currentTrack ?? demoAlbums.first.tracks.first;
+        final track = playback.currentTrack;
+        if (track == null) return const SizedBox.shrink();
         final album = albumForTrack(track);
         final snapshot = playback.snapshot;
         final duration = snapshot.duration;

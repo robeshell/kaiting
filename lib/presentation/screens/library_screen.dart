@@ -2,198 +2,261 @@ import 'package:flutter/material.dart';
 
 import '../../core/sound_theme.dart';
 import '../../domain/library_models.dart';
+import '../controllers/library_catalog_controller.dart';
 import '../widgets/album_art.dart';
 import '../widgets/source_badge.dart';
 
 class LibraryScreen extends StatelessWidget {
-  const LibraryScreen({required this.onOpenAlbum, super.key});
+  const LibraryScreen({
+    required this.catalog,
+    required this.onOpenAlbum,
+    required this.onManageSources,
+    super.key,
+  });
 
+  final LibraryCatalogController catalog;
   final ValueChanged<Album> onOpenAlbum;
+  final VoidCallback onManageSources;
 
   @override
   Widget build(BuildContext context) {
-    return CustomScrollView(
-      slivers: [
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(32, 34, 32, 20),
-          sliver: SliverToBoxAdapter(
-            child: Row(
-              children: [
-                const Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        '资料库',
-                        style: TextStyle(
-                          fontSize: 32,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.8,
+    return AnimatedBuilder(
+      animation: catalog,
+      builder: (context, _) {
+        final albums = catalog.albums;
+        final albumByTrackId = {
+          for (final album in albums)
+            for (final track in album.tracks) track.id: album,
+        };
+        final tracks = catalog.tracks;
+        return CustomScrollView(
+          slivers: [
+            const SliverPadding(
+              padding: EdgeInsets.fromLTRB(32, 34, 32, 20),
+              sliver: SliverToBoxAdapter(child: _LibraryHeader()),
+            ),
+            if (catalog.status == LibraryCatalogStatus.loading)
+              const SliverFillRemaining(
+                hasScrollBody: false,
+                child: _CatalogMessage.loading(),
+              )
+            else if (catalog.status == LibraryCatalogStatus.error)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: _CatalogMessage.error(
+                  message: catalog.errorMessage ?? '无法读取资料库。',
+                  onAction: catalog.refresh,
+                ),
+              )
+            else if (albums.isEmpty)
+              SliverFillRemaining(
+                hasScrollBody: false,
+                child: _CatalogMessage.empty(onAction: onManageSources),
+              )
+            else ...[
+              const SliverPadding(
+                padding: EdgeInsets.fromLTRB(32, 20, 32, 0),
+                sliver: SliverToBoxAdapter(child: _SectionHeader(title: '专辑')),
+              ),
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(32, 16, 32, 8),
+                sliver: SliverGrid.builder(
+                  itemCount: albums.length,
+                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: 210,
+                    mainAxisExtent: 280,
+                    crossAxisSpacing: 24,
+                    mainAxisSpacing: 24,
+                  ),
+                  itemBuilder: (context, index) {
+                    final album = albums[index];
+                    return _AlbumCard(
+                      album: album,
+                      onTap: () => onOpenAlbum(album),
+                    );
+                  },
+                ),
+              ),
+              const SliverPadding(
+                padding: EdgeInsets.fromLTRB(32, 26, 32, 12),
+                sliver: SliverToBoxAdapter(child: _SectionHeader(title: '歌曲')),
+              ),
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(32, 0, 32, 140),
+                sliver: SliverList.separated(
+                  itemCount: tracks.length,
+                  separatorBuilder: (_, _) => Divider(
+                    height: 1,
+                    color: Colors.white.withValues(alpha: 0.06),
+                  ),
+                  itemBuilder: (context, index) {
+                    final track = tracks[index];
+                    final album = albumByTrackId[track.id]!;
+                    return ListTile(
+                      contentPadding: const EdgeInsets.symmetric(vertical: 5),
+                      onTap: () => onOpenAlbum(album),
+                      leading: SizedBox.square(
+                        dimension: 48,
+                        child: AlbumArt(album: album, borderRadius: 6),
+                      ),
+                      title: Text(
+                        track.title,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
                         ),
                       ),
-                      SizedBox(height: 5),
-                      Text(
-                        '你的本地音乐与 NAS 收藏',
-                        style: TextStyle(color: Colors.white54, fontSize: 13),
+                      subtitle: Text(
+                        '${track.artist} · ${track.albumTitle}',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: Colors.white54,
+                        ),
                       ),
-                    ],
-                  ),
+                      trailing: SourceBadge(track.source),
+                    );
+                  },
                 ),
-                _CircleButton(icon: Icons.search_rounded, onTap: () {}),
-                const SizedBox(width: 10),
-                _CircleButton(icon: Icons.tune_rounded, onTap: () {}),
-              ],
-            ),
+              ),
+            ],
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _LibraryHeader extends StatelessWidget {
+  const _LibraryHeader();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          '资料库',
+          style: TextStyle(
+            fontSize: 32,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.8,
           ),
         ),
-        const SliverPadding(
-          padding: EdgeInsets.symmetric(horizontal: 32),
-          sliver: SliverToBoxAdapter(child: _LibraryTabs()),
-        ),
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(32, 28, 32, 0),
-          sliver: SliverToBoxAdapter(
-            child: _SectionHeader(title: '最近添加', onAction: () {}),
-          ),
-        ),
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(32, 16, 32, 8),
-          sliver: SliverGrid.builder(
-            itemCount: demoAlbums.length,
-            gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-              maxCrossAxisExtent: 210,
-              mainAxisExtent: 280,
-              crossAxisSpacing: 24,
-              mainAxisSpacing: 24,
-            ),
-            itemBuilder: (context, index) {
-              final album = demoAlbums[index];
-              return _AlbumCard(album: album, onTap: () => onOpenAlbum(album));
-            },
-          ),
-        ),
-        const SliverPadding(
-          padding: EdgeInsets.fromLTRB(32, 26, 32, 12),
-          sliver: SliverToBoxAdapter(child: _SectionHeader(title: '继续聆听')),
-        ),
-        SliverPadding(
-          padding: const EdgeInsets.fromLTRB(32, 0, 32, 140),
-          sliver: SliverList.separated(
-            itemCount: demoAlbums.take(3).length,
-            separatorBuilder: (_, _) =>
-                Divider(height: 1, color: Colors.white.withValues(alpha: 0.06)),
-            itemBuilder: (context, index) {
-              final album = demoAlbums[index];
-              final track = album.tracks.first;
-              return ListTile(
-                contentPadding: const EdgeInsets.symmetric(vertical: 5),
-                onTap: () => onOpenAlbum(album),
-                leading: SizedBox.square(
-                  dimension: 48,
-                  child: AlbumArt(album: album, borderRadius: 6),
-                ),
-                title: Text(
-                  track.title,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
-                  ),
-                ),
-                subtitle: Text(
-                  '${album.artist} · ${album.title}',
-                  style: const TextStyle(fontSize: 12, color: Colors.white54),
-                ),
-                trailing: SourceBadge(album.source),
-              );
-            },
-          ),
-        ),
+        SizedBox(height: 5),
+        Text('已索引的本地音乐', style: TextStyle(color: Colors.white54, fontSize: 13)),
       ],
     );
   }
 }
 
-class _LibraryTabs extends StatelessWidget {
-  const _LibraryTabs();
+class _CatalogMessage extends StatelessWidget {
+  const _CatalogMessage._({
+    required this.icon,
+    required this.title,
+    required this.message,
+    this.actionLabel,
+    this.onAction,
+    this.loading = false,
+  });
+
+  const _CatalogMessage.loading()
+    : this._(
+        icon: Icons.library_music_outlined,
+        title: '正在读取资料库',
+        message: '正在加载已索引的专辑和歌曲。',
+        loading: true,
+      );
+
+  const _CatalogMessage.empty({required VoidCallback onAction})
+    : this._(
+        icon: Icons.create_new_folder_outlined,
+        title: '资料库还是空的',
+        message: '添加一个本地音乐文件夹，扫描完成后歌曲会显示在这里。',
+        actionLabel: '管理音乐来源',
+        onAction: onAction,
+      );
+
+  const _CatalogMessage.error({
+    required String message,
+    required VoidCallback onAction,
+  }) : this._(
+         icon: Icons.error_outline_rounded,
+         title: '无法读取资料库',
+         message: message,
+         actionLabel: '重试',
+         onAction: onAction,
+       );
+
+  final IconData icon;
+  final String title;
+  final String message;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+  final bool loading;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
-        ),
-      ),
-      child: const Row(
-        children: [
-          _TabLabel('最近', active: true),
-          _TabLabel('专辑'),
-          _TabLabel('歌曲'),
-          _TabLabel('艺人'),
-          _TabLabel('流派'),
-        ],
-      ),
-    );
-  }
-}
-
-class _TabLabel extends StatelessWidget {
-  const _TabLabel(this.label, {this.active = false});
-
-  final String label;
-  final bool active;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 26),
-      child: Column(
-        children: [
-          Padding(
-            padding: const EdgeInsets.symmetric(vertical: 12),
-            child: Text(
-              label,
-              style: TextStyle(
-                color: active ? SoundColors.accent : Colors.white54,
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(32, 40, 32, 150),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 420),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (loading)
+                const CircularProgressIndicator()
+              else
+                Icon(icon, size: 48, color: Colors.white38),
+              const SizedBox(height: 18),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                ),
               ),
-            ),
+              const SizedBox(height: 8),
+              Text(
+                message,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white54, height: 1.5),
+              ),
+              if (actionLabel != null && onAction != null) ...[
+                const SizedBox(height: 20),
+                FilledButton.icon(
+                  onPressed: onAction,
+                  icon: const Icon(Icons.folder_open_rounded),
+                  label: Text(actionLabel!),
+                  style: FilledButton.styleFrom(
+                    backgroundColor: SoundColors.accent,
+                    foregroundColor: Colors.white,
+                  ),
+                ),
+              ],
+            ],
           ),
-          Container(
-            width: 28,
-            height: 2,
-            color: active ? SoundColors.accent : Colors.transparent,
-          ),
-        ],
+        ),
       ),
     );
   }
 }
 
 class _SectionHeader extends StatelessWidget {
-  const _SectionHeader({required this.title, this.onAction});
+  const _SectionHeader({required this.title});
 
   final String title;
-  final VoidCallback? onAction;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: Text(
-            title,
-            style: const TextStyle(
-              fontSize: 22,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.3,
-            ),
-          ),
-        ),
-        if (onAction != null)
-          TextButton(onPressed: onAction, child: const Text('查看全部')),
-      ],
+    return Text(
+      title,
+      style: const TextStyle(
+        fontSize: 22,
+        fontWeight: FontWeight.w800,
+        letterSpacing: -0.3,
+      ),
     );
   }
 }
@@ -235,24 +298,6 @@ class _AlbumCard extends StatelessWidget {
             ],
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _CircleButton extends StatelessWidget {
-  const _CircleButton({required this.icon, required this.onTap});
-
-  final IconData icon;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return IconButton.filledTonal(
-      onPressed: onTap,
-      icon: Icon(icon, size: 19),
-      style: IconButton.styleFrom(
-        backgroundColor: Colors.white.withValues(alpha: 0.06),
       ),
     );
   }
