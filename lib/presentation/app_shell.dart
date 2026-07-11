@@ -48,6 +48,12 @@ class _AppShellState extends State<AppShell> {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
+        // Android can briefly report a zero-sized surface while attaching a
+        // cold-started Flutter view. Sliver grids require positive extents,
+        // so wait for the first usable viewport instead of laying out content.
+        if (constraints.maxWidth <= 0 || constraints.maxHeight <= 0) {
+          return const SizedBox.shrink();
+        }
         final desktop = constraints.maxWidth >= 820;
         final content = _showPlaybackValidation
             ? PlaybackValidationScreen(
