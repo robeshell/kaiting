@@ -19,6 +19,7 @@ class PlaybackSnapshot {
     required this.duration,
     this.track,
     this.errorMessage,
+    this.playWhenReady = false,
   });
 
   const PlaybackSnapshot.idle()
@@ -27,7 +28,8 @@ class PlaybackSnapshot {
       position = Duration.zero,
       duration = Duration.zero,
       track = null,
-      errorMessage = null;
+      errorMessage = null,
+      playWhenReady = false;
 
   final int sessionId;
   final PlaybackPhase phase;
@@ -35,8 +37,11 @@ class PlaybackSnapshot {
   final Duration duration;
   final Track? track;
   final String? errorMessage;
+  final bool playWhenReady;
 
-  bool get isPlaying => phase == PlaybackPhase.playing;
+  bool get isPlaying =>
+      phase == PlaybackPhase.playing ||
+      (phase == PlaybackPhase.buffering && playWhenReady);
   bool get hasTrack => track != null;
 
   PlaybackSnapshot copyWith({
@@ -45,6 +50,7 @@ class PlaybackSnapshot {
     Duration? duration,
     Track? track,
     String? errorMessage,
+    bool? playWhenReady,
   }) {
     return PlaybackSnapshot(
       sessionId: sessionId,
@@ -53,6 +59,7 @@ class PlaybackSnapshot {
       duration: duration ?? this.duration,
       track: track ?? this.track,
       errorMessage: errorMessage ?? this.errorMessage,
+      playWhenReady: playWhenReady ?? this.playWhenReady,
     );
   }
 }

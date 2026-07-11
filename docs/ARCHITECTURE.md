@@ -75,6 +75,13 @@ idle -> loading -> ready -> playing
 any state -------------------> error
 ```
 
+`PlaybackVisualState` is the single presentation mapping for that machine.
+The mini player and now-playing screen share its labels, colors, busy signal,
+and primary-action icon. Buffering also carries `playWhenReady`, so the UI can
+offer pause while native playback is waiting for data. Loading disables the
+primary action, completion restarts from zero, and errors expose an explicit
+retry that reloads the current track.
+
 ## Library persistence
 
 - `LibraryRepository` is the presentation-independent boundary for sources,

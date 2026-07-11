@@ -7,27 +7,28 @@
 
 ## 当前焦点
 
-**SND-202 — 在 UI 中区分缓冲、加载、暂停、完成和错误**
+**SND-301 — 实现 WebDAV 连接存储和发现**
 
-SND-201 代码和测试已完成。下一步将迷你播放器和正在播放页对每个
-引擎状态（缓冲、加载、暂停、完成、错误）提供一致的视觉区分。
+播放状态已经在迷你播放器和正在播放页使用同一展示模型。下一步实现
+WebDAV 连接的增删改查、安全凭据和 OPTIONS/PROPFIND 发现。
 
 ## 进行中
 
 | 编号 | 优先级 | 卡片 | 验收标准 |
 | --- | --- | --- | --- |
-| SND-202 | P0 | 在 UI 中区分缓冲、加载、暂停、完成和错误。 | 迷你播放器和正在播放页对每个引擎状态表现一致。 |
+| SND-301 | P0 | 实现 WebDAV 连接存储和发现。 | 连接增删改查、安全凭据、OPTIONS/PROPFIND，以及明确的认证和网络错误。 |
 
 ## 接下来
 
 | 编号 | 优先级 | 卡片 | 验收标准 | 依赖 |
 | --- | --- | --- | --- | --- |
-| SND-301 | P0 | 实现 WebDAV 连接存储和发现。 | 连接增删改查、安全凭据、OPTIONS/PROPFIND，以及明确的认证和网络错误。 | SND-202 |
+| SND-302 | P0 | 将 WebDAV 目录索引到共享资料库。 | 远程歌曲与本地歌曲使用相同领域模型；重扫与来源不可用行为确定。 | SND-301 |
 
 ## 待验证
 
 | 编号 | 已通过 | 待完成 |
 | --- | --- | --- |
+| SND-202 | 八种引擎 phase 使用一个 `PlaybackVisualState` 映射；迷你播放器和正在播放页对 loading、buffering、paused、completed、error 的文案与语义组件测试一致；buffering 保留 play-when-ready，可暂停；loading 禁用主操作；completed 从零重播；error 可重新 load，并展示可重试错误横幅。 | macOS 与 Android 使用真实本地/限速远程音频观察 loading、buffering、暂停、完成和错误视觉；iPhone/iPad 与 Windows 随对应平台回归验证。 |
 | SND-201 | 23 个 session 测试覆盖安全 JSON 往返、歌词、存取/清理/损坏容错、controller 恢复队列/索引且不加载 engine、恢复后 toggle、先 seek 后 play、resume 一次性消费、index 钳制和持久化隔离；组件测试证明恢复曲目和进度可见但不自动播放、连续播放每 2 秒 checkpoint、进入后台立即 flush。应用先完成 session bootstrap 再创建唯一 controller；原生写 app documents，开发 Web 使用无文件系统内存降级；认证 header 不进入会话文件。 | macOS 真机重启验证：播放中退出 → 重启恢复队列/位置但不自动播放 → 按播放从恢复位置开始；Android ARM64 同条件回归。 |
 | SND-105 | 40 个控制器测试覆盖播放、暂停、seek、上一首（>=4s 重播 + <4s 切歌）、下一首（含循环）、完成自动切歌、重复完成事件去重、队列位置竞态保护、旧 session 完成事件拒绝、真实重叠 load 的 generation 隔离、队列替换、toggle 空闲启动和空队列处理；playTrack 在 queue 不含 track 时退回单曲队列。 | macOS 用真实已扫描目录做队列操作回归（切歌/完成/seek/mini player 状态）；Android ARM64 模拟器同条件回归。 |
 | SND-104 | Repository 记录到界面模型的元数据、封面、媒体 URI 和歌词映射测试通过；资料库的加载、空状态和真实歌曲点击播放组件测试通过；产品 `lib/` 不再包含演示专辑、歌词、NAS 或播放列表。 | Android 和 macOS 用真实已扫描目录回归资料库、专辑详情、封面和点击播放；Windows 与 iPhone/iPad 随 SND-102/103 一起验证。 |
@@ -46,8 +47,6 @@ SND-201 代码和测试已完成。下一步将迷你播放器和正在播放页
 
 | 编号 | 优先级 | 卡片 | 验收摘要 |
 | --- | --- | --- | --- |
-| SND-301 | P0 | 实现 WebDAV 连接存储和发现。 | 连接增删改查、安全凭据、OPTIONS/PROPFIND，以及明确的认证和网络错误。 |
-| SND-302 | P0 | 将 WebDAV 目录索引到共享资料库。 | 远程歌曲与本地歌曲使用相同领域模型；重扫与来源不可用行为确定。 |
 | SND-303 | P0 | 增加 WebDAV 缓存和无索引 MP3 兜底。 | 缓存有可配置上限且不会无限增长；无法精确远程 seek 时行为明确。 |
 | SND-402 | P0 | Android 后台播放和通知控制。 | 熄屏后继续播放；元数据和播放/暂停/上下一首保持同步。 |
 | SND-403 | P0 | Windows 系统媒体控制。 | SMTC 元数据和控制动作与队列、播放器保持同步。 |

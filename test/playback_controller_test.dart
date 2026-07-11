@@ -164,6 +164,94 @@ void main() {
       expect(controller.currentTrack, isNull);
       expect(controller.isPlaying, isFalse);
     });
+
+    test('pauses while buffering when play is still requested', () async {
+      final engine = ManualPlaybackEngine();
+      final controller = SoundPlaybackController(engine: engine);
+      addTearDown(controller.dispose);
+      addTearDown(engine.dispose);
+      await controller.playTrack(_firstTrack);
+      engine.emit(
+        PlaybackSnapshot(
+          sessionId: controller.snapshot.sessionId,
+          phase: PlaybackPhase.buffering,
+          position: const Duration(seconds: 20),
+          duration: _firstTrack.duration,
+          track: _firstTrack,
+          playWhenReady: true,
+        ),
+      );
+
+      expect(controller.isPlaying, isTrue);
+      await controller.toggle();
+
+      expect(controller.snapshot.phase, PlaybackPhase.paused);
+    });
+
+    test('ignores the primary action while loading', () async {
+      final engine = ManualPlaybackEngine();
+      engine.emit(
+        PlaybackSnapshot(
+          sessionId: 0,
+          phase: PlaybackPhase.loading,
+          position: Duration.zero,
+          duration: _firstTrack.duration,
+          track: _firstTrack,
+        ),
+      );
+      final controller = SoundPlaybackController(
+        engine: engine,
+        initialQueue: [_firstTrack],
+      );
+      addTearDown(controller.dispose);
+      addTearDown(engine.dispose);
+
+      await controller.toggle();
+
+      expect(controller.snapshot.phase, PlaybackPhase.loading);
+    });
+
+    test('restarts from zero after completion', () async {
+      final engine = ManualPlaybackEngine();
+      engine.emitCompleted(0, _firstTrack);
+      final controller = SoundPlaybackController(
+        engine: engine,
+        initialQueue: [_firstTrack],
+      );
+      addTearDown(controller.dispose);
+      addTearDown(engine.dispose);
+
+      await controller.toggle();
+
+      expect(controller.snapshot.phase, PlaybackPhase.playing);
+      expect(controller.snapshot.position, Duration.zero);
+    });
+
+    test('reloads the current track after an error', () async {
+      final engine = ManualPlaybackEngine();
+      engine.emit(
+        PlaybackSnapshot(
+          sessionId: 0,
+          phase: PlaybackPhase.error,
+          position: Duration.zero,
+          duration: _firstTrack.duration,
+          track: _firstTrack,
+          errorMessage: 'network failed',
+        ),
+      );
+      final controller = SoundPlaybackController(
+        engine: engine,
+        initialQueue: [_firstTrack],
+      );
+      addTearDown(controller.dispose);
+      addTearDown(engine.dispose);
+
+      await controller.toggle();
+
+      expect(controller.snapshot.phase, PlaybackPhase.playing);
+      expect(controller.currentTrack, same(_firstTrack));
+      expect(controller.snapshot.sessionId, 1);
+    });
   });
 
   // ---------------------------------------------------------------------------

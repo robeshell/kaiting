@@ -237,6 +237,7 @@ class JustAudioPlaybackEngine implements PlaybackEngine {
         duration: _duration,
         track: track,
         errorMessage: errorMessage,
+        playWhenReady: _playing,
       ),
     );
   }

@@ -3,9 +3,11 @@ import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
+import '../../core/sound_theme.dart';
 import '../../domain/library_models.dart';
 import '../../playback/playback_controller.dart';
 import '../widgets/album_art.dart';
+import '../widgets/playback_status_badge.dart';
 import '../widgets/progress_scrubber.dart';
 
 class NowPlayingScreen extends StatelessWidget {
@@ -22,6 +24,10 @@ class NowPlayingScreen extends StatelessWidget {
         if (track == null) return const _NoTrackPlaying();
         final album = albumForTrack(track);
         final snapshot = playback.snapshot;
+        final visual = PlaybackVisualState.fromSnapshot(
+          snapshot,
+          hasDisplayTrack: true,
+        );
         return Scaffold(
           backgroundColor: album.palette.last,
           body: Stack(
@@ -58,13 +64,7 @@ class NowPlayingScreen extends StatelessWidget {
                             icon: const Icon(Icons.keyboard_arrow_down_rounded),
                           ),
                           const Spacer(),
-                          const Text(
-                            '正在播放',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w800,
-                            ),
-                          ),
+                          PlaybackStatusBadge(state: visual),
                           const Spacer(),
                           IconButton.filledTonal(
                             onPressed: () {},
@@ -93,12 +93,9 @@ class NowPlayingScreen extends StatelessWidget {
                       ),
                     ),
                     if (snapshot.errorMessage case final message?)
-                      Padding(
-                        padding: const EdgeInsets.all(12),
-                        child: Text(
-                          message,
-                          style: const TextStyle(color: Colors.redAccent),
-                        ),
+                      _PlaybackErrorBanner(
+                        message: message,
+                        onRetry: playback.toggle,
                       ),
                   ],
                 ),
@@ -234,6 +231,10 @@ class _PlayerColumn extends StatelessWidget {
   Widget build(BuildContext context) {
     final position = playback.displayPosition;
     final duration = playback.displayDuration;
+    final visual = PlaybackVisualState.fromSnapshot(
+      playback.snapshot,
+      hasDisplayTrack: true,
+    );
     final remaining = duration - position;
     final remainingLabel = duration > Duration.zero
         ? '-${formatDuration(remaining.isNegative ? Duration.zero : remaining)}'
@@ -291,12 +292,17 @@ class _PlayerColumn extends StatelessWidget {
               iconSize: 34,
             ),
             IconButton.filled(
-              onPressed: playback.toggle,
-              icon: Icon(
-                playback.isPlaying
-                    ? Icons.pause_rounded
-                    : Icons.play_arrow_rounded,
-              ),
+              onPressed: visual.primaryEnabled ? playback.toggle : null,
+              tooltip: visual.primaryTooltip,
+              icon: visual.busy && !visual.primaryEnabled
+                  ? const SizedBox.square(
+                      dimension: 24,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.2,
+                        color: Colors.black54,
+                      ),
+                    )
+                  : Icon(visual.primaryIcon),
               iconSize: 34,
               style: IconButton.styleFrom(
                 backgroundColor: Colors.white,
@@ -316,6 +322,48 @@ class _PlayerColumn extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+}
+
+class _PlaybackErrorBanner extends StatelessWidget {
+  const _PlaybackErrorBanner({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      top: false,
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(20, 0, 20, 14),
+        padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.32),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: SoundColors.accent.withValues(alpha: 0.52)),
+        ),
+        child: Row(
+          children: [
+            const Icon(Icons.error_outline_rounded, color: SoundColors.accent),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                message,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(color: Colors.white70, fontSize: 12),
+              ),
+            ),
+            TextButton.icon(
+              onPressed: onRetry,
+              icon: const Icon(Icons.refresh_rounded),
+              label: const Text('重试'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

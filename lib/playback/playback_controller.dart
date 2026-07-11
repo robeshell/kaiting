@@ -96,6 +96,16 @@ class SoundPlaybackController extends ChangeNotifier {
       if (_queue.isNotEmpty) await playTrack(_queue[_queueIndex]);
       return;
     }
+    if (_snapshot.phase == PlaybackPhase.loading) return;
+    if (_snapshot.phase == PlaybackPhase.error) {
+      await playTrack(_snapshot.track!, queue: _queue);
+      return;
+    }
+    if (_snapshot.phase == PlaybackPhase.completed) {
+      await _engine.seek(Duration.zero);
+      await _engine.play();
+      return;
+    }
     if (_snapshot.isPlaying) {
       await _engine.pause();
     } else {

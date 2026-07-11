@@ -25,6 +25,9 @@ from explicit platform-independent contracts.
   backgrounding. Restart keeps the restored item visible without autoplay,
   then seeks before playback when the user resumes; authorization headers are
   never written to the session file.
+- Mini-player and now-playing surfaces share one visual mapping for loading,
+  buffering, ready, playing, paused, completed, and error states, including
+  replay and retry actions.
 - A Drift/SQLite v1 repository now persists sources, artists, albums, tracks,
   lyrics, and atomic scan state across native platforms and the development
   Web build.

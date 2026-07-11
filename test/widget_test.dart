@@ -49,7 +49,15 @@ void main() {
 
     await tester.tap(find.text('Test Track'));
     await tester.pump();
-    expect(find.byIcon(Icons.graphic_eq_rounded), findsOneWidget);
+    expect(
+      find.byWidgetPredicate(
+        (widget) =>
+            widget is Icon &&
+            widget.icon == Icons.graphic_eq_rounded &&
+            widget.size == 18,
+      ),
+      findsOneWidget,
+    );
 
     await _unmountAndFlush(tester);
   });
