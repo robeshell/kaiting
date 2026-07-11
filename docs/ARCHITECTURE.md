@@ -8,8 +8,8 @@ the prototype.
 
 - Windows
 - Android
-- macOS and iOS remain build targets so the design can continue on Apple
-  devices, but Windows and Android drive architectural decisions.
+- iPhone and iPad (minimum iOS/iPadOS 13, Universal device family)
+- macOS remains a first-class development and regression target.
 
 ## Module boundaries
 
@@ -26,7 +26,7 @@ sources
   local folders and WebDAV
 platform
   background playback, media controls, file pickers, credentials,
-  macOS security-scoped bookmarks
+  Apple security-scoped URLs and bookmarks
 ```
 
 Dependencies point inward: platform implementations may depend on domain
@@ -105,6 +105,9 @@ The `web/sqlite3.wasm` binary must match the `sqlite3` version resolved in
 - macOS stores a read-only security-scoped bookmark. Startup resolves the
   bookmark, refreshes stale bookmark data, and keeps security-scoped access
   active for the process lifetime.
+- iPhone and iPad use `UIDocumentPickerViewController` to select a Files or
+  iCloud directory. The returned security-scoped URL is bookmarked, restored,
+  and held only for the process lifetime; the app remains a Universal target.
 - Windows and Linux persist a normalized `file://` directory URI and check the
   directory on every restore. They do not require an opaque permission token.
 - Application shutdown never revokes a durable grant. Explicitly removing a
@@ -114,10 +117,27 @@ The `web/sqlite3.wasm` binary must match the `sqlite3` version resolved in
   `permissionRequired` and `unavailable` states instead of being treated as
   empty libraries.
 
+## Local library scanning
+
+- `LocalMediaCatalog` enumerates MP3 and FLAC without leaking platform storage
+  details into the scanner. Desktop and Apple platforms use restored file
+  URLs; Android walks the persisted SAF tree with `ContentResolver`.
+- Android copies one SAF document at a time into an app-cache scratch file for
+  pure-Dart metadata parsing, then deletes it immediately. The stored playback
+  URI remains the original `content://` document URI.
+- `audio_metadata_reader` parses MP3 ID3 and FLAC Vorbis metadata in a worker
+  isolate. Parsed fields include title, artist, album, track/disc number,
+  duration, year, genre, embedded cover, and embedded lyrics.
+- Embedded synchronized lyrics are normalized into ordered millisecond rows;
+  unsynchronized lyrics remain one zero-timestamp record.
+- Damaged files and artwork-write failures become scan warnings instead of
+  discarding other valid tracks. A completed scan replaces the source batch in
+  one existing Drift transaction, so removed files disappear atomically.
+
 ## Vertical validation before feature development
 
 The architecture is accepted only after the same small scenario works on
-Windows and Android:
+Windows, Android, iPhone, and iPad:
 
 1. Scan one local MP3 and one local FLAC.
 2. Read title, artist, album, duration, cover, and embedded lyrics.

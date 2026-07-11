@@ -1,8 +1,8 @@
 # Playback vertical-slice validation
 
-Do not expand the product feature set until this slice passes on both Windows
-and Android. Package choice remains provisional until the measurements below
-are recorded.
+Do not expand the product feature set until this slice passes on Windows,
+Android, iPhone, and iPad. Package choice remains provisional until the
+measurements below are recorded.
 
 ## Evidence recorded so far
 
@@ -67,6 +67,7 @@ previous SliverGrid assertion.
 
 - [x] Local MP3 and FLAC load and begin playback on macOS and Android.
 - [ ] Local MP3 and FLAC load and begin playback on Windows.
+- [ ] Local MP3 and FLAC load and begin playback on iPhone and iPad.
 - [x] Authenticated WebDAV FLAC streams and issues non-zero ranges for seek on
       macOS and Android.
 - [x] Authenticated WebDAV MP3 settles the recorded remote seek by requesting a
@@ -80,6 +81,8 @@ previous SliverGrid assertion.
 - [ ] Android continues playback with the screen off.
 - [ ] Android notification controls and metadata stay synchronized.
 - [ ] Windows system media controls and metadata stay synchronized.
+- [ ] iPhone/iPad background playback, lock screen, Control Center, and headset
+      controls stay synchronized.
 - [ ] Relaunch restores the queue and saved position without autoplaying.
 
 ## Measurements

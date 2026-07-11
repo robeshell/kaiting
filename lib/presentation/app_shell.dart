@@ -6,6 +6,8 @@ import '../core/sound_theme.dart';
 import '../domain/library_models.dart';
 import '../library/library_repository.dart';
 import '../library/persistence/drift_library_repository.dart';
+import '../library/scanning/local_library_scanner.dart';
+import '../library/scanning/local_media_catalog_factory.dart';
 import '../playback/playback_controller.dart';
 import '../sources/local/local_directory_access_factory.dart';
 import '../sources/local/local_source_service.dart';
@@ -35,11 +37,19 @@ class _AppShellState extends State<AppShell> {
   bool _showPlaybackValidation = false;
   LibraryRepository? _libraryRepository;
   LocalSourceService? _localSourceService;
+  LocalLibraryScanner? _localLibraryScanner;
 
   LocalSourceService get _sources {
     return _localSourceService ??= LocalSourceService(
       repository: _libraryRepository ??= DriftLibraryRepository.defaults(),
       directoryAccess: createLocalDirectoryAccess(),
+    );
+  }
+
+  LocalLibraryScanner get _scanner {
+    return _localLibraryScanner ??= LocalLibraryScanner(
+      repository: _libraryRepository ??= DriftLibraryRepository.defaults(),
+      catalog: createLocalMediaCatalog(),
     );
   }
 
@@ -89,6 +99,7 @@ class _AppShellState extends State<AppShell> {
                 AppSection.search => const _SearchPlaceholder(),
                 AppSection.sources => SourceSettingsScreen(
                   localSources: _sources,
+                  scanner: _scanner,
                   onOpenPlaybackValidation: () =>
                       setState(() => _showPlaybackValidation = true),
                 ),

@@ -7,8 +7,9 @@ from explicit platform-independent contracts.
 
 ## Current state
 
-- Flutter hosts: Android, Windows, iOS, macOS, and a development-only Web
-  preview.
+- First-class Flutter targets: Android, Windows, iPhone, iPad, and macOS, plus
+  a development-only Web preview. The Apple mobile target is Universal and
+  supports iOS/iPadOS 13 or later.
 - Retained UI: library, album detail, now playing/lyrics, source settings, and
   responsive mini player.
 - Responsive layouts verified in desktop, compact web preview, and an Android
@@ -24,18 +25,23 @@ from explicit platform-independent contracts.
   lyrics, and atomic scan state across native platforms and the development
   Web build.
 - Local folder sources persist Android SAF tree grants and macOS
-  security-scoped bookmarks across restarts; Windows and Linux restore
-  normalized filesystem directory URIs. Revoked or missing access remains a
-  visible, recoverable source state.
+  security-scoped bookmarks across restarts; iPhone/iPad use the system Files
+  picker and a restored bookmark; Windows and Linux restore normalized
+  filesystem directory URIs. Revoked or missing access remains a visible,
+  recoverable source state.
+- A local scanner now indexes MP3/FLAC title, artist, album, track/disc number,
+  duration, cover, genre, year, and embedded lyrics into one atomic repository
+  batch. Android SAF scanning and deletion-aware rescanning pass on an Android
+  16 ARM64 emulator.
 - Local MP3 and FLAC playback plus a 120-second seek pass on macOS and Android;
   none of the recorded local runs regressed position.
 - Authenticated WebDAV MP3 playback and byte-range seeking now pass with the
   just_audio adapter on macOS and Android. In the throttled fixture, a
   120-second seek opens a range near byte 5 MB and resumes in about 0.04 seconds
   on macOS and 0.7-1.0 seconds on Android.
-- Source indexing, background playback, system media controls, and the
-  production WebDAV flow remain intentionally unfinished. Windows runtime
-  validation of durable local-folder restoration is still pending.
+- Real repository-backed library screens, background playback, system media
+  controls, and the production WebDAV flow remain unfinished. Windows and
+  iPhone/iPad runtime validation are still pending on suitable hosts/devices.
 
 ## Run
 

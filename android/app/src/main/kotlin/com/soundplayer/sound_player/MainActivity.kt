@@ -4,6 +4,7 @@ import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.provider.DocumentsContract
+import java.io.File
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodCall
@@ -29,6 +30,9 @@ class MainActivity : FlutterActivity() {
             "pickDirectory" -> pickDirectory(result)
             "restoreDirectory" -> restoreDirectory(call, result)
             "releaseDirectory" -> releaseDirectory(call, result)
+            "listAudioFiles" -> listAudioFiles(call, result)
+            "prepareAudioFile" -> prepareAudioFile(call, result)
+            "releasePreparedAudioFile" -> releasePreparedAudioFile(call, result)
             else -> result.notImplemented()
         }
     }
@@ -155,5 +159,149 @@ class MainActivity : FlutterActivity() {
             treeUri,
             DocumentsContract.getTreeDocumentId(treeUri),
         )
+    }
+
+    private fun listAudioFiles(call: MethodCall, result: MethodChannel.Result) {
+        val rootUri = call.argument<String>("rootUri")
+        if (rootUri == null) {
+            result.error("invalid_directory_grant", "A root URI is required.", null)
+            return
+        }
+        runMediaOperation(result) {
+            val treeUri = Uri.parse(rootUri)
+            val rootDocumentId = DocumentsContract.getTreeDocumentId(treeUri)
+            val files = mutableListOf<Map<String, Any?>>()
+            val visitedDirectories = mutableSetOf<String>()
+
+            fun walk(documentId: String, parentPath: String) {
+                if (!visitedDirectories.add(documentId)) return
+                val childrenUri = DocumentsContract.buildChildDocumentsUriUsingTree(
+                    treeUri,
+                    documentId,
+                )
+                val columns = arrayOf(
+                    DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+                    DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+                    DocumentsContract.Document.COLUMN_MIME_TYPE,
+                    DocumentsContract.Document.COLUMN_SIZE,
+                    DocumentsContract.Document.COLUMN_LAST_MODIFIED,
+                )
+                contentResolver.query(childrenUri, columns, null, null, null)?.use { cursor ->
+                    val idIndex = cursor.getColumnIndexOrThrow(
+                        DocumentsContract.Document.COLUMN_DOCUMENT_ID,
+                    )
+                    val nameIndex = cursor.getColumnIndexOrThrow(
+                        DocumentsContract.Document.COLUMN_DISPLAY_NAME,
+                    )
+                    val mimeIndex = cursor.getColumnIndexOrThrow(
+                        DocumentsContract.Document.COLUMN_MIME_TYPE,
+                    )
+                    val sizeIndex = cursor.getColumnIndex(
+                        DocumentsContract.Document.COLUMN_SIZE,
+                    )
+                    val modifiedIndex = cursor.getColumnIndex(
+                        DocumentsContract.Document.COLUMN_LAST_MODIFIED,
+                    )
+                    while (cursor.moveToNext()) {
+                        val childId = cursor.getString(idIndex)
+                        val name = cursor.getString(nameIndex) ?: childId.substringAfterLast('/')
+                        val mimeType = cursor.getString(mimeIndex)
+                        val relativePath = if (parentPath.isEmpty()) {
+                            name
+                        } else {
+                            "$parentPath/$name"
+                        }
+                        if (mimeType == DocumentsContract.Document.MIME_TYPE_DIR) {
+                            walk(childId, relativePath)
+                        } else if (isSupportedAudioFile(name, mimeType)) {
+                            val documentUri = DocumentsContract.buildDocumentUriUsingTree(
+                                treeUri,
+                                childId,
+                            )
+                            files.add(
+                                mapOf(
+                                    "relativePath" to relativePath,
+                                    "mediaUri" to documentUri.toString(),
+                                    "contentType" to mimeType,
+                                    "fileSize" to cursor.longOrNull(sizeIndex),
+                                    "modifiedAtMs" to (cursor.longOrNull(modifiedIndex) ?: 0L),
+                                ),
+                            )
+                        }
+                    }
+                } ?: throw IllegalStateException("The selected directory could not be queried.")
+            }
+
+            walk(rootDocumentId, "")
+            files
+        }
+    }
+
+    private fun prepareAudioFile(call: MethodCall, result: MethodChannel.Result) {
+        val mediaUri = call.argument<String>("mediaUri")
+        val relativePath = call.argument<String>("relativePath")
+        if (mediaUri == null || relativePath == null) {
+            result.error("invalid_audio_file", "A media URI and relative path are required.", null)
+            return
+        }
+        runMediaOperation(result) {
+            val extension = relativePath.substringAfterLast('.', "audio")
+                .lowercase()
+                .filter { it.isLetterOrDigit() }
+                .take(8)
+            val scanCache = File(cacheDir, "sound_scan").apply { mkdirs() }
+            val prepared = File.createTempFile("metadata-", ".$extension", scanCache)
+            try {
+                contentResolver.openInputStream(Uri.parse(mediaUri))?.use { input ->
+                    prepared.outputStream().use(input::copyTo)
+                } ?: throw IllegalStateException("The audio file could not be opened.")
+                prepared.absolutePath
+            } catch (error: Exception) {
+                prepared.delete()
+                throw error
+            }
+        }
+    }
+
+    private fun releasePreparedAudioFile(call: MethodCall, result: MethodChannel.Result) {
+        val filePath = call.argument<String>("path")
+        if (filePath != null) {
+            val scanCache = File(cacheDir, "sound_scan").canonicalFile
+            val file = File(filePath).canonicalFile
+            if (file.parentFile == scanCache) file.delete()
+        }
+        result.success(null)
+    }
+
+    private fun runMediaOperation(
+        result: MethodChannel.Result,
+        operation: () -> Any?,
+    ) {
+        Thread {
+            try {
+                val value = operation()
+                runOnUiThread { result.success(value) }
+            } catch (error: SecurityException) {
+                runOnUiThread {
+                    result.error("directory_permission_required", error.message, null)
+                }
+            } catch (error: Exception) {
+                runOnUiThread {
+                    result.error("local_media_scan_failed", error.message, null)
+                }
+            }
+        }.start()
+    }
+
+    private fun isSupportedAudioFile(name: String, mimeType: String?): Boolean {
+        val lowerName = name.lowercase()
+        return lowerName.endsWith(".mp3") ||
+            lowerName.endsWith(".flac") ||
+            mimeType == "audio/mpeg" ||
+            mimeType == "audio/flac"
+    }
+
+    private fun android.database.Cursor.longOrNull(index: Int): Long? {
+        return if (index < 0 || isNull(index)) null else getLong(index)
     }
 }

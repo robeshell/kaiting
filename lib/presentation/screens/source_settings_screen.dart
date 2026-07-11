@@ -4,16 +4,19 @@ import 'package:flutter/material.dart';
 
 import '../../core/sound_theme.dart';
 import '../../library/library_records.dart';
+import '../../library/scanning/local_library_scanner.dart';
 import '../../sources/local/local_source_service.dart';
 
 class SourceSettingsScreen extends StatefulWidget {
   const SourceSettingsScreen({
     required this.localSources,
+    required this.scanner,
     required this.onOpenPlaybackValidation,
     super.key,
   });
 
   final LocalSourceService localSources;
+  final LocalLibraryScanner scanner;
   final VoidCallback onOpenPlaybackValidation;
 
   @override
@@ -22,6 +25,7 @@ class SourceSettingsScreen extends StatefulWidget {
 
 class _SourceSettingsScreenState extends State<SourceSettingsScreen> {
   bool _addingSource = false;
+  final Set<String> _scanningSourceIds = {};
 
   @override
   void initState() {
@@ -33,7 +37,10 @@ class _SourceSettingsScreenState extends State<SourceSettingsScreen> {
     if (_addingSource) return;
     setState(() => _addingSource = true);
     try {
-      await widget.localSources.addLocalFolder();
+      final source = await widget.localSources.addLocalFolder();
+      if (source != null && source.status == LibrarySourceStatus.available) {
+        await _scanLocalSource(source);
+      }
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -52,6 +59,29 @@ class _SourceSettingsScreenState extends State<SourceSettingsScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(SnackBar(content: Text('无法移除文件夹：$error')));
+    }
+  }
+
+  Future<void> _scanLocalSource(LibrarySourceRecord source) async {
+    if (!_scanningSourceIds.add(source.id)) return;
+    setState(() {});
+    try {
+      final report = await widget.scanner.scan(source);
+      if (!mounted) return;
+      final skipped = report.skippedFiles == 0
+          ? ''
+          : '，跳过 ${report.skippedFiles} 个文件';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('已索引 ${report.indexedTracks} 首歌曲$skipped')),
+      );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('扫描失败：$error')));
+    } finally {
+      _scanningSourceIds.remove(source.id);
+      if (mounted) setState(() {});
     }
   }
 
@@ -127,6 +157,9 @@ class _SourceSettingsScreenState extends State<SourceSettingsScreen> {
                     statusColor: _sourceStatusColor(sources[index]),
                     folders: [sources[index].displayName],
                     onRemove: () => _removeLocalSource(sources[index]),
+                    onRescan: _scanningSourceIds.contains(sources[index].id)
+                        ? null
+                        : () => _scanLocalSource(sources[index]),
                   ),
                   if (index != sources.length - 1) const SizedBox(height: 14),
                 ],
@@ -159,7 +192,10 @@ class _SourceSettingsScreenState extends State<SourceSettingsScreen> {
     return switch (source.status) {
       LibrarySourceStatus.idle => '等待扫描',
       LibrarySourceStatus.scanning => '正在扫描',
-      LibrarySourceStatus.available => '已授权 · 等待扫描',
+      LibrarySourceStatus.available =>
+        source.scanRevision == 0
+            ? '已授权 · 等待扫描'
+            : '已索引 · 已扫描 ${source.scanRevision} 次',
       LibrarySourceStatus.permissionRequired => '需要重新授权',
       LibrarySourceStatus.unavailable => '文件夹不可用',
       LibrarySourceStatus.error => source.lastError ?? '来源错误',
@@ -217,6 +253,7 @@ class _SourceCard extends StatelessWidget {
     required this.folders,
     this.statusColor = SoundColors.local,
     this.onRemove,
+    this.onRescan,
   });
 
   final IconData icon;
@@ -227,6 +264,7 @@ class _SourceCard extends StatelessWidget {
   final List<String> folders;
   final Color statusColor;
   final VoidCallback? onRemove;
+  final VoidCallback? onRescan;
 
   @override
   Widget build(BuildContext context) {
@@ -343,7 +381,10 @@ class _SourceCard extends StatelessWidget {
                           style: const TextStyle(fontSize: 13),
                         ),
                       ),
-                      TextButton(onPressed: () {}, child: const Text('重新扫描')),
+                      TextButton(
+                        onPressed: onRescan,
+                        child: const Text('重新扫描'),
+                      ),
                     ],
                   ),
                 ),
