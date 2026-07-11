@@ -68,6 +68,32 @@ idle -> loading -> ready -> playing
 any state -------------------> error
 ```
 
+## Library persistence
+
+- `LibraryRepository` is the presentation-independent boundary for sources,
+  artists, albums, tracks, lyrics, and scan state.
+- Drift manages the SQLite v1 schema. Entity primary keys are stable text IDs
+  supplied by source scanners; only lyric ordering uses a composite key.
+- A source scan is replaced inside one transaction. Failed constraints roll
+  back metadata, lyrics, deletions, and the source scan revision together.
+- All persisted timestamps cross the repository boundary as UTC values.
+- Native databases live in the application documents directory and can be
+  shared across Flutter isolates. The development Web build uses the matching
+  SQLite WASM module and Drift worker committed under `web/`.
+- `drift_schemas/sound_library/` stores the versioned schema baseline. After
+  every schema change, increment `schemaVersion` and run
+  `dart run drift_dev make-migrations` before editing the generated migration.
+
+Regenerate the type-safe database code and Web worker with:
+
+```sh
+dart run build_runner build
+dart compile js -O4 -o web/drift_worker.dart.js tool/drift_worker.dart
+```
+
+The `web/sqlite3.wasm` binary must match the `sqlite3` version resolved in
+`pubspec.lock`.
+
 ## Vertical validation before feature development
 
 The architecture is accepted only after the same small scenario works on

@@ -7,23 +7,22 @@
 
 ## 当前焦点
 
-**SND-101 — 持久化资料库基础**
+**SND-102 — 跨平台本地文件夹持久权限**
 
-播放器纵向链路已经在 macOS 和 Android 验证稳定。下一阶段不继续扩张视觉
-功能，而是开始替换演示数据：让一个真实 MP3 和一个真实 FLAC 能被选择、
-索引、持久化，在重启后显示于资料库，并从正常资料库界面播放。
+SQLite 资料库和原子扫描事务已经完成。下一步建立真正可持久化的目录访问：
+macOS 使用 security-scoped bookmark，Android 使用 SAF tree permission，
+Windows 恢复用户选择的目录；权限失效必须成为可恢复状态。
 
 ## 进行中
 
 | 编号 | 优先级 | 卡片 | 验收标准 |
 | --- | --- | --- | --- |
-| SND-101 | P0 | 定义持久化资料库边界，以及来源、歌曲、专辑、艺人、歌词和扫描状态的 SQLite 结构。 | Repository 接口不依赖 presentation；数据库具备迁移和稳定 ID；歌曲/来源 CRUD 与整批替换扫描具备测试；关闭并重新打开数据库后数据一致。 |
+| SND-102 | P0 | 实现 macOS、Android 和 Windows 的本地文件夹持久权限。 | macOS 保存并恢复 security-scoped bookmark；Android 保存 SAF tree 权限；Windows 可恢复选定目录；权限撤销和来源不可用有明确状态。 |
 
 ## 接下来
 
 | 编号 | 优先级 | 卡片 | 验收标准 | 依赖 |
 | --- | --- | --- | --- | --- |
-| SND-102 | P0 | 实现 macOS、Android 和 Windows 的本地文件夹持久权限。 | macOS 保存并恢复 security-scoped bookmark；Android 保存 SAF tree 权限；Windows 可恢复选定目录；权限撤销和来源不可用有明确状态。 | SND-101 |
 | SND-103 | P0 | 扫描一个选定目录并提取 MP3/FLAC 元数据。 | 读取标题、艺人、专辑、曲序、时长、封面和内嵌歌词；安全忽略不支持或损坏的文件；重扫以事务方式增删改；fixture 和解析测试通过。 | SND-101、SND-102 |
 | SND-104 | P0 | 用 Repository 数据替换演示资料库。 | 资料库与专辑详情展示真实扫描结果；空、加载和错误状态可见；点击真实歌曲会进入现有播放控制器。 | SND-103 |
 | SND-105 | P0 | 补齐本地资料库纵向链路的队列和传输控制。 | 播放、暂停、seek、上一首、下一首、完成、快速切歌和替换队列均通过控制器测试，且不会出现旧进度。 | SND-104 |
@@ -66,6 +65,7 @@
 | SND-004 | 在 macOS 和 Android 16 ARM64 验证最终代码的本地 MP3/FLAC、认证 WebDAV MP3/FLAC 和 120 秒 seek。 |
 | SND-005 | 建立可重复的认证、限速、支持 Range 的 WebDAV fixture 和测试。 |
 | SND-006 | 下移移动端迷你播放器，并处理 Android 冷启动零尺寸视口。 |
+| SND-101 | 建立 Drift/SQLite v1 资料库、跨平台数据库入口、schema 快照、稳定文本 ID、UTC 时间边界和原子整批扫描事务；持久化重开与失败回滚测试通过。 |
 
 ## 第一版门槛
 

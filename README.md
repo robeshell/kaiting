@@ -20,6 +20,9 @@ from explicit platform-independent contracts.
   WebDAV media URL without adding either source to the demo library.
 - `PlaybackEngine` snapshots are the sole authority for playback position.
 - Playback session generations reject callbacks from previously loaded tracks.
+- A Drift/SQLite v1 repository now persists sources, artists, albums, tracks,
+  lyrics, and atomic scan state across native platforms and the development
+  Web build.
 - Local MP3 and FLAC playback plus a 120-second seek pass on macOS and Android;
   none of the recorded local runs regressed position.
 - Authenticated WebDAV MP3 playback and byte-range seeking now pass with the
