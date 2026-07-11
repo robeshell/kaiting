@@ -53,6 +53,7 @@ flutter build web
 
 ## Documentation
 
+- [Development kanban](docs/KANBAN.md)
 - [Design foundation](docs/DESIGN_FOUNDATION.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Playback validation plan](docs/PLAYBACK_VALIDATION.md)
