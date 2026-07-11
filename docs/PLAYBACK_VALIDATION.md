@@ -6,6 +6,25 @@ are recorded.
 
 ## Evidence recorded so far
 
+Final `just_audio` regression after removing MediaKit, recorded on 2026-07-11
+with playback muted but native decoding, buffering, duration, position, and
+range requests active:
+
+| Platform | Source | Reported duration | 120-second seek result | Target range |
+| --- | --- | ---: | --- | --- |
+| macOS | local MP3 | 223.190 s | advanced through 121, 122, 123 s | n/a |
+| macOS | local FLAC | 312.000 s | advanced through 121, 122, 123 s | n/a |
+| macOS | WebDAV MP3 | 223.190 s | resumed and advanced without regression | `bytes=5046272-9218084` |
+| macOS | WebDAV FLAC | 312.000 s | resumed and advanced without regression | `bytes=16908288-70343680` |
+| Android 16 ARM64 | local MP3 | 223.190 s | advanced through 121, 122, 123 s | n/a |
+| Android 16 ARM64 | local FLAC | 311.986 s | advanced through 121, 122, 123 s | n/a |
+| Android 16 ARM64 | WebDAV MP3 | 223.190 s | resumed after about 0.72 s | `bytes=5090034-` |
+| Android 16 ARM64 | WebDAV FLAC | 311.986 s | resumed after about 3.67 s | `bytes=26065887-`, then `bytes=27156713-` |
+
+All WebDAV runs used Basic Auth and a 256 KiB/s fixture. The final Android
+runs also confirmed that the zero-size cold-start viewport guard prevents the
+previous SliverGrid assertion.
+
 - [x] macOS: real MP3 loads, reports a 223.190-second duration, plays, and
       settles at 120.000 seconds after seek.
 - [x] macOS: real FLAC loads, reports a 223.453-second duration, plays, and
@@ -32,6 +51,9 @@ are recorded.
       open-ended sequential MP3 behavior; the experiment was removed.
 - [ ] Windows, background playback, and system media controls still require
       validation.
+- [ ] macOS library persistence must store security-scoped bookmarks. A raw
+      path outside the app sandbox is rejected after permission context is
+      lost; the automated local regression therefore uses the app container.
 
 ## Fixtures
 

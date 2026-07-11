@@ -25,7 +25,8 @@ playback
 sources
   local folders and WebDAV
 platform
-  background playback, media controls, file pickers, credentials
+  background playback, media controls, file pickers, credentials,
+  macOS security-scoped bookmarks
 ```
 
 Dependencies point inward: platform implementations may depend on domain
