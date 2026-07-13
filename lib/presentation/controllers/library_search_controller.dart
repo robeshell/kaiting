@@ -32,21 +32,25 @@ extension LibrarySearchSortLabel on LibrarySearchSort {
 }
 
 class LibrarySearchDocument {
-  const LibrarySearchDocument({
+  LibrarySearchDocument({
     required this.trackId,
-    required this.title,
-    required this.trackArtist,
-    required this.albumTitle,
-    required this.albumArtist,
-    required this.genre,
-  });
+    required String title,
+    required String trackArtist,
+    required String albumTitle,
+    required String albumArtist,
+    required String genre,
+  }) : normalizedTitle = _normalized(title),
+       normalizedTrackArtist = _normalized(trackArtist),
+       normalizedAlbumTitle = _normalized(albumTitle),
+       normalizedAlbumArtist = _normalized(albumArtist),
+       normalizedGenre = _normalized(genre);
 
   final String trackId;
-  final String title;
-  final String trackArtist;
-  final String albumTitle;
-  final String albumArtist;
-  final String genre;
+  final String normalizedTitle;
+  final String normalizedTrackArtist;
+  final String normalizedAlbumTitle;
+  final String normalizedAlbumArtist;
+  final String normalizedGenre;
 }
 
 class LibrarySearchRequest {
@@ -225,9 +229,8 @@ List<String> searchLibraryDocuments(LibrarySearchRequest request) {
   final matches = <({LibrarySearchDocument document, int relevance})>[];
 
   for (final document in request.documents) {
-    final values = _searchValues(document, request.field);
     final matchesEveryTerm = terms.every(
-      (term) => values.any((value) => value.contains(term)),
+      (term) => _documentContains(document, request.field, term),
     );
     if (!matchesEveryTerm) continue;
     matches.add((document: document, relevance: _relevance(document, terms)));
@@ -237,20 +240,23 @@ List<String> searchLibraryDocuments(LibrarySearchRequest request) {
     final byPrimary = switch (request.sort) {
       LibrarySearchSort.relevance => left.relevance.compareTo(right.relevance),
       LibrarySearchSort.title => _compareText(
-        left.document.title,
-        right.document.title,
+        left.document.normalizedTitle,
+        right.document.normalizedTitle,
       ),
       LibrarySearchSort.artist => _compareText(
-        left.document.trackArtist,
-        right.document.trackArtist,
+        left.document.normalizedTrackArtist,
+        right.document.normalizedTrackArtist,
       ),
       LibrarySearchSort.album => _compareText(
-        left.document.albumTitle,
-        right.document.albumTitle,
+        left.document.normalizedAlbumTitle,
+        right.document.normalizedAlbumTitle,
       ),
     };
     if (byPrimary != 0) return byPrimary;
-    final byTitle = _compareText(left.document.title, right.document.title);
+    final byTitle = _compareText(
+      left.document.normalizedTitle,
+      right.document.normalizedTitle,
+    );
     if (byTitle != 0) return byTitle;
     return left.document.trackId.compareTo(right.document.trackId);
   });
@@ -260,39 +266,42 @@ List<String> searchLibraryDocuments(LibrarySearchRequest request) {
   ];
 }
 
-List<String> _searchValues(
+bool _documentContains(
   LibrarySearchDocument document,
   LibrarySearchField field,
+  String term,
 ) {
-  final values = switch (field) {
-    LibrarySearchField.all => [
-      document.title,
-      document.albumTitle,
-      document.trackArtist,
-      document.albumArtist,
-      document.genre,
-    ],
-    LibrarySearchField.title => [document.title],
-    LibrarySearchField.album => [document.albumTitle],
-    LibrarySearchField.trackArtist => [document.trackArtist],
-    LibrarySearchField.albumArtist => [document.albumArtist],
-    LibrarySearchField.genre => [document.genre],
+  return switch (field) {
+    LibrarySearchField.all =>
+      document.normalizedTitle.contains(term) ||
+          document.normalizedAlbumTitle.contains(term) ||
+          document.normalizedTrackArtist.contains(term) ||
+          document.normalizedAlbumArtist.contains(term) ||
+          document.normalizedGenre.contains(term),
+    LibrarySearchField.title => document.normalizedTitle.contains(term),
+    LibrarySearchField.album => document.normalizedAlbumTitle.contains(term),
+    LibrarySearchField.trackArtist => document.normalizedTrackArtist.contains(
+      term,
+    ),
+    LibrarySearchField.albumArtist => document.normalizedAlbumArtist.contains(
+      term,
+    ),
+    LibrarySearchField.genre => document.normalizedGenre.contains(term),
   };
-  return [for (final value in values) _normalized(value)];
 }
 
 int _relevance(LibrarySearchDocument document, List<String> terms) {
   final query = terms.join(' ');
   final rankedValues = [
-    (value: document.title, weight: 0),
-    (value: document.trackArtist, weight: 10),
-    (value: document.albumTitle, weight: 20),
-    (value: document.albumArtist, weight: 30),
-    (value: document.genre, weight: 40),
+    (value: document.normalizedTitle, weight: 0),
+    (value: document.normalizedTrackArtist, weight: 10),
+    (value: document.normalizedAlbumTitle, weight: 20),
+    (value: document.normalizedAlbumArtist, weight: 30),
+    (value: document.normalizedGenre, weight: 40),
   ];
   var score = 100;
   for (final ranked in rankedValues) {
-    final value = _normalized(ranked.value);
+    final value = ranked.value;
     final candidate = value == query
         ? ranked.weight
         : value.startsWith(query)
@@ -306,7 +315,7 @@ int _relevance(LibrarySearchDocument document, List<String> terms) {
 }
 
 int _compareText(String left, String right) {
-  return _normalized(left).compareTo(_normalized(right));
+  return left.compareTo(right);
 }
 
 String _normalized(String value) {

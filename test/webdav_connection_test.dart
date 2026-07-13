@@ -673,5 +673,8 @@ class FakeLibraryRepository implements LibraryRepository {
   Future<List<LibraryLyricRecord>> getLyrics(String trackId) async => [];
 
   @override
+  Future<Map<String, List<LibraryLyricRecord>>> getAllLyrics() async => {};
+
+  @override
   Future<List<LibraryTrackRecord>> getTracks({String? sourceId}) async => [];
 }

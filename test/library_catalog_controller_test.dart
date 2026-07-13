@@ -1,6 +1,9 @@
+import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sound_player/domain/library_models.dart';
 import 'package:sound_player/library/library_records.dart';
+import 'package:sound_player/library/persistence/drift_library_repository.dart';
+import 'package:sound_player/library/persistence/library_database.dart';
 import 'package:sound_player/presentation/controllers/library_catalog_controller.dart';
 
 void main() {
@@ -95,4 +98,85 @@ void main() {
 
     expect(result, isEmpty);
   });
+
+  test('refresh batches lyrics and caches the flattened track list', () async {
+    final now = DateTime.utc(2026, 7, 13);
+    final repository = _CountingLibraryRepository(
+      LibraryDatabase(NativeDatabase.memory()),
+    );
+    await repository.upsertSource(
+      LibrarySourceRecord(
+        id: 'source',
+        type: LibrarySourceType.local,
+        displayName: 'Music',
+        rootUri: 'file:///music/',
+        status: LibrarySourceStatus.available,
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+    await repository.replaceSourceScan(
+      LibraryScanBatch(
+        sourceId: 'source',
+        completedAt: now,
+        albums: const [
+          LibraryAlbumRecord(
+            id: 'album',
+            sourceId: 'source',
+            title: 'Album',
+            sortTitle: 'album',
+            albumArtist: 'Artist',
+          ),
+        ],
+        tracks: [
+          LibraryTrackRecord(
+            id: 'track',
+            sourceId: 'source',
+            albumId: 'album',
+            relativePath: 'track.flac',
+            mediaUri: 'file:///music/track.flac',
+            title: 'Track',
+            artistName: 'Artist',
+            albumTitle: 'Album',
+            durationMs: 1000,
+            modifiedAt: now,
+          ),
+        ],
+      ),
+    );
+    final catalog = LibraryCatalogController(repository: repository);
+
+    await catalog.refresh();
+
+    expect(repository.allLyricsCalls, 1);
+    expect(repository.singleTrackLyricCalls, 0);
+    expect(catalog.tracks.single.id, 'track');
+    expect(identical(catalog.tracks, catalog.tracks), isTrue);
+
+    catalog.dispose();
+    await Future<void>.delayed(Duration.zero);
+    await repository.close();
+  });
+}
+
+class _CountingLibraryRepository extends DriftLibraryRepository {
+  _CountingLibraryRepository(super.database);
+
+  int allLyricsCalls = 0;
+  int singleTrackLyricCalls = 0;
+
+  @override
+  Stream<List<LibraryTrackRecord>> watchTracks() => const Stream.empty();
+
+  @override
+  Future<Map<String, List<LibraryLyricRecord>>> getAllLyrics() {
+    allLyricsCalls++;
+    return super.getAllLyrics();
+  }
+
+  @override
+  Future<List<LibraryLyricRecord>> getLyrics(String trackId) {
+    singleTrackLyricCalls++;
+    return super.getLyrics(trackId);
+  }
 }

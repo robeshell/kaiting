@@ -32,13 +32,14 @@ class LibraryCatalogController extends ChangeNotifier {
   LibraryCatalogStatus _status = LibraryCatalogStatus.loading;
   String? _errorMessage;
   List<Album> _albums = const [];
+  List<Track> _tracks = const [];
   int _refreshGeneration = 0;
   bool _disposed = false;
 
   LibraryCatalogStatus get status => _status;
   String? get errorMessage => _errorMessage;
   List<Album> get albums => _albums;
-  List<Track> get tracks => [for (final album in _albums) ...album.tracks];
+  List<Track> get tracks => _tracks;
 
   Future<void> refresh() async {
     final generation = ++_refreshGeneration;
@@ -46,18 +47,18 @@ class LibraryCatalogController extends ChangeNotifier {
       final sources = await repository.getSources();
       final albumRecords = await repository.getAlbums();
       final trackRecords = await repository.getTracks();
-      final lyricEntries = await Future.wait([
-        for (final track in trackRecords)
-          repository.getLyrics(track.id).then((lyrics) => (track.id, lyrics)),
-      ]);
+      final lyricsByTrackId = await repository.getAllLyrics();
       if (_disposed || generation != _refreshGeneration) return;
       _albums = mapLibraryAlbums(
         sources: sources,
         albums: albumRecords,
         tracks: trackRecords,
-        lyricsByTrackId: {for (final entry in lyricEntries) entry.$1: entry.$2},
+        lyricsByTrackId: lyricsByTrackId,
         webDavAuthHeaders: webDavAuthHeaders,
       );
+      _tracks = List.unmodifiable([
+        for (final album in _albums) ...album.tracks,
+      ]);
       _status = LibraryCatalogStatus.ready;
       _errorMessage = null;
       notifyListeners();

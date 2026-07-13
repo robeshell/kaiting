@@ -12,6 +12,7 @@ abstract interface class LibraryRepository {
   Future<List<LibraryAlbumRecord>> getAlbums({String? sourceId});
   Future<List<LibraryTrackRecord>> getTracks({String? sourceId});
   Future<List<LibraryLyricRecord>> getLyrics(String trackId);
+  Future<Map<String, List<LibraryLyricRecord>>> getAllLyrics();
 
   Future<void> upsertSource(LibrarySourceRecord source);
   Future<void> deleteSource(String id);

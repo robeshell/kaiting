@@ -16,7 +16,7 @@ import 'package:sound_player/presentation/screens/search_screen.dart';
 void main() {
   group('searchLibraryDocuments', () {
     test('matches title, album, artists, genre, and cross-field terms', () {
-      const documents = [
+      final documents = [
         LibrarySearchDocument(
           trackId: 'neon',
           title: 'Neon Sky',
@@ -56,7 +56,7 @@ void main() {
     });
 
     test('applies deterministic sorting and result limits', () {
-      const documents = [
+      final documents = [
         LibrarySearchDocument(
           trackId: 'zulu',
           title: 'Zulu',
@@ -76,7 +76,7 @@ void main() {
       ];
 
       final byTitle = searchLibraryDocuments(
-        const LibrarySearchRequest(
+        LibrarySearchRequest(
           documents: documents,
           query: 'pop',
           field: LibrarySearchField.genre,
@@ -85,7 +85,7 @@ void main() {
         ),
       );
       final byArtist = searchLibraryDocuments(
-        const LibrarySearchRequest(
+        LibrarySearchRequest(
           documents: documents,
           query: 'pop',
           field: LibrarySearchField.genre,

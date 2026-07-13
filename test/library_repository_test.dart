@@ -62,6 +62,7 @@ void main() {
     final albums = await repository.getAlbums(sourceId: 'source-local');
     final tracks = await repository.getTracks(sourceId: 'source-local');
     final lyrics = await repository.getLyrics('track-one');
+    final allLyrics = await repository.getAllLyrics();
 
     expect(source, isNotNull);
     expect(source!.status, LibrarySourceStatus.available);
@@ -74,6 +75,10 @@ void main() {
     expect(tracks.single.title, 'One');
     expect(tracks.single.durationMs, 223190);
     expect(lyrics.map((line) => line.text), ['First line', 'Second line']);
+    expect(allLyrics['track-one']?.map((line) => line.text), [
+      'First line',
+      'Second line',
+    ]);
 
     await repository.deleteSource('source-local');
     expect(await repository.getTracks(sourceId: 'source-local'), isEmpty);

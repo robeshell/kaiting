@@ -117,6 +117,24 @@ class DriftLibraryRepository implements LibraryRepository {
   }
 
   @override
+  Future<Map<String, List<LibraryLyricRecord>>> getAllLyrics() async {
+    final query = _database.select(_database.libraryLyrics)
+      ..orderBy([
+        (row) => OrderingTerm.asc(row.trackId),
+        (row) => OrderingTerm.asc(row.sequence),
+      ]);
+    final rows = await query.get();
+    final grouped = <String, List<LibraryLyricRecord>>{};
+    for (final row in rows) {
+      grouped.putIfAbsent(row.trackId, () => []).add(_lyricRecord(row));
+    }
+    return {
+      for (final entry in grouped.entries)
+        entry.key: List.unmodifiable(entry.value),
+    };
+  }
+
+  @override
   Future<void> upsertSource(LibrarySourceRecord source) async {
     await _database
         .into(_database.librarySources)
