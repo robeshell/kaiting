@@ -83,37 +83,20 @@ class LibraryScreen extends StatelessWidget {
               ),
               SliverPadding(
                 padding: const EdgeInsets.fromLTRB(32, 0, 32, 140),
-                sliver: SliverList.separated(
+                sliver: SliverPrototypeExtentList.builder(
                   itemCount: tracks.length,
-                  separatorBuilder: (_, _) => Divider(
-                    height: 1,
-                    color: Colors.white.withValues(alpha: 0.06),
+                  prototypeItem: _LibraryTrackRow(
+                    track: tracks.first,
+                    album: albumByTrackId[tracks.first.id]!,
+                    onTap: () {},
                   ),
                   itemBuilder: (context, index) {
                     final track = tracks[index];
                     final album = albumByTrackId[track.id]!;
-                    return ListTile(
-                      contentPadding: const EdgeInsets.symmetric(vertical: 5),
+                    return _LibraryTrackRow(
+                      track: track,
+                      album: album,
                       onTap: () => onOpenAlbum(album),
-                      leading: SizedBox.square(
-                        dimension: 48,
-                        child: AlbumArt(album: album, borderRadius: 6),
-                      ),
-                      title: Text(
-                        track.title,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      subtitle: Text(
-                        '${track.artist} · ${track.albumTitle}',
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: Colors.white54,
-                        ),
-                      ),
-                      trailing: SourceBadge(track.source),
                     );
                   },
                 ),
@@ -122,6 +105,50 @@ class LibraryScreen extends StatelessWidget {
           ],
         );
       },
+    );
+  }
+}
+
+class _LibraryTrackRow extends StatelessWidget {
+  const _LibraryTrackRow({
+    required this.track,
+    required this.album,
+    required this.onTap,
+  });
+
+  final Track track;
+  final Album album;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border(
+          bottom: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
+        ),
+      ),
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(vertical: 5),
+        onTap: onTap,
+        leading: SizedBox.square(
+          dimension: 48,
+          child: AlbumArt(album: album, borderRadius: 6),
+        ),
+        title: Text(
+          track.title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+        ),
+        subtitle: Text(
+          '${track.artist} · ${track.albumTitle}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 12, color: Colors.white54),
+        ),
+        trailing: SourceBadge(track.source),
+      ),
     );
   }
 }

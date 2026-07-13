@@ -1,4 +1,7 @@
+import 'package:drift/native.dart';
 import 'package:sound_player/library/library_records.dart';
+import 'package:sound_player/library/persistence/drift_library_repository.dart';
+import 'package:sound_player/library/persistence/library_database.dart';
 
 class LibraryBenchmarkFixture {
   const LibraryBenchmarkFixture({
@@ -8,7 +11,10 @@ class LibraryBenchmarkFixture {
     required this.lyricsByTrackId,
   });
 
-  factory LibraryBenchmarkFixture.generate(int trackCount) {
+  factory LibraryBenchmarkFixture.generate(
+    int trackCount, {
+    bool includeArtwork = true,
+  }) {
     final now = DateTime.utc(2026, 7, 13);
     const sourceId = 'benchmark:local';
     const tracksPerAlbum = 10;
@@ -28,7 +34,9 @@ class LibraryBenchmarkFixture {
           albumArtist: 'Album Artist ${albumIndex % 100}',
           year: 2000 + albumIndex % 27,
           genre: albumIndex.isEven ? 'Ambient' : 'Rock',
-          artworkKey: 'file:///benchmark/art-$albumIndex.jpg',
+          artworkKey: includeArtwork
+              ? 'file:///benchmark/art-$albumIndex.jpg'
+              : null,
         ),
       );
     }
@@ -51,7 +59,9 @@ class LibraryBenchmarkFixture {
           discNumber: 1,
           genre: index.isEven ? 'Ambient' : 'Rock',
           modifiedAt: now,
-          artworkKey: 'file:///benchmark/art-$albumIndex.jpg',
+          artworkKey: includeArtwork
+              ? 'file:///benchmark/art-$albumIndex.jpg'
+              : null,
         ),
       );
       if (index % 10 == 0) {
@@ -99,5 +109,42 @@ class LibraryBenchmarkFixture {
       tracks: tracks,
       lyrics: lyrics,
     );
+  }
+}
+
+class BenchmarkLibraryRepository extends DriftLibraryRepository {
+  BenchmarkLibraryRepository(this.fixture)
+    : super(LibraryDatabase(NativeDatabase.memory()));
+
+  final LibraryBenchmarkFixture fixture;
+  int allLyricsCalls = 0;
+  int singleTrackLyricCalls = 0;
+
+  @override
+  Stream<List<LibraryTrackRecord>> watchTracks() => const Stream.empty();
+
+  @override
+  Future<List<LibrarySourceRecord>> getSources() async => [fixture.source];
+
+  @override
+  Future<List<LibraryAlbumRecord>> getAlbums({String? sourceId}) async {
+    return fixture.albums;
+  }
+
+  @override
+  Future<List<LibraryTrackRecord>> getTracks({String? sourceId}) async {
+    return fixture.tracks;
+  }
+
+  @override
+  Future<Map<String, List<LibraryLyricRecord>>> getAllLyrics() async {
+    allLyricsCalls++;
+    return fixture.lyricsByTrackId;
+  }
+
+  @override
+  Future<List<LibraryLyricRecord>> getLyrics(String trackId) async {
+    singleTrackLyricCalls++;
+    return fixture.lyricsByTrackId[trackId] ?? const [];
   }
 }

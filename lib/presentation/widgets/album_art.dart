@@ -17,38 +17,66 @@ class AlbumArt extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final imageProvider = artworkImageProvider(album.artworkUri);
-    final art = Container(
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(borderRadius),
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: album.palette,
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.28),
-            blurRadius: 28,
-            offset: const Offset(0, 14),
+    final art = LayoutBuilder(
+      builder: (context, constraints) {
+        final logicalExtent = constraints.biggest.shortestSide;
+        final hasFiniteExtent = logicalExtent.isFinite && logicalExtent > 0;
+        final cacheExtent = hasFiniteExtent
+            ? _quantizedPhysicalExtent(
+                logicalExtent,
+                MediaQuery.devicePixelRatioOf(context),
+              )
+            : null;
+        final imageProvider = artworkImageProvider(
+          album.artworkUri,
+          cacheWidth: cacheExtent,
+          cacheHeight: cacheExtent,
+        );
+        return Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(borderRadius),
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: album.palette,
+            ),
+            boxShadow: hasFiniteExtent && logicalExtent < 96
+                ? const []
+                : [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.28),
+                      blurRadius: 28,
+                      offset: const Offset(0, 14),
+                    ),
+                  ],
           ),
-        ],
-      ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(borderRadius),
-        child: imageProvider == null
-            ? _ArtworkPlaceholder(album: album)
-            : Image(
-                image: imageProvider,
-                fit: BoxFit.cover,
-                errorBuilder: (_, _, _) => _ArtworkPlaceholder(album: album),
-              ),
-      ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(borderRadius),
+            child: imageProvider == null
+                ? _ArtworkPlaceholder(album: album)
+                : Image(
+                    image: imageProvider,
+                    fit: BoxFit.cover,
+                    filterQuality: FilterQuality.medium,
+                    errorBuilder: (_, _, _) =>
+                        _ArtworkPlaceholder(album: album),
+                  ),
+          ),
+        );
+      },
     );
 
     if (size == null) return AspectRatio(aspectRatio: 1, child: art);
     return SizedBox.square(dimension: size, child: art);
   }
+}
+
+const _decodeBucket = 64;
+
+int _quantizedPhysicalExtent(double logicalExtent, double devicePixelRatio) {
+  final physicalExtent = (logicalExtent * devicePixelRatio).ceil();
+  return ((physicalExtent + _decodeBucket - 1) ~/ _decodeBucket) *
+      _decodeBucket;
 }
 
 class _ArtworkPlaceholder extends StatelessWidget {

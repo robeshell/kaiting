@@ -1,13 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:drift/native.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sound_player/domain/library_models.dart';
-import 'package:sound_player/library/library_records.dart';
-import 'package:sound_player/library/persistence/drift_library_repository.dart';
-import 'package:sound_player/library/persistence/library_database.dart';
 import 'package:sound_player/presentation/controllers/library_catalog_controller.dart';
 import 'package:sound_player/presentation/controllers/library_search_controller.dart';
 
@@ -19,7 +15,7 @@ void main() {
       'library pipeline baseline with $trackCount tracks',
       () async {
         final fixture = LibraryBenchmarkFixture.generate(trackCount);
-        final repository = _BenchmarkRepository(fixture);
+        final repository = BenchmarkLibraryRepository(fixture);
         final catalog = LibraryCatalogController(repository: repository);
 
         final refreshMicros = await _medianAsyncMicros(() async {
@@ -86,43 +82,6 @@ void main() {
       },
       timeout: const Timeout(Duration(minutes: 5)),
     );
-  }
-}
-
-class _BenchmarkRepository extends DriftLibraryRepository {
-  _BenchmarkRepository(this.fixture)
-    : super(LibraryDatabase(NativeDatabase.memory()));
-
-  final LibraryBenchmarkFixture fixture;
-  int allLyricsCalls = 0;
-  int singleTrackLyricCalls = 0;
-
-  @override
-  Stream<List<LibraryTrackRecord>> watchTracks() => const Stream.empty();
-
-  @override
-  Future<List<LibrarySourceRecord>> getSources() async => [fixture.source];
-
-  @override
-  Future<List<LibraryAlbumRecord>> getAlbums({String? sourceId}) async {
-    return fixture.albums;
-  }
-
-  @override
-  Future<List<LibraryTrackRecord>> getTracks({String? sourceId}) async {
-    return fixture.tracks;
-  }
-
-  @override
-  Future<Map<String, List<LibraryLyricRecord>>> getAllLyrics() async {
-    allLyricsCalls++;
-    return fixture.lyricsByTrackId;
-  }
-
-  @override
-  Future<List<LibraryLyricRecord>> getLyrics(String trackId) async {
-    singleTrackLyricCalls++;
-    return fixture.lyricsByTrackId[trackId] ?? const [];
   }
 }
 
