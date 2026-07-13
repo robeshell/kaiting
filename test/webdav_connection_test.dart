@@ -672,6 +672,13 @@ class FakeLibraryRepository implements LibraryRepository {
       const Stream.empty();
 
   @override
+  Stream<List<LibraryPlaylistRecord>> watchPlaylists() => const Stream.empty();
+
+  @override
+  Stream<List<LibraryPlaylistTrackRecord>> watchPlaylistTracks() =>
+      const Stream.empty();
+
+  @override
   Future<List<LibraryAlbumRecord>> getAlbums({String? sourceId}) async => [];
 
   @override
@@ -692,6 +699,14 @@ class FakeLibraryRepository implements LibraryRepository {
   }) async => [];
 
   @override
+  Future<List<LibraryPlaylistRecord>> getPlaylists() async => [];
+
+  @override
+  Future<List<LibraryPlaylistTrackRecord>> getPlaylistTracks({
+    int? playlistId,
+  }) async => [];
+
+  @override
   Future<List<LibraryTrackRecord>> getTracks({String? sourceId}) async => [];
 
   @override
@@ -709,4 +724,41 @@ class FakeLibraryRepository implements LibraryRepository {
 
   @override
   Future<void> clearPlayHistory() async {}
+
+  @override
+  Future<int> createPlaylist({
+    required String name,
+    required DateTime createdAt,
+  }) async => 1;
+
+  @override
+  Future<void> renamePlaylist(
+    int playlistId, {
+    required String name,
+    required DateTime changedAt,
+  }) async {}
+
+  @override
+  Future<void> deletePlaylist(int playlistId) async {}
+
+  @override
+  Future<bool> addTrackToPlaylist(
+    int playlistId,
+    String trackId, {
+    required DateTime addedAt,
+  }) async => true;
+
+  @override
+  Future<void> removeTrackFromPlaylist(
+    int playlistId,
+    String trackId, {
+    required DateTime changedAt,
+  }) async {}
+
+  @override
+  Future<void> reorderPlaylistTracks(
+    int playlistId,
+    List<String> orderedTrackIds, {
+    required DateTime changedAt,
+  }) async {}
 }

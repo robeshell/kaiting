@@ -135,6 +135,30 @@ class LibraryPlayHistory extends Table {
   DateTimeColumn get playedAt => dateTime()();
 }
 
+class LibraryPlaylists extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get name => text()();
+  DateTimeColumn get createdAt => dateTime()();
+  DateTimeColumn get updatedAt => dateTime()();
+}
+
+/// Playlist membership survives catalog rescans for the same reason as
+/// favorites. Only the playlist itself is referenced so deleting it can clean
+/// up membership without coupling user data to transient catalog rows.
+class LibraryPlaylistTracks extends Table {
+  IntColumn get playlistId => integer().references(
+    LibraryPlaylists,
+    #id,
+    onDelete: KeyAction.cascade,
+  )();
+  TextColumn get trackId => text()();
+  IntColumn get position => integer()();
+  DateTimeColumn get addedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {playlistId, trackId};
+}
+
 @DriftDatabase(
   tables: [
     LibrarySources,
@@ -144,6 +168,8 @@ class LibraryPlayHistory extends Table {
     LibraryLyrics,
     LibraryFavoriteTracks,
     LibraryPlayHistory,
+    LibraryPlaylists,
+    LibraryPlaylistTracks,
   ],
 )
 class LibraryDatabase extends _$LibraryDatabase {
@@ -162,7 +188,7 @@ class LibraryDatabase extends _$LibraryDatabase {
       );
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -171,6 +197,10 @@ class LibraryDatabase extends _$LibraryDatabase {
       if (from < 2) {
         await migrator.createTable(libraryFavoriteTracks);
         await migrator.createTable(libraryPlayHistory);
+      }
+      if (from < 3) {
+        await migrator.createTable(libraryPlaylists);
+        await migrator.createTable(libraryPlaylistTracks);
       }
     },
     beforeOpen: (_) async {

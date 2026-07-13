@@ -157,6 +157,34 @@ class LibraryPlayHistoryRecord {
   final DateTime playedAt;
 }
 
+class LibraryPlaylistRecord {
+  const LibraryPlaylistRecord({
+    required this.id,
+    required this.name,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+
+  final int id;
+  final String name;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+}
+
+class LibraryPlaylistTrackRecord {
+  const LibraryPlaylistTrackRecord({
+    required this.playlistId,
+    required this.trackId,
+    required this.position,
+    required this.addedAt,
+  });
+
+  final int playlistId;
+  final String trackId;
+  final int position;
+  final DateTime addedAt;
+}
+
 class LibraryScanBatch {
   const LibraryScanBatch({
     required this.sourceId,

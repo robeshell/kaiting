@@ -6,6 +6,7 @@ import '../../core/sound_theme.dart';
 import '../../domain/library_models.dart';
 import '../../playback/playback_controller.dart';
 import '../controllers/library_user_state_controller.dart';
+import '../widgets/add_to_playlist_sheet.dart';
 import '../widgets/album_art.dart';
 import '../widgets/progress_scrubber.dart';
 import '../widgets/source_badge.dart';
@@ -126,6 +127,7 @@ class _LibraryCollectionScreenState extends State<LibraryCollectionScreen> {
                     onTap: () {},
                     onPlayNext: () {},
                     onToggleFavorite: null,
+                    onAddToPlaylist: null,
                     onOpenAlbum: () {},
                   ),
                   itemBuilder: (context, index) {
@@ -142,6 +144,13 @@ class _LibraryCollectionScreenState extends State<LibraryCollectionScreen> {
                           ? null
                           : () => unawaited(
                               widget.userState!.toggleFavorite(track),
+                            ),
+                      onAddToPlaylist: widget.userState == null
+                          ? null
+                          : () => showAddToPlaylistSheet(
+                              context,
+                              userState: widget.userState!,
+                              track: track,
                             ),
                       onOpenAlbum: () => widget.onOpenAlbum(album),
                     );
@@ -415,6 +424,7 @@ class _CollectionTrackRow extends StatelessWidget {
     required this.onTap,
     required this.onPlayNext,
     required this.onToggleFavorite,
+    required this.onAddToPlaylist,
     required this.onOpenAlbum,
   });
 
@@ -424,6 +434,7 @@ class _CollectionTrackRow extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onPlayNext;
   final VoidCallback? onToggleFavorite;
+  final VoidCallback? onAddToPlaylist;
   final VoidCallback onOpenAlbum;
 
   @override
@@ -471,6 +482,7 @@ class _CollectionTrackRow extends StatelessWidget {
                 if (value == 'play-next') onPlayNext();
                 if (value == 'open-album') onOpenAlbum();
                 if (value == 'favorite') onToggleFavorite?.call();
+                if (value == 'playlist') onAddToPlaylist?.call();
               },
               itemBuilder: (_) => [
                 const PopupMenuItem(value: 'play-next', child: Text('下一首播放')),
@@ -490,6 +502,11 @@ class _CollectionTrackRow extends StatelessWidget {
                         Text(favorite ? '取消收藏' : '收藏歌曲'),
                       ],
                     ),
+                  ),
+                if (onAddToPlaylist != null)
+                  const PopupMenuItem(
+                    value: 'playlist',
+                    child: Text('添加到播放列表'),
                   ),
               ],
             ),

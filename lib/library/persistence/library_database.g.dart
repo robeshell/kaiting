@@ -3474,6 +3474,631 @@ class LibraryPlayHistoryCompanion
   }
 }
 
+class $LibraryPlaylistsTable extends LibraryPlaylists
+    with TableInfo<$LibraryPlaylistsTable, LibraryPlaylist> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LibraryPlaylistsTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _nameMeta = const VerificationMeta('name');
+  @override
+  late final GeneratedColumn<String> name = GeneratedColumn<String>(
+    'name',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _createdAtMeta = const VerificationMeta(
+    'createdAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> createdAt = GeneratedColumn<DateTime>(
+    'created_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _updatedAtMeta = const VerificationMeta(
+    'updatedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> updatedAt = GeneratedColumn<DateTime>(
+    'updated_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, name, createdAt, updatedAt];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'library_playlists';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<LibraryPlaylist> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('name')) {
+      context.handle(
+        _nameMeta,
+        name.isAcceptableOrUnknown(data['name']!, _nameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_nameMeta);
+    }
+    if (data.containsKey('created_at')) {
+      context.handle(
+        _createdAtMeta,
+        createdAt.isAcceptableOrUnknown(data['created_at']!, _createdAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_createdAtMeta);
+    }
+    if (data.containsKey('updated_at')) {
+      context.handle(
+        _updatedAtMeta,
+        updatedAt.isAcceptableOrUnknown(data['updated_at']!, _updatedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_updatedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  LibraryPlaylist map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return LibraryPlaylist(
+      id: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}id'],
+      )!,
+      name: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}name'],
+      )!,
+      createdAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}created_at'],
+      )!,
+      updatedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}updated_at'],
+      )!,
+    );
+  }
+
+  @override
+  $LibraryPlaylistsTable createAlias(String alias) {
+    return $LibraryPlaylistsTable(attachedDatabase, alias);
+  }
+}
+
+class LibraryPlaylist extends DataClass implements Insertable<LibraryPlaylist> {
+  final int id;
+  final String name;
+  final DateTime createdAt;
+  final DateTime updatedAt;
+  const LibraryPlaylist({
+    required this.id,
+    required this.name,
+    required this.createdAt,
+    required this.updatedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['name'] = Variable<String>(name);
+    map['created_at'] = Variable<DateTime>(createdAt);
+    map['updated_at'] = Variable<DateTime>(updatedAt);
+    return map;
+  }
+
+  LibraryPlaylistsCompanion toCompanion(bool nullToAbsent) {
+    return LibraryPlaylistsCompanion(
+      id: Value(id),
+      name: Value(name),
+      createdAt: Value(createdAt),
+      updatedAt: Value(updatedAt),
+    );
+  }
+
+  factory LibraryPlaylist.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return LibraryPlaylist(
+      id: serializer.fromJson<int>(json['id']),
+      name: serializer.fromJson<String>(json['name']),
+      createdAt: serializer.fromJson<DateTime>(json['createdAt']),
+      updatedAt: serializer.fromJson<DateTime>(json['updatedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'name': serializer.toJson<String>(name),
+      'createdAt': serializer.toJson<DateTime>(createdAt),
+      'updatedAt': serializer.toJson<DateTime>(updatedAt),
+    };
+  }
+
+  LibraryPlaylist copyWith({
+    int? id,
+    String? name,
+    DateTime? createdAt,
+    DateTime? updatedAt,
+  }) => LibraryPlaylist(
+    id: id ?? this.id,
+    name: name ?? this.name,
+    createdAt: createdAt ?? this.createdAt,
+    updatedAt: updatedAt ?? this.updatedAt,
+  );
+  LibraryPlaylist copyWithCompanion(LibraryPlaylistsCompanion data) {
+    return LibraryPlaylist(
+      id: data.id.present ? data.id.value : this.id,
+      name: data.name.present ? data.name.value : this.name,
+      createdAt: data.createdAt.present ? data.createdAt.value : this.createdAt,
+      updatedAt: data.updatedAt.present ? data.updatedAt.value : this.updatedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LibraryPlaylist(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, name, createdAt, updatedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LibraryPlaylist &&
+          other.id == this.id &&
+          other.name == this.name &&
+          other.createdAt == this.createdAt &&
+          other.updatedAt == this.updatedAt);
+}
+
+class LibraryPlaylistsCompanion extends UpdateCompanion<LibraryPlaylist> {
+  final Value<int> id;
+  final Value<String> name;
+  final Value<DateTime> createdAt;
+  final Value<DateTime> updatedAt;
+  const LibraryPlaylistsCompanion({
+    this.id = const Value.absent(),
+    this.name = const Value.absent(),
+    this.createdAt = const Value.absent(),
+    this.updatedAt = const Value.absent(),
+  });
+  LibraryPlaylistsCompanion.insert({
+    this.id = const Value.absent(),
+    required String name,
+    required DateTime createdAt,
+    required DateTime updatedAt,
+  }) : name = Value(name),
+       createdAt = Value(createdAt),
+       updatedAt = Value(updatedAt);
+  static Insertable<LibraryPlaylist> custom({
+    Expression<int>? id,
+    Expression<String>? name,
+    Expression<DateTime>? createdAt,
+    Expression<DateTime>? updatedAt,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (name != null) 'name': name,
+      if (createdAt != null) 'created_at': createdAt,
+      if (updatedAt != null) 'updated_at': updatedAt,
+    });
+  }
+
+  LibraryPlaylistsCompanion copyWith({
+    Value<int>? id,
+    Value<String>? name,
+    Value<DateTime>? createdAt,
+    Value<DateTime>? updatedAt,
+  }) {
+    return LibraryPlaylistsCompanion(
+      id: id ?? this.id,
+      name: name ?? this.name,
+      createdAt: createdAt ?? this.createdAt,
+      updatedAt: updatedAt ?? this.updatedAt,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (name.present) {
+      map['name'] = Variable<String>(name.value);
+    }
+    if (createdAt.present) {
+      map['created_at'] = Variable<DateTime>(createdAt.value);
+    }
+    if (updatedAt.present) {
+      map['updated_at'] = Variable<DateTime>(updatedAt.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LibraryPlaylistsCompanion(')
+          ..write('id: $id, ')
+          ..write('name: $name, ')
+          ..write('createdAt: $createdAt, ')
+          ..write('updatedAt: $updatedAt')
+          ..write(')'))
+        .toString();
+  }
+}
+
+class $LibraryPlaylistTracksTable extends LibraryPlaylistTracks
+    with TableInfo<$LibraryPlaylistTracksTable, LibraryPlaylistTrack> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $LibraryPlaylistTracksTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _playlistIdMeta = const VerificationMeta(
+    'playlistId',
+  );
+  @override
+  late final GeneratedColumn<int> playlistId = GeneratedColumn<int>(
+    'playlist_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'REFERENCES library_playlists (id) ON DELETE CASCADE',
+    ),
+  );
+  static const VerificationMeta _trackIdMeta = const VerificationMeta(
+    'trackId',
+  );
+  @override
+  late final GeneratedColumn<String> trackId = GeneratedColumn<String>(
+    'track_id',
+    aliasedName,
+    false,
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _positionMeta = const VerificationMeta(
+    'position',
+  );
+  @override
+  late final GeneratedColumn<int> position = GeneratedColumn<int>(
+    'position',
+    aliasedName,
+    false,
+    type: DriftSqlType.int,
+    requiredDuringInsert: true,
+  );
+  static const VerificationMeta _addedAtMeta = const VerificationMeta(
+    'addedAt',
+  );
+  @override
+  late final GeneratedColumn<DateTime> addedAt = GeneratedColumn<DateTime>(
+    'added_at',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: true,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    playlistId,
+    trackId,
+    position,
+    addedAt,
+  ];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'library_playlist_tracks';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<LibraryPlaylistTrack> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('playlist_id')) {
+      context.handle(
+        _playlistIdMeta,
+        playlistId.isAcceptableOrUnknown(data['playlist_id']!, _playlistIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_playlistIdMeta);
+    }
+    if (data.containsKey('track_id')) {
+      context.handle(
+        _trackIdMeta,
+        trackId.isAcceptableOrUnknown(data['track_id']!, _trackIdMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_trackIdMeta);
+    }
+    if (data.containsKey('position')) {
+      context.handle(
+        _positionMeta,
+        position.isAcceptableOrUnknown(data['position']!, _positionMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_positionMeta);
+    }
+    if (data.containsKey('added_at')) {
+      context.handle(
+        _addedAtMeta,
+        addedAt.isAcceptableOrUnknown(data['added_at']!, _addedAtMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_addedAtMeta);
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {playlistId, trackId};
+  @override
+  LibraryPlaylistTrack map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return LibraryPlaylistTrack(
+      playlistId: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}playlist_id'],
+      )!,
+      trackId: attachedDatabase.typeMapping.read(
+        DriftSqlType.string,
+        data['${effectivePrefix}track_id'],
+      )!,
+      position: attachedDatabase.typeMapping.read(
+        DriftSqlType.int,
+        data['${effectivePrefix}position'],
+      )!,
+      addedAt: attachedDatabase.typeMapping.read(
+        DriftSqlType.dateTime,
+        data['${effectivePrefix}added_at'],
+      )!,
+    );
+  }
+
+  @override
+  $LibraryPlaylistTracksTable createAlias(String alias) {
+    return $LibraryPlaylistTracksTable(attachedDatabase, alias);
+  }
+}
+
+class LibraryPlaylistTrack extends DataClass
+    implements Insertable<LibraryPlaylistTrack> {
+  final int playlistId;
+  final String trackId;
+  final int position;
+  final DateTime addedAt;
+  const LibraryPlaylistTrack({
+    required this.playlistId,
+    required this.trackId,
+    required this.position,
+    required this.addedAt,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['playlist_id'] = Variable<int>(playlistId);
+    map['track_id'] = Variable<String>(trackId);
+    map['position'] = Variable<int>(position);
+    map['added_at'] = Variable<DateTime>(addedAt);
+    return map;
+  }
+
+  LibraryPlaylistTracksCompanion toCompanion(bool nullToAbsent) {
+    return LibraryPlaylistTracksCompanion(
+      playlistId: Value(playlistId),
+      trackId: Value(trackId),
+      position: Value(position),
+      addedAt: Value(addedAt),
+    );
+  }
+
+  factory LibraryPlaylistTrack.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return LibraryPlaylistTrack(
+      playlistId: serializer.fromJson<int>(json['playlistId']),
+      trackId: serializer.fromJson<String>(json['trackId']),
+      position: serializer.fromJson<int>(json['position']),
+      addedAt: serializer.fromJson<DateTime>(json['addedAt']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'playlistId': serializer.toJson<int>(playlistId),
+      'trackId': serializer.toJson<String>(trackId),
+      'position': serializer.toJson<int>(position),
+      'addedAt': serializer.toJson<DateTime>(addedAt),
+    };
+  }
+
+  LibraryPlaylistTrack copyWith({
+    int? playlistId,
+    String? trackId,
+    int? position,
+    DateTime? addedAt,
+  }) => LibraryPlaylistTrack(
+    playlistId: playlistId ?? this.playlistId,
+    trackId: trackId ?? this.trackId,
+    position: position ?? this.position,
+    addedAt: addedAt ?? this.addedAt,
+  );
+  LibraryPlaylistTrack copyWithCompanion(LibraryPlaylistTracksCompanion data) {
+    return LibraryPlaylistTrack(
+      playlistId: data.playlistId.present
+          ? data.playlistId.value
+          : this.playlistId,
+      trackId: data.trackId.present ? data.trackId.value : this.trackId,
+      position: data.position.present ? data.position.value : this.position,
+      addedAt: data.addedAt.present ? data.addedAt.value : this.addedAt,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LibraryPlaylistTrack(')
+          ..write('playlistId: $playlistId, ')
+          ..write('trackId: $trackId, ')
+          ..write('position: $position, ')
+          ..write('addedAt: $addedAt')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(playlistId, trackId, position, addedAt);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is LibraryPlaylistTrack &&
+          other.playlistId == this.playlistId &&
+          other.trackId == this.trackId &&
+          other.position == this.position &&
+          other.addedAt == this.addedAt);
+}
+
+class LibraryPlaylistTracksCompanion
+    extends UpdateCompanion<LibraryPlaylistTrack> {
+  final Value<int> playlistId;
+  final Value<String> trackId;
+  final Value<int> position;
+  final Value<DateTime> addedAt;
+  final Value<int> rowid;
+  const LibraryPlaylistTracksCompanion({
+    this.playlistId = const Value.absent(),
+    this.trackId = const Value.absent(),
+    this.position = const Value.absent(),
+    this.addedAt = const Value.absent(),
+    this.rowid = const Value.absent(),
+  });
+  LibraryPlaylistTracksCompanion.insert({
+    required int playlistId,
+    required String trackId,
+    required int position,
+    required DateTime addedAt,
+    this.rowid = const Value.absent(),
+  }) : playlistId = Value(playlistId),
+       trackId = Value(trackId),
+       position = Value(position),
+       addedAt = Value(addedAt);
+  static Insertable<LibraryPlaylistTrack> custom({
+    Expression<int>? playlistId,
+    Expression<String>? trackId,
+    Expression<int>? position,
+    Expression<DateTime>? addedAt,
+    Expression<int>? rowid,
+  }) {
+    return RawValuesInsertable({
+      if (playlistId != null) 'playlist_id': playlistId,
+      if (trackId != null) 'track_id': trackId,
+      if (position != null) 'position': position,
+      if (addedAt != null) 'added_at': addedAt,
+      if (rowid != null) 'rowid': rowid,
+    });
+  }
+
+  LibraryPlaylistTracksCompanion copyWith({
+    Value<int>? playlistId,
+    Value<String>? trackId,
+    Value<int>? position,
+    Value<DateTime>? addedAt,
+    Value<int>? rowid,
+  }) {
+    return LibraryPlaylistTracksCompanion(
+      playlistId: playlistId ?? this.playlistId,
+      trackId: trackId ?? this.trackId,
+      position: position ?? this.position,
+      addedAt: addedAt ?? this.addedAt,
+      rowid: rowid ?? this.rowid,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (playlistId.present) {
+      map['playlist_id'] = Variable<int>(playlistId.value);
+    }
+    if (trackId.present) {
+      map['track_id'] = Variable<String>(trackId.value);
+    }
+    if (position.present) {
+      map['position'] = Variable<int>(position.value);
+    }
+    if (addedAt.present) {
+      map['added_at'] = Variable<DateTime>(addedAt.value);
+    }
+    if (rowid.present) {
+      map['rowid'] = Variable<int>(rowid.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('LibraryPlaylistTracksCompanion(')
+          ..write('playlistId: $playlistId, ')
+          ..write('trackId: $trackId, ')
+          ..write('position: $position, ')
+          ..write('addedAt: $addedAt, ')
+          ..write('rowid: $rowid')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$LibraryDatabase extends GeneratedDatabase {
   _$LibraryDatabase(QueryExecutor e) : super(e);
   $LibraryDatabaseManager get managers => $LibraryDatabaseManager(this);
@@ -3486,6 +4111,11 @@ abstract class _$LibraryDatabase extends GeneratedDatabase {
       $LibraryFavoriteTracksTable(this);
   late final $LibraryPlayHistoryTable libraryPlayHistory =
       $LibraryPlayHistoryTable(this);
+  late final $LibraryPlaylistsTable libraryPlaylists = $LibraryPlaylistsTable(
+    this,
+  );
+  late final $LibraryPlaylistTracksTable libraryPlaylistTracks =
+      $LibraryPlaylistTracksTable(this);
   @override
   Iterable<TableInfo<Table, Object?>> get allTables =>
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
@@ -3498,6 +4128,8 @@ abstract class _$LibraryDatabase extends GeneratedDatabase {
     libraryLyrics,
     libraryFavoriteTracks,
     libraryPlayHistory,
+    libraryPlaylists,
+    libraryPlaylistTracks,
   ];
   @override
   StreamQueryUpdateRules get streamUpdateRules => const StreamQueryUpdateRules([
@@ -3549,6 +4181,13 @@ abstract class _$LibraryDatabase extends GeneratedDatabase {
         limitUpdateKind: UpdateKind.delete,
       ),
       result: [TableUpdate('library_lyrics', kind: UpdateKind.delete)],
+    ),
+    WritePropagation(
+      on: TableUpdateQuery.onTableName(
+        'library_playlists',
+        limitUpdateKind: UpdateKind.delete,
+      ),
+      result: [TableUpdate('library_playlist_tracks', kind: UpdateKind.delete)],
     ),
   ]);
 }
@@ -6829,6 +7468,627 @@ typedef $$LibraryPlayHistoryTableProcessedTableManager =
       LibraryPlayHistoryData,
       PrefetchHooks Function()
     >;
+typedef $$LibraryPlaylistsTableCreateCompanionBuilder =
+    LibraryPlaylistsCompanion Function({
+      Value<int> id,
+      required String name,
+      required DateTime createdAt,
+      required DateTime updatedAt,
+    });
+typedef $$LibraryPlaylistsTableUpdateCompanionBuilder =
+    LibraryPlaylistsCompanion Function({
+      Value<int> id,
+      Value<String> name,
+      Value<DateTime> createdAt,
+      Value<DateTime> updatedAt,
+    });
+
+final class $$LibraryPlaylistsTableReferences
+    extends
+        BaseReferences<
+          _$LibraryDatabase,
+          $LibraryPlaylistsTable,
+          LibraryPlaylist
+        > {
+  $$LibraryPlaylistsTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static MultiTypedResultKey<
+    $LibraryPlaylistTracksTable,
+    List<LibraryPlaylistTrack>
+  >
+  _libraryPlaylistTracksRefsTable(_$LibraryDatabase db) =>
+      MultiTypedResultKey.fromTable(
+        db.libraryPlaylistTracks,
+        aliasName:
+            'library_playlists__id__library_playlist_tracks__playlist_id',
+      );
+
+  $$LibraryPlaylistTracksTableProcessedTableManager
+  get libraryPlaylistTracksRefs {
+    final manager = $$LibraryPlaylistTracksTableTableManager(
+      $_db,
+      $_db.libraryPlaylistTracks,
+    ).filter((f) => f.playlistId.id.sqlEquals($_itemColumn<int>('id')!));
+
+    final cache = $_typedResult.readTableOrNull(
+      _libraryPlaylistTracksRefsTable($_db),
+    );
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: cache),
+    );
+  }
+}
+
+class $$LibraryPlaylistsTableFilterComposer
+    extends Composer<_$LibraryDatabase, $LibraryPlaylistsTable> {
+  $$LibraryPlaylistsTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  Expression<bool> libraryPlaylistTracksRefs(
+    Expression<bool> Function($$LibraryPlaylistTracksTableFilterComposer f) f,
+  ) {
+    final $$LibraryPlaylistTracksTableFilterComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.libraryPlaylistTracks,
+          getReferencedColumn: (t) => t.playlistId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$LibraryPlaylistTracksTableFilterComposer(
+                $db: $db,
+                $table: $db.libraryPlaylistTracks,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+}
+
+class $$LibraryPlaylistsTableOrderingComposer
+    extends Composer<_$LibraryDatabase, $LibraryPlaylistsTable> {
+  $$LibraryPlaylistsTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get name => $composableBuilder(
+    column: $table.name,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get createdAt => $composableBuilder(
+    column: $table.createdAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get updatedAt => $composableBuilder(
+    column: $table.updatedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$LibraryPlaylistsTableAnnotationComposer
+    extends Composer<_$LibraryDatabase, $LibraryPlaylistsTable> {
+  $$LibraryPlaylistsTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get name =>
+      $composableBuilder(column: $table.name, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get createdAt =>
+      $composableBuilder(column: $table.createdAt, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get updatedAt =>
+      $composableBuilder(column: $table.updatedAt, builder: (column) => column);
+
+  Expression<T> libraryPlaylistTracksRefs<T extends Object>(
+    Expression<T> Function($$LibraryPlaylistTracksTableAnnotationComposer a) f,
+  ) {
+    final $$LibraryPlaylistTracksTableAnnotationComposer composer =
+        $composerBuilder(
+          composer: this,
+          getCurrentColumn: (t) => t.id,
+          referencedTable: $db.libraryPlaylistTracks,
+          getReferencedColumn: (t) => t.playlistId,
+          builder:
+              (
+                joinBuilder, {
+                $addJoinBuilderToRootComposer,
+                $removeJoinBuilderFromRootComposer,
+              }) => $$LibraryPlaylistTracksTableAnnotationComposer(
+                $db: $db,
+                $table: $db.libraryPlaylistTracks,
+                $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+                joinBuilder: joinBuilder,
+                $removeJoinBuilderFromRootComposer:
+                    $removeJoinBuilderFromRootComposer,
+              ),
+        );
+    return f(composer);
+  }
+}
+
+class $$LibraryPlaylistsTableTableManager
+    extends
+        RootTableManager<
+          _$LibraryDatabase,
+          $LibraryPlaylistsTable,
+          LibraryPlaylist,
+          $$LibraryPlaylistsTableFilterComposer,
+          $$LibraryPlaylistsTableOrderingComposer,
+          $$LibraryPlaylistsTableAnnotationComposer,
+          $$LibraryPlaylistsTableCreateCompanionBuilder,
+          $$LibraryPlaylistsTableUpdateCompanionBuilder,
+          (LibraryPlaylist, $$LibraryPlaylistsTableReferences),
+          LibraryPlaylist,
+          PrefetchHooks Function({bool libraryPlaylistTracksRefs})
+        > {
+  $$LibraryPlaylistsTableTableManager(
+    _$LibraryDatabase db,
+    $LibraryPlaylistsTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LibraryPlaylistsTableFilterComposer($db: db, $table: table),
+          createOrderingComposer: () =>
+              $$LibraryPlaylistsTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer: () =>
+              $$LibraryPlaylistsTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> name = const Value.absent(),
+                Value<DateTime> createdAt = const Value.absent(),
+                Value<DateTime> updatedAt = const Value.absent(),
+              }) => LibraryPlaylistsCompanion(
+                id: id,
+                name: name,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String name,
+                required DateTime createdAt,
+                required DateTime updatedAt,
+              }) => LibraryPlaylistsCompanion.insert(
+                id: id,
+                name: name,
+                createdAt: createdAt,
+                updatedAt: updatedAt,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$LibraryPlaylistsTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({libraryPlaylistTracksRefs = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [
+                if (libraryPlaylistTracksRefs) db.libraryPlaylistTracks,
+              ],
+              addJoins: null,
+              getPrefetchedDataCallback: (items) async {
+                return [
+                  if (libraryPlaylistTracksRefs)
+                    await $_getPrefetchedData<
+                      LibraryPlaylist,
+                      $LibraryPlaylistsTable,
+                      LibraryPlaylistTrack
+                    >(
+                      currentTable: table,
+                      referencedTable: $$LibraryPlaylistsTableReferences
+                          ._libraryPlaylistTracksRefsTable(db),
+                      managerFromTypedResult: (p0) =>
+                          $$LibraryPlaylistsTableReferences(
+                            db,
+                            table,
+                            p0,
+                          ).libraryPlaylistTracksRefs,
+                      referencedItemsForCurrentItem: (item, referencedItems) =>
+                          referencedItems.where((e) => e.playlistId == item.id),
+                      typedResults: items,
+                    ),
+                ];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$LibraryPlaylistsTableProcessedTableManager =
+    ProcessedTableManager<
+      _$LibraryDatabase,
+      $LibraryPlaylistsTable,
+      LibraryPlaylist,
+      $$LibraryPlaylistsTableFilterComposer,
+      $$LibraryPlaylistsTableOrderingComposer,
+      $$LibraryPlaylistsTableAnnotationComposer,
+      $$LibraryPlaylistsTableCreateCompanionBuilder,
+      $$LibraryPlaylistsTableUpdateCompanionBuilder,
+      (LibraryPlaylist, $$LibraryPlaylistsTableReferences),
+      LibraryPlaylist,
+      PrefetchHooks Function({bool libraryPlaylistTracksRefs})
+    >;
+typedef $$LibraryPlaylistTracksTableCreateCompanionBuilder =
+    LibraryPlaylistTracksCompanion Function({
+      required int playlistId,
+      required String trackId,
+      required int position,
+      required DateTime addedAt,
+      Value<int> rowid,
+    });
+typedef $$LibraryPlaylistTracksTableUpdateCompanionBuilder =
+    LibraryPlaylistTracksCompanion Function({
+      Value<int> playlistId,
+      Value<String> trackId,
+      Value<int> position,
+      Value<DateTime> addedAt,
+      Value<int> rowid,
+    });
+
+final class $$LibraryPlaylistTracksTableReferences
+    extends
+        BaseReferences<
+          _$LibraryDatabase,
+          $LibraryPlaylistTracksTable,
+          LibraryPlaylistTrack
+        > {
+  $$LibraryPlaylistTracksTableReferences(
+    super.$_db,
+    super.$_table,
+    super.$_typedResult,
+  );
+
+  static $LibraryPlaylistsTable _playlistIdTable(_$LibraryDatabase db) =>
+      db.libraryPlaylists.createAlias(
+        'library_playlist_tracks__playlist_id__library_playlists__id',
+      );
+
+  $$LibraryPlaylistsTableProcessedTableManager get playlistId {
+    final $_column = $_itemColumn<int>('playlist_id')!;
+
+    final manager = $$LibraryPlaylistsTableTableManager(
+      $_db,
+      $_db.libraryPlaylists,
+    ).filter((f) => f.id.sqlEquals($_column));
+    final item = $_typedResult.readTableOrNull(_playlistIdTable($_db));
+    if (item == null) return manager;
+    return ProcessedTableManager(
+      manager.$state.copyWith(prefetchedData: [item]),
+    );
+  }
+}
+
+class $$LibraryPlaylistTracksTableFilterComposer
+    extends Composer<_$LibraryDatabase, $LibraryPlaylistTracksTable> {
+  $$LibraryPlaylistTracksTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<String> get trackId => $composableBuilder(
+    column: $table.trackId,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<int> get position => $composableBuilder(
+    column: $table.position,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get addedAt => $composableBuilder(
+    column: $table.addedAt,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  $$LibraryPlaylistsTableFilterComposer get playlistId {
+    final $$LibraryPlaylistsTableFilterComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.playlistId,
+      referencedTable: $db.libraryPlaylists,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LibraryPlaylistsTableFilterComposer(
+            $db: $db,
+            $table: $db.libraryPlaylists,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$LibraryPlaylistTracksTableOrderingComposer
+    extends Composer<_$LibraryDatabase, $LibraryPlaylistTracksTable> {
+  $$LibraryPlaylistTracksTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<String> get trackId => $composableBuilder(
+    column: $table.trackId,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<int> get position => $composableBuilder(
+    column: $table.position,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get addedAt => $composableBuilder(
+    column: $table.addedAt,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  $$LibraryPlaylistsTableOrderingComposer get playlistId {
+    final $$LibraryPlaylistsTableOrderingComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.playlistId,
+      referencedTable: $db.libraryPlaylists,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LibraryPlaylistsTableOrderingComposer(
+            $db: $db,
+            $table: $db.libraryPlaylists,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$LibraryPlaylistTracksTableAnnotationComposer
+    extends Composer<_$LibraryDatabase, $LibraryPlaylistTracksTable> {
+  $$LibraryPlaylistTracksTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<String> get trackId =>
+      $composableBuilder(column: $table.trackId, builder: (column) => column);
+
+  GeneratedColumn<int> get position =>
+      $composableBuilder(column: $table.position, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get addedAt =>
+      $composableBuilder(column: $table.addedAt, builder: (column) => column);
+
+  $$LibraryPlaylistsTableAnnotationComposer get playlistId {
+    final $$LibraryPlaylistsTableAnnotationComposer composer = $composerBuilder(
+      composer: this,
+      getCurrentColumn: (t) => t.playlistId,
+      referencedTable: $db.libraryPlaylists,
+      getReferencedColumn: (t) => t.id,
+      builder:
+          (
+            joinBuilder, {
+            $addJoinBuilderToRootComposer,
+            $removeJoinBuilderFromRootComposer,
+          }) => $$LibraryPlaylistsTableAnnotationComposer(
+            $db: $db,
+            $table: $db.libraryPlaylists,
+            $addJoinBuilderToRootComposer: $addJoinBuilderToRootComposer,
+            joinBuilder: joinBuilder,
+            $removeJoinBuilderFromRootComposer:
+                $removeJoinBuilderFromRootComposer,
+          ),
+    );
+    return composer;
+  }
+}
+
+class $$LibraryPlaylistTracksTableTableManager
+    extends
+        RootTableManager<
+          _$LibraryDatabase,
+          $LibraryPlaylistTracksTable,
+          LibraryPlaylistTrack,
+          $$LibraryPlaylistTracksTableFilterComposer,
+          $$LibraryPlaylistTracksTableOrderingComposer,
+          $$LibraryPlaylistTracksTableAnnotationComposer,
+          $$LibraryPlaylistTracksTableCreateCompanionBuilder,
+          $$LibraryPlaylistTracksTableUpdateCompanionBuilder,
+          (LibraryPlaylistTrack, $$LibraryPlaylistTracksTableReferences),
+          LibraryPlaylistTrack,
+          PrefetchHooks Function({bool playlistId})
+        > {
+  $$LibraryPlaylistTracksTableTableManager(
+    _$LibraryDatabase db,
+    $LibraryPlaylistTracksTable table,
+  ) : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer: () =>
+              $$LibraryPlaylistTracksTableFilterComposer(
+                $db: db,
+                $table: table,
+              ),
+          createOrderingComposer: () =>
+              $$LibraryPlaylistTracksTableOrderingComposer(
+                $db: db,
+                $table: table,
+              ),
+          createComputedFieldComposer: () =>
+              $$LibraryPlaylistTracksTableAnnotationComposer(
+                $db: db,
+                $table: table,
+              ),
+          updateCompanionCallback:
+              ({
+                Value<int> playlistId = const Value.absent(),
+                Value<String> trackId = const Value.absent(),
+                Value<int> position = const Value.absent(),
+                Value<DateTime> addedAt = const Value.absent(),
+                Value<int> rowid = const Value.absent(),
+              }) => LibraryPlaylistTracksCompanion(
+                playlistId: playlistId,
+                trackId: trackId,
+                position: position,
+                addedAt: addedAt,
+                rowid: rowid,
+              ),
+          createCompanionCallback:
+              ({
+                required int playlistId,
+                required String trackId,
+                required int position,
+                required DateTime addedAt,
+                Value<int> rowid = const Value.absent(),
+              }) => LibraryPlaylistTracksCompanion.insert(
+                playlistId: playlistId,
+                trackId: trackId,
+                position: position,
+                addedAt: addedAt,
+                rowid: rowid,
+              ),
+          withReferenceMapper: (p0) => p0
+              .map(
+                (e) => (
+                  e.readTable(table),
+                  $$LibraryPlaylistTracksTableReferences(db, table, e),
+                ),
+              )
+              .toList(),
+          prefetchHooksCallback: ({playlistId = false}) {
+            return PrefetchHooks(
+              db: db,
+              explicitlyWatchedTables: [],
+              addJoins:
+                  <
+                    T extends TableManagerState<
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic,
+                      dynamic
+                    >
+                  >(state) {
+                    if (playlistId) {
+                      state =
+                          state.withJoin(
+                                currentTable: table,
+                                currentColumn: table.playlistId,
+                                referencedTable:
+                                    $$LibraryPlaylistTracksTableReferences
+                                        ._playlistIdTable(db),
+                                referencedColumn:
+                                    $$LibraryPlaylistTracksTableReferences
+                                        ._playlistIdTable(db)
+                                        .id,
+                              )
+                              as T;
+                    }
+
+                    return state;
+                  },
+              getPrefetchedDataCallback: (items) async {
+                return [];
+              },
+            );
+          },
+        ),
+      );
+}
+
+typedef $$LibraryPlaylistTracksTableProcessedTableManager =
+    ProcessedTableManager<
+      _$LibraryDatabase,
+      $LibraryPlaylistTracksTable,
+      LibraryPlaylistTrack,
+      $$LibraryPlaylistTracksTableFilterComposer,
+      $$LibraryPlaylistTracksTableOrderingComposer,
+      $$LibraryPlaylistTracksTableAnnotationComposer,
+      $$LibraryPlaylistTracksTableCreateCompanionBuilder,
+      $$LibraryPlaylistTracksTableUpdateCompanionBuilder,
+      (LibraryPlaylistTrack, $$LibraryPlaylistTracksTableReferences),
+      LibraryPlaylistTrack,
+      PrefetchHooks Function({bool playlistId})
+    >;
 
 class $LibraryDatabaseManager {
   final _$LibraryDatabase _db;
@@ -6847,4 +8107,8 @@ class $LibraryDatabaseManager {
       $$LibraryFavoriteTracksTableTableManager(_db, _db.libraryFavoriteTracks);
   $$LibraryPlayHistoryTableTableManager get libraryPlayHistory =>
       $$LibraryPlayHistoryTableTableManager(_db, _db.libraryPlayHistory);
+  $$LibraryPlaylistsTableTableManager get libraryPlaylists =>
+      $$LibraryPlaylistsTableTableManager(_db, _db.libraryPlaylists);
+  $$LibraryPlaylistTracksTableTableManager get libraryPlaylistTracks =>
+      $$LibraryPlaylistTracksTableTableManager(_db, _db.libraryPlaylistTracks);
 }

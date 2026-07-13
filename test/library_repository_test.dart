@@ -255,6 +255,99 @@ void main() {
     expect(await repository.getPlayHistory(), isEmpty);
     await repository.close();
   });
+
+  test(
+    'playlists persist editing, order, and missing catalog tracks',
+    () async {
+      final createdAt = DateTime.utc(2026, 7, 13, 14);
+      var repository = _openRepository(databaseFile);
+      await repository.upsertSource(_source(createdAt));
+      await repository.replaceSourceScan(
+        _scan(
+          completedAt: createdAt.add(const Duration(minutes: 1)),
+          tracks: [
+            _track('track-one', '01-one.flac', title: 'One'),
+            _track('track-two', '02-two.flac', title: 'Two'),
+          ],
+        ),
+      );
+
+      final playlistId = await repository.createPlaylist(
+        name: '  Road Trip  ',
+        createdAt: createdAt.add(const Duration(minutes: 2)),
+      );
+      expect(
+        await repository.addTrackToPlaylist(
+          playlistId,
+          'track-one',
+          addedAt: createdAt.add(const Duration(minutes: 3)),
+        ),
+        isTrue,
+      );
+      expect(
+        await repository.addTrackToPlaylist(
+          playlistId,
+          'track-two',
+          addedAt: createdAt.add(const Duration(minutes: 4)),
+        ),
+        isTrue,
+      );
+      expect(
+        await repository.addTrackToPlaylist(
+          playlistId,
+          'track-one',
+          addedAt: createdAt.add(const Duration(minutes: 5)),
+        ),
+        isFalse,
+      );
+      await repository.reorderPlaylistTracks(playlistId, [
+        'track-two',
+        'track-one',
+      ], changedAt: createdAt.add(const Duration(minutes: 6)));
+      await repository.renamePlaylist(
+        playlistId,
+        name: 'Favorites for Driving',
+        changedAt: createdAt.add(const Duration(minutes: 7)),
+      );
+
+      await repository.replaceSourceScan(
+        _scan(
+          completedAt: createdAt.add(const Duration(minutes: 8)),
+          tracks: const [],
+        ),
+      );
+      await repository.close();
+
+      repository = _openRepository(databaseFile);
+      final playlists = await repository.getPlaylists();
+      final entries = await repository.getPlaylistTracks(
+        playlistId: playlistId,
+      );
+      expect(playlists.single.name, 'Favorites for Driving');
+      expect(
+        playlists.single.updatedAt,
+        createdAt.add(const Duration(minutes: 7)),
+      );
+      expect(entries.map((entry) => entry.trackId), ['track-two', 'track-one']);
+      expect(await repository.getTracks(), isEmpty);
+
+      await repository.removeTrackFromPlaylist(
+        playlistId,
+        'track-two',
+        changedAt: createdAt.add(const Duration(minutes: 9)),
+      );
+      expect(
+        (await repository.getPlaylistTracks(
+          playlistId: playlistId,
+        )).map((entry) => entry.trackId),
+        ['track-one'],
+      );
+      await repository.deletePlaylist(playlistId);
+      expect(await repository.getPlaylists(), isEmpty);
+      expect(await repository.getPlaylistTracks(), isEmpty);
+      await repository.close();
+    },
+  );
 }
 
 DriftLibraryRepository _openRepository(File file) {

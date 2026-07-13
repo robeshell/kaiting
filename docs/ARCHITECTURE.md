@@ -85,11 +85,14 @@ retry that reloads the current track.
 ## Library persistence
 
 - `LibraryRepository` is the presentation-independent boundary for sources,
-  artists, albums, tracks, lyrics, scan state, favorites, and playback history.
-- Drift manages the SQLite v2 schema. Catalog entity primary keys are stable
+  artists, albums, tracks, lyrics, scan state, favorites, playback history,
+  playlists, and ordered playlist membership.
+- Drift manages the SQLite v3 schema. Catalog entity primary keys are stable
   text IDs supplied by source scanners; only lyric ordering uses a composite
-  key. Favorite and history rows deliberately avoid catalog foreign keys so
-  the atomic delete-and-reinsert phase of a rescan cannot erase user state.
+  key. Favorite, history, and playlist-member rows deliberately avoid catalog
+  foreign keys so the atomic delete-and-reinsert phase of a rescan cannot erase
+  user state. Playlist membership does reference its owning playlist so an
+  explicit playlist deletion cleans up its entries.
 - A source scan is replaced inside one transaction. Failed constraints roll
   back metadata, lyrics, deletions, and the source scan revision together.
 - All persisted timestamps cross the repository boundary as UTC values.

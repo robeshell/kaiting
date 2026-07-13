@@ -8,6 +8,7 @@ import '../../playback/playback_controller.dart';
 import '../controllers/library_catalog_controller.dart';
 import '../controllers/library_search_controller.dart';
 import '../controllers/library_user_state_controller.dart';
+import '../widgets/add_to_playlist_sheet.dart';
 import '../widgets/album_art.dart';
 import '../widgets/source_badge.dart';
 
@@ -185,6 +186,13 @@ class _SearchScreenState extends State<SearchScreen> {
                                 widget.search.hits[index].track,
                               ),
                             ),
+                      onAddToPlaylist: widget.userState == null
+                          ? null
+                          : () => showAddToPlaylistSheet(
+                              context,
+                              userState: widget.userState!,
+                              track: widget.search.hits[index].track,
+                            ),
                     ),
                   ),
                 ),
@@ -285,6 +293,7 @@ class _SearchResultRow extends StatelessWidget {
     required this.onPlay,
     required this.onOpenAlbum,
     required this.onToggleFavorite,
+    required this.onAddToPlaylist,
   });
 
   final LibrarySearchHit hit;
@@ -292,6 +301,7 @@ class _SearchResultRow extends StatelessWidget {
   final VoidCallback onPlay;
   final VoidCallback onOpenAlbum;
   final VoidCallback? onToggleFavorite;
+  final VoidCallback? onAddToPlaylist;
 
   @override
   Widget build(BuildContext context) {
@@ -339,6 +349,13 @@ class _SearchResultRow extends StatelessWidget {
                     ? Icons.favorite_rounded
                     : Icons.favorite_border_rounded,
               ),
+            ),
+          if (onAddToPlaylist != null)
+            IconButton(
+              key: ValueKey('add-search-${hit.track.id}-to-playlist'),
+              onPressed: onAddToPlaylist,
+              tooltip: '将 ${hit.track.title} 添加到播放列表',
+              icon: const Icon(Icons.playlist_add_rounded),
             ),
           IconButton(
             onPressed: onOpenAlbum,

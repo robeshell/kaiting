@@ -6,6 +6,7 @@ import '../../core/sound_theme.dart';
 import '../../domain/library_models.dart';
 import '../controllers/library_catalog_controller.dart';
 import '../controllers/library_user_state_controller.dart';
+import '../widgets/add_to_playlist_sheet.dart';
 import '../widgets/album_art.dart';
 import '../widgets/source_badge.dart';
 import 'library_user_screen.dart';
@@ -386,6 +387,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
             favorite: widget.userState?.isFavorite(tracks.first.id) ?? false,
             onTap: () {},
             onToggleFavorite: null,
+            onAddToPlaylist: null,
             onOpenAlbum: () {},
           ),
           itemBuilder: (context, index) {
@@ -399,6 +401,13 @@ class _LibraryScreenState extends State<LibraryScreen> {
               onToggleFavorite: widget.userState == null
                   ? null
                   : () => unawaited(widget.userState!.toggleFavorite(track)),
+              onAddToPlaylist: widget.userState == null
+                  ? null
+                  : () => showAddToPlaylistSheet(
+                      context,
+                      userState: widget.userState!,
+                      track: track,
+                    ),
               onOpenAlbum: () => widget.onOpenAlbum(album),
             );
           },
@@ -449,6 +458,7 @@ class _LibraryTrackRow extends StatelessWidget {
     required this.favorite,
     required this.onTap,
     required this.onToggleFavorite,
+    required this.onAddToPlaylist,
     required this.onOpenAlbum,
   });
 
@@ -457,6 +467,7 @@ class _LibraryTrackRow extends StatelessWidget {
   final bool favorite;
   final VoidCallback onTap;
   final VoidCallback? onToggleFavorite;
+  final VoidCallback? onAddToPlaylist;
   final VoidCallback onOpenAlbum;
 
   @override
@@ -501,6 +512,13 @@ class _LibraryTrackRow extends StatelessWidget {
                       ? Icons.favorite_rounded
                       : Icons.favorite_border_rounded,
                 ),
+              ),
+            if (onAddToPlaylist != null)
+              IconButton(
+                key: ValueKey('add-library-${track.id}-to-playlist'),
+                onPressed: onAddToPlaylist,
+                tooltip: '将 ${track.title} 添加到播放列表',
+                icon: const Icon(Icons.playlist_add_rounded),
               ),
             IconButton(
               onPressed: onOpenAlbum,

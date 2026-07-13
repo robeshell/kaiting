@@ -6,6 +6,7 @@ import '../../core/sound_theme.dart';
 import '../../domain/library_models.dart';
 import '../../playback/playback_controller.dart';
 import '../controllers/library_user_state_controller.dart';
+import '../widgets/add_to_playlist_sheet.dart';
 import '../widgets/album_art.dart';
 import '../widgets/progress_scrubber.dart';
 import '../widgets/source_badge.dart';
@@ -53,6 +54,13 @@ class AlbumDetailScreen extends StatelessWidget {
                       onToggleFavorite: userState == null
                           ? null
                           : () => unawaited(userState!.toggleFavorite(track)),
+                      onAddToPlaylist: userState == null
+                          ? null
+                          : () => showAddToPlaylistSheet(
+                              context,
+                              userState: userState!,
+                              track: track,
+                            ),
                     );
                   },
                 ),
@@ -206,6 +214,7 @@ class _TrackRow extends StatelessWidget {
     required this.onTap,
     required this.onPlayNext,
     required this.onToggleFavorite,
+    required this.onAddToPlaylist,
   });
 
   final Track track;
@@ -214,6 +223,7 @@ class _TrackRow extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onPlayNext;
   final VoidCallback? onToggleFavorite;
+  final VoidCallback? onAddToPlaylist;
 
   @override
   Widget build(BuildContext context) {
@@ -270,6 +280,7 @@ class _TrackRow extends StatelessWidget {
               onSelected: (value) {
                 if (value == 'play-next') onPlayNext();
                 if (value == 'favorite') onToggleFavorite?.call();
+                if (value == 'playlist') onAddToPlaylist?.call();
               },
               itemBuilder: (_) => [
                 const PopupMenuItem(
@@ -292,6 +303,15 @@ class _TrackRow extends StatelessWidget {
                         color: favorite ? SoundColors.accent : null,
                       ),
                       title: Text(favorite ? '取消收藏' : '收藏歌曲'),
+                    ),
+                  ),
+                if (onAddToPlaylist != null)
+                  const PopupMenuItem(
+                    value: 'playlist',
+                    child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(Icons.playlist_add_rounded),
+                      title: Text('添加到播放列表'),
                     ),
                   ),
               ],

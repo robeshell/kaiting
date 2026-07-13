@@ -43,6 +43,7 @@ class _AppShellState extends State<AppShell> {
   AppSection _section = AppSection.library;
   LibraryBrowseMode _libraryBrowseMode = LibraryBrowseMode.albums;
   LibraryUserBrowseMode? _libraryUserMode;
+  int? _selectedPlaylistId;
   Album? _selectedAlbum;
   LibraryCollection? _selectedCollection;
   late final LibraryRepository _libraryRepository;
@@ -160,6 +161,7 @@ class _AppShellState extends State<AppShell> {
       _selectedAlbum = null;
       _selectedCollection = null;
       _libraryUserMode = null;
+      _selectedPlaylistId = null;
     });
   }
 
@@ -168,6 +170,7 @@ class _AppShellState extends State<AppShell> {
       _section = AppSection.library;
       _libraryBrowseMode = mode;
       _libraryUserMode = null;
+      _selectedPlaylistId = null;
       _selectedAlbum = null;
       _selectedCollection = null;
     });
@@ -177,6 +180,7 @@ class _AppShellState extends State<AppShell> {
     setState(() {
       _section = AppSection.library;
       _libraryUserMode = mode;
+      _selectedPlaylistId = null;
       _selectedAlbum = null;
       _selectedCollection = null;
     });
@@ -271,6 +275,9 @@ class _AppShellState extends State<AppShell> {
                           onModeChanged: _selectLibraryUserMode,
                           onBack: () => _selectLibraryMode(_libraryBrowseMode),
                           onOpenAlbum: _openAlbum,
+                          selectedPlaylistId: _selectedPlaylistId,
+                          onSelectedPlaylistChanged: (playlistId) =>
+                              setState(() => _selectedPlaylistId = playlistId),
                         ),
                 AppSection.search => SearchScreen(
                   catalog: _libraryCatalog,

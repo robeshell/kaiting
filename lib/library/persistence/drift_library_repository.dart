@@ -78,6 +78,30 @@ class DriftLibraryRepository implements LibraryRepository {
   }
 
   @override
+  Stream<List<LibraryPlaylistRecord>> watchPlaylists() {
+    final query = _database.select(_database.libraryPlaylists)
+      ..orderBy([
+        (row) => OrderingTerm.desc(row.updatedAt),
+        (row) => OrderingTerm.asc(row.name),
+      ]);
+    return query.watch().map(
+      (rows) => rows.map(_playlistRecord).toList(growable: false),
+    );
+  }
+
+  @override
+  Stream<List<LibraryPlaylistTrackRecord>> watchPlaylistTracks() {
+    final query = _database.select(_database.libraryPlaylistTracks)
+      ..orderBy([
+        (row) => OrderingTerm.asc(row.playlistId),
+        (row) => OrderingTerm.asc(row.position),
+      ]);
+    return query.watch().map(
+      (rows) => rows.map(_playlistTrackRecord).toList(growable: false),
+    );
+  }
+
+  @override
   Future<List<LibrarySourceRecord>> getSources() async {
     final query = _database.select(_database.librarySources)
       ..orderBy([(row) => OrderingTerm.asc(row.displayName)]);
@@ -176,6 +200,33 @@ class DriftLibraryRepository implements LibraryRepository {
       ..limit(limit);
     final rows = await query.get();
     return rows.map(_historyRecord).toList(growable: false);
+  }
+
+  @override
+  Future<List<LibraryPlaylistRecord>> getPlaylists() async {
+    final query = _database.select(_database.libraryPlaylists)
+      ..orderBy([
+        (row) => OrderingTerm.desc(row.updatedAt),
+        (row) => OrderingTerm.asc(row.name),
+      ]);
+    final rows = await query.get();
+    return rows.map(_playlistRecord).toList(growable: false);
+  }
+
+  @override
+  Future<List<LibraryPlaylistTrackRecord>> getPlaylistTracks({
+    int? playlistId,
+  }) async {
+    final query = _database.select(_database.libraryPlaylistTracks);
+    if (playlistId != null) {
+      query.where((row) => row.playlistId.equals(playlistId));
+    }
+    query.orderBy([
+      (row) => OrderingTerm.asc(row.playlistId),
+      (row) => OrderingTerm.asc(row.position),
+    ]);
+    final rows = await query.get();
+    return rows.map(_playlistTrackRecord).toList(growable: false);
   }
 
   @override
@@ -340,6 +391,157 @@ class DriftLibraryRepository implements LibraryRepository {
   Future<void> clearPlayHistory() =>
       _database.delete(_database.libraryPlayHistory).go();
 
+  @override
+  Future<int> createPlaylist({
+    required String name,
+    required DateTime createdAt,
+  }) {
+    final normalizedName = _validatedPlaylistName(name);
+    final timestamp = createdAt.toUtc();
+    return _database
+        .into(_database.libraryPlaylists)
+        .insert(
+          db.LibraryPlaylistsCompanion.insert(
+            name: normalizedName,
+            createdAt: timestamp,
+            updatedAt: timestamp,
+          ),
+        );
+  }
+
+  @override
+  Future<void> renamePlaylist(
+    int playlistId, {
+    required String name,
+    required DateTime changedAt,
+  }) async {
+    final changed =
+        await (_database.update(
+          _database.libraryPlaylists,
+        )..where((row) => row.id.equals(playlistId))).write(
+          db.LibraryPlaylistsCompanion(
+            name: Value(_validatedPlaylistName(name)),
+            updatedAt: Value(changedAt.toUtc()),
+          ),
+        );
+    if (changed == 0) throw StateError('Unknown playlist: $playlistId');
+  }
+
+  @override
+  Future<void> deletePlaylist(int playlistId) async {
+    final changed = await (_database.delete(
+      _database.libraryPlaylists,
+    )..where((row) => row.id.equals(playlistId))).go();
+    if (changed == 0) throw StateError('Unknown playlist: $playlistId');
+  }
+
+  @override
+  Future<bool> addTrackToPlaylist(
+    int playlistId,
+    String trackId, {
+    required DateTime addedAt,
+  }) async {
+    if (trackId.trim().isEmpty) {
+      throw ArgumentError.value(trackId, 'trackId', 'Must not be empty.');
+    }
+    return _database.transaction(() async {
+      final existing =
+          await (_database.select(_database.libraryPlaylistTracks)..where(
+                (row) =>
+                    row.playlistId.equals(playlistId) &
+                    row.trackId.equals(trackId),
+              ))
+              .getSingleOrNull();
+      if (existing != null) return false;
+
+      final playlist = await (_database.select(
+        _database.libraryPlaylists,
+      )..where((row) => row.id.equals(playlistId))).getSingleOrNull();
+      if (playlist == null) throw StateError('Unknown playlist: $playlistId');
+
+      final last =
+          await (_database.select(_database.libraryPlaylistTracks)
+                ..where((row) => row.playlistId.equals(playlistId))
+                ..orderBy([(row) => OrderingTerm.desc(row.position)])
+                ..limit(1))
+              .getSingleOrNull();
+      final timestamp = addedAt.toUtc();
+      await _database
+          .into(_database.libraryPlaylistTracks)
+          .insert(
+            db.LibraryPlaylistTracksCompanion.insert(
+              playlistId: playlistId,
+              trackId: trackId,
+              position: (last?.position ?? -1) + 1,
+              addedAt: timestamp,
+            ),
+          );
+      await _touchPlaylist(playlistId, timestamp);
+      return true;
+    });
+  }
+
+  @override
+  Future<void> removeTrackFromPlaylist(
+    int playlistId,
+    String trackId, {
+    required DateTime changedAt,
+  }) async {
+    await _database.transaction(() async {
+      final changed =
+          await (_database.delete(_database.libraryPlaylistTracks)..where(
+                (row) =>
+                    row.playlistId.equals(playlistId) &
+                    row.trackId.equals(trackId),
+              ))
+              .go();
+      if (changed > 0) await _touchPlaylist(playlistId, changedAt.toUtc());
+    });
+  }
+
+  @override
+  Future<void> reorderPlaylistTracks(
+    int playlistId,
+    List<String> orderedTrackIds, {
+    required DateTime changedAt,
+  }) async {
+    if (orderedTrackIds.toSet().length != orderedTrackIds.length) {
+      throw ArgumentError('Playlist order contains duplicate track IDs.');
+    }
+    await _database.transaction(() async {
+      final current = await (_database.select(
+        _database.libraryPlaylistTracks,
+      )..where((row) => row.playlistId.equals(playlistId))).get();
+      final currentIds = current.map((row) => row.trackId).toSet();
+      if (currentIds.length != orderedTrackIds.length ||
+          !currentIds.containsAll(orderedTrackIds)) {
+        throw ArgumentError('Playlist order must contain every track once.');
+      }
+      await _database.batch((writer) {
+        for (var index = 0; index < orderedTrackIds.length; index++) {
+          writer.update(
+            _database.libraryPlaylistTracks,
+            db.LibraryPlaylistTracksCompanion(position: Value(index)),
+            where: (row) =>
+                row.playlistId.equals(playlistId) &
+                row.trackId.equals(orderedTrackIds[index]),
+          );
+        }
+      });
+      await _touchPlaylist(playlistId, changedAt.toUtc());
+    });
+  }
+
+  Future<void> _touchPlaylist(int playlistId, DateTime changedAt) async {
+    final changed =
+        await (_database.update(
+          _database.libraryPlaylists,
+        )..where((row) => row.id.equals(playlistId))).write(
+          db.LibraryPlaylistsCompanion(updatedAt: Value(changedAt.toUtc())),
+        );
+    if (changed == 0) throw StateError('Unknown playlist: $playlistId');
+  }
+
   Future<void> _deleteSourceCatalog(String sourceId) async {
     await (_database.delete(
       _database.libraryTracks,
@@ -482,6 +684,35 @@ LibraryPlayHistoryRecord _historyRecord(db.LibraryPlayHistoryData row) {
     trackId: row.trackId,
     playedAt: row.playedAt.toUtc(),
   );
+}
+
+LibraryPlaylistRecord _playlistRecord(db.LibraryPlaylist row) {
+  return LibraryPlaylistRecord(
+    id: row.id,
+    name: row.name,
+    createdAt: row.createdAt.toUtc(),
+    updatedAt: row.updatedAt.toUtc(),
+  );
+}
+
+LibraryPlaylistTrackRecord _playlistTrackRecord(db.LibraryPlaylistTrack row) {
+  return LibraryPlaylistTrackRecord(
+    playlistId: row.playlistId,
+    trackId: row.trackId,
+    position: row.position,
+    addedAt: row.addedAt.toUtc(),
+  );
+}
+
+String _validatedPlaylistName(String name) {
+  final normalized = name.trim();
+  if (normalized.isEmpty) {
+    throw ArgumentError.value(name, 'name', 'Must not be empty.');
+  }
+  if (normalized.length > 100) {
+    throw ArgumentError.value(name, 'name', 'Must be at most 100 characters.');
+  }
+  return normalized;
 }
 
 db.LibrarySourcesCompanion _sourceCompanion(LibrarySourceRecord source) {

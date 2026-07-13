@@ -225,6 +225,120 @@ void main() {
     await _unmountAndFlush(tester);
   });
 
+  testWidgets('playlists support creation, editing, ordering, and deletion', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final repository = await _repositoryWithAlbum(includeSecondTrack: true);
+    addTearDown(repository.close);
+
+    await tester.pumpWidget(
+      SoundApp(
+        engine: SimulatedPlaybackEngine(),
+        repository: repository,
+        sessionStore: PlaybackSessionStore.memory(),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('歌曲').first);
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(const ValueKey('add-library-track:test-to-playlist')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('create-playlist-from-track')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('playlist-name-field')),
+      'Road Trip',
+    );
+    await tester.tap(find.byKey(const ValueKey('confirm-playlist-name')));
+    await tester.pumpAndSettle();
+    expect((await repository.getPlaylists()).single.name, 'Road Trip');
+    expect((await repository.getPlaylistTracks()).single.trackId, 'track:test');
+    await tester.tap(find.byTooltip('关闭'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(
+      find.byKey(const ValueKey('add-library-track:second-to-playlist')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('playlist-membership-1-track:second')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('关闭'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('播放列表').first);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('playlist-1')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('playlist-1')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('playlist-1-track-track:test')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('playlist-1-track-track:second')),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('rename-playlist')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byKey(const ValueKey('playlist-name-field')),
+      'Morning Drive',
+    );
+    await tester.tap(find.byKey(const ValueKey('confirm-playlist-name')));
+    await tester.pumpAndSettle();
+    expect((await repository.getPlaylists()).single.name, 'Morning Drive');
+
+    await tester.drag(
+      find.byIcon(Icons.drag_handle_rounded).first,
+      const Offset(0, 80),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      (await repository.getPlaylistTracks()).map((entry) => entry.trackId),
+      ['track:second', 'track:test'],
+    );
+
+    await tester.tap(
+      find.byKey(const ValueKey('playlist-track-actions-track:test')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('下一首播放'));
+    await tester.pumpAndSettle();
+    await tester.tap(
+      find.byKey(const ValueKey('playlist-track-actions-track:test')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('从此列表移除'));
+    await tester.pumpAndSettle();
+    expect(
+      (await repository.getPlaylistTracks()).single.trackId,
+      'track:second',
+    );
+
+    tester.view.physicalSize = const Size(390, 844);
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.byKey(const ValueKey('delete-playlist')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('confirm-delete-playlist')));
+    await tester.pumpAndSettle();
+    expect(await repository.getPlaylists(), isEmpty);
+    expect(find.text('还没有播放列表'), findsOneWidget);
+
+    await _unmountAndFlush(tester);
+  });
+
   testWidgets('empty repository presents a source-management action', (
     tester,
   ) async {
@@ -439,7 +553,9 @@ DriftLibraryRepository _repository() {
   return DriftLibraryRepository(LibraryDatabase(NativeDatabase.memory()));
 }
 
-Future<DriftLibraryRepository> _repositoryWithAlbum() async {
+Future<DriftLibraryRepository> _repositoryWithAlbum({
+  bool includeSecondTrack = false,
+}) async {
   final repository = _repository();
   final now = DateTime.utc(2026, 7, 11);
   const sourceId = 'local:test';
@@ -493,6 +609,21 @@ Future<DriftLibraryRepository> _repositoryWithAlbum() async {
           trackNumber: 1,
           modifiedAt: now,
         ),
+        if (includeSecondTrack)
+          LibraryTrackRecord(
+            id: _secondTestTrack.id,
+            sourceId: sourceId,
+            albumId: 'album:test',
+            artistId: 'artist:test',
+            relativePath: 'second.flac',
+            mediaUri: _secondTestTrack.mediaUri!,
+            title: _secondTestTrack.title,
+            artistName: _secondTestTrack.artist,
+            albumTitle: _secondTestTrack.albumTitle,
+            durationMs: _secondTestTrack.duration.inMilliseconds,
+            trackNumber: 2,
+            modifiedAt: now,
+          ),
       ],
     ),
   );
@@ -507,4 +638,15 @@ const _testTrack = Track(
   duration: Duration(minutes: 3),
   source: SourceKind.local,
   mediaUri: 'file:///test/test.flac',
+);
+
+const _secondTestTrack = Track(
+  id: 'track:second',
+  title: 'Second Track',
+  artist: 'Test Artist',
+  albumTitle: 'Test Album',
+  duration: Duration(minutes: 4),
+  trackNumber: 2,
+  source: SourceKind.local,
+  mediaUri: 'file:///test/second.flac',
 );

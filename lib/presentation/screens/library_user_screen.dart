@@ -4,24 +4,28 @@ import 'package:flutter/material.dart';
 
 import '../../core/sound_theme.dart';
 import '../../domain/library_models.dart';
+import '../../library/library_records.dart';
 import '../../playback/playback_controller.dart';
 import '../controllers/library_catalog_controller.dart';
 import '../controllers/library_user_state_controller.dart';
+import '../widgets/add_to_playlist_sheet.dart';
 import '../widgets/album_art.dart';
 
-enum LibraryUserBrowseMode { favorites, recent, history }
+enum LibraryUserBrowseMode { favorites, recent, history, playlists }
 
 extension LibraryUserBrowseModePresentation on LibraryUserBrowseMode {
   String get label => switch (this) {
     LibraryUserBrowseMode.favorites => '收藏',
     LibraryUserBrowseMode.recent => '最近播放',
     LibraryUserBrowseMode.history => '播放历史',
+    LibraryUserBrowseMode.playlists => '播放列表',
   };
 
   IconData get icon => switch (this) {
     LibraryUserBrowseMode.favorites => Icons.favorite_rounded,
     LibraryUserBrowseMode.recent => Icons.history_toggle_off_rounded,
     LibraryUserBrowseMode.history => Icons.history_rounded,
+    LibraryUserBrowseMode.playlists => Icons.queue_music_rounded,
   };
 }
 
@@ -36,6 +40,8 @@ class LibraryUserScreen extends StatefulWidget {
     required this.onModeChanged,
     required this.onBack,
     required this.onOpenAlbum,
+    required this.selectedPlaylistId,
+    required this.onSelectedPlaylistChanged,
     super.key,
   });
 
@@ -46,6 +52,8 @@ class LibraryUserScreen extends StatefulWidget {
   final ValueChanged<LibraryUserBrowseMode> onModeChanged;
   final VoidCallback onBack;
   final ValueChanged<Album> onOpenAlbum;
+  final int? selectedPlaylistId;
+  final ValueChanged<int?> onSelectedPlaylistChanged;
 
   @override
   State<LibraryUserScreen> createState() => _LibraryUserScreenState();
@@ -61,6 +69,9 @@ class _LibraryUserScreenState extends State<LibraryUserScreen> {
       child: AnimatedBuilder(
         animation: Listenable.merge([widget.catalog, widget.userState]),
         builder: (context, _) {
+          if (widget.mode == LibraryUserBrowseMode.playlists) {
+            return _buildPlaylists();
+          }
           final albumByTrackId = {
             for (final album in widget.catalog.albums)
               for (final track in album.tracks) track.id: album,
@@ -70,6 +81,7 @@ class _LibraryUserScreenState extends State<LibraryUserScreen> {
             LibraryUserBrowseMode.favorites => widget.userState.favoriteTracks,
             LibraryUserBrowseMode.recent => widget.userState.recentTracks,
             LibraryUserBrowseMode.history => const <Track>[],
+            LibraryUserBrowseMode.playlists => const <Track>[],
           });
           final history = _filterHistory(widget.userState.historyItems);
           final resultCount = widget.mode == LibraryUserBrowseMode.history
@@ -127,6 +139,236 @@ class _LibraryUserScreenState extends State<LibraryUserScreen> {
     );
   }
 
+  Widget _buildPlaylists() {
+    final selectedPlaylist = widget.selectedPlaylistId == null
+        ? null
+        : widget.userState.playlistById(widget.selectedPlaylistId!);
+    if (selectedPlaylist == null) {
+      return CustomScrollView(
+        slivers: [
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(32, 24, 32, 18),
+            sliver: SliverToBoxAdapter(
+              child: _PlaylistOverviewHeader(
+                playlistCount: widget.userState.playlists.length,
+                onModeChanged: widget.onModeChanged,
+                onBack: widget.onBack,
+                onCreate: _createPlaylist,
+              ),
+            ),
+          ),
+          if (widget.userState.isLoading)
+            const SliverFillRemaining(
+              hasScrollBody: false,
+              child: Center(child: CircularProgressIndicator()),
+            )
+          else if (widget.userState.errorMessage case final message?)
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: _UserLibraryMessage(
+                icon: Icons.error_outline_rounded,
+                title: '无法读取播放列表',
+                message: message,
+              ),
+            )
+          else if (widget.userState.playlists.isEmpty)
+            const SliverFillRemaining(
+              hasScrollBody: false,
+              child: _UserLibraryMessage(
+                icon: Icons.queue_music_rounded,
+                title: '还没有播放列表',
+                message: '新建一个播放列表，或从任意歌曲的操作菜单中直接添加。',
+              ),
+            )
+          else
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(32, 0, 32, 140),
+              sliver: SliverList.separated(
+                itemCount: widget.userState.playlists.length,
+                separatorBuilder: (_, _) => const SizedBox(height: 8),
+                itemBuilder: (context, index) {
+                  final playlist = widget.userState.playlists[index];
+                  return _PlaylistTile(
+                    key: ValueKey('playlist-${playlist.id}'),
+                    playlist: playlist,
+                    trackCount: widget.userState.playlistTrackCount(
+                      playlist.id,
+                    ),
+                    missingTrackCount: widget.userState
+                        .missingPlaylistTrackCount(playlist.id),
+                    onTap: () => widget.onSelectedPlaylistChanged(playlist.id),
+                    onPlay: () {
+                      final tracks = widget.userState.tracksForPlaylist(
+                        playlist.id,
+                      );
+                      if (tracks.isNotEmpty) {
+                        unawaited(
+                          widget.playback.playTrack(
+                            tracks.first,
+                            queue: tracks,
+                          ),
+                        );
+                      }
+                    },
+                    onRename: () => _renamePlaylist(playlist),
+                    onDelete: () => _deletePlaylist(playlist),
+                  );
+                },
+              ),
+            ),
+        ],
+      );
+    }
+
+    final tracks = widget.userState.tracksForPlaylist(selectedPlaylist.id);
+    final albumByTrackId = {
+      for (final album in widget.catalog.albums)
+        for (final track in album.tracks) track.id: album,
+    };
+    final missingCount = widget.userState.missingPlaylistTrackCount(
+      selectedPlaylist.id,
+    );
+    return CustomScrollView(
+      slivers: [
+        SliverPadding(
+          padding: const EdgeInsets.fromLTRB(32, 24, 32, 18),
+          sliver: SliverToBoxAdapter(
+            child: _PlaylistDetailHeader(
+              playlist: selectedPlaylist,
+              availableTrackCount: tracks.length,
+              missingTrackCount: missingCount,
+              onBack: () => widget.onSelectedPlaylistChanged(null),
+              onPlay: tracks.isEmpty
+                  ? null
+                  : () => unawaited(
+                      widget.playback.playTrack(tracks.first, queue: tracks),
+                    ),
+              onRename: () => _renamePlaylist(selectedPlaylist),
+              onDelete: () => _deletePlaylist(selectedPlaylist),
+            ),
+          ),
+        ),
+        if (tracks.isEmpty)
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: _UserLibraryMessage(
+              icon: Icons.music_note_rounded,
+              title: missingCount == 0 ? '播放列表是空的' : '歌曲来源暂不可用',
+              message: missingCount == 0
+                  ? '从资料库、搜索或播放页面把歌曲添加到这里。'
+                  : '已保留 $missingCount 首歌，重新连接对应来源后会自动恢复。',
+            ),
+          )
+        else
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(32, 0, 32, 140),
+            sliver: SliverReorderableList(
+              itemCount: tracks.length,
+              onReorderItem: (oldIndex, newIndex) => _reorderPlaylist(
+                selectedPlaylist.id,
+                tracks,
+                oldIndex,
+                newIndex,
+              ),
+              itemBuilder: (context, index) {
+                final track = tracks[index];
+                final album = albumByTrackId[track.id]!;
+                return _PlaylistTrackRow(
+                  key: ValueKey(
+                    'playlist-${selectedPlaylist.id}-track-${track.id}',
+                  ),
+                  index: index,
+                  track: track,
+                  album: album,
+                  favorite: widget.userState.isFavorite(track.id),
+                  onTap: () => widget.playback.playTrack(track, queue: tracks),
+                  onPlayNext: () => widget.playback.playNext(track),
+                  onToggleFavorite: () =>
+                      unawaited(widget.userState.toggleFavorite(track)),
+                  onAddToPlaylist: () => showAddToPlaylistSheet(
+                    context,
+                    userState: widget.userState,
+                    track: track,
+                  ),
+                  onRemove: () => unawaited(
+                    widget.userState.setTrackInPlaylist(
+                      selectedPlaylist.id,
+                      track,
+                      included: false,
+                    ),
+                  ),
+                  onOpenAlbum: () => widget.onOpenAlbum(album),
+                );
+              },
+            ),
+          ),
+      ],
+    );
+  }
+
+  Future<void> _createPlaylist() async {
+    final name = await showPlaylistNameDialog(
+      context,
+      title: '新建播放列表',
+      confirmLabel: '新建',
+    );
+    if (name == null || !mounted) return;
+    final playlistId = await widget.userState.createPlaylist(name);
+    if (playlistId != null && mounted) {
+      widget.onSelectedPlaylistChanged(playlistId);
+    }
+  }
+
+  Future<void> _renamePlaylist(LibraryPlaylistRecord playlist) async {
+    final name = await showPlaylistNameDialog(
+      context,
+      title: '重命名播放列表',
+      initialValue: playlist.name,
+    );
+    if (name != null) {
+      await widget.userState.renamePlaylist(playlist.id, name);
+    }
+  }
+
+  Future<void> _deletePlaylist(LibraryPlaylistRecord playlist) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('删除播放列表？'),
+        content: Text('“${playlist.name}”会被删除，资料库中的歌曲不会受到影响。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: const Text('取消'),
+          ),
+          FilledButton(
+            key: const ValueKey('confirm-delete-playlist'),
+            onPressed: () => Navigator.of(context).pop(true),
+            child: const Text('删除'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    final deleted = await widget.userState.deletePlaylist(playlist.id);
+    if (deleted && mounted && widget.selectedPlaylistId == playlist.id) {
+      widget.onSelectedPlaylistChanged(null);
+    }
+  }
+
+  void _reorderPlaylist(
+    int playlistId,
+    List<Track> tracks,
+    int oldIndex,
+    int newIndex,
+  ) {
+    if (newIndex == oldIndex) return;
+    final reordered = List<Track>.of(tracks);
+    final track = reordered.removeAt(oldIndex);
+    reordered.insert(newIndex, track);
+    unawaited(widget.userState.reorderPlaylist(playlistId, reordered));
+  }
+
   List<Track> _filterTracks(List<Track> tracks) {
     return [
       for (final track in tracks)
@@ -162,6 +404,7 @@ class _LibraryUserScreenState extends State<LibraryUserScreen> {
           favorite: favoriteIds.contains(tracks.first.id),
           onTap: () {},
           onToggleFavorite: () {},
+          onAddToPlaylist: () {},
           onOpenAlbum: () {},
         ),
         itemBuilder: (context, index) {
@@ -175,6 +418,11 @@ class _LibraryUserScreenState extends State<LibraryUserScreen> {
             onTap: () => widget.playback.playTrack(track, queue: tracks),
             onToggleFavorite: () =>
                 unawaited(widget.userState.toggleFavorite(track)),
+            onAddToPlaylist: () => showAddToPlaylistSheet(
+              context,
+              userState: widget.userState,
+              track: track,
+            ),
             onOpenAlbum: () => widget.onOpenAlbum(album),
           );
         },
@@ -199,6 +447,7 @@ class _LibraryUserScreenState extends State<LibraryUserScreen> {
           historyTime: history.first.record.playedAt,
           onTap: () {},
           onToggleFavorite: () {},
+          onAddToPlaylist: () {},
           onOpenAlbum: () {},
         ),
         itemBuilder: (context, index) {
@@ -217,6 +466,11 @@ class _LibraryUserScreenState extends State<LibraryUserScreen> {
             ),
             onToggleFavorite: () =>
                 unawaited(widget.userState.toggleFavorite(track)),
+            onAddToPlaylist: () => showAddToPlaylistSheet(
+              context,
+              userState: widget.userState,
+              track: track,
+            ),
             onOpenAlbum: () => widget.onOpenAlbum(album),
           );
         },
@@ -241,6 +495,11 @@ class _LibraryUserScreenState extends State<LibraryUserScreen> {
         title: '播放历史是空的',
         message: '每次开始播放一首歌曲都会在这里留下记录。',
       ),
+      LibraryUserBrowseMode.playlists => const _UserLibraryMessage(
+        icon: Icons.queue_music_rounded,
+        title: '还没有播放列表',
+        message: '新建一个播放列表，或从任意歌曲的操作菜单中直接添加。',
+      ),
     };
   }
 
@@ -263,6 +522,330 @@ class _LibraryUserScreenState extends State<LibraryUserScreen> {
       ),
     );
     if (confirmed == true) await widget.userState.clearHistory();
+  }
+}
+
+class _PlaylistOverviewHeader extends StatelessWidget {
+  const _PlaylistOverviewHeader({
+    required this.playlistCount,
+    required this.onModeChanged,
+    required this.onBack,
+    required this.onCreate,
+  });
+
+  final int playlistCount;
+  final ValueChanged<LibraryUserBrowseMode> onModeChanged;
+  final VoidCallback onBack;
+  final VoidCallback onCreate;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        IconButton(
+          onPressed: onBack,
+          tooltip: '返回资料库',
+          icon: const Icon(Icons.arrow_back_rounded),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '播放列表',
+                    style: TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -0.8,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    '$playlistCount 个列表',
+                    style: const TextStyle(color: Colors.white54, fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+            FilledButton.icon(
+              key: const ValueKey('create-playlist'),
+              onPressed: onCreate,
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('新建'),
+            ),
+          ],
+        ),
+        const SizedBox(height: 18),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [
+              for (final candidate in LibraryUserBrowseMode.values)
+                Padding(
+                  padding: const EdgeInsets.only(right: 8),
+                  child: ChoiceChip(
+                    key: ValueKey('user-library-mode-${candidate.name}'),
+                    avatar: Icon(candidate.icon, size: 17),
+                    label: Text(candidate.label),
+                    selected: candidate == LibraryUserBrowseMode.playlists,
+                    onSelected: (_) => onModeChanged(candidate),
+                    selectedColor: SoundColors.accent.withValues(alpha: 0.24),
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _PlaylistTile extends StatelessWidget {
+  const _PlaylistTile({
+    required this.playlist,
+    required this.trackCount,
+    required this.missingTrackCount,
+    required this.onTap,
+    required this.onPlay,
+    required this.onRename,
+    required this.onDelete,
+    super.key,
+  });
+
+  final LibraryPlaylistRecord playlist;
+  final int trackCount;
+  final int missingTrackCount;
+  final VoidCallback onTap;
+  final VoidCallback onPlay;
+  final VoidCallback onRename;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white.withValues(alpha: 0.045),
+      borderRadius: BorderRadius.circular(12),
+      child: ListTile(
+        contentPadding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        onTap: onTap,
+        leading: Container(
+          width: 50,
+          height: 50,
+          decoration: BoxDecoration(
+            color: SoundColors.accent.withValues(alpha: 0.16),
+            borderRadius: BorderRadius.circular(9),
+          ),
+          child: const Icon(
+            Icons.queue_music_rounded,
+            color: SoundColors.accent,
+          ),
+        ),
+        title: Text(
+          playlist.name,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
+        ),
+        subtitle: Text(
+          missingTrackCount == 0
+              ? '$trackCount 首歌'
+              : '$trackCount 首歌 · $missingTrackCount 首来源暂不可用',
+          style: const TextStyle(color: Colors.white54),
+        ),
+        trailing: PopupMenuButton<String>(
+          key: ValueKey('playlist-actions-${playlist.id}'),
+          tooltip: '播放列表操作',
+          onSelected: (value) {
+            if (value == 'play') onPlay();
+            if (value == 'rename') onRename();
+            if (value == 'delete') onDelete();
+          },
+          itemBuilder: (context) => [
+            PopupMenuItem(
+              value: 'play',
+              enabled: trackCount > missingTrackCount,
+              child: const Text('播放'),
+            ),
+            const PopupMenuItem(value: 'rename', child: Text('重命名')),
+            const PopupMenuItem(value: 'delete', child: Text('删除')),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _PlaylistDetailHeader extends StatelessWidget {
+  const _PlaylistDetailHeader({
+    required this.playlist,
+    required this.availableTrackCount,
+    required this.missingTrackCount,
+    required this.onBack,
+    required this.onPlay,
+    required this.onRename,
+    required this.onDelete,
+  });
+
+  final LibraryPlaylistRecord playlist;
+  final int availableTrackCount;
+  final int missingTrackCount;
+  final VoidCallback onBack;
+  final VoidCallback? onPlay;
+  final VoidCallback onRename;
+  final VoidCallback onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final summary = [
+      '$availableTrackCount 首可播放',
+      if (missingTrackCount > 0) '$missingTrackCount 首来源暂不可用',
+    ].join(' · ');
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        IconButton(
+          key: const ValueKey('back-to-playlists'),
+          onPressed: onBack,
+          tooltip: '返回播放列表',
+          icon: const Icon(Icons.arrow_back_rounded),
+        ),
+        const SizedBox(height: 14),
+        Text(
+          playlist.name,
+          style: const TextStyle(
+            fontSize: 34,
+            fontWeight: FontWeight.w900,
+            letterSpacing: -0.8,
+          ),
+        ),
+        const SizedBox(height: 6),
+        Text(summary, style: const TextStyle(color: Colors.white54)),
+        const SizedBox(height: 18),
+        Wrap(
+          spacing: 10,
+          runSpacing: 8,
+          children: [
+            FilledButton.icon(
+              key: const ValueKey('play-playlist'),
+              onPressed: onPlay,
+              icon: const Icon(Icons.play_arrow_rounded),
+              label: const Text('播放'),
+            ),
+            OutlinedButton.icon(
+              key: const ValueKey('rename-playlist'),
+              onPressed: onRename,
+              icon: const Icon(Icons.edit_outlined),
+              label: const Text('重命名'),
+            ),
+            TextButton.icon(
+              key: const ValueKey('delete-playlist'),
+              onPressed: onDelete,
+              icon: const Icon(Icons.delete_outline_rounded),
+              label: const Text('删除'),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _PlaylistTrackRow extends StatelessWidget {
+  const _PlaylistTrackRow({
+    required this.index,
+    required this.track,
+    required this.album,
+    required this.favorite,
+    required this.onTap,
+    required this.onPlayNext,
+    required this.onToggleFavorite,
+    required this.onAddToPlaylist,
+    required this.onRemove,
+    required this.onOpenAlbum,
+    super.key,
+  });
+
+  final int index;
+  final Track track;
+  final Album album;
+  final bool favorite;
+  final VoidCallback onTap;
+  final VoidCallback onPlayNext;
+  final VoidCallback onToggleFavorite;
+  final VoidCallback onAddToPlaylist;
+  final VoidCallback onRemove;
+  final VoidCallback onOpenAlbum;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Theme.of(context).scaffoldBackgroundColor,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
+          ),
+        ),
+        child: ListTile(
+          contentPadding: const EdgeInsets.symmetric(vertical: 5),
+          onTap: onTap,
+          leading: SizedBox.square(
+            dimension: 48,
+            child: AlbumArt(album: album, borderRadius: 6),
+          ),
+          title: Text(
+            track.title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+          ),
+          subtitle: Text(
+            '${track.artist} · ${album.title}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 12, color: Colors.white54),
+          ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              PopupMenuButton<String>(
+                key: ValueKey('playlist-track-actions-${track.id}'),
+                tooltip: '歌曲操作',
+                onSelected: (value) {
+                  if (value == 'play-next') onPlayNext();
+                  if (value == 'favorite') onToggleFavorite();
+                  if (value == 'add') onAddToPlaylist();
+                  if (value == 'album') onOpenAlbum();
+                  if (value == 'remove') onRemove();
+                },
+                itemBuilder: (context) => [
+                  const PopupMenuItem(value: 'play-next', child: Text('下一首播放')),
+                  PopupMenuItem(
+                    value: 'favorite',
+                    child: Text(favorite ? '取消收藏' : '收藏歌曲'),
+                  ),
+                  const PopupMenuItem(value: 'add', child: Text('添加到其他播放列表')),
+                  const PopupMenuItem(value: 'album', child: Text('打开专辑')),
+                  const PopupMenuItem(value: 'remove', child: Text('从此列表移除')),
+                ],
+              ),
+              ReorderableDragStartListener(
+                index: index,
+                child: const Padding(
+                  padding: EdgeInsets.all(10),
+                  child: Icon(Icons.drag_handle_rounded, color: Colors.white54),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
 
@@ -375,6 +958,7 @@ class _UserTrackRow extends StatelessWidget {
     required this.favorite,
     required this.onTap,
     required this.onToggleFavorite,
+    required this.onAddToPlaylist,
     required this.onOpenAlbum,
     this.historyTime,
     super.key,
@@ -386,6 +970,7 @@ class _UserTrackRow extends StatelessWidget {
   final DateTime? historyTime;
   final VoidCallback onTap;
   final VoidCallback onToggleFavorite;
+  final VoidCallback onAddToPlaylist;
   final VoidCallback onOpenAlbum;
 
   @override
@@ -428,6 +1013,12 @@ class _UserTrackRow extends StatelessWidget {
             icon: Icon(
               favorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
             ),
+          ),
+          IconButton(
+            key: ValueKey('add-user-${track.id}-to-playlist'),
+            onPressed: onAddToPlaylist,
+            tooltip: '将 ${track.title} 添加到播放列表',
+            icon: const Icon(Icons.playlist_add_rounded),
           ),
           IconButton(
             onPressed: onOpenAlbum,

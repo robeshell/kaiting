@@ -9,6 +9,7 @@ import '../../domain/library_models.dart';
 import '../../playback/playback_controller.dart';
 import '../../playback/playback_mode.dart';
 import '../controllers/library_user_state_controller.dart';
+import '../widgets/add_to_playlist_sheet.dart';
 import '../widgets/album_art.dart';
 import '../widgets/playback_status_badge.dart';
 import '../widgets/playback_queue_sheet.dart';
@@ -280,6 +281,17 @@ class _PlayerColumn extends StatelessWidget {
                 ),
               ),
             ),
+            if (userState case final state?)
+              IconButton(
+                key: ValueKey('add-now-playing-${track.id}-to-playlist'),
+                onPressed: () => showAddToPlaylistSheet(
+                  context,
+                  userState: state,
+                  track: track,
+                ),
+                tooltip: '添加到播放列表',
+                icon: const Icon(Icons.playlist_add_rounded),
+              ),
             if (userState case final state?)
               IconButton(
                 key: ValueKey('favorite-now-playing-${track.id}'),

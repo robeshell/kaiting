@@ -8,14 +8,16 @@ import 'generated_migrations/sound_library/schema.dart';
 void main() {
   driftRuntimeOptions.dontWarnAboutMultipleDatabases = true;
 
-  test('migrates the v1 catalog to the v2 user-state schema', () async {
-    final verifier = SchemaVerifier(GeneratedHelper());
-    final schema = await verifier.schemaAt(1);
-    final database = LibraryDatabase(schema.newConnection());
+  for (final fromVersion in [1, 2]) {
+    test('migrates v$fromVersion to the v3 playlist schema', () async {
+      final verifier = SchemaVerifier(GeneratedHelper());
+      final schema = await verifier.schemaAt(fromVersion);
+      final database = LibraryDatabase(schema.newConnection());
 
-    await verifier.migrateAndValidate(database, 2);
+      await verifier.migrateAndValidate(database, 3);
 
-    await database.close();
-    schema.close();
-  });
+      await database.close();
+      schema.close();
+    });
+  }
 }

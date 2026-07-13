@@ -18,7 +18,8 @@ from explicit platform-independent contracts.
   Android, AVPlayer on Apple platforms, and WinRT MediaPlayer on Windows;
   widget tests inject `SimulatedPlaybackEngine`.
 - Production navigation exposes real albums, artists, genres, songs,
-  favorites, recent plays, and full playback history without demo screens.
+  favorites, recent plays, full playback history, and editable playlists
+  without demo screens.
 - `PlaybackEngine` snapshots are the sole authority for playback position.
 - Playback session generations reject callbacks from previously loaded tracks.
 - Queue and position sessions are checkpointed during playback and flushed on
@@ -28,11 +29,11 @@ from explicit platform-independent contracts.
 - Mini-player and now-playing surfaces share one visual mapping for loading,
   buffering, ready, playing, paused, completed, and error states, including
   replay and retry actions.
-- A Drift/SQLite v2 repository persists sources, artists, albums, tracks,
-  lyrics, favorites, playback history, and atomic scan state across native
-  platforms and the development Web build. User state survives catalog
-  rescans because it is linked through stable track IDs without scan-time
-  cascading deletes.
+- A Drift/SQLite v3 repository persists sources, artists, albums, tracks,
+  lyrics, favorites, playback history, editable playlists, and atomic scan
+  state across native platforms and the development Web build. User state
+  survives catalog rescans because it is linked through stable track IDs
+  without scan-time cascading deletes.
 - Local folder sources persist Android SAF tree grants and macOS
   security-scoped bookmarks across restarts; iPhone/iPad use the system Files
   picker and a restored bookmark; Windows and Linux restore normalized
@@ -54,10 +55,10 @@ from explicit platform-independent contracts.
 - Source settings can add, edit, probe, and remove WebDAV servers. Discovery
   requires advertised DAV capability and a 207 PROPFIND response, while
   credentials live in platform secure storage instead of the library database.
-- Background playback, system media controls, search, and the production
-  WebDAV indexing flow remain unfinished. Repository-backed screens still need runtime
-  regression on Windows and iPhone/iPad when suitable hosts/devices are
-  available.
+- Background playback and system media controls still need the remaining
+  physical-device regression matrix. Repository-backed screens also need
+  runtime regression on Windows and iPhone/iPad when suitable hosts/devices
+  are available.
 
 ## Run
 
@@ -66,9 +67,9 @@ flutter pub get
 flutter run -d macos
 ```
 
-Open Settings -> Playback validation to choose a local audio file or enter a
-WebDAV file URL. Use `flutter devices` to find Android targets. Windows builds
-must be produced on Windows.
+Open Settings to add a local folder or WebDAV source, scan it, and play from
+the real library screens. Use `flutter devices` to find Android targets.
+Windows builds must be produced on Windows.
 
 ## Verify
 
