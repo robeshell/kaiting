@@ -7,6 +7,7 @@ import 'package:sound_player/library/library_records.dart';
 import 'package:sound_player/library/persistence/drift_library_repository.dart';
 import 'package:sound_player/library/persistence/library_database.dart';
 import 'package:sound_player/library/scanning/artwork_store.dart';
+import 'package:sound_player/library/scanning/audio_metadata_extractor.dart';
 import 'package:sound_player/sources/webdav/webdav_connection_service.dart';
 import 'package:sound_player/sources/webdav/webdav_credentials.dart';
 import 'package:sound_player/sources/webdav/webdav_discovery.dart';
@@ -226,6 +227,133 @@ void main() {
     expect(await artworkFile.length(), greaterThan(0));
   });
 
+  test('uses the same release grouping rules for WebDAV metadata', () async {
+    final music = Directory('${root.path}/dav/music');
+    final relativeFiles = [
+      'Artist One/Greatest Hits/artist-one.mp3',
+      'Artist Two/Greatest Hits/artist-two.mp3',
+      'Main Artist/Complete Album/CD 1/disc-one.flac',
+      'Main Artist/Complete Album/Disc 2/disc-two.flac',
+      'Festival Collection/guest-one.mp3',
+      'Festival Collection/guest-two.mp3',
+    ];
+    for (var index = 0; index < relativeFiles.length; index++) {
+      final file = File('${music.path}/${relativeFiles[index]}');
+      await file.parent.create(recursive: true);
+      await file.writeAsBytes([index + 1]);
+    }
+    final baseUrl = 'http://127.0.0.1:${server.port}/dav/';
+    final connectionId = WebDavConnectionService.stableWebDavConnectionId(
+      baseUrl,
+    );
+    final now = DateTime.utc(2026, 7, 13);
+    await repository.upsertSource(
+      LibrarySourceRecord(
+        id: connectionId,
+        type: LibrarySourceType.webDav,
+        displayName: 'Fixture',
+        rootUri: baseUrl,
+        status: LibrarySourceStatus.available,
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+    final fileUrls = [
+      for (final relative in relativeFiles)
+        'http://127.0.0.1:${server.port}/dav/music/$relative',
+    ];
+    final scanner = WebDavFolderScanner(
+      repository: repository,
+      metadataExtractor: const _ByteMetadataExtractor({
+        1: ExtractedAudioMetadata(
+          title: 'One',
+          artist: 'Artist One',
+          album: 'Greatest Hits',
+          albumArtist: 'Artist One',
+          trackNumber: 1,
+        ),
+        2: ExtractedAudioMetadata(
+          title: 'Two',
+          artist: 'Artist Two',
+          album: 'Greatest Hits',
+          albumArtist: 'Artist Two',
+          trackNumber: 1,
+        ),
+        3: ExtractedAudioMetadata(
+          title: 'Disc One',
+          artist: 'Main Artist',
+          album: 'Complete Album',
+          albumArtist: 'Main Artist',
+          trackNumber: 1,
+          discNumber: 1,
+        ),
+        4: ExtractedAudioMetadata(
+          title: 'Disc Two',
+          artist: 'Main Artist & Guest',
+          album: 'Complete Album',
+          albumArtist: 'Main Artist',
+          trackNumber: 1,
+          discNumber: 2,
+        ),
+        5: ExtractedAudioMetadata(
+          title: 'Guest One',
+          artist: 'Guest One',
+          album: 'Festival Collection',
+          albumArtist: 'Various Artists',
+          isCompilation: true,
+          trackNumber: 1,
+        ),
+        6: ExtractedAudioMetadata(
+          title: 'Guest Two',
+          artist: 'Guest Two',
+          album: 'Festival Collection',
+          albumArtist: 'Various Artists',
+          isCompilation: true,
+          trackNumber: 2,
+        ),
+      }),
+      discovery: _FileListDiscovery(fileUrls),
+    );
+
+    final result = await scanner.scan(
+      connectionId: connectionId,
+      folderUrls: const ['/dav/music/'],
+      baseUrl: baseUrl,
+      credentials: const WebDavCredentials(
+        username: 'sound',
+        password: 'sound-test',
+      ),
+    );
+
+    final folderId = WebDavConnectionService.stableWebDavFolderSourceId(
+      connectionId,
+      '/dav/music/',
+    );
+    final albums = await repository.getAlbums(sourceId: folderId);
+    final tracks = await repository.getTracks(sourceId: folderId);
+    expect(result.indexedTracks, 6);
+    expect(albums, hasLength(4));
+    expect(
+      albums.where((album) => album.title == 'Greatest Hits'),
+      hasLength(2),
+    );
+    final multiDisc = albums.singleWhere(
+      (album) => album.title == 'Complete Album',
+    );
+    expect(
+      tracks
+          .where((track) => track.albumId == multiDisc.id)
+          .map((track) => track.discNumber),
+      [1, 2],
+    );
+    expect(
+      albums
+          .singleWhere((album) => album.title == 'Festival Collection')
+          .albumArtist,
+      'Various Artists',
+    );
+  });
+
   test(
     'keeps metadata-unreadable MP3 files discoverable by filename',
     () async {
@@ -336,6 +464,20 @@ class _FileListDiscovery extends WebDavDiscoveryService {
           ),
       ],
     );
+  }
+}
+
+class _ByteMetadataExtractor implements AudioMetadataExtractor {
+  const _ByteMetadataExtractor(this.metadata);
+
+  final Map<int, ExtractedAudioMetadata> metadata;
+
+  @override
+  Future<ExtractedAudioMetadata> extract(File file) async {
+    final bytes = await file.readAsBytes();
+    final value = bytes.isEmpty ? null : metadata[bytes.first];
+    if (value == null) throw const FormatException('Unknown audio fixture.');
+    return value;
   }
 }
 

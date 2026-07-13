@@ -157,8 +157,16 @@ The `web/sqlite3.wasm` binary must match the `sqlite3` version resolved in
   pure-Dart metadata parsing, then deletes it immediately. The stored playback
   URI remains the original `content://` document URI.
 - `audio_metadata_reader` parses MP3 ID3 and FLAC Vorbis metadata in a worker
-  isolate. Parsed fields include title, artist, album, track/disc number,
-  duration, year, genre, embedded cover, and embedded lyrics.
+  isolate. Parsed fields include title, track artist, album artist, album,
+  track/disc number, compilation state, duration, year, genre, embedded cover,
+  and embedded lyrics. Supplementary album-identity probing reads bounded tag
+  regions rather than loading the whole audio file a second time.
+- Local and WebDAV scanning call the same stable album grouping function.
+  Explicit album artist and compilation tags disambiguate flat folders; a
+  folder that matches the album title identifies a release, while CD/Disc
+  child folders are removed from that identity. This keeps multi-disc releases
+  together without merging unrelated same-title albums. Participating track
+  artists remain on their individual track records.
 - Embedded synchronized lyrics are normalized into ordered millisecond rows;
   unsynchronized lyrics remain one zero-timestamp record.
 - Damaged files and artwork-write failures become scan warnings instead of

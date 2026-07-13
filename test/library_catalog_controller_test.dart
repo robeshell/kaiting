@@ -47,6 +47,7 @@ void main() {
             albumTitle: 'Indexed Album',
             durationMs: 182000,
             trackNumber: 3,
+            discNumber: 2,
             modifiedAt: now,
           ),
         ],
@@ -75,6 +76,7 @@ void main() {
       expect(track.artworkUri, album.artworkUri);
       expect(track.year, album.year);
       expect(track.genre, album.genre);
+      expect(track.discNumber, 2);
       expect(track.lyrics.single.text, 'A real lyric');
       expect(track.lyrics.single.time, const Duration(milliseconds: 1200));
     },

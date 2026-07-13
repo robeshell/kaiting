@@ -43,10 +43,15 @@ from explicit platform-independent contracts.
   picker and a restored bookmark; Windows and Linux restore normalized
   filesystem directory URIs. Revoked or missing access remains a visible,
   recoverable source state.
-- A local scanner now indexes MP3/FLAC title, artist, album, track/disc number,
-  duration, cover, genre, year, and embedded lyrics into one atomic repository
-  batch. Android SAF scanning and deletion-aware rescanning pass on an Android
-  16 ARM64 emulator.
+- Local and WebDAV scanners share release grouping based on explicit album
+  artist, compilation metadata, normalized release folders, and disc folders.
+  They keep participating track artists intact, separate unrelated same-title
+  releases, and merge CD/Disc subfolders into one multi-disc album. The album
+  page displays disc sections and plays in disc/track order.
+- A local scanner indexes MP3/FLAC title, track and album artist, album,
+  track/disc number, duration, cover, genre, year, compilation state, and
+  embedded lyrics into one atomic repository batch. Android SAF scanning and
+  deletion-aware rescanning pass on an Android 16 ARM64 emulator.
 - Library and album-detail screens now consume the persisted repository. Real
   media URIs, artwork, metadata, and lyrics flow into playback; loading, empty,
   and repository-error states replace the former built-in demo catalog.

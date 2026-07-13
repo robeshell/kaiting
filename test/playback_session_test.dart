@@ -20,6 +20,7 @@ void main() {
         duration: const Duration(minutes: 3, seconds: 42),
         source: SourceKind.local,
         trackNumber: 5,
+        discNumber: 2,
         mediaUri: 'file:///music/test.mp3',
         httpHeaders: {'Authorization': 'Basic dGVzdA=='},
         artworkUri: 'file:///music/cover.jpg',
@@ -40,6 +41,7 @@ void main() {
       expect(restored.duration, original.duration);
       expect(restored.source, original.source);
       expect(restored.trackNumber, original.trackNumber);
+      expect(restored.discNumber, original.discNumber);
       expect(restored.mediaUri, original.mediaUri);
       expect(restored.httpHeaders, isEmpty);
       expect(restored.artworkUri, original.artworkUri);

@@ -116,6 +116,7 @@ List<Album> mapLibraryAlbums({
                 duration: Duration(milliseconds: track.durationMs),
                 source: _sourceKind(sourcesById[track.sourceId]?.type),
                 trackNumber: track.trackNumber,
+                discNumber: track.discNumber,
                 lyrics: [
                   for (final lyric in lyricsByTrackId[track.id] ?? const [])
                     LyricLine(

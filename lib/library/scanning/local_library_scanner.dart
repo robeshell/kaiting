@@ -6,6 +6,7 @@ import 'package:path/path.dart' as path;
 import '../library_records.dart';
 import '../library_repository.dart';
 import 'album_artist_resolver.dart';
+import 'album_grouping.dart';
 import 'artwork_store.dart';
 import 'audio_metadata_extractor.dart';
 import 'embedded_lyrics_parser.dart';
@@ -77,11 +78,25 @@ class LocalLibraryScanner {
           final artistName = _valueOrFallback(metadata.artist, '未知艺人');
           final albumTitle = _valueOrFallback(metadata.album, '未知专辑');
           final artistId = stableArtistId(source.id, artistName);
-          final albumId = stableAlbumId(source.id, albumTitle);
+          final albumId = stableAlbumId(
+            source.id,
+            albumTitle,
+            albumArtist: metadata.albumArtist,
+            isCompilation: metadata.isCompilation,
+            relativePath: audioFile.relativePath,
+            discNumber: metadata.discNumber,
+          );
           final trackId = stableTrackId(source.id, audioFile.relativePath);
-          albumArtists
-              .putIfAbsent(albumId, AlbumArtistResolver.new)
-              .add(artistName);
+          final albumArtistResolver = albumArtists.putIfAbsent(
+            albumId,
+            AlbumArtistResolver.new,
+          );
+          albumArtistResolver
+            ..add(artistName)
+            ..addAlbumArtist(metadata.albumArtist);
+          if (metadata.isCompilation) {
+            albumArtistResolver.markCompilation();
+          }
 
           artists.putIfAbsent(
             artistId,
@@ -113,7 +128,7 @@ class LocalLibraryScanner {
             artistId: artistId,
             title: albumTitle,
             sortTitle: normalizedLibraryText(albumTitle),
-            albumArtist: artistName,
+            albumArtist: metadata.albumArtist ?? artistName,
             year: metadata.year ?? existingAlbum?.year,
             genre: _nullableValue(metadata.genre) ?? existingAlbum?.genre,
             artworkKey: artworkKey,
@@ -224,9 +239,21 @@ String stableArtistId(String sourceId, String artistName) =>
     'artist:${Uri.encodeComponent(sourceId)}:'
     '${Uri.encodeComponent(normalizedLibraryText(artistName))}';
 
-String stableAlbumId(String sourceId, String albumTitle) =>
-    'album:${Uri.encodeComponent(sourceId)}:'
-    '${Uri.encodeComponent(normalizedLibraryText(albumTitle))}';
+String stableAlbumId(
+  String sourceId,
+  String albumTitle, {
+  String? albumArtist,
+  bool isCompilation = false,
+  String? relativePath,
+  int discNumber = 0,
+}) => stableGroupedAlbumId(
+  sourceId: sourceId,
+  albumTitle: albumTitle,
+  albumArtist: albumArtist,
+  isCompilation: isCompilation,
+  relativePath: relativePath,
+  discNumber: discNumber,
+);
 
 String normalizedLibraryText(String value) => value.trim().toLowerCase();
 

@@ -26,4 +26,21 @@ void main() {
 
     expect(resolver.resolve(), '群星');
   });
+
+  test('prefers an explicit album artist over participating artists', () {
+    final resolver = AlbumArtistResolver()
+      ..add('Lead Artist')
+      ..add('Guest Artist')
+      ..addAlbumArtist('Official Album Artist');
+
+    expect(resolver.resolve(), 'Official Album Artist');
+  });
+
+  test('marks an untagged multi-artist compilation as various artists', () {
+    final resolver = AlbumArtistResolver()
+      ..add('Artist One')
+      ..markCompilation();
+
+    expect(resolver.resolve(), '群星');
+  });
 }

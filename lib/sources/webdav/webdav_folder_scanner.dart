@@ -3,14 +3,15 @@ import 'dart:io';
 import 'dart:math';
 import 'dart:typed_data';
 
-import 'package:audio_metadata_reader/audio_metadata_reader.dart';
 import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
 
 import '../../library/library_records.dart';
 import '../../library/library_repository.dart';
 import '../../library/scanning/album_artist_resolver.dart';
+import '../../library/scanning/album_grouping.dart';
 import '../../library/scanning/artwork_store.dart';
+import '../../library/scanning/audio_metadata_extractor.dart';
 import 'webdav_connection_service.dart';
 import 'webdav_credentials.dart';
 import 'webdav_discovery.dart';
@@ -29,11 +30,15 @@ class WebDavFolderScanner {
   WebDavFolderScanner({
     required this.repository,
     this.artworkStore,
+    AudioMetadataExtractor? metadataExtractor,
     WebDavDiscoveryService? discovery,
-  }) : discovery = discovery ?? WebDavDiscoveryService();
+  }) : metadataExtractor =
+           metadataExtractor ?? const PackageAudioMetadataExtractor(),
+       discovery = discovery ?? WebDavDiscoveryService();
 
   final LibraryRepository repository;
   final ArtworkStore? artworkStore;
+  final AudioMetadataExtractor metadataExtractor;
   final WebDavDiscoveryService discovery;
 
   /// Scans one or more [folderUrls] on the same WebDAV server. Each folder is
@@ -252,11 +257,25 @@ class WebDavFolderScanner {
           final albumTitle = metadata.album.isNotEmpty
               ? metadata.album
               : '未知专辑';
-          final albumId = _stableId('album:$sourceId:${_sortName(albumTitle)}');
+          final albumId = stableGroupedAlbumId(
+            sourceId: sourceId,
+            albumTitle: albumTitle,
+            albumArtist: metadata.albumArtist,
+            isCompilation: metadata.isCompilation,
+            relativePath: fileUrl,
+            discNumber: metadata.discNumber,
+          );
           final artistId = _stableId('artist:$sourceId:$artistName');
-          albumArtists
-              .putIfAbsent(albumId, AlbumArtistResolver.new)
-              .add(artistName);
+          final albumArtistResolver = albumArtists.putIfAbsent(
+            albumId,
+            AlbumArtistResolver.new,
+          );
+          albumArtistResolver
+            ..add(artistName)
+            ..addAlbumArtist(metadata.albumArtist);
+          if (metadata.isCompilation) {
+            albumArtistResolver.markCompilation();
+          }
 
           artists.putIfAbsent(
             artistId,
@@ -282,7 +301,7 @@ class WebDavFolderScanner {
             sourceId: sourceId,
             title: albumTitle,
             sortTitle: _sortName(albumTitle),
-            albumArtist: artistName,
+            albumArtist: metadata.albumArtist ?? artistName,
             artistId: artistId,
             year: metadata.year ?? existingAlbum?.year,
             genre: metadata.genre.isNotEmpty
@@ -465,26 +484,21 @@ class WebDavFolderScanner {
       if (bytes.isEmpty) return null;
 
       await tempFile.writeAsBytes(bytes);
-      // Embedded pictures are opt-in in audio_metadata_reader. Leaving the
-      // default here indexed the tags but silently discarded remote covers.
-      final metadata = readMetadata(tempFile, getImage: true);
-      final yearValue = metadata.year?.year;
-      final coverFront = metadata.pictures
-          .where((p) => p.pictureType == PictureType.coverFront)
-          .firstOrNull;
-      final artwork = coverFront ?? metadata.pictures.firstOrNull;
+      final metadata = await metadataExtractor.extract(tempFile);
       return _RemoteMetadata(
         title: metadata.title ?? '',
         artist: metadata.artist ?? '',
         album: metadata.album ?? '',
-        genre: metadata.genres.firstOrNull ?? '',
-        year: yearValue != null && yearValue > 0 ? yearValue : null,
-        trackNumber: metadata.trackNumber ?? 0,
-        discNumber: metadata.discNumber ?? 0,
-        duration: metadata.duration ?? Duration.zero,
+        albumArtist: metadata.albumArtist,
+        isCompilation: metadata.isCompilation,
+        genre: metadata.genre ?? '',
+        year: metadata.year,
+        trackNumber: metadata.trackNumber,
+        discNumber: metadata.discNumber,
+        duration: metadata.duration,
         lyrics: metadata.lyrics ?? '',
-        artworkBytes: artwork?.bytes,
-        artworkMimeType: artwork?.mimetype,
+        artworkBytes: metadata.artwork?.bytes,
+        artworkMimeType: metadata.artwork?.mimeType,
       );
     } catch (_) {
       // Some valid MP3 files have no Xing/VBR index or keep useful tags at the
@@ -498,6 +512,8 @@ class WebDavFolderScanner {
           title: '',
           artist: '',
           album: '',
+          albumArtist: null,
+          isCompilation: false,
           genre: '',
           year: null,
           trackNumber: 0,
@@ -588,6 +604,8 @@ class _RemoteMetadata {
     required this.title,
     required this.artist,
     required this.album,
+    required this.albumArtist,
+    required this.isCompilation,
     required this.genre,
     required this.year,
     required this.trackNumber,
@@ -601,6 +619,8 @@ class _RemoteMetadata {
   final String title;
   final String artist;
   final String album;
+  final String? albumArtist;
+  final bool isCompilation;
   final String genre;
   final int? year;
   final int trackNumber;

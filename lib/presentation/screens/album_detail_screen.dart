@@ -32,6 +32,10 @@ class AlbumDetailScreen extends StatelessWidget {
       child: AnimatedBuilder(
         animation: Listenable.merge([playback, ?userState]),
         builder: (context, _) {
+          final discNumbers = {
+            for (final track in album.tracks) _effectiveDiscNumber(track),
+          };
+          final showDiscSections = discNumbers.length > 1;
           return CustomScrollView(
             slivers: [
               SliverToBoxAdapter(
@@ -44,23 +48,36 @@ class AlbumDetailScreen extends StatelessWidget {
                   itemBuilder: (context, index) {
                     final track = album.tracks[index];
                     final active = playback.currentTrack?.id == track.id;
-                    return _TrackRow(
-                      track: track,
-                      active: active,
-                      favorite: userState?.isFavorite(track.id) ?? false,
-                      onTap: () =>
-                          playback.playTrack(track, queue: album.tracks),
-                      onPlayNext: () => playback.playNext(track),
-                      onToggleFavorite: userState == null
-                          ? null
-                          : () => unawaited(userState!.toggleFavorite(track)),
-                      onAddToPlaylist: userState == null
-                          ? null
-                          : () => showAddToPlaylistSheet(
-                              context,
-                              userState: userState!,
-                              track: track,
-                            ),
+                    final discNumber = _effectiveDiscNumber(track);
+                    final startsDisc =
+                        showDiscSections &&
+                        (index == 0 ||
+                            _effectiveDiscNumber(album.tracks[index - 1]) !=
+                                discNumber);
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (startsDisc) _DiscHeader(number: discNumber),
+                        _TrackRow(
+                          track: track,
+                          active: active,
+                          favorite: userState?.isFavorite(track.id) ?? false,
+                          onTap: () =>
+                              playback.playTrack(track, queue: album.tracks),
+                          onPlayNext: () => playback.playNext(track),
+                          onToggleFavorite: userState == null
+                              ? null
+                              : () =>
+                                    unawaited(userState!.toggleFavorite(track)),
+                          onAddToPlaylist: userState == null
+                              ? null
+                              : () => showAddToPlaylistSheet(
+                                  context,
+                                  userState: userState!,
+                                  track: track,
+                                ),
+                        ),
+                      ],
                     );
                   },
                 ),
@@ -89,9 +106,13 @@ class _Hero extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final compact = constraints.maxWidth < 680;
+        final discCount = {
+          for (final track in album.tracks) _effectiveDiscNumber(track),
+        }.length;
         final metadata = [
           if (album.genre?.trim().isNotEmpty == true) album.genre!,
           if (album.year != null) '${album.year}',
+          if (discCount > 1) '$discCount 张碟',
           '${album.tracks.length} 首歌',
         ].join(' · ');
         final details = Column(
@@ -205,6 +226,37 @@ class _Hero extends StatelessWidget {
     );
   }
 }
+
+class _DiscHeader extends StatelessWidget {
+  const _DiscHeader({required this.number});
+
+  final int number;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 24, 14, 8),
+      child: Row(
+        children: [
+          Text(
+            '第 $number 碟',
+            style: const TextStyle(
+              color: SoundColors.accent,
+              fontSize: 13,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.4,
+            ),
+          ),
+          const SizedBox(width: 10),
+          Expanded(child: Divider(color: Colors.white.withValues(alpha: 0.1))),
+        ],
+      ),
+    );
+  }
+}
+
+int _effectiveDiscNumber(Track track) =>
+    track.discNumber > 0 ? track.discNumber : 1;
 
 class _TrackRow extends StatelessWidget {
   const _TrackRow({

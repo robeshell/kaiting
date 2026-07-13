@@ -23,6 +23,7 @@ class Track {
     required this.duration,
     required this.source,
     this.trackNumber = 1,
+    this.discNumber = 0,
     this.lyrics = const [],
     this.mediaUri,
     this.httpHeaders = const {},
@@ -38,6 +39,7 @@ class Track {
   final Duration duration;
   final SourceKind source;
   final int trackNumber;
+  final int discNumber;
   final List<LyricLine> lyrics;
   final String? mediaUri;
   final Map<String, String> httpHeaders;

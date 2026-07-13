@@ -99,6 +99,116 @@ void main() {
       expect((await repository.getSource(source.id))?.scanRevision, 2);
     },
   );
+
+  test('groups multi-disc, compilation, and same-title releases', () async {
+    final directory = await Directory.systemTemp.createTemp('sound-groups-');
+    addTearDown(() => directory.delete(recursive: true));
+    final music = Directory(path.join(directory.path, 'Music'));
+    final relativeFiles = [
+      'Artist One/Greatest Hits/artist-one.mp3',
+      'Artist Two/Greatest Hits/artist-two.mp3',
+      'Main Artist/Complete Album/CD 1/disc-one.flac',
+      'Main Artist/Complete Album/Disc 2/disc-two.flac',
+      'Festival Collection/guest-one.mp3',
+      'Festival Collection/guest-two.mp3',
+    ];
+    for (var index = 0; index < relativeFiles.length; index++) {
+      final file = File(path.join(music.path, relativeFiles[index]));
+      await file.parent.create(recursive: true);
+      await file.writeAsBytes([index + 1]);
+    }
+
+    final repository = DriftLibraryRepository(
+      LibraryDatabase(NativeDatabase.memory()),
+    );
+    addTearDown(repository.close);
+    final now = DateTime.utc(2026, 7, 13);
+    final source = _source(music.uri.toString(), now);
+    await repository.upsertSource(source);
+    final scanner = LocalLibraryScanner(
+      repository: repository,
+      catalog: FileSystemLocalMediaCatalog(),
+      metadataExtractor: const _FakeMetadataExtractor({
+        'artist-one.mp3': ExtractedAudioMetadata(
+          title: 'One',
+          artist: 'Artist One',
+          album: 'Greatest Hits',
+          albumArtist: 'Artist One',
+          trackNumber: 1,
+        ),
+        'artist-two.mp3': ExtractedAudioMetadata(
+          title: 'Two',
+          artist: 'Artist Two',
+          album: 'Greatest Hits',
+          albumArtist: 'Artist Two',
+          trackNumber: 1,
+        ),
+        'disc-one.flac': ExtractedAudioMetadata(
+          title: 'Disc One',
+          artist: 'Main Artist',
+          album: 'Complete Album',
+          albumArtist: 'Main Artist',
+          trackNumber: 1,
+          discNumber: 1,
+        ),
+        'disc-two.flac': ExtractedAudioMetadata(
+          title: 'Disc Two',
+          artist: 'Main Artist & Guest',
+          album: 'Complete Album',
+          albumArtist: 'Main Artist',
+          trackNumber: 1,
+          discNumber: 2,
+        ),
+        'guest-one.mp3': ExtractedAudioMetadata(
+          title: 'Guest One',
+          artist: 'Guest One',
+          album: 'Festival Collection',
+          albumArtist: 'Various Artists',
+          isCompilation: true,
+          trackNumber: 1,
+        ),
+        'guest-two.mp3': ExtractedAudioMetadata(
+          title: 'Guest Two',
+          artist: 'Guest Two',
+          album: 'Festival Collection',
+          albumArtist: 'Various Artists',
+          isCompilation: true,
+          trackNumber: 2,
+        ),
+      }),
+      clock: () => now,
+    );
+
+    final report = await scanner.scan(source);
+    final albums = await repository.getAlbums(sourceId: source.id);
+    final tracks = await repository.getTracks(sourceId: source.id);
+
+    expect(report.indexedTracks, 6);
+    expect(albums, hasLength(4));
+    final greatestHits = albums
+        .where((album) => album.title == 'Greatest Hits')
+        .toList();
+    expect(greatestHits, hasLength(2));
+    expect(greatestHits.map((album) => album.albumArtist).toSet(), {
+      'Artist One',
+      'Artist Two',
+    });
+    final multiDisc = albums.singleWhere(
+      (album) => album.title == 'Complete Album',
+    );
+    expect(
+      tracks
+          .where((track) => track.albumId == multiDisc.id)
+          .map((track) => track.discNumber),
+      [1, 2],
+    );
+    expect(
+      albums
+          .singleWhere((album) => album.title == 'Festival Collection')
+          .albumArtist,
+      'Various Artists',
+    );
+  });
 }
 
 LibrarySourceRecord _source(String rootUri, DateTime now) {

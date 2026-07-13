@@ -129,6 +129,49 @@ void main() {
     playback.dispose();
     engine.dispose();
   });
+
+  testWidgets('album detail separates discs and preserves playback order', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final engine = SimulatedPlaybackEngine();
+    final playback = SoundPlaybackController(engine: engine);
+    final album = Album(
+      id: 'multi-disc-album',
+      title: 'Complete Album',
+      artist: 'Main Artist',
+      source: SourceKind.local,
+      palette: albumPaletteForId('multi-disc-album'),
+      tracks: const [_discOne, _discTwo],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AlbumDetailScreen(
+          album: album,
+          playback: playback,
+          onBack: () {},
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('2 张碟 · 2 首歌'), findsOneWidget);
+    expect(find.text('第 1 碟'), findsOneWidget);
+    expect(find.text('第 2 碟'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(FilledButton, '播放'));
+    await tester.pump();
+    expect(playback.queue.map((track) => track.id), ['disc-one', 'disc-two']);
+
+    await playback.clearQueue();
+    await tester.pumpWidget(const SizedBox.shrink());
+    playback.dispose();
+    engine.dispose();
+  });
 }
 
 const _first = Track(
@@ -156,4 +199,26 @@ const _third = Track(
   albumTitle: 'Album',
   duration: Duration(minutes: 5),
   source: SourceKind.webDav,
+);
+
+const _discOne = Track(
+  id: 'disc-one',
+  title: 'Disc One',
+  artist: 'Main Artist',
+  albumTitle: 'Complete Album',
+  duration: Duration(minutes: 3),
+  source: SourceKind.local,
+  trackNumber: 1,
+  discNumber: 1,
+);
+
+const _discTwo = Track(
+  id: 'disc-two',
+  title: 'Disc Two',
+  artist: 'Main Artist & Guest',
+  albumTitle: 'Complete Album',
+  duration: Duration(minutes: 4),
+  source: SourceKind.local,
+  trackNumber: 1,
+  discNumber: 2,
 );
