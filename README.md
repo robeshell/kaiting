@@ -17,8 +17,8 @@ from explicit platform-independent contracts.
 - Production playback uses `JustAudioPlaybackEngine`, backed by ExoPlayer on
   Android, AVPlayer on Apple platforms, and WinRT MediaPlayer on Windows;
   widget tests inject `SimulatedPlaybackEngine`.
-- The playback validation screen opens a real local file or an authenticated
-  WebDAV media URL without indexing it into the library.
+- Production navigation exposes real albums, artists, genres, songs,
+  favorites, recent plays, and full playback history without demo screens.
 - `PlaybackEngine` snapshots are the sole authority for playback position.
 - Playback session generations reject callbacks from previously loaded tracks.
 - Queue and position sessions are checkpointed during playback and flushed on
@@ -28,9 +28,11 @@ from explicit platform-independent contracts.
 - Mini-player and now-playing surfaces share one visual mapping for loading,
   buffering, ready, playing, paused, completed, and error states, including
   replay and retry actions.
-- A Drift/SQLite v1 repository now persists sources, artists, albums, tracks,
-  lyrics, and atomic scan state across native platforms and the development
-  Web build.
+- A Drift/SQLite v2 repository persists sources, artists, albums, tracks,
+  lyrics, favorites, playback history, and atomic scan state across native
+  platforms and the development Web build. User state survives catalog
+  rescans because it is linked through stable track IDs without scan-time
+  cascading deletes.
 - Local folder sources persist Android SAF tree grants and macOS
   security-scoped bookmarks across restarts; iPhone/iPad use the system Files
   picker and a restored bookmark; Windows and Linux restore normalized

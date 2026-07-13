@@ -1,10 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../core/sound_theme.dart';
 import '../../domain/library_models.dart';
 import '../controllers/library_catalog_controller.dart';
+import '../controllers/library_user_state_controller.dart';
 import '../widgets/album_art.dart';
 import '../widgets/source_badge.dart';
+import 'library_user_screen.dart';
 
 enum LibraryBrowseMode { albums, artists, genres, songs }
 
@@ -68,6 +72,8 @@ class LibraryScreen extends StatefulWidget {
     required this.onOpenAlbum,
     required this.onOpenCollection,
     required this.onPlayTrack,
+    this.userState,
+    this.onOpenUserMode,
     required this.onManageSources,
     super.key,
   });
@@ -78,6 +84,8 @@ class LibraryScreen extends StatefulWidget {
   final ValueChanged<Album> onOpenAlbum;
   final ValueChanged<LibraryCollection> onOpenCollection;
   final void Function(Track track, List<Track> queue) onPlayTrack;
+  final LibraryUserStateController? userState;
+  final ValueChanged<LibraryUserBrowseMode>? onOpenUserMode;
   final VoidCallback onManageSources;
 
   @override
@@ -96,7 +104,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: widget.catalog,
+      animation: Listenable.merge([widget.catalog, ?widget.userState]),
       builder: (context, _) {
         final allAlbums = widget.catalog.albums;
         final albums = _sortAlbums(_filterAlbums(allAlbums));
@@ -125,6 +133,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   onModeChanged: widget.onModeChanged,
                   albumCount: allAlbums.length,
                   trackCount: widget.catalog.tracks.length,
+                  onOpenUserMode: widget.onOpenUserMode,
                 ),
               ),
             ),
@@ -374,7 +383,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
           prototypeItem: _LibraryTrackRow(
             track: tracks.first,
             album: albumByTrackId[tracks.first.id]!,
+            favorite: widget.userState?.isFavorite(tracks.first.id) ?? false,
             onTap: () {},
+            onToggleFavorite: null,
             onOpenAlbum: () {},
           ),
           itemBuilder: (context, index) {
@@ -383,7 +394,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
             return _LibraryTrackRow(
               track: track,
               album: album,
+              favorite: widget.userState?.isFavorite(track.id) ?? false,
               onTap: () => widget.onPlayTrack(track, tracks),
+              onToggleFavorite: widget.userState == null
+                  ? null
+                  : () => unawaited(widget.userState!.toggleFavorite(track)),
               onOpenAlbum: () => widget.onOpenAlbum(album),
             );
           },
@@ -431,13 +446,17 @@ class _LibraryTrackRow extends StatelessWidget {
   const _LibraryTrackRow({
     required this.track,
     required this.album,
+    required this.favorite,
     required this.onTap,
+    required this.onToggleFavorite,
     required this.onOpenAlbum,
   });
 
   final Track track;
   final Album album;
+  final bool favorite;
   final VoidCallback onTap;
+  final VoidCallback? onToggleFavorite;
   final VoidCallback onOpenAlbum;
 
   @override
@@ -471,6 +490,18 @@ class _LibraryTrackRow extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             SourceBadge(track.source),
+            if (onToggleFavorite != null)
+              IconButton(
+                key: ValueKey('favorite-library-${track.id}'),
+                onPressed: onToggleFavorite,
+                tooltip: favorite ? '取消收藏 ${track.title}' : '收藏 ${track.title}',
+                color: favorite ? SoundColors.accent : null,
+                icon: Icon(
+                  favorite
+                      ? Icons.favorite_rounded
+                      : Icons.favorite_border_rounded,
+                ),
+              ),
             IconButton(
               onPressed: onOpenAlbum,
               tooltip: '打开专辑 ${album.title}',
@@ -489,12 +520,14 @@ class _LibraryHeader extends StatelessWidget {
     required this.onModeChanged,
     required this.albumCount,
     required this.trackCount,
+    required this.onOpenUserMode,
   });
 
   final LibraryBrowseMode mode;
   final ValueChanged<LibraryBrowseMode> onModeChanged;
   final int albumCount;
   final int trackCount;
+  final ValueChanged<LibraryUserBrowseMode>? onOpenUserMode;
 
   @override
   Widget build(BuildContext context) {
@@ -531,6 +564,17 @@ class _LibraryHeader extends StatelessWidget {
                     selectedColor: SoundColors.accent.withValues(alpha: 0.24),
                   ),
                 ),
+              if (onOpenUserMode case final openUserMode?)
+                for (final candidate in LibraryUserBrowseMode.values)
+                  Padding(
+                    padding: const EdgeInsets.only(right: 8),
+                    child: ActionChip(
+                      key: ValueKey('open-user-library-${candidate.name}'),
+                      avatar: Icon(candidate.icon, size: 17),
+                      label: Text(candidate.label),
+                      onPressed: () => openUserMode(candidate),
+                    ),
+                  ),
             ],
           ),
         ),

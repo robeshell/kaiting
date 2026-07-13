@@ -203,6 +203,58 @@ void main() {
     expect((await repository.getSource('source-local'))?.scanRevision, 2);
     await repository.close();
   });
+
+  test('favorites and play history survive rescans and reopening', () async {
+    final createdAt = DateTime.utc(2026, 7, 13, 12);
+    var repository = _openRepository(databaseFile);
+    await repository.upsertSource(_source(createdAt));
+    await repository.replaceSourceScan(
+      _scan(
+        completedAt: createdAt.add(const Duration(minutes: 1)),
+        tracks: [_track('track-one', '01-one.flac', title: 'One')],
+      ),
+    );
+    await repository.setTrackFavorite(
+      'track-one',
+      favorite: true,
+      changedAt: createdAt.add(const Duration(minutes: 2)),
+    );
+    await repository.addPlayHistory(
+      'track-one',
+      playedAt: createdAt.add(const Duration(minutes: 3)),
+    );
+    await repository.addPlayHistory(
+      'track-one',
+      playedAt: createdAt.add(const Duration(minutes: 4)),
+    );
+
+    await repository.replaceSourceScan(
+      _scan(
+        completedAt: createdAt.add(const Duration(minutes: 5)),
+        tracks: [_track('track-one', '01-one.flac', title: 'One updated')],
+      ),
+    );
+    await repository.close();
+
+    repository = _openRepository(databaseFile);
+    final favorites = await repository.getFavoriteTracks();
+    final history = await repository.getPlayHistory();
+    expect(favorites.single.trackId, 'track-one');
+    expect(favorites.single.addedAt, createdAt.add(const Duration(minutes: 2)));
+    expect(history.map((entry) => entry.trackId), ['track-one', 'track-one']);
+    expect(history.first.playedAt, createdAt.add(const Duration(minutes: 4)));
+    expect((await repository.getTracks()).single.title, 'One updated');
+
+    await repository.setTrackFavorite(
+      'track-one',
+      favorite: false,
+      changedAt: createdAt.add(const Duration(minutes: 6)),
+    );
+    await repository.clearPlayHistory();
+    expect(await repository.getFavoriteTracks(), isEmpty);
+    expect(await repository.getPlayHistory(), isEmpty);
+    await repository.close();
+  });
 }
 
 DriftLibraryRepository _openRepository(File file) {

@@ -25,6 +25,8 @@ class SoundPlaybackController extends ChangeNotifier {
 
   final PlaybackEngine _engine;
   final Random _random;
+  final StreamController<Track> _trackStartedController =
+      StreamController<Track>.broadcast(sync: true);
   late final StreamSubscription<PlaybackSnapshot> _subscription;
   List<Track> _queue;
   PlaybackSnapshot _snapshot;
@@ -53,6 +55,7 @@ class SoundPlaybackController extends ChangeNotifier {
   List<Track> get queue => List.unmodifiable(_queue);
   int get queueIndex => _queueIndex;
   PlaybackMode get playbackMode => _playbackMode;
+  Stream<Track> get trackStarted => _trackStartedController.stream;
 
   bool get isPlaying => _snapshot.isPlaying;
   bool get hasActiveTrack => _snapshot.hasTrack;
@@ -112,6 +115,7 @@ class SoundPlaybackController extends ChangeNotifier {
     }
     await _engine.play();
     if (_disposed || sessionId != _sessionGeneration) return;
+    _trackStartedController.add(track);
     notifyListeners();
   }
 
@@ -393,6 +397,7 @@ class SoundPlaybackController extends ChangeNotifier {
     _disposed = true;
     _sessionGeneration++;
     unawaited(_subscription.cancel());
+    unawaited(_trackStartedController.close());
     super.dispose();
   }
 }

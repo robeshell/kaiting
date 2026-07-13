@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../core/sound_theme.dart';
 import '../../domain/library_models.dart';
 import '../../playback/playback_controller.dart';
+import '../controllers/library_user_state_controller.dart';
 import '../widgets/album_art.dart';
 import '../widgets/progress_scrubber.dart';
 import '../widgets/source_badge.dart';
@@ -22,6 +25,7 @@ class LibraryCollectionScreen extends StatefulWidget {
   const LibraryCollectionScreen({
     required this.collection,
     required this.playback,
+    this.userState,
     required this.onBack,
     required this.onOpenAlbum,
     super.key,
@@ -29,6 +33,7 @@ class LibraryCollectionScreen extends StatefulWidget {
 
   final LibraryCollection collection;
   final SoundPlaybackController playback;
+  final LibraryUserStateController? userState;
   final VoidCallback onBack;
   final ValueChanged<Album> onOpenAlbum;
 
@@ -49,89 +54,102 @@ class _LibraryCollectionScreenState extends State<LibraryCollectionScreen> {
       for (final album in collection.albums)
         for (final track in album.tracks) track.id: album,
     };
-    return Material(
-      color: Colors.transparent,
-      child: CustomScrollView(
-        slivers: [
-          SliverToBoxAdapter(
-            child: _CollectionHero(
-              collection: collection,
-              onBack: widget.onBack,
-              onPlay: sortedTracks.isEmpty
-                  ? null
-                  : () => widget.playback.playTrack(
-                      sortedTracks.first,
-                      queue: sortedTracks,
-                    ),
+    return AnimatedBuilder(
+      animation: Listenable.merge([?widget.userState]),
+      builder: (context, _) => Material(
+        color: Colors.transparent,
+        child: CustomScrollView(
+          slivers: [
+            SliverToBoxAdapter(
+              child: _CollectionHero(
+                collection: collection,
+                onBack: widget.onBack,
+                onPlay: sortedTracks.isEmpty
+                    ? null
+                    : () => widget.playback.playTrack(
+                        sortedTracks.first,
+                        queue: sortedTracks,
+                      ),
+              ),
             ),
-          ),
-          if (collection.albums.isNotEmpty) ...[
-            const SliverPadding(
-              padding: EdgeInsets.fromLTRB(32, 8, 32, 12),
+            if (collection.albums.isNotEmpty) ...[
+              const SliverPadding(
+                padding: EdgeInsets.fromLTRB(32, 8, 32, 12),
+                sliver: SliverToBoxAdapter(
+                  child: Text(
+                    '专辑',
+                    style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                  ),
+                ),
+              ),
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(32, 0, 32, 28),
+                sliver: SliverGrid.builder(
+                  itemCount: collection.albums.length,
+                  gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
+                    maxCrossAxisExtent: 180,
+                    mainAxisExtent: 238,
+                    crossAxisSpacing: 20,
+                    mainAxisSpacing: 20,
+                  ),
+                  itemBuilder: (context, index) {
+                    final album = collection.albums[index];
+                    return _CollectionAlbumCard(
+                      album: album,
+                      onTap: () => widget.onOpenAlbum(album),
+                    );
+                  },
+                ),
+              ),
+            ],
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(32, 0, 32, 12),
               sliver: SliverToBoxAdapter(
-                child: Text(
-                  '专辑',
-                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+                child: _CollectionTrackHeader(
+                  trackCount: sortedTracks.length,
+                  sort: _trackSort,
+                  onSortChanged: (value) => setState(() => _trackSort = value),
                 ),
               ),
             ),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(32, 0, 32, 28),
-              sliver: SliverGrid.builder(
-                itemCount: collection.albums.length,
-                gridDelegate: const SliverGridDelegateWithMaxCrossAxisExtent(
-                  maxCrossAxisExtent: 180,
-                  mainAxisExtent: 238,
-                  crossAxisSpacing: 20,
-                  mainAxisSpacing: 20,
+            if (sortedTracks.isNotEmpty)
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(32, 0, 32, 140),
+                sliver: SliverPrototypeExtentList.builder(
+                  itemCount: sortedTracks.length,
+                  prototypeItem: _CollectionTrackRow(
+                    track: sortedTracks.first,
+                    album: albumByTrackId[sortedTracks.first.id]!,
+                    favorite:
+                        widget.userState?.isFavorite(sortedTracks.first.id) ??
+                        false,
+                    onTap: () {},
+                    onPlayNext: () {},
+                    onToggleFavorite: null,
+                    onOpenAlbum: () {},
+                  ),
+                  itemBuilder: (context, index) {
+                    final track = sortedTracks[index];
+                    final album = albumByTrackId[track.id]!;
+                    return _CollectionTrackRow(
+                      track: track,
+                      album: album,
+                      favorite: widget.userState?.isFavorite(track.id) ?? false,
+                      onTap: () =>
+                          widget.playback.playTrack(track, queue: sortedTracks),
+                      onPlayNext: () => widget.playback.playNext(track),
+                      onToggleFavorite: widget.userState == null
+                          ? null
+                          : () => unawaited(
+                              widget.userState!.toggleFavorite(track),
+                            ),
+                      onOpenAlbum: () => widget.onOpenAlbum(album),
+                    );
+                  },
                 ),
-                itemBuilder: (context, index) {
-                  final album = collection.albums[index];
-                  return _CollectionAlbumCard(
-                    album: album,
-                    onTap: () => widget.onOpenAlbum(album),
-                  );
-                },
               ),
-            ),
           ],
-          SliverPadding(
-            padding: const EdgeInsets.fromLTRB(32, 0, 32, 12),
-            sliver: SliverToBoxAdapter(
-              child: _CollectionTrackHeader(
-                trackCount: sortedTracks.length,
-                sort: _trackSort,
-                onSortChanged: (value) => setState(() => _trackSort = value),
-              ),
-            ),
-          ),
-          if (sortedTracks.isNotEmpty)
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(32, 0, 32, 140),
-              sliver: SliverPrototypeExtentList.builder(
-                itemCount: sortedTracks.length,
-                prototypeItem: _CollectionTrackRow(
-                  track: sortedTracks.first,
-                  album: albumByTrackId[sortedTracks.first.id]!,
-                  onTap: () {},
-                  onPlayNext: () {},
-                  onOpenAlbum: () {},
-                ),
-                itemBuilder: (context, index) {
-                  final track = sortedTracks[index];
-                  final album = albumByTrackId[track.id]!;
-                  return _CollectionTrackRow(
-                    track: track,
-                    album: album,
-                    onTap: () =>
-                        widget.playback.playTrack(track, queue: sortedTracks),
-                    onPlayNext: () => widget.playback.playNext(track),
-                    onOpenAlbum: () => widget.onOpenAlbum(album),
-                  );
-                },
-              ),
-            ),
-        ],
+        ),
       ),
     );
   }
@@ -393,15 +411,19 @@ class _CollectionTrackRow extends StatelessWidget {
   const _CollectionTrackRow({
     required this.track,
     required this.album,
+    required this.favorite,
     required this.onTap,
     required this.onPlayNext,
+    required this.onToggleFavorite,
     required this.onOpenAlbum,
   });
 
   final Track track;
   final Album album;
+  final bool favorite;
   final VoidCallback onTap;
   final VoidCallback onPlayNext;
+  final VoidCallback? onToggleFavorite;
   final VoidCallback onOpenAlbum;
 
   @override
@@ -448,10 +470,27 @@ class _CollectionTrackRow extends StatelessWidget {
               onSelected: (value) {
                 if (value == 'play-next') onPlayNext();
                 if (value == 'open-album') onOpenAlbum();
+                if (value == 'favorite') onToggleFavorite?.call();
               },
-              itemBuilder: (_) => const [
-                PopupMenuItem(value: 'play-next', child: Text('下一首播放')),
-                PopupMenuItem(value: 'open-album', child: Text('打开专辑')),
+              itemBuilder: (_) => [
+                const PopupMenuItem(value: 'play-next', child: Text('下一首播放')),
+                const PopupMenuItem(value: 'open-album', child: Text('打开专辑')),
+                if (onToggleFavorite != null)
+                  PopupMenuItem(
+                    value: 'favorite',
+                    child: Row(
+                      children: [
+                        Icon(
+                          favorite
+                              ? Icons.favorite_rounded
+                              : Icons.favorite_border_rounded,
+                          color: favorite ? SoundColors.accent : null,
+                        ),
+                        const SizedBox(width: 10),
+                        Text(favorite ? '取消收藏' : '收藏歌曲'),
+                      ],
+                    ),
+                  ),
               ],
             ),
           ],

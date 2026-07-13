@@ -664,6 +664,14 @@ class FakeLibraryRepository implements LibraryRepository {
   Stream<List<LibraryTrackRecord>> watchTracks() => const Stream.empty();
 
   @override
+  Stream<List<LibraryFavoriteTrackRecord>> watchFavoriteTracks() =>
+      const Stream.empty();
+
+  @override
+  Stream<List<LibraryPlayHistoryRecord>> watchPlayHistory({int limit = 500}) =>
+      const Stream.empty();
+
+  @override
   Future<List<LibraryAlbumRecord>> getAlbums({String? sourceId}) async => [];
 
   @override
@@ -676,5 +684,29 @@ class FakeLibraryRepository implements LibraryRepository {
   Future<Map<String, List<LibraryLyricRecord>>> getAllLyrics() async => {};
 
   @override
+  Future<List<LibraryFavoriteTrackRecord>> getFavoriteTracks() async => [];
+
+  @override
+  Future<List<LibraryPlayHistoryRecord>> getPlayHistory({
+    int limit = 500,
+  }) async => [];
+
+  @override
   Future<List<LibraryTrackRecord>> getTracks({String? sourceId}) async => [];
+
+  @override
+  Future<void> setTrackFavorite(
+    String trackId, {
+    required bool favorite,
+    required DateTime changedAt,
+  }) async {}
+
+  @override
+  Future<void> addPlayHistory(
+    String trackId, {
+    required DateTime playedAt,
+  }) async {}
+
+  @override
+  Future<void> clearPlayHistory() async {}
 }

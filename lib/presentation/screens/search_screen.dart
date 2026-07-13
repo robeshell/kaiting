@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../core/sound_theme.dart';
@@ -5,6 +7,7 @@ import '../../domain/library_models.dart';
 import '../../playback/playback_controller.dart';
 import '../controllers/library_catalog_controller.dart';
 import '../controllers/library_search_controller.dart';
+import '../controllers/library_user_state_controller.dart';
 import '../widgets/album_art.dart';
 import '../widgets/source_badge.dart';
 
@@ -13,6 +16,7 @@ class SearchScreen extends StatefulWidget {
     required this.catalog,
     required this.search,
     required this.playback,
+    this.userState,
     required this.onOpenAlbum,
     super.key,
   });
@@ -20,6 +24,7 @@ class SearchScreen extends StatefulWidget {
   final LibraryCatalogController catalog;
   final LibrarySearchController search;
   final SoundPlaybackController playback;
+  final LibraryUserStateController? userState;
   final ValueChanged<Album> onOpenAlbum;
 
   @override
@@ -60,7 +65,11 @@ class _SearchScreenState extends State<SearchScreen> {
     return Material(
       color: Colors.transparent,
       child: AnimatedBuilder(
-        animation: Listenable.merge([widget.catalog, widget.search]),
+        animation: Listenable.merge([
+          widget.catalog,
+          widget.search,
+          ?widget.userState,
+        ]),
         builder: (context, _) {
           return CustomScrollView(
             slivers: [
@@ -155,6 +164,11 @@ class _SearchScreenState extends State<SearchScreen> {
                     itemCount: widget.search.hits.length,
                     itemBuilder: (context, index) => _SearchResultRow(
                       hit: widget.search.hits[index],
+                      favorite:
+                          widget.userState?.isFavorite(
+                            widget.search.hits[index].track.id,
+                          ) ??
+                          false,
                       onPlay: () {
                         final hit = widget.search.hits[index];
                         widget.playback.playTrack(
@@ -164,6 +178,13 @@ class _SearchScreenState extends State<SearchScreen> {
                       },
                       onOpenAlbum: () =>
                           widget.onOpenAlbum(widget.search.hits[index].album),
+                      onToggleFavorite: widget.userState == null
+                          ? null
+                          : () => unawaited(
+                              widget.userState!.toggleFavorite(
+                                widget.search.hits[index].track,
+                              ),
+                            ),
                     ),
                   ),
                 ),
@@ -260,13 +281,17 @@ class _SearchScreenState extends State<SearchScreen> {
 class _SearchResultRow extends StatelessWidget {
   const _SearchResultRow({
     required this.hit,
+    required this.favorite,
     required this.onPlay,
     required this.onOpenAlbum,
+    required this.onToggleFavorite,
   });
 
   final LibrarySearchHit hit;
+  final bool favorite;
   final VoidCallback onPlay;
   final VoidCallback onOpenAlbum;
+  final VoidCallback? onToggleFavorite;
 
   @override
   Widget build(BuildContext context) {
@@ -301,6 +326,20 @@ class _SearchResultRow extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           SourceBadge(hit.track.source),
+          if (onToggleFavorite != null)
+            IconButton(
+              key: ValueKey('favorite-search-${hit.track.id}'),
+              onPressed: onToggleFavorite,
+              tooltip: favorite
+                  ? '取消收藏 ${hit.track.title}'
+                  : '收藏 ${hit.track.title}',
+              color: favorite ? SoundColors.accent : null,
+              icon: Icon(
+                favorite
+                    ? Icons.favorite_rounded
+                    : Icons.favorite_border_rounded,
+              ),
+            ),
           IconButton(
             onPressed: onOpenAlbum,
             tooltip: '打开专辑 ${hit.album.title}',

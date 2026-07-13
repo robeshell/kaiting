@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui';
 
@@ -7,20 +8,22 @@ import '../../core/sound_theme.dart';
 import '../../domain/library_models.dart';
 import '../../playback/playback_controller.dart';
 import '../../playback/playback_mode.dart';
+import '../controllers/library_user_state_controller.dart';
 import '../widgets/album_art.dart';
 import '../widgets/playback_status_badge.dart';
 import '../widgets/playback_queue_sheet.dart';
 import '../widgets/progress_scrubber.dart';
 
 class NowPlayingScreen extends StatelessWidget {
-  const NowPlayingScreen({required this.playback, super.key});
+  const NowPlayingScreen({required this.playback, this.userState, super.key});
 
   final SoundPlaybackController playback;
+  final LibraryUserStateController? userState;
 
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: playback,
+      animation: Listenable.merge([playback, ?userState]),
       builder: (context, _) {
         final track = playback.displayTrack;
         if (track == null) return const _NoTrackPlaying();
@@ -86,12 +89,14 @@ class NowPlayingScreen extends StatelessWidget {
                               album: album,
                               track: track,
                               playback: playback,
+                              userState: userState,
                             );
                           }
                           return _WideNowPlaying(
                             album: album,
                             track: track,
                             playback: playback,
+                            userState: userState,
                           );
                         },
                       ),
@@ -147,11 +152,13 @@ class _WideNowPlaying extends StatelessWidget {
     required this.album,
     required this.track,
     required this.playback,
+    this.userState,
   });
 
   final Album album;
   final Track track;
   final SoundPlaybackController playback;
+  final LibraryUserStateController? userState;
 
   @override
   Widget build(BuildContext context) {
@@ -173,6 +180,7 @@ class _WideNowPlaying extends StatelessWidget {
                       album: album,
                       track: track,
                       playback: playback,
+                      userState: userState,
                       artSize: artSize,
                     ),
                   ),
@@ -198,11 +206,13 @@ class _CompactNowPlaying extends StatelessWidget {
     required this.album,
     required this.track,
     required this.playback,
+    this.userState,
   });
 
   final Album album;
   final Track track;
   final SoundPlaybackController playback;
+  final LibraryUserStateController? userState;
 
   @override
   Widget build(BuildContext context) {
@@ -211,7 +221,12 @@ class _CompactNowPlaying extends StatelessWidget {
       child: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 430),
-          child: _PlayerColumn(album: album, track: track, playback: playback),
+          child: _PlayerColumn(
+            album: album,
+            track: track,
+            playback: playback,
+            userState: userState,
+          ),
         ),
       ),
     );
@@ -223,12 +238,14 @@ class _PlayerColumn extends StatelessWidget {
     required this.album,
     required this.track,
     required this.playback,
+    this.userState,
     this.artSize,
   });
 
   final Album album;
   final Track track;
   final SoundPlaybackController playback;
+  final LibraryUserStateController? userState;
   final double? artSize;
 
   @override
@@ -249,15 +266,33 @@ class _PlayerColumn extends StatelessWidget {
       children: [
         AlbumArt(album: album, size: artSize),
         const SizedBox(height: 24),
-        Text(
-          track.title,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(
-            fontSize: 23,
-            fontWeight: FontWeight.w900,
-            letterSpacing: -0.5,
-          ),
+        Row(
+          children: [
+            Expanded(
+              child: Text(
+                track.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 23,
+                  fontWeight: FontWeight.w900,
+                  letterSpacing: -0.5,
+                ),
+              ),
+            ),
+            if (userState case final state?)
+              IconButton(
+                key: ValueKey('favorite-now-playing-${track.id}'),
+                onPressed: () => unawaited(state.toggleFavorite(track)),
+                tooltip: state.isFavorite(track.id) ? '取消收藏' : '收藏歌曲',
+                color: state.isFavorite(track.id) ? SoundColors.accent : null,
+                icon: Icon(
+                  state.isFavorite(track.id)
+                      ? Icons.favorite_rounded
+                      : Icons.favorite_border_rounded,
+                ),
+              ),
+          ],
         ),
         const SizedBox(height: 5),
         Text(

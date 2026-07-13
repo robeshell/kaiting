@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
 import '../../domain/library_models.dart';
 import '../../playback/playback_controller.dart';
+import '../controllers/library_user_state_controller.dart';
 import 'album_art.dart';
 import 'playback_status_badge.dart';
 import 'progress_scrubber.dart';
@@ -12,6 +14,7 @@ import 'source_badge.dart';
 class MiniPlayer extends StatelessWidget {
   const MiniPlayer({
     required this.playback,
+    this.userState,
     required this.onOpen,
     required this.compact,
     this.onOpenQueue,
@@ -19,6 +22,7 @@ class MiniPlayer extends StatelessWidget {
   });
 
   final SoundPlaybackController playback;
+  final LibraryUserStateController? userState;
   final VoidCallback onOpen;
   final bool compact;
   final VoidCallback? onOpenQueue;
@@ -26,7 +30,7 @@ class MiniPlayer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
-      animation: playback,
+      animation: Listenable.merge([playback, ?userState]),
       builder: (context, _) {
         final track = playback.displayTrack;
         if (track == null) return const SizedBox.shrink();
@@ -188,10 +192,17 @@ class MiniPlayer extends StatelessWidget {
                       ),
                     ),
                     const Spacer(),
-                    _DarkIconButton(
-                      icon: Icons.favorite_border_rounded,
-                      onTap: () {},
-                    ),
+                    if (userState case final state?)
+                      _DarkIconButton(
+                        icon: state.isFavorite(track.id)
+                            ? Icons.favorite_rounded
+                            : Icons.favorite_border_rounded,
+                        color: state.isFavorite(track.id)
+                            ? const Color(0xFFE84D67)
+                            : null,
+                        tooltip: state.isFavorite(track.id) ? '取消收藏' : '收藏歌曲',
+                        onTap: () => unawaited(state.toggleFavorite(track)),
+                      ),
                     _DarkIconButton(icon: Icons.lyrics_outlined, onTap: onOpen),
                     _DarkIconButton(
                       icon: Icons.queue_music_rounded,
@@ -227,12 +238,14 @@ class _DarkIconButton extends StatelessWidget {
     required this.onTap,
     this.size = 20,
     this.tooltip,
+    this.color,
   });
 
   final IconData icon;
   final VoidCallback? onTap;
   final double size;
   final String? tooltip;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
@@ -240,9 +253,9 @@ class _DarkIconButton extends StatelessWidget {
       onPressed: onTap,
       icon: Icon(
         icon,
-        color: onTap == null
-            ? const Color(0x52000000)
-            : const Color(0xD6000000),
+        color:
+            color ??
+            (onTap == null ? const Color(0x52000000) : const Color(0xD6000000)),
         size: size,
       ),
       visualDensity: VisualDensity.compact,

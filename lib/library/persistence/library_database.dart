@@ -116,6 +116,25 @@ class LibraryLyrics extends Table {
   Set<Column<Object>> get primaryKey => {trackId, sequence};
 }
 
+/// User state deliberately has no foreign key to [LibraryTracks]. A source
+/// rescan atomically replaces its catalog rows, while favorites must survive
+/// that temporary deletion and reconnect through the stable track ID.
+class LibraryFavoriteTracks extends Table {
+  TextColumn get trackId => text()();
+  DateTimeColumn get addedAt => dateTime()();
+
+  @override
+  Set<Column<Object>> get primaryKey => {trackId};
+}
+
+/// Append-only playback events. Missing catalog tracks are retained so a
+/// later source recovery can make the history visible again.
+class LibraryPlayHistory extends Table {
+  IntColumn get id => integer().autoIncrement()();
+  TextColumn get trackId => text()();
+  DateTimeColumn get playedAt => dateTime()();
+}
+
 @DriftDatabase(
   tables: [
     LibrarySources,
@@ -123,6 +142,8 @@ class LibraryLyrics extends Table {
     LibraryAlbums,
     LibraryTracks,
     LibraryLyrics,
+    LibraryFavoriteTracks,
+    LibraryPlayHistory,
   ],
 )
 class LibraryDatabase extends _$LibraryDatabase {
@@ -141,13 +162,16 @@ class LibraryDatabase extends _$LibraryDatabase {
       );
 
   @override
-  int get schemaVersion => 1;
+  int get schemaVersion => 2;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
     onCreate: (migrator) => migrator.createAll(),
     onUpgrade: (migrator, from, to) async {
-      throw StateError('Missing library migration from v$from to v$to.');
+      if (from < 2) {
+        await migrator.createTable(libraryFavoriteTracks);
+        await migrator.createTable(libraryPlayHistory);
+      }
     },
     beforeOpen: (_) async {
       await customStatement('PRAGMA journal_mode = WAL');

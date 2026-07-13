@@ -7,6 +7,8 @@ import 'library_database.dart' as db;
 class DriftLibraryRepository implements LibraryRepository {
   DriftLibraryRepository(this._database);
 
+  static const _maximumHistoryEntries = 1000;
+
   factory DriftLibraryRepository.defaults() =>
       DriftLibraryRepository(db.LibraryDatabase.defaults());
 
@@ -50,6 +52,28 @@ class DriftLibraryRepository implements LibraryRepository {
       ]);
     return query.watch().map(
       (rows) => rows.map(_trackRecord).toList(growable: false),
+    );
+  }
+
+  @override
+  Stream<List<LibraryFavoriteTrackRecord>> watchFavoriteTracks() {
+    final query = _database.select(_database.libraryFavoriteTracks)
+      ..orderBy([(row) => OrderingTerm.desc(row.addedAt)]);
+    return query.watch().map(
+      (rows) => rows.map(_favoriteRecord).toList(growable: false),
+    );
+  }
+
+  @override
+  Stream<List<LibraryPlayHistoryRecord>> watchPlayHistory({int limit = 500}) {
+    if (limit <= 0) {
+      return Stream.value(const <LibraryPlayHistoryRecord>[]);
+    }
+    final query = _database.select(_database.libraryPlayHistory)
+      ..orderBy([(row) => OrderingTerm.desc(row.playedAt)])
+      ..limit(limit);
+    return query.watch().map(
+      (rows) => rows.map(_historyRecord).toList(growable: false),
     );
   }
 
@@ -132,6 +156,26 @@ class DriftLibraryRepository implements LibraryRepository {
       for (final entry in grouped.entries)
         entry.key: List.unmodifiable(entry.value),
     };
+  }
+
+  @override
+  Future<List<LibraryFavoriteTrackRecord>> getFavoriteTracks() async {
+    final query = _database.select(_database.libraryFavoriteTracks)
+      ..orderBy([(row) => OrderingTerm.desc(row.addedAt)]);
+    final rows = await query.get();
+    return rows.map(_favoriteRecord).toList(growable: false);
+  }
+
+  @override
+  Future<List<LibraryPlayHistoryRecord>> getPlayHistory({
+    int limit = 500,
+  }) async {
+    if (limit <= 0) return const [];
+    final query = _database.select(_database.libraryPlayHistory)
+      ..orderBy([(row) => OrderingTerm.desc(row.playedAt)])
+      ..limit(limit);
+    final rows = await query.get();
+    return rows.map(_historyRecord).toList(growable: false);
   }
 
   @override
@@ -241,6 +285,60 @@ class DriftLibraryRepository implements LibraryRepository {
       );
     });
   }
+
+  @override
+  Future<void> setTrackFavorite(
+    String trackId, {
+    required bool favorite,
+    required DateTime changedAt,
+  }) async {
+    if (favorite) {
+      await _database
+          .into(_database.libraryFavoriteTracks)
+          .insertOnConflictUpdate(
+            db.LibraryFavoriteTracksCompanion.insert(
+              trackId: trackId,
+              addedAt: changedAt.toUtc(),
+            ),
+          );
+      return;
+    }
+    await (_database.delete(
+      _database.libraryFavoriteTracks,
+    )..where((row) => row.trackId.equals(trackId))).go();
+  }
+
+  @override
+  Future<void> addPlayHistory(
+    String trackId, {
+    required DateTime playedAt,
+  }) async {
+    await _database.transaction(() async {
+      await _database
+          .into(_database.libraryPlayHistory)
+          .insert(
+            db.LibraryPlayHistoryCompanion.insert(
+              trackId: trackId,
+              playedAt: playedAt.toUtc(),
+            ),
+          );
+      final newest =
+          await (_database.select(_database.libraryPlayHistory)
+                ..orderBy([(row) => OrderingTerm.desc(row.id)])
+                ..limit(_maximumHistoryEntries + 1))
+              .get();
+      if (newest.length <= _maximumHistoryEntries) return;
+      final oldestRetainedBoundary = newest.last.id;
+      await (_database.delete(_database.libraryPlayHistory)..where(
+            (row) => row.id.isSmallerOrEqualValue(oldestRetainedBoundary),
+          ))
+          .go();
+    });
+  }
+
+  @override
+  Future<void> clearPlayHistory() =>
+      _database.delete(_database.libraryPlayHistory).go();
 
   Future<void> _deleteSourceCatalog(String sourceId) async {
     await (_database.delete(
@@ -368,6 +466,21 @@ LibraryLyricRecord _lyricRecord(db.LibraryLyric row) {
     sequence: row.sequence,
     timestampMs: row.timestampMs,
     text: row.content,
+  );
+}
+
+LibraryFavoriteTrackRecord _favoriteRecord(db.LibraryFavoriteTrack row) {
+  return LibraryFavoriteTrackRecord(
+    trackId: row.trackId,
+    addedAt: row.addedAt.toUtc(),
+  );
+}
+
+LibraryPlayHistoryRecord _historyRecord(db.LibraryPlayHistoryData row) {
+  return LibraryPlayHistoryRecord(
+    id: row.id,
+    trackId: row.trackId,
+    playedAt: row.playedAt.toUtc(),
   );
 }
 

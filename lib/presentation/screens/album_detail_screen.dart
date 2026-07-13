@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../core/sound_theme.dart';
 import '../../domain/library_models.dart';
 import '../../playback/playback_controller.dart';
+import '../controllers/library_user_state_controller.dart';
 import '../widgets/album_art.dart';
 import '../widgets/progress_scrubber.dart';
 import '../widgets/source_badge.dart';
@@ -11,12 +14,14 @@ class AlbumDetailScreen extends StatelessWidget {
   const AlbumDetailScreen({
     required this.album,
     required this.playback,
+    this.userState,
     required this.onBack,
     super.key,
   });
 
   final Album album;
   final SoundPlaybackController playback;
+  final LibraryUserStateController? userState;
   final VoidCallback onBack;
 
   @override
@@ -24,7 +29,7 @@ class AlbumDetailScreen extends StatelessWidget {
     return Material(
       color: Colors.transparent,
       child: AnimatedBuilder(
-        animation: playback,
+        animation: Listenable.merge([playback, ?userState]),
         builder: (context, _) {
           return CustomScrollView(
             slivers: [
@@ -41,9 +46,13 @@ class AlbumDetailScreen extends StatelessWidget {
                     return _TrackRow(
                       track: track,
                       active: active,
+                      favorite: userState?.isFavorite(track.id) ?? false,
                       onTap: () =>
                           playback.playTrack(track, queue: album.tracks),
                       onPlayNext: () => playback.playNext(track),
+                      onToggleFavorite: userState == null
+                          ? null
+                          : () => unawaited(userState!.toggleFavorite(track)),
                     );
                   },
                 ),
@@ -193,14 +202,18 @@ class _TrackRow extends StatelessWidget {
   const _TrackRow({
     required this.track,
     required this.active,
+    required this.favorite,
     required this.onTap,
     required this.onPlayNext,
+    required this.onToggleFavorite,
   });
 
   final Track track;
   final bool active;
+  final bool favorite;
   final VoidCallback onTap;
   final VoidCallback onPlayNext;
+  final VoidCallback? onToggleFavorite;
 
   @override
   Widget build(BuildContext context) {
@@ -256,9 +269,10 @@ class _TrackRow extends StatelessWidget {
               tooltip: '歌曲操作',
               onSelected: (value) {
                 if (value == 'play-next') onPlayNext();
+                if (value == 'favorite') onToggleFavorite?.call();
               },
-              itemBuilder: (_) => const [
-                PopupMenuItem(
+              itemBuilder: (_) => [
+                const PopupMenuItem(
                   value: 'play-next',
                   child: ListTile(
                     contentPadding: EdgeInsets.zero,
@@ -266,6 +280,20 @@ class _TrackRow extends StatelessWidget {
                     title: Text('下一首播放'),
                   ),
                 ),
+                if (onToggleFavorite != null)
+                  PopupMenuItem(
+                    value: 'favorite',
+                    child: ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      leading: Icon(
+                        favorite
+                            ? Icons.favorite_rounded
+                            : Icons.favorite_border_rounded,
+                        color: favorite ? SoundColors.accent : null,
+                      ),
+                      title: Text(favorite ? '取消收藏' : '收藏歌曲'),
+                    ),
+                  ),
               ],
             ),
           ],

@@ -14,9 +14,11 @@ import '../sources/local/local_source_service.dart';
 import '../sources/webdav/webdav_connection_service.dart';
 import 'controllers/library_catalog_controller.dart';
 import 'controllers/library_search_controller.dart';
+import 'controllers/library_user_state_controller.dart';
 import 'screens/album_detail_screen.dart';
 import 'screens/library_collection_screen.dart';
 import 'screens/library_screen.dart';
+import 'screens/library_user_screen.dart';
 import 'screens/now_playing_screen.dart';
 import 'screens/search_screen.dart';
 import 'screens/source_settings_screen.dart';
@@ -40,15 +42,18 @@ class AppShell extends StatefulWidget {
 class _AppShellState extends State<AppShell> {
   AppSection _section = AppSection.library;
   LibraryBrowseMode _libraryBrowseMode = LibraryBrowseMode.albums;
+  LibraryUserBrowseMode? _libraryUserMode;
   Album? _selectedAlbum;
   LibraryCollection? _selectedCollection;
   late final LibraryRepository _libraryRepository;
   late final bool _ownsLibraryRepository;
   late final LibraryCatalogController _libraryCatalog;
   late final LibrarySearchController _librarySearch;
+  late final LibraryUserStateController _libraryUserState;
   late final WebDavConnectionService _webDavService;
   late final StreamSubscription<List<WebDavConnectionRecord>>
   _webDavConnectionSubscription;
+  late final StreamSubscription<Track> _trackStartedSubscription;
   LocalSourceService? _localSourceService;
   LocalLibraryScanner? _localLibraryScanner;
 
@@ -60,6 +65,13 @@ class _AppShellState extends State<AppShell> {
         widget.libraryRepository ?? DriftLibraryRepository.defaults();
     _libraryCatalog = LibraryCatalogController(repository: _libraryRepository);
     _librarySearch = LibrarySearchController(catalog: _libraryCatalog);
+    _libraryUserState = LibraryUserStateController(
+      repository: _libraryRepository,
+      catalog: _libraryCatalog,
+    );
+    _trackStartedSubscription = widget.playback.trackStarted.listen(
+      (track) => unawaited(_libraryUserState.recordTrackStarted(track)),
+    );
     _webDavService = WebDavConnectionService(repository: _libraryRepository);
     // Resolve security-scoped bookmarks at startup so that local files are
     // playable without the user first opening the source-settings screen.
@@ -147,6 +159,7 @@ class _AppShellState extends State<AppShell> {
       _section = section;
       _selectedAlbum = null;
       _selectedCollection = null;
+      _libraryUserMode = null;
     });
   }
 
@@ -154,6 +167,16 @@ class _AppShellState extends State<AppShell> {
     setState(() {
       _section = AppSection.library;
       _libraryBrowseMode = mode;
+      _libraryUserMode = null;
+      _selectedAlbum = null;
+      _selectedCollection = null;
+    });
+  }
+
+  void _selectLibraryUserMode(LibraryUserBrowseMode mode) {
+    setState(() {
+      _section = AppSection.library;
+      _libraryUserMode = mode;
       _selectedAlbum = null;
       _selectedCollection = null;
     });
@@ -163,7 +186,10 @@ class _AppShellState extends State<AppShell> {
     if (widget.playback.displayTrack == null) return;
     Navigator.of(context).push(
       MaterialPageRoute<void>(
-        builder: (_) => NowPlayingScreen(playback: widget.playback),
+        builder: (_) => NowPlayingScreen(
+          playback: widget.playback,
+          userState: _libraryUserState,
+        ),
       ),
     );
   }
@@ -209,30 +235,48 @@ class _AppShellState extends State<AppShell> {
             ? AlbumDetailScreen(
                 album: _selectedAlbum!,
                 playback: widget.playback,
+                userState: _libraryUserState,
                 onBack: () => setState(() => _selectedAlbum = null),
               )
             : _selectedCollection != null
             ? LibraryCollectionScreen(
                 collection: _selectedCollection!,
                 playback: widget.playback,
+                userState: _libraryUserState,
                 onBack: () => setState(() => _selectedCollection = null),
                 onOpenAlbum: _openAlbum,
               )
             : switch (_section) {
-                AppSection.library => LibraryScreen(
-                  catalog: _libraryCatalog,
-                  mode: _libraryBrowseMode,
-                  onModeChanged: _selectLibraryMode,
-                  onOpenAlbum: _openAlbum,
-                  onOpenCollection: _openCollection,
-                  onPlayTrack: (track, queue) =>
-                      unawaited(widget.playback.playTrack(track, queue: queue)),
-                  onManageSources: () => _selectSection(AppSection.sources),
-                ),
+                AppSection.library =>
+                  _libraryUserMode == null
+                      ? LibraryScreen(
+                          catalog: _libraryCatalog,
+                          userState: _libraryUserState,
+                          mode: _libraryBrowseMode,
+                          onModeChanged: _selectLibraryMode,
+                          onOpenAlbum: _openAlbum,
+                          onOpenCollection: _openCollection,
+                          onPlayTrack: (track, queue) => unawaited(
+                            widget.playback.playTrack(track, queue: queue),
+                          ),
+                          onOpenUserMode: _selectLibraryUserMode,
+                          onManageSources: () =>
+                              _selectSection(AppSection.sources),
+                        )
+                      : LibraryUserScreen(
+                          mode: _libraryUserMode!,
+                          catalog: _libraryCatalog,
+                          userState: _libraryUserState,
+                          playback: widget.playback,
+                          onModeChanged: _selectLibraryUserMode,
+                          onBack: () => _selectLibraryMode(_libraryBrowseMode),
+                          onOpenAlbum: _openAlbum,
+                        ),
                 AppSection.search => SearchScreen(
                   catalog: _libraryCatalog,
                   search: _librarySearch,
                   playback: widget.playback,
+                  userState: _libraryUserState,
                   onOpenAlbum: _openAlbum,
                 ),
                 AppSection.sources => SourceSettingsScreen(
@@ -254,8 +298,10 @@ class _AppShellState extends State<AppShell> {
                             child: _Sidebar(
                               selection: _section,
                               libraryMode: _libraryBrowseMode,
+                              userMode: _libraryUserMode,
                               onSelect: _selectSection,
                               onSelectLibraryMode: _selectLibraryMode,
+                              onSelectUserMode: _selectLibraryUserMode,
                             ),
                           ),
                           VerticalDivider(
@@ -273,6 +319,7 @@ class _AppShellState extends State<AppShell> {
                 bottom: desktop ? 18 : _compactMiniPlayerBottomGap,
                 child: MiniPlayer(
                   playback: widget.playback,
+                  userState: _libraryUserState,
                   compact: !desktop,
                   onOpen: _openNowPlaying,
                   onOpenQueue: _openQueue,
@@ -311,8 +358,10 @@ class _AppShellState extends State<AppShell> {
   @override
   void dispose() {
     unawaited(_webDavConnectionSubscription.cancel());
+    unawaited(_trackStartedSubscription.cancel());
     _libraryCatalog.removeListener(_syncLibrarySelection);
     _librarySearch.dispose();
+    _libraryUserState.dispose();
     _libraryCatalog.dispose();
     if (_ownsLibraryRepository) unawaited(_libraryRepository.close());
     super.dispose();
@@ -323,14 +372,18 @@ class _Sidebar extends StatelessWidget {
   const _Sidebar({
     required this.selection,
     required this.libraryMode,
+    required this.userMode,
     required this.onSelect,
     required this.onSelectLibraryMode,
+    required this.onSelectUserMode,
   });
 
   final AppSection selection;
   final LibraryBrowseMode libraryMode;
+  final LibraryUserBrowseMode? userMode;
   final ValueChanged<AppSection> onSelect;
   final ValueChanged<LibraryBrowseMode> onSelectLibraryMode;
+  final ValueChanged<LibraryUserBrowseMode> onSelectUserMode;
 
   @override
   Widget build(BuildContext context) {
@@ -353,22 +406,39 @@ class _Sidebar extends StatelessWidget {
                   ),
                 ),
               ),
-              _SidebarRow(
-                label: '搜索',
-                icon: Icons.search_rounded,
-                active: selection == AppSection.search,
-                onTap: () => onSelect(AppSection.search),
-              ),
-              const _SidebarHeading('资料库'),
-              for (final mode in LibraryBrowseMode.values)
-                _SidebarRow(
-                  label: mode.label,
-                  icon: mode.icon,
-                  active:
-                      selection == AppSection.library && libraryMode == mode,
-                  onTap: () => onSelectLibraryMode(mode),
+              Expanded(
+                child: ListView(
+                  padding: EdgeInsets.zero,
+                  children: [
+                    _SidebarRow(
+                      label: '搜索',
+                      icon: Icons.search_rounded,
+                      active: selection == AppSection.search,
+                      onTap: () => onSelect(AppSection.search),
+                    ),
+                    const _SidebarHeading('资料库'),
+                    for (final mode in LibraryBrowseMode.values)
+                      _SidebarRow(
+                        label: mode.label,
+                        icon: mode.icon,
+                        active:
+                            selection == AppSection.library &&
+                            userMode == null &&
+                            libraryMode == mode,
+                        onTap: () => onSelectLibraryMode(mode),
+                      ),
+                    const _SidebarHeading('我的音乐'),
+                    for (final mode in LibraryUserBrowseMode.values)
+                      _SidebarRow(
+                        label: mode.label,
+                        icon: mode.icon,
+                        active:
+                            selection == AppSection.library && userMode == mode,
+                        onTap: () => onSelectUserMode(mode),
+                      ),
+                  ],
                 ),
-              const Spacer(),
+              ),
               _SidebarRow(
                 label: '设置',
                 icon: Icons.settings_outlined,

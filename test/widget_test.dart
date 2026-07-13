@@ -164,6 +164,67 @@ void main() {
     await _unmountAndFlush(tester);
   });
 
+  testWidgets('favorites and playback history are fully interactive', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final repository = await _repositoryWithAlbum();
+    addTearDown(repository.close);
+
+    await tester.pumpWidget(
+      SoundApp(
+        engine: SimulatedPlaybackEngine(),
+        repository: repository,
+        sessionStore: PlaybackSessionStore.memory(),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Test Album').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Test Track'));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('收藏歌曲'));
+    await tester.pumpAndSettle();
+    expect((await repository.getFavoriteTracks()).single.trackId, 'track:test');
+    expect((await repository.getPlayHistory()).single.trackId, 'track:test');
+
+    await tester.tap(find.text('收藏').first);
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('user-library-track-favorites-track:test')),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('最近播放').first);
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('user-library-track-recent-track:test')),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.text('播放历史').first);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('play-history-1')), findsOneWidget);
+    await tester.tap(find.text('清除历史'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, '清除'));
+    await tester.pumpAndSettle();
+    expect(find.text('播放历史是空的'), findsOneWidget);
+    expect(await repository.getPlayHistory(), isEmpty);
+    expect((await repository.getFavoriteTracks()).single.trackId, 'track:test');
+
+    await tester.tap(find.text('收藏').first);
+    tester.view.physicalSize = const Size(390, 844);
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+
+    await _unmountAndFlush(tester);
+  });
+
   testWidgets('empty repository presents a source-management action', (
     tester,
   ) async {

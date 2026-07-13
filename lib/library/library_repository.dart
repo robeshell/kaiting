@@ -5,6 +5,8 @@ abstract interface class LibraryRepository {
   Stream<List<LibraryArtistRecord>> watchArtists();
   Stream<List<LibraryAlbumRecord>> watchAlbums();
   Stream<List<LibraryTrackRecord>> watchTracks();
+  Stream<List<LibraryFavoriteTrackRecord>> watchFavoriteTracks();
+  Stream<List<LibraryPlayHistoryRecord>> watchPlayHistory({int limit = 500});
 
   Future<List<LibrarySourceRecord>> getSources();
   Future<LibrarySourceRecord?> getSource(String id);
@@ -13,6 +15,8 @@ abstract interface class LibraryRepository {
   Future<List<LibraryTrackRecord>> getTracks({String? sourceId});
   Future<List<LibraryLyricRecord>> getLyrics(String trackId);
   Future<Map<String, List<LibraryLyricRecord>>> getAllLyrics();
+  Future<List<LibraryFavoriteTrackRecord>> getFavoriteTracks();
+  Future<List<LibraryPlayHistoryRecord>> getPlayHistory({int limit = 500});
 
   Future<void> upsertSource(LibrarySourceRecord source);
   Future<void> deleteSource(String id);
@@ -24,6 +28,13 @@ abstract interface class LibraryRepository {
     required DateTime occurredAt,
   });
   Future<void> replaceSourceScan(LibraryScanBatch batch);
+  Future<void> setTrackFavorite(
+    String trackId, {
+    required bool favorite,
+    required DateTime changedAt,
+  });
+  Future<void> addPlayHistory(String trackId, {required DateTime playedAt});
+  Future<void> clearPlayHistory();
 
   Future<void> close();
 }

@@ -135,6 +135,28 @@ class LibraryLyricRecord {
   final String text;
 }
 
+class LibraryFavoriteTrackRecord {
+  const LibraryFavoriteTrackRecord({
+    required this.trackId,
+    required this.addedAt,
+  });
+
+  final String trackId;
+  final DateTime addedAt;
+}
+
+class LibraryPlayHistoryRecord {
+  const LibraryPlayHistoryRecord({
+    required this.id,
+    required this.trackId,
+    required this.playedAt,
+  });
+
+  final int id;
+  final String trackId;
+  final DateTime playedAt;
+}
+
 class LibraryScanBatch {
   const LibraryScanBatch({
     required this.sourceId,
