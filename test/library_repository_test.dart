@@ -149,6 +149,30 @@ void main() {
       await repository.close();
     },
   );
+
+  test('replaces legacy semantic rows when generated IDs change', () async {
+    final createdAt = DateTime.utc(2026, 7, 13, 9);
+    final repository = _openRepository(databaseFile);
+    await repository.upsertSource(_source(createdAt));
+    await repository.replaceSourceScan(
+      _identityScan('legacy', createdAt.add(const Duration(minutes: 1))),
+    );
+
+    await repository.replaceSourceScan(
+      _identityScan('current', createdAt.add(const Duration(minutes: 2))),
+    );
+
+    final artists = await repository.getArtists(sourceId: 'source-local');
+    final albums = await repository.getAlbums(sourceId: 'source-local');
+    final tracks = await repository.getTracks(sourceId: 'source-local');
+    expect(artists.single.id, 'artist-current');
+    expect(albums.single.id, 'album-current');
+    expect(tracks.single.id, 'track-current');
+    expect(tracks.single.artistId, 'artist-current');
+    expect(tracks.single.albumId, 'album-current');
+    expect((await repository.getSource('source-local'))?.scanRevision, 2);
+    await repository.close();
+  });
 }
 
 DriftLibraryRepository _openRepository(File file) {
@@ -225,5 +249,48 @@ LibraryTrackRecord _track(
     contentType: 'audio/mpeg',
     fileSize: 9218085,
     modifiedAt: DateTime.utc(2026, 7, 10),
+  );
+}
+
+LibraryScanBatch _identityScan(String identity, DateTime completedAt) {
+  final artistId = 'artist-$identity';
+  final albumId = 'album-$identity';
+  final trackId = 'track-$identity';
+  return LibraryScanBatch(
+    sourceId: 'source-local',
+    completedAt: completedAt,
+    artists: [
+      LibraryArtistRecord(
+        id: artistId,
+        sourceId: 'source-local',
+        name: 'Same Artist',
+        sortName: 'same artist',
+      ),
+    ],
+    albums: [
+      LibraryAlbumRecord(
+        id: albumId,
+        sourceId: 'source-local',
+        artistId: artistId,
+        title: 'Same Album',
+        sortTitle: 'same album',
+        albumArtist: 'Same Artist',
+      ),
+    ],
+    tracks: [
+      LibraryTrackRecord(
+        id: trackId,
+        sourceId: 'source-local',
+        albumId: albumId,
+        artistId: artistId,
+        relativePath: 'same.mp3',
+        mediaUri: 'file:///music/same.mp3',
+        title: 'Same Track',
+        artistName: 'Same Artist',
+        albumTitle: 'Same Album',
+        durationMs: 1000,
+        modifiedAt: completedAt,
+      ),
+    ],
   );
 }

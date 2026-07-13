@@ -41,6 +41,32 @@ void main() {
     expect(state.primaryVisual, PlaybackPrimaryVisual.pause);
   });
 
+  testWidgets('compact mini player keeps metadata within a narrow width', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(320, 90);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final engine = StaticPlaybackEngine(_snapshot(PlaybackPhase.paused));
+    final playback = SoundPlaybackController(engine: engine);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData.dark(useMaterial3: true),
+        home: Scaffold(
+          body: MiniPlayer(playback: playback, compact: true, onOpen: () {}),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+    playback.dispose();
+    engine.dispose();
+  });
+
   for (final testCase in const [
     (PlaybackPhase.loading, '正在载入'),
     (PlaybackPhase.buffering, '正在缓冲'),

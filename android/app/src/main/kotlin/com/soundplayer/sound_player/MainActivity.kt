@@ -5,12 +5,12 @@ import android.content.Intent
 import android.net.Uri
 import android.provider.DocumentsContract
 import java.io.File
-import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
+import com.ryanheise.audioservice.AudioServiceActivity
 
-class MainActivity : FlutterActivity() {
+class MainActivity : AudioServiceActivity() {
     companion object {
         private const val channelName =
             "com.soundplayer.sound_player/local_directory_access"

@@ -4,9 +4,11 @@ import 'package:flutter/foundation.dart';
 import 'package:just_audio/just_audio.dart' as just_audio;
 
 import '../domain/library_models.dart';
+import '../sources/webdav/webdav_cache.dart';
 import 'native_position_gate.dart';
 import 'playback_engine.dart';
 import 'request_header_policy.dart';
+import 'webdav_stream_audio_source.dart';
 
 /// Production adapter backed by each platform's just_audio implementation
 /// (ExoPlayer on Android and AVPlayer on Apple platforms).
@@ -19,15 +21,19 @@ class JustAudioPlaybackEngine implements PlaybackEngine {
     'SOUND_VALIDATION_MUTED',
   );
 
-  JustAudioPlaybackEngine({just_audio.AudioPlayer? player})
-    : _player =
-          player ??
-          just_audio.AudioPlayer(
-            // Android and Apple platforms send headers through their native
-            // data sources. Windows needs just_audio's loopback proxy because
-            // its WinRT implementation does not expose request headers.
-            useProxyForRequestHeaders: useProxyForPlaybackRequestHeaders,
-          ) {
+  JustAudioPlaybackEngine({
+    just_audio.AudioPlayer? player,
+    this.webDavAuthHeaders = const {},
+    this.webDavAllowBadCertificateUrls = const {},
+    this.webDavCache,
+  }) : _player =
+           player ??
+           just_audio.AudioPlayer(
+             // Android and Apple platforms send headers through their native
+             // data sources. Windows needs just_audio's loopback proxy because
+             // its WinRT implementation does not expose request headers.
+             useProxyForRequestHeaders: useProxyForPlaybackRequestHeaders,
+           ) {
     _configuration = _validationMuted
         ? _player.setVolume(0)
         : Future<void>.value();
@@ -41,9 +47,23 @@ class JustAudioPlaybackEngine implements PlaybackEngine {
 
   final just_audio.AudioPlayer _player;
   late final Future<void> _configuration;
+
+  /// Auth headers for WebDAV sources, keyed by connection base URL.
+  /// Set by [SoundApp] when connections are available.
+  Map<String, Map<String, String>> webDavAuthHeaders;
+
+  /// Connection base URLs whose user explicitly allowed an untrusted TLS
+  /// certificate. The exception is applied only to cache downloads for that
+  /// connection, never process-wide.
+  Set<String> webDavAllowBadCertificateUrls;
+
+  /// Optional cache for remote WebDAV files.
+  WebDavCache? webDavCache;
+
   final StreamController<PlaybackSnapshot> _snapshots =
       StreamController<PlaybackSnapshot>.broadcast(sync: true);
   final List<StreamSubscription<Object?>> _subscriptions = [];
+  final Map<String, Timer> _cacheDownloadTimers = {};
   final NativePositionGate _positionGate = NativePositionGate();
 
   PlaybackSnapshot _current = const PlaybackSnapshot.idle();
@@ -91,10 +111,57 @@ class JustAudioPlaybackEngine implements PlaybackEngine {
           uri != null && (uri.scheme == 'http' || uri.scheme == 'https');
       final Duration? loadedDuration;
       if (isRemote) {
-        loadedDuration = await _player.setUrl(
-          resource,
-          headers: track.httpHeaders,
-        );
+        var headers = track.httpHeaders;
+        String? bestKey;
+        if (track.source == SourceKind.webDav && webDavAuthHeaders.isNotEmpty) {
+          for (final key in webDavAuthHeaders.keys) {
+            if (_isWithinWebDavBase(resource, key)) {
+              if (bestKey == null || key.length > bestKey.length) {
+                bestKey = key;
+              }
+            }
+          }
+          if (bestKey != null) {
+            headers = webDavAuthHeaders[bestKey]!;
+          }
+        }
+        final allowBadCertificate =
+            bestKey != null && webDavAllowBadCertificateUrls.contains(bestKey);
+
+        // Cache hit: play local. Cache miss: stream via URL, download
+        // in background so subsequent plays are instant.
+        final cache = webDavCache;
+        String? cachedPath;
+        if (cache != null && track.source == SourceKind.webDav) {
+          cachedPath = await cache.get(resource);
+        }
+        if (cachedPath != null) {
+          loadedDuration = await _player.setFilePath(cachedPath);
+        } else if (!kIsWeb &&
+            track.source == SourceKind.webDav &&
+            allowBadCertificate) {
+          loadedDuration = await _player.setAudioSource(
+            WebDavStreamAudioSource(
+              uri: uri,
+              headers: headers,
+              allowBadCertificate: true,
+            ),
+          );
+          _scheduleCacheDownload(
+            cache,
+            resource,
+            headers,
+            allowBadCertificate: true,
+          );
+        } else {
+          loadedDuration = await _player.setUrl(resource, headers: headers);
+          _scheduleCacheDownload(
+            cache,
+            track.source == SourceKind.webDav ? resource : null,
+            headers,
+            allowBadCertificate: allowBadCertificate,
+          );
+        }
       } else if (uri != null && uri.scheme.isNotEmpty && uri.scheme != 'file') {
         loadedDuration = await _player.setAudioSource(
           just_audio.AudioSource.uri(uri),
@@ -271,10 +338,60 @@ class JustAudioPlaybackEngine implements PlaybackEngine {
     return message.isEmpty ? '播放引擎发生未知错误。' : message;
   }
 
+  bool _isWithinWebDavBase(String resource, String base) {
+    final resourceUri = Uri.tryParse(resource);
+    final baseUri = Uri.tryParse(base);
+    if (resourceUri == null || baseUri == null) return false;
+    if (resourceUri.scheme.toLowerCase() != baseUri.scheme.toLowerCase() ||
+        resourceUri.host.toLowerCase() != baseUri.host.toLowerCase() ||
+        resourceUri.port != baseUri.port) {
+      return false;
+    }
+    final basePath = baseUri.path.endsWith('/')
+        ? baseUri.path
+        : '${baseUri.path}/';
+    return resourceUri.path.startsWith(basePath);
+  }
+
+  void _scheduleCacheDownload(
+    WebDavCache? cache,
+    String? url,
+    Map<String, String> headers, {
+    required bool allowBadCertificate,
+  }) {
+    if (cache == null || url == null) return;
+    final capturedHeaders = Map.of(headers);
+    // Defer to avoid competing with the playback stream for bandwidth.
+    _cacheDownloadTimers.putIfAbsent(url, () {
+      return Timer(const Duration(seconds: 2), () {
+        _cacheDownloadTimers.remove(url);
+        if (_disposed) return;
+        unawaited(
+          cache
+              .download(
+                url,
+                headers: capturedHeaders,
+                allowBadCertificate: allowBadCertificate,
+              )
+              .then(
+                (_) => debugPrint('WebDAV cache: background download complete'),
+                onError: (Object error) => debugPrint(
+                  'WebDAV cache: background download failed: $error',
+                ),
+              ),
+        );
+      });
+    });
+  }
+
   @override
   void dispose() {
     if (_disposed) return;
     _disposed = true;
+    for (final timer in _cacheDownloadTimers.values) {
+      timer.cancel();
+    }
+    _cacheDownloadTimers.clear();
     for (final subscription in _subscriptions) {
       unawaited(subscription.cancel());
     }

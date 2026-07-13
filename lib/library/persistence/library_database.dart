@@ -150,6 +150,7 @@ class LibraryDatabase extends _$LibraryDatabase {
       throw StateError('Missing library migration from v$from to v$to.');
     },
     beforeOpen: (_) async {
+      await customStatement('PRAGMA journal_mode = WAL');
       await customStatement('PRAGMA foreign_keys = ON');
     },
   );

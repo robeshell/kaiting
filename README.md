@@ -49,8 +49,11 @@ from explicit platform-independent contracts.
   just_audio adapter on macOS and Android. In the throttled fixture, a
   120-second seek opens a range near byte 5 MB and resumes in about 0.04 seconds
   on macOS and 0.7-1.0 seconds on Android.
+- Source settings can add, edit, probe, and remove WebDAV servers. Discovery
+  requires advertised DAV capability and a 207 PROPFIND response, while
+  credentials live in platform secure storage instead of the library database.
 - Background playback, system media controls, search, and the production
-  WebDAV flow remain unfinished. Repository-backed screens still need runtime
+  WebDAV indexing flow remain unfinished. Repository-backed screens still need runtime
   regression on Windows and iPhone/iPad when suitable hosts/devices are
   available.
 
@@ -74,7 +77,13 @@ flutter test
 flutter build macos --debug
 flutter build apk --debug
 flutter build web
+flutter build ios --simulator --debug
 ```
+
+The macOS Keychain entitlement requires a development-signed app. Sign in to a
+matching Apple developer account in Xcode before running the normal macOS build.
+An unsigned Xcode build can check compilation, but it cannot validate Keychain
+behavior.
 
 ## Documentation
 

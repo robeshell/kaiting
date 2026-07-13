@@ -352,25 +352,7 @@ void main() {
   // Previous
   // ---------------------------------------------------------------------------
   group('previous', () {
-    test('restarts the current track when position >= 4 seconds', () async {
-      final engine = ManualPlaybackEngine();
-      final controller = SoundPlaybackController(
-        engine: engine,
-        initialQueue: [_firstTrack, _secondTrack],
-      );
-      addTearDown(controller.dispose);
-      addTearDown(engine.dispose);
-
-      await controller.playTrack(_firstTrack);
-      // Simulate playback progress past the 4-second threshold.
-      engine.emitPosition(const Duration(seconds: 10));
-      await controller.previous();
-
-      expect(controller.currentTrack, same(_firstTrack));
-      expect(controller.snapshot.position, Duration.zero);
-    });
-
-    test('goes to previous track when position < 4 seconds', () async {
+    test('goes to previous track regardless of position', () async {
       final engine = ManualPlaybackEngine();
       final controller = SoundPlaybackController(
         engine: engine,
@@ -380,14 +362,14 @@ void main() {
       addTearDown(engine.dispose);
 
       await controller.playTrack(_secondTrack);
-      engine.emitPosition(const Duration(seconds: 2));
+      engine.emitPosition(const Duration(seconds: 10));
       await controller.previous();
 
       expect(controller.currentTrack, same(_firstTrack));
       expect(controller.isPlaying, isTrue);
     });
 
-    test('wraps around from first to last when position < 4 seconds', () async {
+    test('wraps around from first to last', () async {
       final engine = ManualPlaybackEngine();
       final controller = SoundPlaybackController(
         engine: engine,

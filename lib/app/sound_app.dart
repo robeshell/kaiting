@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../core/sound_theme.dart';
 import '../domain/library_models.dart';
@@ -9,6 +10,7 @@ import '../library/library_repository.dart';
 import '../playback/playback_controller.dart';
 import '../playback/playback_engine.dart';
 import '../playback/playback_session.dart';
+import '../playback/sound_audio_handler.dart';
 import '../presentation/app_shell.dart';
 
 class SoundApp extends StatefulWidget {
@@ -16,12 +18,14 @@ class SoundApp extends StatefulWidget {
     required this.engine,
     this.repository,
     this.sessionStore,
+    this.audioHandler,
     super.key,
   });
 
   final PlaybackEngine engine;
   final LibraryRepository? repository;
   final PlaybackSessionStore? sessionStore;
+  final SoundAudioHandler? audioHandler;
 
   @override
   State<SoundApp> createState() => _SoundAppState();
@@ -86,6 +90,7 @@ class _SoundAppState extends State<SoundApp> with WidgetsBindingObserver {
       initialSession: session,
     );
     playback.addListener(_scheduleSessionSave);
+    widget.audioHandler?.attach(playback);
     _sessionStore = store;
     setState(() => _playback = playback);
 
@@ -174,19 +179,20 @@ class _SoundAppState extends State<SoundApp> with WidgetsBindingObserver {
   Future<void> _startValidationPlayback(
     SoundPlaybackController playback,
   ) async {
-    final uri = Uri.tryParse(_validationMedia);
+    final validationMedia = await _resolvedValidationMedia();
+    final uri = Uri.tryParse(validationMedia);
     final isRemote = uri?.hasScheme == true && uri?.scheme != 'file';
     final filename = isRemote
         ? uri!.pathSegments.lastOrNull ?? '验证音频'
-        : _validationMedia.split('/').last;
+        : validationMedia.split('/').last;
     final track = Track(
-      id: 'startup-validation:${_validationMedia.hashCode}',
+      id: 'startup-validation:${validationMedia.hashCode}',
       title: filename,
       artist: isRemote ? '远程验证' : '本地验证',
       albumTitle: '播放验证',
       duration: Duration.zero,
       source: isRemote ? SourceKind.webDav : SourceKind.local,
-      mediaUri: _validationMedia,
+      mediaUri: validationMedia,
       httpHeaders: isRemote ? _validationHeaders : const {},
     );
     await playback.playTrack(track, queue: [track]);
@@ -206,6 +212,13 @@ class _SoundAppState extends State<SoundApp> with WidgetsBindingObserver {
         playback.snapshot.duration > Duration.zero) {
       await playback.seek(Duration(milliseconds: _validationSeekMs));
     }
+  }
+
+  Future<String> _resolvedValidationMedia() async {
+    final uri = Uri.tryParse(_validationMedia);
+    if (uri?.scheme != 'app-documents') return _validationMedia;
+    final documents = await getApplicationDocumentsDirectory();
+    return [documents.path, ...uri!.pathSegments].join('/');
   }
 
   Map<String, String> get _validationHeaders {
@@ -230,6 +243,7 @@ class _SoundAppState extends State<SoundApp> with WidgetsBindingObserver {
       unawaited(_enqueueSnapshot(store, playback.sessionSnapshot));
       playback.removeListener(_scheduleSessionSave);
     }
+    widget.audioHandler?.detach();
     playback?.dispose();
     _engine.dispose();
     super.dispose();

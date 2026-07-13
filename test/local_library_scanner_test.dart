@@ -53,7 +53,7 @@ void main() {
         ),
         'second.flac': const ExtractedAudioMetadata(
           title: 'Second',
-          artist: 'Artist',
+          artist: 'Artist/Guest',
           album: 'Album',
           duration: Duration(seconds: 20),
           trackNumber: 2,
@@ -75,6 +75,13 @@ void main() {
       expect(firstReport.warnings.single, contains('damaged.mp3'));
       var tracks = await repository.getTracks(sourceId: source.id);
       expect(tracks.map((track) => track.title), ['First', 'Second']);
+      expect(tracks.map((track) => track.artistName), [
+        'Artist',
+        'Artist/Guest',
+      ]);
+      final firstAlbums = await repository.getAlbums(sourceId: source.id);
+      expect(firstAlbums, hasLength(1));
+      expect(firstAlbums.single.albumArtist, 'Artist');
       expect(tracks.first.artworkKey, startsWith('artwork://'));
       expect(await repository.getLyrics(tracks.first.id), hasLength(1));
       expect((await repository.getSource(source.id))?.scanRevision, 1);

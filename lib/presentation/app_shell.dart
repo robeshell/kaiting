@@ -12,6 +12,7 @@ import '../library/scanning/local_media_catalog_factory.dart';
 import '../playback/playback_controller.dart';
 import '../sources/local/local_directory_access_factory.dart';
 import '../sources/local/local_source_service.dart';
+import '../sources/webdav/webdav_connection_service.dart';
 import 'controllers/library_catalog_controller.dart';
 import 'screens/album_detail_screen.dart';
 import 'screens/library_screen.dart';
@@ -41,6 +42,9 @@ class _AppShellState extends State<AppShell> {
   late final LibraryRepository _libraryRepository;
   late final bool _ownsLibraryRepository;
   late final LibraryCatalogController _libraryCatalog;
+  late final WebDavConnectionService _webDavService;
+  late final StreamSubscription<List<WebDavConnectionRecord>>
+  _webDavConnectionSubscription;
   LocalSourceService? _localSourceService;
   LocalLibraryScanner? _localLibraryScanner;
 
@@ -51,9 +55,51 @@ class _AppShellState extends State<AppShell> {
     _libraryRepository =
         widget.libraryRepository ?? DriftLibraryRepository.defaults();
     _libraryCatalog = LibraryCatalogController(repository: _libraryRepository);
+    _webDavService = WebDavConnectionService(repository: _libraryRepository);
     // Resolve security-scoped bookmarks at startup so that local files are
     // playable without the user first opening the source-settings screen.
     unawaited(_sources.restoreLocalFolders());
+    // Reactively load WebDAV auth headers so remote tracks are playable.
+    _webDavConnectionSubscription = _webDavService.watchConnections().listen((
+      _,
+    ) {
+      unawaited(_refreshWebDavAuthHeaders());
+    });
+    unawaited(_refreshWebDavAuthHeaders());
+    // Keep the selected album in sync when the catalog refreshes its objects.
+    _libraryCatalog.addListener(_syncSelectedAlbum);
+  }
+
+  void _syncSelectedAlbum() {
+    if (_selectedAlbum == null) return;
+    final fresh = _libraryCatalog.albums
+        .where((a) => a.id == _selectedAlbum!.id)
+        .firstOrNull;
+    if (fresh != null && !identical(fresh, _selectedAlbum)) {
+      setState(() => _selectedAlbum = fresh);
+    }
+  }
+
+  Future<void> _refreshWebDavAuthHeaders() async {
+    final connections = await _webDavService.listConnections();
+    final headers = <String, Map<String, String>>{};
+    final allowBadCertificateUrls = <String>{};
+    for (final c in connections) {
+      if (!c.isAvailable) continue;
+      final creds = await _webDavService.readCredentials(c.id);
+      if (creds == null) continue;
+      headers[c.url] = creds.isEmpty
+          ? const {}
+          : {'Authorization': creds.basicHeaderValue};
+      if (c.allowBadCertificate) allowBadCertificateUrls.add(c.url);
+    }
+    if (!mounted) return;
+    _libraryCatalog.webDavAuthHeaders = headers;
+    unawaited(_libraryCatalog.refresh());
+    widget.playback.setEngineAuthHeaders(
+      headers,
+      allowBadCertificateUrls: allowBadCertificateUrls,
+    );
   }
 
   LocalSourceService get _sources {
@@ -112,14 +158,20 @@ class _AppShellState extends State<AppShell> {
             : switch (_section) {
                 AppSection.library => LibraryScreen(
                   catalog: _libraryCatalog,
-                  onOpenAlbum: (album) =>
-                      setState(() => _selectedAlbum = album),
+                  onOpenAlbum: (album) => setState(() {
+                    _selectedAlbum =
+                        _libraryCatalog.albums
+                            .where((a) => a.id == album.id)
+                            .firstOrNull ??
+                        album;
+                  }),
                   onManageSources: () => _selectSection(AppSection.sources),
                 ),
                 AppSection.search => const _SearchPlaceholder(),
                 AppSection.sources => SourceSettingsScreen(
                   localSources: _sources,
                   scanner: _scanner,
+                  webDavService: _webDavService,
                   onOpenPlaybackValidation: () =>
                       setState(() => _showPlaybackValidation = true),
                 ),
@@ -195,6 +247,8 @@ class _AppShellState extends State<AppShell> {
 
   @override
   void dispose() {
+    unawaited(_webDavConnectionSubscription.cancel());
+    _libraryCatalog.removeListener(_syncSelectedAlbum);
     _libraryCatalog.dispose();
     if (_ownsLibraryRepository) unawaited(_libraryRepository.close());
     super.dispose();

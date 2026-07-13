@@ -244,7 +244,7 @@ class _PlayerColumn extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         AlbumArt(album: album, size: artSize),
-        const SizedBox(height: 30),
+        const SizedBox(height: 24),
         Text(
           track.title,
           maxLines: 1,

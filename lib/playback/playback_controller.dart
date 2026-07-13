@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 
 import '../domain/library_models.dart';
+import 'just_audio_playback_engine.dart';
 import 'playback_engine.dart';
 import 'playback_session.dart';
 
@@ -44,9 +45,21 @@ class SoundPlaybackController extends ChangeNotifier {
       ? _fallbackTrack?.duration ?? Duration.zero
       : _snapshot.duration;
   List<Track> get queue => List.unmodifiable(_queue);
+  int get queueIndex => _queueIndex;
 
   bool get isPlaying => _snapshot.isPlaying;
   bool get hasActiveTrack => _snapshot.hasTrack;
+
+  /// Allows setting engines-specific headers, e.g. WebDAV auth tokens.
+  void setEngineAuthHeaders(
+    Map<String, Map<String, String>> headers, {
+    Set<String> allowBadCertificateUrls = const {},
+  }) {
+    if (_engine case JustAudioPlaybackEngine engine) {
+      engine.webDavAuthHeaders = headers;
+      engine.webDavAllowBadCertificateUrls = allowBadCertificateUrls;
+    }
+  }
 
   /// Captures the current controller state for persistence. Callers must
   /// throttle saves and never feed this data back into a live engine.
@@ -126,10 +139,6 @@ class SoundPlaybackController extends ChangeNotifier {
   }
 
   Future<void> previous() async {
-    if (_snapshot.position >= const Duration(seconds: 4)) {
-      await seek(Duration.zero);
-      return;
-    }
     if (_queue.isEmpty) return;
     _clearResumePosition();
     _queueIndex = (_queueIndex - 1 + _queue.length) % _queue.length;

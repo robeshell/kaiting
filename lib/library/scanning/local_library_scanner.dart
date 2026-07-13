@@ -5,6 +5,7 @@ import 'package:path/path.dart' as path;
 
 import '../library_records.dart';
 import '../library_repository.dart';
+import 'album_artist_resolver.dart';
 import 'artwork_store.dart';
 import 'audio_metadata_extractor.dart';
 import 'embedded_lyrics_parser.dart';
@@ -59,6 +60,7 @@ class LocalLibraryScanner {
       final files = await catalog.listAudioFiles(source.rootUri);
       final artists = <String, LibraryArtistRecord>{};
       final albums = <String, LibraryAlbumRecord>{};
+      final albumArtists = <String, AlbumArtistResolver>{};
       final tracks = <LibraryTrackRecord>[];
       final lyrics = <LibraryLyricRecord>[];
       final warnings = <String>[];
@@ -75,8 +77,11 @@ class LocalLibraryScanner {
           final artistName = _valueOrFallback(metadata.artist, '未知艺人');
           final albumTitle = _valueOrFallback(metadata.album, '未知专辑');
           final artistId = stableArtistId(source.id, artistName);
-          final albumId = stableAlbumId(source.id, artistName, albumTitle);
+          final albumId = stableAlbumId(source.id, albumTitle);
           final trackId = stableTrackId(source.id, audioFile.relativePath);
+          albumArtists
+              .putIfAbsent(albumId, AlbumArtistResolver.new)
+              .add(artistName);
 
           artists.putIfAbsent(
             artistId,
@@ -149,12 +154,45 @@ class LocalLibraryScanner {
       }
 
       final completedAt = _clock().toUtc();
+      final resolvedAlbums = <LibraryAlbumRecord>[];
+      for (final entry in albums.entries) {
+        final album = entry.value;
+        final albumArtist =
+            albumArtists[entry.key]?.resolve() ?? album.albumArtist;
+        final albumArtistId = albumArtist == '群星'
+            ? null
+            : stableArtistId(source.id, albumArtist);
+        if (albumArtistId != null) {
+          artists.putIfAbsent(
+            albumArtistId,
+            () => LibraryArtistRecord(
+              id: albumArtistId,
+              sourceId: source.id,
+              name: albumArtist,
+              sortName: normalizedLibraryText(albumArtist),
+            ),
+          );
+        }
+        resolvedAlbums.add(
+          LibraryAlbumRecord(
+            id: album.id,
+            sourceId: album.sourceId,
+            artistId: albumArtistId,
+            title: album.title,
+            sortTitle: album.sortTitle,
+            albumArtist: albumArtist,
+            year: album.year,
+            genre: album.genre,
+            artworkKey: album.artworkKey,
+          ),
+        );
+      }
       await repository.replaceSourceScan(
         LibraryScanBatch(
           sourceId: source.id,
           completedAt: completedAt,
           artists: artists.values.toList(growable: false),
-          albums: albums.values.toList(growable: false),
+          albums: resolvedAlbums,
           tracks: tracks,
           lyrics: lyrics,
         ),
@@ -186,9 +224,8 @@ String stableArtistId(String sourceId, String artistName) =>
     'artist:${Uri.encodeComponent(sourceId)}:'
     '${Uri.encodeComponent(normalizedLibraryText(artistName))}';
 
-String stableAlbumId(String sourceId, String albumArtist, String albumTitle) =>
+String stableAlbumId(String sourceId, String albumTitle) =>
     'album:${Uri.encodeComponent(sourceId)}:'
-    '${Uri.encodeComponent(normalizedLibraryText(albumArtist))}:'
     '${Uri.encodeComponent(normalizedLibraryText(albumTitle))}';
 
 String normalizedLibraryText(String value) => value.trim().toLowerCase();

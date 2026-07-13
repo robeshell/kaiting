@@ -160,6 +160,24 @@ The `web/sqlite3.wasm` binary must match the `sqlite3` version resolved in
   discarding other valid tracks. A completed scan replaces the source batch in
   one existing Drift transaction, so removed files disappear atomically.
 
+## WebDAV connection management
+
+- `WebDavConnectionService` owns connection identity and repository state;
+  normalized URLs lowercase only scheme and host, preserve path case, remove
+  default ports, and use a SHA-256 stable ID.
+- WebDAV credentials are stored through `WebDavCredentialStore`. Production
+  uses platform secure storage (Keychain on Apple platforms and the platform
+  secure implementation elsewhere); SQLite never stores the username or
+  password. Tests inject an in-memory store.
+- Discovery first requires a successful OPTIONS response with a DAV header,
+  then requires PROPFIND to return HTTP 207. Authentication, unreachable, and
+  non-WebDAV failures remain distinct source states.
+- PROPFIND XML is parsed by namespace-local element name instead of assuming a
+  particular prefix. Discovery responses are capped at 4 MiB.
+- Connection probes update availability without resetting scan revision or
+  scan timestamps. Recursive indexing into the shared library belongs to the
+  next WebDAV scanning milestone.
+
 ## Vertical validation before feature development
 
 The architecture is accepted only after the same small scenario works on

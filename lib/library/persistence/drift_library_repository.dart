@@ -185,6 +185,14 @@ class DriftLibraryRepository implements LibraryRepository {
         throw StateError('Unknown library source: ${batch.sourceId}');
       }
 
+      // Remove identities that are no longer part of the scan before
+      // inserting replacements. Scanner upgrades may assign a new primary key
+      // to the same semantic artist or album, whose alternate unique key is
+      // still occupied by the legacy row. The transaction keeps this atomic.
+      await _deleteMissingTracks(batch.sourceId, batch.tracks);
+      await _deleteMissingAlbums(batch.sourceId, batch.albums);
+      await _deleteMissingArtists(batch.sourceId, batch.artists);
+
       for (final artist in batch.artists) {
         await _database
             .into(_database.libraryArtists)
@@ -213,10 +221,6 @@ class DriftLibraryRepository implements LibraryRepository {
             .into(_database.libraryLyrics)
             .insert(_lyricCompanion(lyric));
       }
-
-      await _deleteMissingTracks(batch.sourceId, batch.tracks);
-      await _deleteMissingAlbums(batch.sourceId, batch.albums);
-      await _deleteMissingArtists(batch.sourceId, batch.artists);
 
       await (_database.update(
         _database.librarySources,

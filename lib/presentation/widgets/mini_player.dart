@@ -108,13 +108,13 @@ class MiniPlayer extends StatelessWidget {
                                   ),
                                 ),
                               ),
-                              const SizedBox(width: 7),
-                              PlaybackStatusBadge(
-                                state: visual,
-                                onLightSurface: true,
-                                compact: true,
-                              ),
                               if (!compact) ...[
+                                const SizedBox(width: 7),
+                                PlaybackStatusBadge(
+                                  state: visual,
+                                  onLightSurface: true,
+                                  compact: true,
+                                ),
                                 const SizedBox(width: 7),
                                 SourceBadge(track.source),
                               ],
