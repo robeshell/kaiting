@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sound_player/domain/library_models.dart';
 import 'package:sound_player/playback/playback_controller.dart';
 import 'package:sound_player/playback/playback_engine.dart';
+import 'package:sound_player/playback/playback_mode.dart';
 import 'package:sound_player/playback/playback_session.dart';
 
 void main() {
@@ -104,6 +105,7 @@ void main() {
         queue: [_trackA, _trackB],
         queueIndex: 1,
         positionMs: 42000,
+        playbackMode: PlaybackMode.shuffle,
       );
 
       final encoded = jsonEncode(session.toJson());
@@ -115,6 +117,7 @@ void main() {
       expect(restored.queue[1].id, _trackB.id);
       expect(restored.queueIndex, 1);
       expect(restored.positionMs, 42000);
+      expect(restored.playbackMode, PlaybackMode.shuffle);
     });
 
     test('empty queue fromJson produces empty session', () {
@@ -123,6 +126,17 @@ void main() {
       expect(session.queue, isEmpty);
       expect(session.queueIndex, 0);
       expect(session.positionMs, 0);
+      expect(session.playbackMode, PlaybackMode.repeatAll);
+    });
+
+    test('version 1 and unknown modes keep legacy repeat-all behavior', () {
+      final legacy = PlaybackSession.fromJson({
+        'version': 1,
+        'queue': const [],
+        'playbackMode': 'not-a-mode',
+      });
+
+      expect(legacy.playbackMode, PlaybackMode.repeatAll);
     });
   });
 
@@ -210,6 +224,7 @@ void main() {
       expect(snap.queue, [_trackA, _trackB]);
       expect(snap.queueIndex, 0);
       expect(snap.positionMs, 15000);
+      expect(snap.playbackMode, PlaybackMode.repeatAll);
     });
 
     test('captures resume position when set via session restore', () {
@@ -254,6 +269,24 @@ void main() {
       expect(controller.isPlaying, isFalse);
       expect(controller.currentTrack, isNull);
       expect(controller.displayTrack, same(_trackC));
+    });
+
+    test('restores the persisted playback mode', () {
+      final engine = ManualPlaybackEngine();
+      final controller = SoundPlaybackController(
+        engine: engine,
+        initialSession: PlaybackSession(
+          queue: [_trackA, _trackB],
+          queueIndex: 0,
+          positionMs: 0,
+          playbackMode: PlaybackMode.shuffle,
+        ),
+      );
+      addTearDown(controller.dispose);
+      addTearDown(engine.dispose);
+
+      expect(controller.playbackMode, PlaybackMode.shuffle);
+      expect(controller.sessionSnapshot.playbackMode, PlaybackMode.shuffle);
     });
 
     test('toggle plays the restored track after session restore', () async {

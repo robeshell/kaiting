@@ -21,32 +21,37 @@ class AlbumDetailScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: playback,
-      builder: (context, _) {
-        return CustomScrollView(
-          slivers: [
-            SliverToBoxAdapter(
-              child: _Hero(album: album, playback: playback, onBack: onBack),
-            ),
-            SliverPadding(
-              padding: const EdgeInsets.fromLTRB(32, 8, 32, 140),
-              sliver: SliverList.builder(
-                itemCount: album.tracks.length,
-                itemBuilder: (context, index) {
-                  final track = album.tracks[index];
-                  final active = playback.currentTrack?.id == track.id;
-                  return _TrackRow(
-                    track: track,
-                    active: active,
-                    onTap: () => playback.playTrack(track, queue: album.tracks),
-                  );
-                },
+    return Material(
+      color: Colors.transparent,
+      child: AnimatedBuilder(
+        animation: playback,
+        builder: (context, _) {
+          return CustomScrollView(
+            slivers: [
+              SliverToBoxAdapter(
+                child: _Hero(album: album, playback: playback, onBack: onBack),
               ),
-            ),
-          ],
-        );
-      },
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(32, 8, 32, 140),
+                sliver: SliverList.builder(
+                  itemCount: album.tracks.length,
+                  itemBuilder: (context, index) {
+                    final track = album.tracks[index];
+                    final active = playback.currentTrack?.id == track.id;
+                    return _TrackRow(
+                      track: track,
+                      active: active,
+                      onTap: () =>
+                          playback.playTrack(track, queue: album.tracks),
+                      onPlayNext: () => playback.playNext(track),
+                    );
+                  },
+                ),
+              ),
+            ],
+          );
+        },
+      ),
     );
   }
 }
@@ -189,11 +194,13 @@ class _TrackRow extends StatelessWidget {
     required this.track,
     required this.active,
     required this.onTap,
+    required this.onPlayNext,
   });
 
   final Track track;
   final bool active;
   final VoidCallback onTap;
+  final VoidCallback onPlayNext;
 
   @override
   Widget build(BuildContext context) {
@@ -243,6 +250,23 @@ class _TrackRow extends StatelessWidget {
                 color: Colors.white54,
                 fontFeatures: [FontFeature.tabularFigures()],
               ),
+            ),
+            PopupMenuButton<String>(
+              key: ValueKey('track-actions-${track.id}'),
+              tooltip: '歌曲操作',
+              onSelected: (value) {
+                if (value == 'play-next') onPlayNext();
+              },
+              itemBuilder: (_) => const [
+                PopupMenuItem(
+                  value: 'play-next',
+                  child: ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(Icons.playlist_play_rounded),
+                    title: Text('下一首播放'),
+                  ),
+                ),
+              ],
             ),
           ],
         ),

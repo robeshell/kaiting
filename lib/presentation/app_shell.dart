@@ -20,6 +20,7 @@ import 'screens/now_playing_screen.dart';
 import 'screens/playback_validation_screen.dart';
 import 'screens/source_settings_screen.dart';
 import 'widgets/mini_player.dart';
+import 'widgets/playback_queue_sheet.dart';
 
 enum AppSection { library, search, sources }
 
@@ -133,6 +134,11 @@ class _AppShellState extends State<AppShell> {
     );
   }
 
+  void _openQueue() {
+    if (widget.playback.queue.isEmpty) return;
+    showPlaybackQueueSheet(context, widget.playback);
+  }
+
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
@@ -217,6 +223,7 @@ class _AppShellState extends State<AppShell> {
                   playback: widget.playback,
                   compact: !desktop,
                   onOpen: _openNowPlaying,
+                  onOpenQueue: _openQueue,
                 ),
               ),
             ],

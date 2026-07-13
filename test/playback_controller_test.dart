@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sound_player/domain/library_models.dart';
 import 'package:sound_player/playback/playback_controller.dart';
 import 'package:sound_player/playback/playback_engine.dart';
+import 'package:sound_player/playback/playback_mode.dart';
 
 void main() {
   // ---------------------------------------------------------------------------
@@ -766,6 +768,294 @@ void main() {
 
       expect(controller.queue, [_firstTrack, _secondTrack]);
     });
+  });
+
+  group('playback modes', () {
+    test('sequential mode stops advancing at the end', () async {
+      final engine = ManualPlaybackEngine();
+      final controller = SoundPlaybackController(
+        engine: engine,
+        initialQueue: [_firstTrack, _secondTrack],
+      );
+      addTearDown(controller.dispose);
+      addTearDown(engine.dispose);
+      controller.setPlaybackMode(PlaybackMode.sequential);
+      await controller.playTrack(_secondTrack);
+
+      final completedSession = controller.snapshot.sessionId;
+      engine.emitCompleted(completedSession, _secondTrack);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(controller.currentTrack, same(_secondTrack));
+      expect(controller.snapshot.phase, PlaybackPhase.completed);
+    });
+
+    test('repeat-one reloads the completed track in a new session', () async {
+      final engine = ManualPlaybackEngine();
+      final controller = SoundPlaybackController(
+        engine: engine,
+        initialQueue: [_firstTrack, _secondTrack],
+      );
+      addTearDown(controller.dispose);
+      addTearDown(engine.dispose);
+      controller.setPlaybackMode(PlaybackMode.repeatOne);
+      await controller.playTrack(_firstTrack);
+      final completedSession = controller.snapshot.sessionId;
+
+      engine.emitCompleted(completedSession, _firstTrack);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(controller.currentTrack, same(_firstTrack));
+      expect(controller.snapshot.sessionId, greaterThan(completedSession));
+      expect(controller.isPlaying, isTrue);
+    });
+
+    test(
+      'shuffle keeps the active track first and preserves every item',
+      () async {
+        final engine = ManualPlaybackEngine();
+        final controller = SoundPlaybackController(
+          engine: engine,
+          initialQueue: [_firstTrack, _secondTrack, _thirdTrack],
+          random: Random(7),
+        );
+        addTearDown(controller.dispose);
+        addTearDown(engine.dispose);
+        await controller.playTrack(_secondTrack);
+
+        controller.setPlaybackMode(PlaybackMode.shuffle);
+
+        expect(controller.playbackMode, PlaybackMode.shuffle);
+        expect(controller.queue.first, same(_secondTrack));
+        expect(controller.queue.map((track) => track.id).toSet(), {
+          _firstTrack.id,
+          _secondTrack.id,
+          _thirdTrack.id,
+        });
+        expect(controller.queueIndex, 0);
+      },
+    );
+
+    test(
+      'shuffle advances through a cycle without an immediate repeat',
+      () async {
+        final engine = ManualPlaybackEngine();
+        final controller = SoundPlaybackController(
+          engine: engine,
+          initialQueue: [_firstTrack, _secondTrack, _thirdTrack],
+          random: Random(17),
+        );
+        addTearDown(controller.dispose);
+        addTearDown(engine.dispose);
+        await controller.playTrack(_firstTrack);
+        controller.setPlaybackMode(PlaybackMode.shuffle);
+
+        final cycle = controller.queue.toList();
+        expect(cycle.first, same(_firstTrack));
+        for (var index = 1; index < cycle.length; index++) {
+          final completed = controller.currentTrack!;
+          engine.emitCompleted(controller.snapshot.sessionId, completed);
+          await Future<void>.delayed(Duration.zero);
+          expect(controller.currentTrack, same(cycle[index]));
+        }
+
+        final lastInCycle = controller.currentTrack;
+        engine.emitCompleted(controller.snapshot.sessionId, lastInCycle!);
+        await Future<void>.delayed(Duration.zero);
+
+        expect(controller.currentTrack, isNot(same(lastInCycle)));
+        expect(controller.isPlaying, isTrue);
+      },
+    );
+
+    test('shuffle and repeat controls cycle through their modes', () {
+      final engine = ManualPlaybackEngine();
+      final controller = SoundPlaybackController(engine: engine);
+      addTearDown(controller.dispose);
+      addTearDown(engine.dispose);
+
+      expect(controller.playbackMode, PlaybackMode.repeatAll);
+      controller.cycleRepeatMode();
+      expect(controller.playbackMode, PlaybackMode.repeatOne);
+      controller.cycleRepeatMode();
+      expect(controller.playbackMode, PlaybackMode.sequential);
+      controller.toggleShuffle();
+      expect(controller.playbackMode, PlaybackMode.shuffle);
+      controller.toggleShuffle();
+      expect(controller.playbackMode, PlaybackMode.sequential);
+    });
+
+    test(
+      'retry in shuffle mode preserves the established queue order',
+      () async {
+        final engine = ManualPlaybackEngine();
+        final controller = SoundPlaybackController(
+          engine: engine,
+          initialQueue: [_firstTrack, _secondTrack, _thirdTrack],
+          random: Random(11),
+        );
+        addTearDown(controller.dispose);
+        addTearDown(engine.dispose);
+        await controller.playTrack(_firstTrack);
+        controller.setPlaybackMode(PlaybackMode.shuffle);
+        final shuffledOrder = controller.queue
+            .map((track) => track.id)
+            .toList();
+        engine.emit(
+          PlaybackSnapshot(
+            sessionId: controller.snapshot.sessionId,
+            phase: PlaybackPhase.error,
+            position: Duration.zero,
+            duration: _firstTrack.duration,
+            track: _firstTrack,
+            errorMessage: 'failed',
+          ),
+        );
+
+        await controller.toggle();
+
+        expect(controller.queue.map((track) => track.id), shuffledOrder);
+        expect(controller.currentTrack, same(_firstTrack));
+        expect(controller.isPlaying, isTrue);
+      },
+    );
+
+    test(
+      'a manually replayed completion can advance after mode changes',
+      () async {
+        final engine = ManualPlaybackEngine();
+        final controller = SoundPlaybackController(
+          engine: engine,
+          initialQueue: [_firstTrack, _secondTrack],
+        );
+        addTearDown(controller.dispose);
+        addTearDown(engine.dispose);
+        controller.setPlaybackMode(PlaybackMode.sequential);
+        await controller.playTrack(_secondTrack);
+        final session = controller.snapshot.sessionId;
+        engine.emitCompleted(session, _secondTrack);
+        await Future<void>.delayed(Duration.zero);
+
+        controller.setPlaybackMode(PlaybackMode.repeatAll);
+        await controller.toggle();
+        engine.emitCompleted(session, _secondTrack);
+        await Future<void>.delayed(Duration.zero);
+
+        expect(controller.currentTrack, same(_firstTrack));
+        expect(controller.isPlaying, isTrue);
+      },
+    );
+  });
+
+  group('queue editing', () {
+    test('playNext moves an existing track directly after current', () async {
+      final engine = ManualPlaybackEngine();
+      final controller = SoundPlaybackController(
+        engine: engine,
+        initialQueue: [_firstTrack, _secondTrack, _thirdTrack],
+      );
+      addTearDown(controller.dispose);
+      addTearDown(engine.dispose);
+      await controller.playTrack(_firstTrack);
+
+      controller.playNext(_thirdTrack);
+
+      expect(controller.queue, [_firstTrack, _thirdTrack, _secondTrack]);
+      expect(controller.queueIndex, 0);
+    });
+
+    test('moving an item preserves the active track identity', () async {
+      final engine = ManualPlaybackEngine();
+      final controller = SoundPlaybackController(
+        engine: engine,
+        initialQueue: [_firstTrack, _secondTrack, _thirdTrack],
+      );
+      addTearDown(controller.dispose);
+      addTearDown(engine.dispose);
+      await controller.playTrack(_secondTrack);
+
+      controller.moveQueueItem(0, 2);
+
+      expect(controller.queue, [_secondTrack, _thirdTrack, _firstTrack]);
+      expect(controller.currentTrack, same(_secondTrack));
+      expect(controller.queueIndex, 0);
+    });
+
+    test('removing an item before current adjusts the index', () async {
+      final engine = ManualPlaybackEngine();
+      final controller = SoundPlaybackController(
+        engine: engine,
+        initialQueue: [_firstTrack, _secondTrack, _thirdTrack],
+      );
+      addTearDown(controller.dispose);
+      addTearDown(engine.dispose);
+      await controller.playTrack(_secondTrack);
+
+      await controller.removeQueueItemAt(0);
+
+      expect(controller.queue, [_secondTrack, _thirdTrack]);
+      expect(controller.currentTrack, same(_secondTrack));
+      expect(controller.queueIndex, 0);
+    });
+
+    test('removing current continues with the adjacent track', () async {
+      final engine = ManualPlaybackEngine();
+      final controller = SoundPlaybackController(
+        engine: engine,
+        initialQueue: [_firstTrack, _secondTrack, _thirdTrack],
+      );
+      addTearDown(controller.dispose);
+      addTearDown(engine.dispose);
+      await controller.playTrack(_secondTrack);
+
+      await controller.removeQueueItemAt(1);
+
+      expect(controller.queue, [_firstTrack, _thirdTrack]);
+      expect(controller.currentTrack, same(_thirdTrack));
+      expect(controller.queueIndex, 1);
+      expect(controller.isPlaying, isTrue);
+    });
+
+    test(
+      'clearing the queue stops playback and clears display state',
+      () async {
+        final engine = ManualPlaybackEngine();
+        final controller = SoundPlaybackController(
+          engine: engine,
+          initialQueue: [_firstTrack, _secondTrack],
+        );
+        addTearDown(controller.dispose);
+        addTearDown(engine.dispose);
+        await controller.playTrack(_firstTrack);
+
+        await controller.clearQueue();
+
+        expect(controller.queue, isEmpty);
+        expect(controller.currentTrack, isNull);
+        expect(controller.displayTrack, isNull);
+        expect(controller.snapshot.phase, PlaybackPhase.idle);
+      },
+    );
+
+    test(
+      'playQueueIndex selects an item without replacing the queue',
+      () async {
+        final engine = ManualPlaybackEngine();
+        final controller = SoundPlaybackController(
+          engine: engine,
+          initialQueue: [_firstTrack, _secondTrack, _thirdTrack],
+        );
+        addTearDown(controller.dispose);
+        addTearDown(engine.dispose);
+        await controller.playTrack(_firstTrack);
+
+        await controller.playQueueIndex(2);
+
+        expect(controller.currentTrack, same(_thirdTrack));
+        expect(controller.queue, [_firstTrack, _secondTrack, _thirdTrack]);
+        expect(controller.queueIndex, 2);
+      },
+    );
   });
 
   // ---------------------------------------------------------------------------

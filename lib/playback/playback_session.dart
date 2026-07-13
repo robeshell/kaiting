@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 import '../domain/library_models.dart';
+import 'playback_mode.dart';
 import 'playback_session_storage_factory.dart';
 
 class PlaybackSession {
@@ -10,17 +11,20 @@ class PlaybackSession {
     required this.queue,
     required this.queueIndex,
     required this.positionMs,
+    this.playbackMode = PlaybackMode.repeatAll,
   });
 
   final List<Track> queue;
   final int queueIndex;
   final int positionMs;
+  final PlaybackMode playbackMode;
 
   Map<String, dynamic> toJson() => {
-    'version': 1,
+    'version': 2,
     'queue': queue.map(_trackToJson).toList(growable: false),
     'queueIndex': queueIndex,
     'positionMs': positionMs,
+    'playbackMode': playbackMode.name,
   };
 
   factory PlaybackSession.fromJson(Map<String, dynamic> json) {
@@ -33,8 +37,19 @@ class PlaybackSession {
       queue: queueList,
       queueIndex: (json['queueIndex'] as int?) ?? 0,
       positionMs: (json['positionMs'] as int?) ?? 0,
+      playbackMode: _playbackModeFromJson(json['playbackMode']),
     );
   }
+}
+
+PlaybackMode _playbackModeFromJson(Object? value) {
+  if (value is String) {
+    for (final mode in PlaybackMode.values) {
+      if (mode.name == value) return mode;
+    }
+  }
+  // Version 1 sessions always wrapped at the ends of the queue.
+  return PlaybackMode.repeatAll;
 }
 
 Map<String, dynamic> _trackToJson(Track track) => {

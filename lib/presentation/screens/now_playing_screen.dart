@@ -6,8 +6,10 @@ import 'package:flutter/material.dart';
 import '../../core/sound_theme.dart';
 import '../../domain/library_models.dart';
 import '../../playback/playback_controller.dart';
+import '../../playback/playback_mode.dart';
 import '../widgets/album_art.dart';
 import '../widgets/playback_status_badge.dart';
+import '../widgets/playback_queue_sheet.dart';
 import '../widgets/progress_scrubber.dart';
 
 class NowPlayingScreen extends StatelessWidget {
@@ -67,8 +69,10 @@ class NowPlayingScreen extends StatelessWidget {
                           PlaybackStatusBadge(state: visual),
                           const Spacer(),
                           IconButton.filledTonal(
-                            onPressed: () {},
-                            icon: const Icon(Icons.more_horiz_rounded),
+                            onPressed: () =>
+                                showPlaybackQueueSheet(context, playback),
+                            tooltip: '播放队列',
+                            icon: const Icon(Icons.queue_music_rounded),
                           ),
                         ],
                       ),
@@ -283,8 +287,12 @@ class _PlayerColumn extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
             IconButton(
-              onPressed: () {},
+              onPressed: playback.toggleShuffle,
+              tooltip: PlaybackMode.shuffle.label,
               icon: const Icon(Icons.shuffle_rounded),
+              color: playback.playbackMode == PlaybackMode.shuffle
+                  ? SoundColors.accent
+                  : null,
             ),
             IconButton(
               onPressed: playback.previous,
@@ -316,8 +324,18 @@ class _PlayerColumn extends StatelessWidget {
               iconSize: 34,
             ),
             IconButton(
-              onPressed: () {},
-              icon: const Icon(Icons.repeat_rounded),
+              onPressed: playback.cycleRepeatMode,
+              tooltip: playback.playbackMode.label,
+              icon: Icon(
+                playback.playbackMode == PlaybackMode.repeatOne
+                    ? Icons.repeat_one_rounded
+                    : Icons.repeat_rounded,
+              ),
+              color:
+                  playback.playbackMode == PlaybackMode.repeatAll ||
+                      playback.playbackMode == PlaybackMode.repeatOne
+                  ? SoundColors.accent
+                  : null,
             ),
           ],
         ),

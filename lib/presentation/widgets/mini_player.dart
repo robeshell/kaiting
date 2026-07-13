@@ -14,12 +14,14 @@ class MiniPlayer extends StatelessWidget {
     required this.playback,
     required this.onOpen,
     required this.compact,
+    this.onOpenQueue,
     super.key,
   });
 
   final SoundPlaybackController playback;
   final VoidCallback onOpen;
   final bool compact;
+  final VoidCallback? onOpenQueue;
 
   @override
   Widget build(BuildContext context) {
@@ -193,7 +195,7 @@ class MiniPlayer extends StatelessWidget {
                     _DarkIconButton(icon: Icons.lyrics_outlined, onTap: onOpen),
                     _DarkIconButton(
                       icon: Icons.queue_music_rounded,
-                      onTap: onOpen,
+                      onTap: onOpenQueue ?? onOpen,
                     ),
                     const SizedBox(width: 4),
                   ] else ...[
