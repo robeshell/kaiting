@@ -1,9 +1,89 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sound_player/core/sound_theme.dart';
 import 'package:sound_player/presentation/widgets/sound_components.dart';
 
 void main() {
+  testWidgets('desktop track rows select on click and activate deliberately', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+    var activations = 0;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: SoundTheme.dark,
+        home: Scaffold(
+          body: Center(
+            child: SoundTrackActivation(
+              key: const ValueKey('desktop-track'),
+              onActivate: () => activations += 1,
+              semanticLabel: '测试歌曲',
+              child: const SizedBox(
+                width: 260,
+                height: 64,
+                child: Text('测试歌曲'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('desktop-track')));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(activations, 0);
+    final selectedDecoration =
+        tester
+                .widget<AnimatedContainer>(
+                  find.descendant(
+                    of: find.byKey(const ValueKey('desktop-track')),
+                    matching: find.byType(AnimatedContainer),
+                  ),
+                )
+                .foregroundDecoration
+            as BoxDecoration;
+    expect(selectedDecoration.border, isNotNull);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+    await tester.pump();
+    expect(activations, 1);
+
+    await tester.tap(find.byKey(const ValueKey('desktop-track')));
+    await tester.pump(const Duration(milliseconds: 80));
+    await tester.tap(find.byKey(const ValueKey('desktop-track')));
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(activations, 2);
+    debugDefaultTargetPlatformOverride = null;
+  });
+
+  testWidgets('touch track rows activate with one tap', (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+    var activations = 0;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: SoundTheme.dark,
+        home: Scaffold(
+          body: SoundTrackActivation(
+            key: const ValueKey('touch-track'),
+            onActivate: () => activations += 1,
+            child: const SizedBox(width: 260, height: 64),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('touch-track')));
+    await tester.pump();
+    expect(activations, 1);
+    debugDefaultTargetPlatformOverride = null;
+  });
+
   testWidgets('Sound dialog and navigation use branded components', (
     tester,
   ) async {

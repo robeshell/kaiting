@@ -9,6 +9,7 @@ import '../controllers/library_user_state_controller.dart';
 import '../widgets/add_to_playlist_sheet.dart';
 import '../widgets/album_art.dart';
 import '../widgets/source_badge.dart';
+import '../widgets/sound_components.dart';
 import 'library_user_screen.dart';
 
 enum LibraryBrowseMode { albums, artists, genres, songs }
@@ -472,60 +473,65 @@ class _LibraryTrackRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
+    return SoundTrackActivation(
+      onActivate: onTap,
+      semanticLabel: track.title,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
+          ),
         ),
-      ),
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(vertical: 5),
-        onTap: onTap,
-        leading: SizedBox.square(
-          dimension: 48,
-          child: AlbumArt(album: album, borderRadius: 6),
-        ),
-        title: Text(
-          track.title,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-        ),
-        subtitle: Text(
-          '${track.artist} · ${track.albumTitle}',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 12, color: Colors.white54),
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SourceBadge(track.source),
-            if (onToggleFavorite != null)
-              IconButton(
-                key: ValueKey('favorite-library-${track.id}'),
-                onPressed: onToggleFavorite,
-                tooltip: favorite ? '取消收藏 ${track.title}' : '收藏 ${track.title}',
-                color: favorite ? SoundColors.accent : null,
-                icon: Icon(
-                  favorite
-                      ? Icons.favorite_rounded
-                      : Icons.favorite_border_rounded,
+        child: ListTile(
+          contentPadding: const EdgeInsets.symmetric(vertical: 5),
+          leading: SizedBox.square(
+            dimension: 48,
+            child: AlbumArt(album: album, borderRadius: 6),
+          ),
+          title: Text(
+            track.title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+          ),
+          subtitle: Text(
+            '${track.artist} · ${track.albumTitle}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 12, color: Colors.white54),
+          ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SourceBadge(track.source),
+              if (onToggleFavorite != null)
+                IconButton(
+                  key: ValueKey('favorite-library-${track.id}'),
+                  onPressed: onToggleFavorite,
+                  tooltip: favorite
+                      ? '取消收藏 ${track.title}'
+                      : '收藏 ${track.title}',
+                  color: favorite ? SoundColors.accent : null,
+                  icon: Icon(
+                    favorite
+                        ? Icons.favorite_rounded
+                        : Icons.favorite_border_rounded,
+                  ),
                 ),
-              ),
-            if (onAddToPlaylist != null)
+              if (onAddToPlaylist != null)
+                IconButton(
+                  key: ValueKey('add-library-${track.id}-to-playlist'),
+                  onPressed: onAddToPlaylist,
+                  tooltip: '将 ${track.title} 添加到播放列表',
+                  icon: const Icon(Icons.playlist_add_rounded),
+                ),
               IconButton(
-                key: ValueKey('add-library-${track.id}-to-playlist'),
-                onPressed: onAddToPlaylist,
-                tooltip: '将 ${track.title} 添加到播放列表',
-                icon: const Icon(Icons.playlist_add_rounded),
+                onPressed: onOpenAlbum,
+                tooltip: '打开专辑 ${album.title}',
+                icon: const Icon(Icons.chevron_right_rounded),
               ),
-            IconButton(
-              onPressed: onOpenAlbum,
-              tooltip: '打开专辑 ${album.title}',
-              icon: const Icon(Icons.chevron_right_rounded),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

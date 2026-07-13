@@ -1,6 +1,126 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import '../../core/sound_theme.dart';
+
+bool get usesDesktopTrackActivation =>
+    !kIsWeb &&
+    (defaultTargetPlatform == TargetPlatform.macOS ||
+        defaultTargetPlatform == TargetPlatform.windows ||
+        defaultTargetPlatform == TargetPlatform.linux);
+
+/// Gives browseable song rows platform-appropriate activation behavior.
+///
+/// Desktop users select a row with one click and play it with a double-click
+/// or Enter. Touch platforms keep the expected single-tap-to-play behavior.
+class SoundTrackActivation extends StatefulWidget {
+  const SoundTrackActivation({
+    required this.onActivate,
+    required this.child,
+    this.semanticLabel,
+    this.borderRadius = const BorderRadius.all(
+      Radius.circular(SoundRadii.control),
+    ),
+    super.key,
+  });
+
+  final VoidCallback onActivate;
+  final Widget child;
+  final String? semanticLabel;
+  final BorderRadius borderRadius;
+
+  @override
+  State<SoundTrackActivation> createState() => _SoundTrackActivationState();
+}
+
+class _SoundTrackActivationState extends State<SoundTrackActivation> {
+  late final FocusNode _focusNode;
+  bool _focused = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode = FocusNode(debugLabel: widget.semanticLabel);
+  }
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  KeyEventResult _handleKeyEvent(FocusNode node, KeyEvent event) {
+    if (event is! KeyDownEvent && event is! KeyRepeatEvent) {
+      return KeyEventResult.ignored;
+    }
+    if (event.logicalKey == LogicalKeyboardKey.enter ||
+        event.logicalKey == LogicalKeyboardKey.numpadEnter) {
+      widget.onActivate();
+      return KeyEventResult.handled;
+    }
+    return KeyEventResult.ignored;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final desktop = usesDesktopTrackActivation;
+    final theme = Theme.of(context);
+    final semanticLabel = widget.semanticLabel == null
+        ? null
+        : desktop
+        ? '${widget.semanticLabel}，双击播放'
+        : '${widget.semanticLabel}，轻点播放';
+    return Semantics(
+      button: true,
+      selected: desktop && _focused,
+      label: semanticLabel,
+      onTap: widget.onActivate,
+      child: Focus(
+        focusNode: _focusNode,
+        canRequestFocus: desktop,
+        onFocusChange: (focused) {
+          if (_focused != focused) setState(() => _focused = focused);
+        },
+        onKeyEvent: _handleKeyEvent,
+        child: Material(
+          color: Colors.transparent,
+          borderRadius: widget.borderRadius,
+          child: InkWell(
+            excludeFromSemantics: true,
+            onTap: desktop ? _focusNode.requestFocus : widget.onActivate,
+            onDoubleTap: desktop
+                ? () {
+                    _focusNode.requestFocus();
+                    widget.onActivate();
+                  }
+                : null,
+            borderRadius: widget.borderRadius,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 140),
+              curve: Curves.easeOutCubic,
+              decoration: BoxDecoration(borderRadius: widget.borderRadius),
+              foregroundDecoration: BoxDecoration(
+                color: desktop && _focused
+                    ? SoundColors.accent.withValues(alpha: 0.08)
+                    : Colors.transparent,
+                borderRadius: widget.borderRadius,
+                border: desktop && _focused
+                    ? Border.all(
+                        color: theme.colorScheme.primary.withValues(
+                          alpha: 0.46,
+                        ),
+                      )
+                    : null,
+              ),
+              child: widget.child,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class SoundDialog extends StatelessWidget {
   const SoundDialog({

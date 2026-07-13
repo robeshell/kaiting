@@ -10,6 +10,7 @@ import '../widgets/add_to_playlist_sheet.dart';
 import '../widgets/album_art.dart';
 import '../widgets/progress_scrubber.dart';
 import '../widgets/source_badge.dart';
+import '../widgets/sound_components.dart';
 
 class AlbumDetailScreen extends StatelessWidget {
   const AlbumDetailScreen({
@@ -279,8 +280,9 @@ class _TrackRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
+    return SoundTrackActivation(
+      onActivate: onTap,
+      semanticLabel: track.title,
       borderRadius: BorderRadius.circular(8),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),

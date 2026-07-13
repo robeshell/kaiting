@@ -786,65 +786,74 @@ class _PlaylistTrackRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Theme.of(context).scaffoldBackgroundColor,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
+    return SoundTrackActivation(
+      onActivate: onTap,
+      semanticLabel: track.title,
+      child: Material(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            border: Border(
+              bottom: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
+            ),
           ),
-        ),
-        child: ListTile(
-          contentPadding: const EdgeInsets.symmetric(vertical: 5),
-          onTap: onTap,
-          leading: SizedBox.square(
-            dimension: 48,
-            child: AlbumArt(album: album, borderRadius: 6),
-          ),
-          title: Text(
-            track.title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-          ),
-          subtitle: Text(
-            '${track.artist} · ${album.title}',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 12, color: Colors.white54),
-          ),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              PopupMenuButton<String>(
-                key: ValueKey('playlist-track-actions-${track.id}'),
-                tooltip: '歌曲操作',
-                onSelected: (value) {
-                  if (value == 'play-next') onPlayNext();
-                  if (value == 'favorite') onToggleFavorite();
-                  if (value == 'add') onAddToPlaylist();
-                  if (value == 'album') onOpenAlbum();
-                  if (value == 'remove') onRemove();
-                },
-                itemBuilder: (context) => [
-                  const PopupMenuItem(value: 'play-next', child: Text('下一首播放')),
-                  PopupMenuItem(
-                    value: 'favorite',
-                    child: Text(favorite ? '取消收藏' : '收藏歌曲'),
-                  ),
-                  const PopupMenuItem(value: 'add', child: Text('添加到其他播放列表')),
-                  const PopupMenuItem(value: 'album', child: Text('打开专辑')),
-                  const PopupMenuItem(value: 'remove', child: Text('从此列表移除')),
-                ],
-              ),
-              ReorderableDragStartListener(
-                index: index,
-                child: const Padding(
-                  padding: EdgeInsets.all(10),
-                  child: Icon(Icons.drag_handle_rounded, color: Colors.white54),
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(vertical: 5),
+            leading: SizedBox.square(
+              dimension: 48,
+              child: AlbumArt(album: album, borderRadius: 6),
+            ),
+            title: Text(
+              track.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+            ),
+            subtitle: Text(
+              '${track.artist} · ${album.title}',
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(fontSize: 12, color: Colors.white54),
+            ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                PopupMenuButton<String>(
+                  key: ValueKey('playlist-track-actions-${track.id}'),
+                  tooltip: '歌曲操作',
+                  onSelected: (value) {
+                    if (value == 'play-next') onPlayNext();
+                    if (value == 'favorite') onToggleFavorite();
+                    if (value == 'add') onAddToPlaylist();
+                    if (value == 'album') onOpenAlbum();
+                    if (value == 'remove') onRemove();
+                  },
+                  itemBuilder: (context) => [
+                    const PopupMenuItem(
+                      value: 'play-next',
+                      child: Text('下一首播放'),
+                    ),
+                    PopupMenuItem(
+                      value: 'favorite',
+                      child: Text(favorite ? '取消收藏' : '收藏歌曲'),
+                    ),
+                    const PopupMenuItem(value: 'add', child: Text('添加到其他播放列表')),
+                    const PopupMenuItem(value: 'album', child: Text('打开专辑')),
+                    const PopupMenuItem(value: 'remove', child: Text('从此列表移除')),
+                  ],
                 ),
-              ),
-            ],
+                ReorderableDragStartListener(
+                  index: index,
+                  child: const Padding(
+                    padding: EdgeInsets.all(10),
+                    child: Icon(
+                      Icons.drag_handle_rounded,
+                      color: Colors.white54,
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -978,57 +987,62 @@ class _UserTrackRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return ListTile(
-      contentPadding: const EdgeInsets.symmetric(vertical: 5),
-      shape: Border(
-        bottom: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
-      ),
-      onTap: onTap,
-      leading: SizedBox.square(
-        dimension: 48,
-        child: AlbumArt(album: album, borderRadius: 6),
-      ),
-      title: Text(
-        track.title,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-      ),
-      subtitle: Text(
-        [
-          track.artist,
-          album.title,
-          track.source.label,
-          if (historyTime != null) _formatHistoryTime(historyTime!),
-        ].join(' · '),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(fontSize: 12, color: Colors.white54),
-      ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-            key: ValueKey('favorite-track-${track.id}'),
-            onPressed: onToggleFavorite,
-            tooltip: favorite ? '取消收藏 ${track.title}' : '收藏 ${track.title}',
-            color: favorite ? SoundColors.accent : null,
-            icon: Icon(
-              favorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+    return SoundTrackActivation(
+      onActivate: onTap,
+      semanticLabel: track.title,
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(vertical: 5),
+        shape: Border(
+          bottom: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
+        ),
+        leading: SizedBox.square(
+          dimension: 48,
+          child: AlbumArt(album: album, borderRadius: 6),
+        ),
+        title: Text(
+          track.title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+        ),
+        subtitle: Text(
+          [
+            track.artist,
+            album.title,
+            track.source.label,
+            if (historyTime != null) _formatHistoryTime(historyTime!),
+          ].join(' · '),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 12, color: Colors.white54),
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              key: ValueKey('favorite-track-${track.id}'),
+              onPressed: onToggleFavorite,
+              tooltip: favorite ? '取消收藏 ${track.title}' : '收藏 ${track.title}',
+              color: favorite ? SoundColors.accent : null,
+              icon: Icon(
+                favorite
+                    ? Icons.favorite_rounded
+                    : Icons.favorite_border_rounded,
+              ),
             ),
-          ),
-          IconButton(
-            key: ValueKey('add-user-${track.id}-to-playlist'),
-            onPressed: onAddToPlaylist,
-            tooltip: '将 ${track.title} 添加到播放列表',
-            icon: const Icon(Icons.playlist_add_rounded),
-          ),
-          IconButton(
-            onPressed: onOpenAlbum,
-            tooltip: '打开专辑 ${album.title}',
-            icon: const Icon(Icons.chevron_right_rounded),
-          ),
-        ],
+            IconButton(
+              key: ValueKey('add-user-${track.id}-to-playlist'),
+              onPressed: onAddToPlaylist,
+              tooltip: '将 ${track.title} 添加到播放列表',
+              icon: const Icon(Icons.playlist_add_rounded),
+            ),
+            IconButton(
+              onPressed: onOpenAlbum,
+              tooltip: '打开专辑 ${album.title}',
+              icon: const Icon(Icons.chevron_right_rounded),
+            ),
+          ],
+        ),
       ),
     );
   }

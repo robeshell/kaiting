@@ -11,6 +11,7 @@ import '../controllers/library_user_state_controller.dart';
 import '../widgets/add_to_playlist_sheet.dart';
 import '../widgets/album_art.dart';
 import '../widgets/source_badge.dart';
+import '../widgets/sound_components.dart';
 
 class SearchScreen extends StatefulWidget {
   const SearchScreen({
@@ -324,63 +325,66 @@ class _SearchResultRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final genre = hit.track.genre ?? hit.album.genre;
-    return ListTile(
-      key: ValueKey('search-result-${hit.track.id}'),
-      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-      onTap: onPlay,
-      leading: SizedBox.square(
-        dimension: 50,
-        child: AlbumArt(album: hit.album, borderRadius: 7),
-      ),
-      title: Text(
-        hit.track.title,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-      ),
-      subtitle: Text(
-        [
-          hit.track.artist,
-          hit.album.title,
-          if (hit.album.artist != hit.track.artist) hit.album.artist,
-          if (genre?.trim().isNotEmpty == true) genre!,
-        ].join(' · '),
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
-        style: const TextStyle(fontSize: 12, color: Colors.white54),
-      ),
-      trailing: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          SourceBadge(hit.track.source),
-          if (onToggleFavorite != null)
-            IconButton(
-              key: ValueKey('favorite-search-${hit.track.id}'),
-              onPressed: onToggleFavorite,
-              tooltip: favorite
-                  ? '取消收藏 ${hit.track.title}'
-                  : '收藏 ${hit.track.title}',
-              color: favorite ? SoundColors.accent : null,
-              icon: Icon(
-                favorite
-                    ? Icons.favorite_rounded
-                    : Icons.favorite_border_rounded,
+    return SoundTrackActivation(
+      onActivate: onPlay,
+      semanticLabel: hit.track.title,
+      child: ListTile(
+        key: ValueKey('search-result-${hit.track.id}'),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        leading: SizedBox.square(
+          dimension: 50,
+          child: AlbumArt(album: hit.album, borderRadius: 7),
+        ),
+        title: Text(
+          hit.track.title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+        ),
+        subtitle: Text(
+          [
+            hit.track.artist,
+            hit.album.title,
+            if (hit.album.artist != hit.track.artist) hit.album.artist,
+            if (genre?.trim().isNotEmpty == true) genre!,
+          ].join(' · '),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: const TextStyle(fontSize: 12, color: Colors.white54),
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SourceBadge(hit.track.source),
+            if (onToggleFavorite != null)
+              IconButton(
+                key: ValueKey('favorite-search-${hit.track.id}'),
+                onPressed: onToggleFavorite,
+                tooltip: favorite
+                    ? '取消收藏 ${hit.track.title}'
+                    : '收藏 ${hit.track.title}',
+                color: favorite ? SoundColors.accent : null,
+                icon: Icon(
+                  favorite
+                      ? Icons.favorite_rounded
+                      : Icons.favorite_border_rounded,
+                ),
               ),
-            ),
-          if (onAddToPlaylist != null)
+            if (onAddToPlaylist != null)
+              IconButton(
+                key: ValueKey('add-search-${hit.track.id}-to-playlist'),
+                onPressed: onAddToPlaylist,
+                tooltip: '将 ${hit.track.title} 添加到播放列表',
+                icon: const Icon(Icons.playlist_add_rounded),
+              ),
             IconButton(
-              key: ValueKey('add-search-${hit.track.id}-to-playlist'),
-              onPressed: onAddToPlaylist,
-              tooltip: '将 ${hit.track.title} 添加到播放列表',
-              icon: const Icon(Icons.playlist_add_rounded),
+              onPressed: onOpenAlbum,
+              tooltip: '打开专辑 ${hit.album.title}',
+              icon: const Icon(Icons.chevron_right_rounded),
             ),
-          IconButton(
-            onPressed: onOpenAlbum,
-            tooltip: '打开专辑 ${hit.album.title}',
-            icon: const Icon(Icons.chevron_right_rounded),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

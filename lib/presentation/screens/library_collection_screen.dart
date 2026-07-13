@@ -10,6 +10,7 @@ import '../widgets/add_to_playlist_sheet.dart';
 import '../widgets/album_art.dart';
 import '../widgets/progress_scrubber.dart';
 import '../widgets/source_badge.dart';
+import '../widgets/sound_components.dart';
 
 enum LibraryCollectionTrackSort { libraryOrder, title, artist, album }
 
@@ -439,78 +440,81 @@ class _CollectionTrackRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
+    return SoundTrackActivation(
+      onActivate: onTap,
+      semanticLabel: track.title,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
+          ),
         ),
-      ),
-      child: ListTile(
-        onTap: onTap,
-        contentPadding: const EdgeInsets.symmetric(vertical: 5),
-        leading: SizedBox.square(
-          dimension: 48,
-          child: AlbumArt(album: album, borderRadius: 6),
-        ),
-        title: Text(
-          track.title,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-        ),
-        subtitle: Text(
-          '${track.artist} · ${album.title}',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 12, color: Colors.white54),
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SourceBadge(track.source),
-            Text(
-              formatDuration(track.duration),
-              style: const TextStyle(
-                fontSize: 11,
-                color: Colors.white54,
-                fontFeatures: [FontFeature.tabularFigures()],
+        child: ListTile(
+          contentPadding: const EdgeInsets.symmetric(vertical: 5),
+          leading: SizedBox.square(
+            dimension: 48,
+            child: AlbumArt(album: album, borderRadius: 6),
+          ),
+          title: Text(
+            track.title,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
+          ),
+          subtitle: Text(
+            '${track.artist} · ${album.title}',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: const TextStyle(fontSize: 12, color: Colors.white54),
+          ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              SourceBadge(track.source),
+              Text(
+                formatDuration(track.duration),
+                style: const TextStyle(
+                  fontSize: 11,
+                  color: Colors.white54,
+                  fontFeatures: [FontFeature.tabularFigures()],
+                ),
               ),
-            ),
-            PopupMenuButton<String>(
-              tooltip: '歌曲操作',
-              onSelected: (value) {
-                if (value == 'play-next') onPlayNext();
-                if (value == 'open-album') onOpenAlbum();
-                if (value == 'favorite') onToggleFavorite?.call();
-                if (value == 'playlist') onAddToPlaylist?.call();
-              },
-              itemBuilder: (_) => [
-                const PopupMenuItem(value: 'play-next', child: Text('下一首播放')),
-                const PopupMenuItem(value: 'open-album', child: Text('打开专辑')),
-                if (onToggleFavorite != null)
-                  PopupMenuItem(
-                    value: 'favorite',
-                    child: Row(
-                      children: [
-                        Icon(
-                          favorite
-                              ? Icons.favorite_rounded
-                              : Icons.favorite_border_rounded,
-                          color: favorite ? SoundColors.accent : null,
-                        ),
-                        const SizedBox(width: 10),
-                        Text(favorite ? '取消收藏' : '收藏歌曲'),
-                      ],
+              PopupMenuButton<String>(
+                tooltip: '歌曲操作',
+                onSelected: (value) {
+                  if (value == 'play-next') onPlayNext();
+                  if (value == 'open-album') onOpenAlbum();
+                  if (value == 'favorite') onToggleFavorite?.call();
+                  if (value == 'playlist') onAddToPlaylist?.call();
+                },
+                itemBuilder: (_) => [
+                  const PopupMenuItem(value: 'play-next', child: Text('下一首播放')),
+                  const PopupMenuItem(value: 'open-album', child: Text('打开专辑')),
+                  if (onToggleFavorite != null)
+                    PopupMenuItem(
+                      value: 'favorite',
+                      child: Row(
+                        children: [
+                          Icon(
+                            favorite
+                                ? Icons.favorite_rounded
+                                : Icons.favorite_border_rounded,
+                            color: favorite ? SoundColors.accent : null,
+                          ),
+                          const SizedBox(width: 10),
+                          Text(favorite ? '取消收藏' : '收藏歌曲'),
+                        ],
+                      ),
                     ),
-                  ),
-                if (onAddToPlaylist != null)
-                  const PopupMenuItem(
-                    value: 'playlist',
-                    child: Text('添加到播放列表'),
-                  ),
-              ],
-            ),
-          ],
+                  if (onAddToPlaylist != null)
+                    const PopupMenuItem(
+                      value: 'playlist',
+                      child: Text('添加到播放列表'),
+                    ),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
