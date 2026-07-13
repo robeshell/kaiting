@@ -274,24 +274,7 @@ class _AppShellState extends State<AppShell> {
           : KeyEventResult.ignored;
     }
 
-    if (key == LogicalKeyboardKey.mediaPlayPause) {
-      unawaited(widget.playback.toggle());
-      return KeyEventResult.handled;
-    }
-    if (key == LogicalKeyboardKey.mediaTrackNext) {
-      unawaited(widget.playback.next());
-      return KeyEventResult.handled;
-    }
-    if (key == LogicalKeyboardKey.mediaTrackPrevious) {
-      unawaited(widget.playback.previous());
-      return KeyEventResult.handled;
-    }
-
     if (_isTextInputFocused) return KeyEventResult.ignored;
-    if (key == LogicalKeyboardKey.space) {
-      unawaited(widget.playback.toggle());
-      return KeyEventResult.handled;
-    }
     if (primaryModifier && key == LogicalKeyboardKey.arrowRight) {
       unawaited(widget.playback.next());
       return KeyEventResult.handled;
@@ -317,12 +300,7 @@ class _AppShellState extends State<AppShell> {
     return KeyEventResult.handled;
   }
 
-  bool get _isTextInputFocused {
-    final focusContext = FocusManager.instance.primaryFocus?.context;
-    if (focusContext == null) return false;
-    return focusContext.widget is EditableText ||
-        focusContext.findAncestorWidgetOfExactType<EditableText>() != null;
-  }
+  bool get _isTextInputFocused => _isTextEditingFocusActive();
 
   void _openSearchFromKeyboard() {
     _selectSection(AppSection.search);
@@ -524,7 +502,7 @@ class _AppShellState extends State<AppShell> {
           },
         ),
       ),
-    );
+    ).withPlaybackShortcuts(widget.playback);
   }
 
   @override
@@ -540,6 +518,46 @@ class _AppShellState extends State<AppShell> {
     if (_ownsLibraryRepository) unawaited(_libraryRepository.close());
     super.dispose();
   }
+}
+
+extension _PlaybackShortcutWrapper on Widget {
+  Widget withPlaybackShortcuts(SoundPlaybackController playback) {
+    return CallbackShortcuts(
+      bindings: {
+        const _PlaybackSpaceActivator(): () => unawaited(playback.toggle()),
+        const SingleActivator(LogicalKeyboardKey.mediaPlayPause): () =>
+            unawaited(playback.toggle()),
+        const SingleActivator(LogicalKeyboardKey.mediaTrackNext): () =>
+            unawaited(playback.next()),
+        const SingleActivator(LogicalKeyboardKey.mediaTrackPrevious): () =>
+            unawaited(playback.previous()),
+      },
+      child: this,
+    );
+  }
+}
+
+class _PlaybackSpaceActivator extends ShortcutActivator {
+  const _PlaybackSpaceActivator();
+
+  static const _space = SingleActivator(LogicalKeyboardKey.space);
+
+  @override
+  Iterable<LogicalKeyboardKey> get triggers => const [LogicalKeyboardKey.space];
+
+  @override
+  bool accepts(KeyEvent event, HardwareKeyboard state) =>
+      _space.accepts(event, state) && !_isTextEditingFocusActive();
+
+  @override
+  String debugDescribeKeys() => 'Space outside text input';
+}
+
+bool _isTextEditingFocusActive() {
+  final focusContext = FocusManager.instance.primaryFocus?.context;
+  if (focusContext == null) return false;
+  return focusContext.widget is EditableText ||
+      focusContext.findAncestorWidgetOfExactType<EditableText>() != null;
 }
 
 class _Sidebar extends StatelessWidget {

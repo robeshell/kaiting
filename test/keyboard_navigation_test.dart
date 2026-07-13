@@ -52,6 +52,21 @@ void main() {
     await tester.pump();
     expect(engine.current.isPlaying, isFalse);
 
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pump();
+    expect(FocusManager.instance.primaryFocus, isNotNull);
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    await tester.pump();
+    expect(engine.current.isPlaying, isTrue);
+    expect(
+      find.byKey(const ValueKey('library-search-field')),
+      findsNothing,
+      reason: 'Space must not activate the currently focused sidebar item.',
+    );
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    await tester.pump();
+    expect(engine.current.isPlaying, isFalse);
+
     await _sendPrimaryShortcut(tester, LogicalKeyboardKey.arrowRight);
     expect(engine.current.track?.id, _secondTrack.id);
     await tester.sendKeyEvent(LogicalKeyboardKey.space);
