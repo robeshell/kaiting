@@ -178,6 +178,31 @@ void main() {
     expect((await repository.getSource('source-local'))?.scanRevision, 2);
     await repository.close();
   });
+
+  test('accepts an empty snapshot and removes the source catalog', () async {
+    final createdAt = DateTime.utc(2026, 7, 13, 10);
+    final repository = _openRepository(databaseFile);
+    await repository.upsertSource(_source(createdAt));
+    await repository.replaceSourceScan(
+      _scan(
+        completedAt: createdAt.add(const Duration(minutes: 1)),
+        tracks: [_track('track-one', '01-one.flac', title: 'One')],
+      ),
+    );
+
+    await repository.replaceSourceScan(
+      LibraryScanBatch(
+        sourceId: 'source-local',
+        completedAt: createdAt.add(const Duration(minutes: 2)),
+      ),
+    );
+
+    expect(await repository.getArtists(sourceId: 'source-local'), isEmpty);
+    expect(await repository.getAlbums(sourceId: 'source-local'), isEmpty);
+    expect(await repository.getTracks(sourceId: 'source-local'), isEmpty);
+    expect((await repository.getSource('source-local'))?.scanRevision, 2);
+    await repository.close();
+  });
 }
 
 DriftLibraryRepository _openRepository(File file) {

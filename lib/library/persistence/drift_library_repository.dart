@@ -203,42 +203,30 @@ class DriftLibraryRepository implements LibraryRepository {
         throw StateError('Unknown library source: ${batch.sourceId}');
       }
 
-      // Remove identities that are no longer part of the scan before
-      // inserting replacements. Scanner upgrades may assign a new primary key
-      // to the same semantic artist or album, whose alternate unique key is
-      // still occupied by the legacy row. The transaction keeps this atomic.
-      await _deleteMissingTracks(batch.sourceId, batch.tracks);
-      await _deleteMissingAlbums(batch.sourceId, batch.albums);
-      await _deleteMissingArtists(batch.sourceId, batch.artists);
+      // A scan batch is a complete snapshot of one source. Rebuilding that
+      // source inside the same transaction avoids SQLite NOT IN parameter
+      // lists and conflict updates that become expensive at 10,000+ tracks,
+      // while preserving the previous catalog if any insert fails.
+      await _deleteSourceCatalog(batch.sourceId);
 
-      for (final artist in batch.artists) {
-        await _database
-            .into(_database.libraryArtists)
-            .insertOnConflictUpdate(_artistCompanion(artist));
-      }
-      for (final album in batch.albums) {
-        await _database
-            .into(_database.libraryAlbums)
-            .insertOnConflictUpdate(_albumCompanion(album));
-      }
-      for (final track in batch.tracks) {
-        await _database
-            .into(_database.libraryTracks)
-            .insertOnConflictUpdate(_trackCompanion(track));
-      }
-
-      await _database.customStatement(
-        'DELETE FROM library_lyrics '
-        'WHERE track_id IN ('
-        'SELECT id FROM library_tracks WHERE source_id = ?'
-        ')',
-        [batch.sourceId],
-      );
-      for (final lyric in batch.lyrics) {
-        await _database
-            .into(_database.libraryLyrics)
-            .insert(_lyricCompanion(lyric));
-      }
+      await _database.batch((writer) {
+        writer.insertAll(
+          _database.libraryArtists,
+          batch.artists.map(_artistCompanion),
+        );
+        writer.insertAll(
+          _database.libraryAlbums,
+          batch.albums.map(_albumCompanion),
+        );
+        writer.insertAll(
+          _database.libraryTracks,
+          batch.tracks.map(_trackCompanion),
+        );
+        writer.insertAll(
+          _database.libraryLyrics,
+          batch.lyrics.map(_lyricCompanion),
+        );
+      });
 
       await (_database.update(
         _database.librarySources,
@@ -254,37 +242,16 @@ class DriftLibraryRepository implements LibraryRepository {
     });
   }
 
-  Future<void> _deleteMissingTracks(
-    String sourceId,
-    List<LibraryTrackRecord> records,
-  ) async {
-    final ids = records.map((record) => record.id).toList(growable: false);
-    final deletion = _database.delete(_database.libraryTracks)
-      ..where((row) => row.sourceId.equals(sourceId));
-    if (ids.isNotEmpty) deletion.where((row) => row.id.isNotIn(ids));
-    await deletion.go();
-  }
-
-  Future<void> _deleteMissingAlbums(
-    String sourceId,
-    List<LibraryAlbumRecord> records,
-  ) async {
-    final ids = records.map((record) => record.id).toList(growable: false);
-    final deletion = _database.delete(_database.libraryAlbums)
-      ..where((row) => row.sourceId.equals(sourceId));
-    if (ids.isNotEmpty) deletion.where((row) => row.id.isNotIn(ids));
-    await deletion.go();
-  }
-
-  Future<void> _deleteMissingArtists(
-    String sourceId,
-    List<LibraryArtistRecord> records,
-  ) async {
-    final ids = records.map((record) => record.id).toList(growable: false);
-    final deletion = _database.delete(_database.libraryArtists)
-      ..where((row) => row.sourceId.equals(sourceId));
-    if (ids.isNotEmpty) deletion.where((row) => row.id.isNotIn(ids));
-    await deletion.go();
+  Future<void> _deleteSourceCatalog(String sourceId) async {
+    await (_database.delete(
+      _database.libraryTracks,
+    )..where((row) => row.sourceId.equals(sourceId))).go();
+    await (_database.delete(
+      _database.libraryAlbums,
+    )..where((row) => row.sourceId.equals(sourceId))).go();
+    await (_database.delete(
+      _database.libraryArtists,
+    )..where((row) => row.sourceId.equals(sourceId))).go();
   }
 
   void _validateBatch(LibraryScanBatch batch) {

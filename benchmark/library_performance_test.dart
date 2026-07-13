@@ -11,12 +11,14 @@ import 'package:sound_player/library/persistence/library_database.dart';
 import 'package:sound_player/presentation/controllers/library_catalog_controller.dart';
 import 'package:sound_player/presentation/controllers/library_search_controller.dart';
 
+import 'support/library_benchmark_fixture.dart';
+
 void main() {
   for (final trackCount in const [1000, 10000]) {
     test(
       'library pipeline baseline with $trackCount tracks',
       () async {
-        final fixture = _LibraryFixture.generate(trackCount);
+        final fixture = LibraryBenchmarkFixture.generate(trackCount);
         final repository = _BenchmarkRepository(fixture);
         final catalog = LibraryCatalogController(repository: repository);
 
@@ -87,100 +89,11 @@ void main() {
   }
 }
 
-class _LibraryFixture {
-  const _LibraryFixture({
-    required this.source,
-    required this.albums,
-    required this.tracks,
-    required this.lyricsByTrackId,
-  });
-
-  factory _LibraryFixture.generate(int trackCount) {
-    final now = DateTime.utc(2026, 7, 13);
-    const sourceId = 'benchmark:local';
-    const tracksPerAlbum = 10;
-    final albumCount = (trackCount / tracksPerAlbum).ceil();
-    final albums = <LibraryAlbumRecord>[];
-    final tracks = <LibraryTrackRecord>[];
-    final lyrics = <String, List<LibraryLyricRecord>>{};
-
-    for (var albumIndex = 0; albumIndex < albumCount; albumIndex++) {
-      final albumId = 'album-$albumIndex';
-      albums.add(
-        LibraryAlbumRecord(
-          id: albumId,
-          sourceId: sourceId,
-          title: 'Album $albumIndex',
-          sortTitle: 'album ${albumIndex.toString().padLeft(5, '0')}',
-          albumArtist: 'Album Artist ${albumIndex % 100}',
-          year: 2000 + albumIndex % 27,
-          genre: albumIndex.isEven ? 'Ambient' : 'Rock',
-          artworkKey: 'file:///benchmark/art-$albumIndex.jpg',
-        ),
-      );
-    }
-
-    for (var index = 0; index < trackCount; index++) {
-      final albumIndex = index ~/ tracksPerAlbum;
-      final trackId = 'track-$index';
-      tracks.add(
-        LibraryTrackRecord(
-          id: trackId,
-          sourceId: sourceId,
-          albumId: 'album-$albumIndex',
-          relativePath: 'album-$albumIndex/track-$index.flac',
-          mediaUri: 'file:///benchmark/album-$albumIndex/track-$index.flac',
-          title: 'Song ${index.toString().padLeft(5, '0')}',
-          artistName: 'Artist ${index % 250}',
-          albumTitle: 'Album $albumIndex',
-          durationMs: 180000 + index % 120000,
-          trackNumber: index % tracksPerAlbum + 1,
-          discNumber: 1,
-          genre: index.isEven ? 'Ambient' : 'Rock',
-          modifiedAt: now,
-          artworkKey: 'file:///benchmark/art-$albumIndex.jpg',
-        ),
-      );
-      if (index % 10 == 0) {
-        lyrics[trackId] = [
-          for (var line = 0; line < 5; line++)
-            LibraryLyricRecord(
-              trackId: trackId,
-              sequence: line,
-              timestampMs: line * 5000,
-              text: 'Lyric line $line for track $index',
-            ),
-        ];
-      }
-    }
-
-    return _LibraryFixture(
-      source: LibrarySourceRecord(
-        id: sourceId,
-        type: LibrarySourceType.local,
-        displayName: 'Benchmark Music',
-        rootUri: 'file:///benchmark/',
-        status: LibrarySourceStatus.available,
-        createdAt: now,
-        updatedAt: now,
-      ),
-      albums: List.unmodifiable(albums),
-      tracks: List.unmodifiable(tracks),
-      lyricsByTrackId: Map.unmodifiable(lyrics),
-    );
-  }
-
-  final LibrarySourceRecord source;
-  final List<LibraryAlbumRecord> albums;
-  final List<LibraryTrackRecord> tracks;
-  final Map<String, List<LibraryLyricRecord>> lyricsByTrackId;
-}
-
 class _BenchmarkRepository extends DriftLibraryRepository {
   _BenchmarkRepository(this.fixture)
     : super(LibraryDatabase(NativeDatabase.memory()));
 
-  final _LibraryFixture fixture;
+  final LibraryBenchmarkFixture fixture;
   int allLyricsCalls = 0;
   int singleTrackLyricCalls = 0;
 
