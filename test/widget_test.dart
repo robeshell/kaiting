@@ -10,6 +10,7 @@ import 'package:sound_player/playback/playback_controller.dart';
 import 'package:sound_player/playback/playback_session.dart';
 import 'package:sound_player/playback/simulated_playback_engine.dart';
 import 'package:sound_player/presentation/app_shell.dart';
+import 'package:sound_player/presentation/screens/now_playing_screen.dart';
 import 'package:sound_player/presentation/widgets/mini_player.dart';
 
 void main() {
@@ -190,6 +191,85 @@ void main() {
     playback.dispose();
     engine.dispose();
     await repository.close();
+  });
+
+  testWidgets('shell adapts between full iPad and split-view widths', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(834, 1194);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final repository = _repository();
+    final engine = SimulatedPlaybackEngine();
+    final playback = SoundPlaybackController(engine: engine);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AppShell(playback: playback, libraryRepository: repository),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sound'), findsOneWidget);
+    expect(find.byType(NavigationBar), findsNothing);
+    expect(tester.takeException(), isNull);
+
+    tester.view.physicalSize = const Size(600, 1024);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sound'), findsNothing);
+    expect(find.byType(NavigationBar), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.byIcon(Icons.settings_outlined));
+    await tester.pumpAndSettle();
+    expect(find.text('来源'), findsOneWidget);
+    expect(find.text('添加本地文件夹'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    tester.view.physicalSize = const Size(874, 402);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sound'), findsNothing);
+    expect(find.byType(NavigationBar), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await _unmountAndFlush(tester);
+    playback.dispose();
+    engine.dispose();
+    await repository.close();
+  });
+
+  testWidgets('now playing fits iPhone and portrait iPad widths', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final engine = SimulatedPlaybackEngine();
+    final playback = SoundPlaybackController(engine: engine);
+    await playback.playTrack(_testTrack, queue: const [_testTrack]);
+
+    await tester.pumpWidget(
+      MaterialApp(home: NowPlayingScreen(playback: playback)),
+    );
+    await tester.pump();
+
+    expect(find.text('Test Track'), findsOneWidget);
+    expect(find.text('歌词'), findsNothing);
+    expect(tester.takeException(), isNull);
+
+    tester.view.physicalSize = const Size(834, 1194);
+    await tester.pump();
+
+    expect(find.text('歌词'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await _unmountAndFlush(tester);
+    playback.dispose();
+    engine.dispose();
   });
 }
 

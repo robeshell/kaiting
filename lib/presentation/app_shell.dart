@@ -143,7 +143,11 @@ class _AppShellState extends State<AppShell> {
         if (constraints.maxWidth <= 0 || constraints.maxHeight <= 0) {
           return const SizedBox.shrink();
         }
-        final desktop = constraints.maxWidth >= 820;
+        // A landscape phone can exceed the desktop width breakpoint while
+        // remaining far too short for the full sidebar. Require enough
+        // vertical room as well so iPhone landscape keeps mobile navigation.
+        final desktop =
+            constraints.maxWidth >= 820 && constraints.maxHeight >= 600;
         final content = _showPlaybackValidation
             ? PlaybackValidationScreen(
                 playback: widget.playback,
