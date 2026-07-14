@@ -47,8 +47,9 @@ plugin does not expose custom headers.
 - `PlaybackController` owns the active queue and translates user intents into
   engine commands.
 - Widgets subscribe to snapshots; they never advance time with their own timer.
-- Scrubbing state belongs to the progress widget and is only a preview.
-- Releasing a scrub sends exactly one seek request.
+- Drag preview belongs to the progress widget. Releasing it sends exactly one
+  seek request; the controller then exposes one provisional display position
+  shared by the progress label and lyrics until the engine confirms it.
 - Native positions remain unpublished while a seek is pending. A pure
   `NativePositionGate` confirms the target and rejects stale callbacks emitted
   while the native player settles.
@@ -167,8 +168,20 @@ The `web/sqlite3.wasm` binary must match the `sqlite3` version resolved in
   child folders are removed from that identity. This keeps multi-disc releases
   together without merging unrelated same-title albums. Participating track
   artists remain on their individual track records.
-- Embedded synchronized lyrics are normalized into ordered millisecond rows;
-  unsynchronized lyrics remain one zero-timestamp record.
+- Local and WebDAV embedded lyrics use the same parser. LRC timestamps are
+  removed from display text, metadata tags and global offsets are normalized,
+  and synchronized lines are stored as ordered millisecond rows.
+  Unsynchronized lyrics are stored as individual lines with a `-1` timestamp
+  sentinel and exposed to the presentation model with a nullable timestamp.
+  Legacy raw-LRC rows are normalized when the catalog or a playback session is
+  restored, so existing libraries do not require an immediate rescan.
+- `LyricsTimeline` is the only active-line selector for natural playback,
+  progress seeks, and lyric-click seeks. Timestamped source text is never
+  classified from wording; equal timestamps form one cue. Lyric selection is
+  derived only from the shared playback position. A seek/track revision snaps
+  any stale scroll animation, while natural cue changes use a fixed short
+  follow animation. User wheel or touch scrolling pauses follow for three
+  seconds and exposes an immediate return action.
 - Damaged files and artwork-write failures become scan warnings instead of
   discarding other valid tracks. A completed scan replaces the source batch in
   one existing Drift transaction, so removed files disappear atomically.

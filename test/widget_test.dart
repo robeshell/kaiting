@@ -530,13 +530,166 @@ void main() {
     await tester.pump();
 
     expect(find.text('Test Track'), findsOneWidget);
-    expect(find.text('歌词'), findsNothing);
+    expect(find.text('歌词'), findsOneWidget);
     expect(tester.takeException(), isNull);
+
+    await tester.tap(find.text('歌词'));
+    await tester.pumpAndSettle();
+    expect(find.text('这首歌曲没有内嵌歌词'), findsOneWidget);
 
     tester.view.physicalSize = const Size(834, 1194);
     await tester.pump();
 
     expect(find.text('歌词'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await _unmountAndFlush(tester);
+    playback.dispose();
+    engine.dispose();
+  });
+
+  testWidgets('tapping a synchronized lyric seeks immediately', (tester) async {
+    tester.view.physicalSize = const Size(1100, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    const track = Track(
+      id: 'track:lyrics',
+      title: 'Lyrics Track',
+      artist: 'Artist',
+      albumTitle: 'Album',
+      duration: Duration(minutes: 1),
+      source: SourceKind.local,
+      mediaUri: 'file:///test/lyrics.flac',
+      lyrics: [
+        LyricLine(Duration(seconds: 2), 'First lyric'),
+        LyricLine(Duration(seconds: 10), 'Second lyric'),
+        LyricLine(Duration(seconds: 20), 'Third lyric'),
+      ],
+    );
+    final engine = SimulatedPlaybackEngine();
+    final playback = SoundPlaybackController(engine: engine);
+    await playback.playTrack(track, queue: const [track]);
+
+    await tester.pumpWidget(
+      MaterialApp(home: NowPlayingScreen(playback: playback)),
+    );
+    await tester.pump();
+    await tester.tap(find.text('Second lyric'));
+    await tester.pump();
+
+    expect(engine.current.position, const Duration(seconds: 10));
+    expect(tester.takeException(), isNull);
+
+    await _unmountAndFlush(tester);
+    playback.dispose();
+    engine.dispose();
+  });
+
+  testWidgets('progress-bar seek and lyric selection share one timeline', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1100, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    const track = Track(
+      id: 'track:progress-lyrics',
+      title: 'Timeline Track',
+      artist: 'Artist',
+      albumTitle: 'Album',
+      duration: Duration(minutes: 1),
+      source: SourceKind.local,
+      mediaUri: 'file:///test/timeline.flac',
+      lyrics: [
+        LyricLine(Duration.zero, '作词：Author'),
+        LyricLine(Duration(seconds: 10), 'Opening lyric'),
+        LyricLine(Duration(seconds: 20), 'Middle lyric'),
+        LyricLine(Duration(seconds: 45), 'Closing lyric'),
+      ],
+    );
+    final engine = SimulatedPlaybackEngine();
+    final playback = SoundPlaybackController(engine: engine);
+    await playback.playTrack(track, queue: const [track]);
+    await tester.pumpWidget(
+      MaterialApp(home: NowPlayingScreen(playback: playback)),
+    );
+    await tester.pump();
+
+    final sliderRect = tester.getRect(find.byType(Slider));
+    await tester.tapAt(sliderRect.center);
+    await tester.pump();
+
+    expect(
+      engine.current.position.inMilliseconds,
+      inInclusiveRange(29000, 31000),
+    );
+    final activeStyle = tester.widget<AnimatedDefaultTextStyle>(
+      find
+          .ancestor(
+            of: find.text('Middle lyric'),
+            matching: find.byType(AnimatedDefaultTextStyle),
+          )
+          .first,
+    );
+    final sourceTextStyle = tester.widget<AnimatedDefaultTextStyle>(
+      find
+          .ancestor(
+            of: find.text('作词：Author'),
+            matching: find.byType(AnimatedDefaultTextStyle),
+          )
+          .first,
+    );
+    expect(activeStyle.style.fontSize, 23);
+    expect(sourceTextStyle.style.fontSize, 22);
+    expect(tester.takeException(), isNull);
+
+    await _unmountAndFlush(tester);
+    playback.dispose();
+    engine.dispose();
+  });
+
+  testWidgets('equal-timestamp lyric lines highlight as one cue', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1100, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    const track = Track(
+      id: 'track:parallel-lyrics',
+      title: 'Parallel Lyrics',
+      artist: 'Artist',
+      albumTitle: 'Album',
+      duration: Duration(minutes: 1),
+      source: SourceKind.local,
+      mediaUri: 'file:///test/parallel.flac',
+      lyrics: [
+        LyricLine(Duration(seconds: 5), 'Original line'),
+        LyricLine(Duration(seconds: 5), 'Translated line'),
+        LyricLine(Duration(seconds: 10), 'Next line'),
+      ],
+    );
+    final engine = SimulatedPlaybackEngine();
+    final playback = SoundPlaybackController(engine: engine);
+    await playback.playTrack(track, queue: const [track]);
+    await playback.seek(const Duration(seconds: 5));
+    await tester.pumpWidget(
+      MaterialApp(home: NowPlayingScreen(playback: playback)),
+    );
+    await tester.pump();
+
+    for (final text in ['Original line', 'Translated line']) {
+      final style = tester.widget<AnimatedDefaultTextStyle>(
+        find
+            .ancestor(
+              of: find.text(text),
+              matching: find.byType(AnimatedDefaultTextStyle),
+            )
+            .first,
+      );
+      expect(style.style.fontSize, 23);
+    }
     expect(tester.takeException(), isNull);
 
     await _unmountAndFlush(tester);

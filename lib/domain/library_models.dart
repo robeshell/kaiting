@@ -53,8 +53,11 @@ class Track {
 class LyricLine {
   const LyricLine(this.time, this.text);
 
-  final Duration time;
+  /// Null for plain, unsynchronized lyrics.
+  final Duration? time;
   final String text;
+
+  bool get isSynchronized => time != null;
 }
 
 class Album {

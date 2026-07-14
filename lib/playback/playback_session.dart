@@ -3,6 +3,8 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
 import '../domain/library_models.dart';
+import '../library/library_records.dart';
+import '../library/scanning/embedded_lyrics_parser.dart';
 import 'playback_mode.dart';
 import 'playback_session_storage_factory.dart';
 
@@ -67,7 +69,7 @@ Map<String, dynamic> _trackToJson(Track track) => {
   'genre': track.genre,
   'lyrics': [
     for (final lyric in track.lyrics)
-      {'timeMs': lyric.time.inMilliseconds, 'text': lyric.text},
+      {'timeMs': lyric.time?.inMilliseconds, 'text': lyric.text},
   ],
 };
 
@@ -86,17 +88,37 @@ Track _trackFromJson(Map<String, dynamic> json) {
     artworkUri: json['artworkUri'] as String?,
     year: json['year'] as int?,
     genre: json['genre'] as String?,
-    lyrics: rawLyrics is List
-        ? [
-            for (final item in rawLyrics)
-              if (item case {
-                'timeMs': final int timeMs,
-                'text': final String text,
-              })
-                LyricLine(Duration(milliseconds: timeMs), text),
-          ]
-        : const [],
+    lyrics: _lyricsFromJson(json['id'] as String, rawLyrics),
   );
+}
+
+List<LyricLine> _lyricsFromJson(String trackId, Object? rawLyrics) {
+  if (rawLyrics is! List) return const [];
+  final records = <LibraryLyricRecord>[];
+  for (final (index, item) in rawLyrics.indexed) {
+    if (item case {'text': final String text}) {
+      final rawTime = item['timeMs'];
+      records.add(
+        LibraryLyricRecord(
+          trackId: trackId,
+          sequence: index,
+          timestampMs: rawTime is int
+              ? rawTime
+              : unsynchronizedLyricTimestampMs,
+          text: text,
+        ),
+      );
+    }
+  }
+  return [
+    for (final lyric in normalizePersistedLyrics(trackId, records))
+      LyricLine(
+        lyric.timestampMs == unsynchronizedLyricTimestampMs
+            ? null
+            : Duration(milliseconds: lyric.timestampMs),
+        lyric.text,
+      ),
+  ];
 }
 
 class PlaybackSessionStore {

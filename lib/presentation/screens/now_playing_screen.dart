@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 import 'dart:ui';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
@@ -9,6 +10,7 @@ import '../../core/sound_theme.dart';
 import '../../domain/library_models.dart';
 import '../../playback/playback_controller.dart';
 import '../../playback/playback_mode.dart';
+import '../../playback/lyrics_timeline.dart';
 import '../controllers/library_user_state_controller.dart';
 import '../widgets/add_to_playlist_sheet.dart';
 import '../widgets/album_art.dart';
@@ -208,6 +210,8 @@ class _WideNowPlaying extends StatelessWidget {
                 child: _LyricsPanel(
                   track: track,
                   position: playback.displayPosition,
+                  discontinuityRevision: playback.positionDiscontinuityRevision,
+                  onSeek: playback.seek,
                 ),
               ),
             ],
@@ -218,7 +222,7 @@ class _WideNowPlaying extends StatelessWidget {
   }
 }
 
-class _CompactNowPlaying extends StatelessWidget {
+class _CompactNowPlaying extends StatefulWidget {
   const _CompactNowPlaying({
     required this.album,
     required this.track,
@@ -232,17 +236,134 @@ class _CompactNowPlaying extends StatelessWidget {
   final LibraryUserStateController? userState;
 
   @override
+  State<_CompactNowPlaying> createState() => _CompactNowPlayingState();
+}
+
+class _CompactNowPlayingState extends State<_CompactNowPlaying> {
+  bool _showLyrics = false;
+
+  @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(28, 18, 28, 40),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 430),
-          child: _PlayerColumn(
-            album: album,
-            track: track,
-            playback: playback,
-            userState: userState,
+    return Column(
+      children: [
+        _NowPlayingViewSwitch(
+          showLyrics: _showLyrics,
+          onChanged: (value) => setState(() => _showLyrics = value),
+        ),
+        Expanded(
+          child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 260),
+            switchInCurve: Curves.easeOutCubic,
+            switchOutCurve: Curves.easeInCubic,
+            child: _showLyrics
+                ? Padding(
+                    key: const ValueKey('compact-lyrics'),
+                    padding: const EdgeInsets.fromLTRB(28, 18, 28, 12),
+                    child: _LyricsPanel(
+                      track: widget.track,
+                      position: widget.playback.displayPosition,
+                      discontinuityRevision:
+                          widget.playback.positionDiscontinuityRevision,
+                      onSeek: widget.playback.seek,
+                    ),
+                  )
+                : SingleChildScrollView(
+                    key: const ValueKey('compact-player'),
+                    padding: const EdgeInsets.fromLTRB(28, 18, 28, 40),
+                    child: Center(
+                      child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 430),
+                        child: _PlayerColumn(
+                          album: widget.album,
+                          track: widget.track,
+                          playback: widget.playback,
+                          userState: widget.userState,
+                        ),
+                      ),
+                    ),
+                  ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _NowPlayingViewSwitch extends StatelessWidget {
+  const _NowPlayingViewSwitch({
+    required this.showLyrics,
+    required this.onChanged,
+  });
+
+  final bool showLyrics;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      label: '正在播放视图',
+      child: Container(
+        padding: const EdgeInsets.all(3),
+        decoration: BoxDecoration(
+          color: Colors.black.withValues(alpha: 0.16),
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            _NowPlayingViewChoice(
+              label: '封面',
+              selected: !showLyrics,
+              onTap: () => onChanged(false),
+            ),
+            _NowPlayingViewChoice(
+              label: '歌词',
+              selected: showLyrics,
+              onTap: () => onChanged(true),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _NowPlayingViewChoice extends StatelessWidget {
+  const _NowPlayingViewChoice({
+    required this.label,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final String label;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 180),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 7),
+          decoration: BoxDecoration(
+            color: selected
+                ? Colors.white.withValues(alpha: 0.14)
+                : Colors.transparent,
+            borderRadius: BorderRadius.circular(9),
+          ),
+          child: Text(
+            label,
+            style: TextStyle(
+              color: selected ? Colors.white : Colors.white54,
+              fontSize: 12,
+              fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+            ),
           ),
         ),
       ),
@@ -455,11 +576,195 @@ const _timeStyle = TextStyle(
   fontFeatures: [FontFeature.tabularFigures()],
 );
 
-class _LyricsPanel extends StatelessWidget {
-  const _LyricsPanel({required this.track, required this.position});
+class _LyricsPanel extends StatefulWidget {
+  const _LyricsPanel({
+    required this.track,
+    required this.position,
+    required this.discontinuityRevision,
+    required this.onSeek,
+  });
 
   final Track track;
   final Duration position;
+  final int discontinuityRevision;
+  final Future<void> Function(Duration position) onSeek;
+
+  @override
+  State<_LyricsPanel> createState() => _LyricsPanelState();
+}
+
+class _LyricsPanelState extends State<_LyricsPanel> {
+  static const _offsetStep = Duration(milliseconds: 500);
+  static const _followDuration = Duration(milliseconds: 300);
+  static const _manualScrollPause = Duration(seconds: 3);
+
+  final _scrollController = ScrollController();
+  late List<GlobalKey> _lineKeys;
+  late LyricsTimeline _timeline;
+  Duration _offset = Duration.zero;
+  int? _lastActiveIndex;
+  bool _snapNextFollow = false;
+  bool _showingPreamble = true;
+  bool _autoFollowPaused = false;
+  Timer? _manualScrollTimer;
+
+  Track get track => widget.track;
+
+  @override
+  void initState() {
+    super.initState();
+    _lineKeys = _keysFor(track.lyrics.length);
+    _timeline = LyricsTimeline.forTrack(track);
+  }
+
+  @override
+  void didUpdateWidget(covariant _LyricsPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.track.id != track.id) {
+      _manualScrollTimer?.cancel();
+      _offset = Duration.zero;
+      _lastActiveIndex = null;
+      _snapNextFollow = false;
+      _showingPreamble = true;
+      _autoFollowPaused = false;
+      _lineKeys = _keysFor(track.lyrics.length);
+      _timeline = LyricsTimeline.forTrack(track);
+      if (_scrollController.hasClients) _scrollController.jumpTo(0);
+    } else if (!identical(oldWidget.track.lyrics, track.lyrics)) {
+      _lineKeys = _keysFor(track.lyrics.length);
+      _timeline = LyricsTimeline.forTrack(track);
+      _lastActiveIndex = null;
+    } else if (widget.discontinuityRevision !=
+            oldWidget.discontinuityRevision ||
+        widget.position + const Duration(milliseconds: 500) <
+            oldWidget.position) {
+      // Seeks and repeat-one wraps cancel any old follow animation.
+      _manualScrollTimer?.cancel();
+      _autoFollowPaused = false;
+      _snapNextFollow = true;
+      _lastActiveIndex = null;
+    }
+  }
+
+  @override
+  void dispose() {
+    _manualScrollTimer?.cancel();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  List<GlobalKey> _keysFor(int length) =>
+      List.generate(length, (index) => GlobalKey(debugLabel: 'lyric-$index'));
+
+  void _followActiveLine(int active) {
+    final cueStart = _timeline.cueStartIndex(active);
+    if (_autoFollowPaused || _lastActiveIndex == cueStart) return;
+    _showingPreamble = false;
+    final snap = _snapNextFollow;
+    _snapNextFollow = false;
+    _lastActiveIndex = cueStart;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _autoFollowPaused || cueStart >= _lineKeys.length) {
+        return;
+      }
+      final lineContext = _lineKeys[cueStart].currentContext;
+      if (lineContext == null) return;
+      Scrollable.ensureVisible(
+        lineContext,
+        alignment: 0.45,
+        duration: snap ? Duration.zero : _followDuration,
+        curve: Curves.easeOutCubic,
+      );
+    });
+  }
+
+  void _followPreamble() {
+    if (_autoFollowPaused || _showingPreamble) return;
+    _showingPreamble = true;
+    _lastActiveIndex = null;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_scrollController.hasClients) return;
+      _scrollController.jumpTo(0);
+    });
+  }
+
+  Future<void> _seekToLine(int index, LyricLine line) async {
+    final timestamp = line.time;
+    if (timestamp == null || !_timeline.isSeekable(index)) return;
+    final target = timestamp - _offset;
+    _resumeAutoFollow();
+    await widget.onSeek(target.isNegative ? Duration.zero : target);
+  }
+
+  void _pauseAutoFollow() {
+    if (!_timeline.isSynchronized) return;
+    _manualScrollTimer?.cancel();
+    if (!_autoFollowPaused && mounted) {
+      setState(() => _autoFollowPaused = true);
+    }
+    _manualScrollTimer = Timer(_manualScrollPause, _resumeAutoFollow);
+  }
+
+  void _resumeAutoFollow() {
+    _manualScrollTimer?.cancel();
+    _manualScrollTimer = null;
+    if (!mounted) return;
+    setState(() {
+      _autoFollowPaused = false;
+      _snapNextFollow = true;
+      _lastActiveIndex = null;
+    });
+  }
+
+  void _changeOffset(Duration delta) {
+    setState(() {
+      _offset += delta;
+      _lastActiveIndex = null;
+      _showingPreamble = false;
+      _snapNextFollow = true;
+    });
+  }
+
+  String get _offsetLabel {
+    final seconds = _offset.inMilliseconds / 1000;
+    return '${seconds >= 0 ? '+' : ''}${seconds.toStringAsFixed(1)}s';
+  }
+
+  Widget _buildLyricLine(
+    List<LyricLine> lyrics,
+    int index, {
+    required int? active,
+    required bool synchronized,
+  }) {
+    final isActive = _timeline.isInCue(index, active);
+    final line = lyrics[index];
+    return GestureDetector(
+      key: _lineKeys[index],
+      behavior: HitTestBehavior.opaque,
+      onTap: !_timeline.isSeekable(index)
+          ? null
+          : () => _seekToLine(index, line),
+      // The cue must become visibly active on its timestamp. Animating the
+      // text style here made a correct cue index appear roughly 320 ms late.
+      child: AnimatedDefaultTextStyle(
+        duration: Duration.zero,
+        style: TextStyle(
+          color: Colors.white.withValues(
+            alpha: isActive
+                ? 1
+                : active != null && index < active
+                ? 0.28
+                : 0.5,
+          ),
+          fontSize: isActive ? 23 : 22,
+          height: synchronized ? 2.4 : 1.75,
+          fontWeight: isActive ? FontWeight.w900 : FontWeight.w700,
+          letterSpacing: -0.4,
+        ),
+        child: Text(line.text),
+      ),
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -487,52 +792,147 @@ class _LyricsPanel extends StatelessWidget {
         ],
       );
     }
-    var active = 0;
-    for (var index = 0; index < lyrics.length; index++) {
-      if (lyrics[index].time <= position + const Duration(milliseconds: 80)) {
-        active = index;
-      }
+    final synchronized = _timeline.isSynchronized;
+    final active = synchronized
+        ? _timeline.activeLineIndex(widget.position, offset: _offset)
+        : null;
+    if (active != null) {
+      _followActiveLine(active);
+    } else if (synchronized) {
+      _followPreamble();
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          '歌词',
-          style: TextStyle(
-            color: Colors.white.withValues(alpha: 0.55),
-            fontSize: 12,
-            fontWeight: FontWeight.w800,
-          ),
+        Row(
+          children: [
+            Text(
+              synchronized && _timeline.hasTimedContent ? '同步歌词' : '歌词',
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.55),
+                fontSize: 12,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            if (synchronized && _timeline.hasTimedContent) ...[
+              const Spacer(),
+              if (_autoFollowPaused) ...[
+                _LyricsOffsetButton(
+                  label: '回到当前',
+                  tooltip: '恢复自动跟随',
+                  onTap: _resumeAutoFollow,
+                ),
+                const SizedBox(width: 8),
+              ],
+              _LyricsOffsetButton(
+                label: '−0.5',
+                tooltip: '歌词延后 0.5 秒',
+                onTap: () => _changeOffset(-_offsetStep),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                child: GestureDetector(
+                  onTap: _offset == Duration.zero
+                      ? null
+                      : () => setState(() {
+                          _offset = Duration.zero;
+                          _lastActiveIndex = null;
+                          _snapNextFollow = true;
+                        }),
+                  child: Text(
+                    _offsetLabel,
+                    style: TextStyle(
+                      color: _offset == Duration.zero
+                          ? Colors.white38
+                          : Colors.white70,
+                      fontSize: 11,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                ),
+              ),
+              _LyricsOffsetButton(
+                label: '+0.5',
+                tooltip: '歌词提前 0.5 秒',
+                onTap: () => _changeOffset(_offsetStep),
+              ),
+            ],
+          ],
         ),
         const SizedBox(height: 26),
         Expanded(
-          child: ListView.builder(
-            padding: const EdgeInsets.symmetric(vertical: 110),
-            itemCount: lyrics.length,
-            itemBuilder: (context, index) {
-              final isActive = index == active;
-              return AnimatedDefaultTextStyle(
-                duration: const Duration(milliseconds: 320),
-                curve: Curves.easeOutCubic,
-                style: TextStyle(
-                  color: Colors.white.withValues(
-                    alpha: isActive
-                        ? 1
-                        : index < active
-                        ? 0.28
-                        : 0.5,
+          child: LayoutBuilder(
+            builder: (context, constraints) => Listener(
+              onPointerSignal: (event) {
+                if (event is PointerScrollEvent) _pauseAutoFollow();
+              },
+              child: NotificationListener<ScrollStartNotification>(
+                onNotification: (notification) {
+                  if (notification.dragDetails != null) _pauseAutoFollow();
+                  return false;
+                },
+                child: SingleChildScrollView(
+                  controller: _scrollController,
+                  padding: EdgeInsets.only(
+                    top: math.max(110, constraints.maxHeight * 0.45),
+                    bottom: math.max(110, constraints.maxHeight * 0.55),
                   ),
-                  fontSize: 22,
-                  height: 2.4,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: -0.4,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      for (var index = 0; index < lyrics.length; index++)
+                        _buildLyricLine(
+                          lyrics,
+                          index,
+                          active: active,
+                          synchronized: synchronized,
+                        ),
+                    ],
+                  ),
                 ),
-                child: Text(lyrics[index].text),
-              );
-            },
+              ),
+            ),
           ),
         ),
       ],
+    );
+  }
+}
+
+class _LyricsOffsetButton extends StatelessWidget {
+  const _LyricsOffsetButton({
+    required this.label,
+    required this.tooltip,
+    required this.onTap,
+  });
+
+  final String label;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: Material(
+        color: Colors.white.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(8),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(8),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+            child: Text(
+              label,
+              style: const TextStyle(
+                color: Colors.white70,
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

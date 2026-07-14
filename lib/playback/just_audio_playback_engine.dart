@@ -20,6 +20,17 @@ class JustAudioPlaybackEngine implements PlaylistPlaybackEngine {
   static const _validationMuted = bool.fromEnvironment(
     'SOUND_VALIDATION_MUTED',
   );
+  // just_audio's default position stream may wait up to 200 ms between
+  // updates. That is smooth enough for a seek bar, but visibly late for an
+  // LRC cue boundary. Keep the native player authoritative while sampling its
+  // interpolated position often enough for time-synchronized presentation.
+  static const _positionUpdatePeriod = Duration(milliseconds: 50);
+  static const _preciseDarwinTimingOptions =
+      just_audio.ProgressiveAudioSourceOptions(
+        darwinAssetOptions: just_audio.DarwinAssetOptions(
+          preferPreciseDurationAndTiming: true,
+        ),
+      );
 
   JustAudioPlaybackEngine({
     just_audio.AudioPlayer? player,
@@ -38,7 +49,12 @@ class JustAudioPlaybackEngine implements PlaylistPlaybackEngine {
         ? _player.setVolume(0)
         : Future<void>.value();
     _subscriptions.addAll([
-      _player.positionStream.listen(_onPosition),
+      _player
+          .createPositionStream(
+            minPeriod: _positionUpdatePeriod,
+            maxPeriod: _positionUpdatePeriod,
+          )
+          .listen(_onPosition),
       _player.playerEventStream.listen(_onPlayerEvent),
       _player.errorStream.listen(_onError),
     ]);
@@ -130,8 +146,13 @@ class JustAudioPlaybackEngine implements PlaylistPlaybackEngine {
     try {
       await _configuration;
       final prepared = <_PreparedAudioSource>[];
-      for (final item in tracks) {
-        prepared.add(await _prepareAudioSource(item));
+      for (var index = 0; index < tracks.length; index++) {
+        prepared.add(
+          await _prepareAudioSource(
+            tracks[index],
+            requirePreciseLocalCache: index == initialIndex,
+          ),
+        );
         if (_disposed || operationSession != _sessionId) return;
       }
       _queueCacheMisses = [for (final item in prepared) item.shouldCache];
@@ -195,7 +216,10 @@ class JustAudioPlaybackEngine implements PlaylistPlaybackEngine {
     return operation;
   }
 
-  Future<_PreparedAudioSource> _prepareAudioSource(Track track) async {
+  Future<_PreparedAudioSource> _prepareAudioSource(
+    Track track, {
+    bool requirePreciseLocalCache = false,
+  }) async {
     final resource = track.mediaUri?.trim();
     if (resource == null || resource.isEmpty) {
       return _PreparedAudioSource(
@@ -213,12 +237,35 @@ class JustAudioPlaybackEngine implements PlaylistPlaybackEngine {
     if (isRemote) {
       final remote = _remoteAccessFor(track, resource);
       final cache = webDavCache;
-      final cachedPath = cache != null && track.source == SourceKind.webDav
+      var cachedPath = cache != null && track.source == SourceKind.webDav
           ? await cache.get(resource)
           : null;
+      if (cachedPath == null &&
+          requirePreciseLocalCache &&
+          cache != null &&
+          track.source == SourceKind.webDav &&
+          remote.allowBadCertificate &&
+          _requiresPreciseDarwinTiming(uri)) {
+        // StreamAudioSource cannot pass ProgressiveAudioSourceOptions to the
+        // Darwin implementation. Download only the initially selected FLAC so
+        // AVPlayer can build an exact timeline from a local AVURLAsset. Other
+        // queue items continue to load lazily and cache in the background.
+        try {
+          cachedPath = await cache.download(
+            resource,
+            headers: remote.headers,
+            allowBadCertificate: true,
+          );
+        } catch (error) {
+          debugPrint(
+            'WebDAV precise FLAC preparation failed; falling back to stream: '
+            '$error',
+          );
+        }
+      }
       if (cachedPath != null) {
         return _PreparedAudioSource(
-          just_audio.AudioSource.file(cachedPath, tag: track.id),
+          _progressiveAudioSource(Uri.file(cachedPath), tag: track.id),
           shouldCache: false,
         );
       }
@@ -236,7 +283,7 @@ class JustAudioPlaybackEngine implements PlaylistPlaybackEngine {
         );
       }
       return _PreparedAudioSource(
-        just_audio.AudioSource.uri(uri, headers: remote.headers, tag: track.id),
+        _progressiveAudioSource(uri, headers: remote.headers, tag: track.id),
         shouldCache: cache != null && track.source == SourceKind.webDav,
       );
     }
@@ -248,13 +295,32 @@ class JustAudioPlaybackEngine implements PlaylistPlaybackEngine {
       );
     }
     return _PreparedAudioSource(
-      just_audio.AudioSource.file(
-        uri?.scheme == 'file' ? uri!.toFilePath() : resource,
+      _progressiveAudioSource(
+        Uri.file(uri?.scheme == 'file' ? uri!.toFilePath() : resource),
         tag: track.id,
       ),
       shouldCache: false,
     );
   }
+
+  just_audio.ProgressiveAudioSource _progressiveAudioSource(
+    Uri uri, {
+    Map<String, String>? headers,
+    required String tag,
+  }) => just_audio.ProgressiveAudioSource(
+    uri,
+    headers: headers,
+    tag: tag,
+    options: _requiresPreciseDarwinTiming(uri)
+        ? _preciseDarwinTimingOptions
+        : null,
+  );
+
+  bool _requiresPreciseDarwinTiming(Uri uri) =>
+      !kIsWeb &&
+      (defaultTargetPlatform == TargetPlatform.macOS ||
+          defaultTargetPlatform == TargetPlatform.iOS) &&
+      uri.path.toLowerCase().endsWith('.flac');
 
   Future<void> _reconcileQueue(
     List<Track> desired, {
@@ -344,6 +410,20 @@ class JustAudioPlaybackEngine implements PlaylistPlaybackEngine {
     final clamped = _positionGate.beginSeek(position, duration: _duration);
     try {
       await _player.seek(clamped);
+      if (_disposed || operationSession != _sessionId || _track == null) {
+        return;
+      }
+      // createPositionStream intentionally stops while paused or stalled.
+      // Confirm and publish the native seek here so the scrubber and lyrics
+      // still move immediately in those states.
+      final confirmed = _positionGate.accept(
+        _player.position,
+        duration: _duration,
+      );
+      if (confirmed != null) {
+        _position = confirmed;
+        _publish(_resolvedPhase);
+      }
     } catch (error) {
       if (operationSession == _sessionId) {
         _positionGate.cancelSeek();
@@ -396,10 +476,11 @@ class JustAudioPlaybackEngine implements PlaylistPlaybackEngine {
     if (changedTrack) {
       _track = _queue[queueIndex];
       _duration = _track!.duration;
-      _position = _positionGate.beginSeek(
-        event.updatePosition,
-        duration: _duration,
-      );
+      // The player event that reports a new currentIndex can still carry the
+      // previous item's final updatePosition. A natural playlist transition
+      // always establishes the next track at zero; the gate then rejects any
+      // late high timestamp from the previous item.
+      _position = _positionGate.beginSeek(Duration.zero, duration: _duration);
     }
     if (event.duration case final duration? when duration > Duration.zero) {
       _duration = duration;

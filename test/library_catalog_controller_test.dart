@@ -101,6 +101,63 @@ void main() {
     expect(result, isEmpty);
   });
 
+  test('normalizes legacy WebDAV raw LRC before presentation', () {
+    final now = DateTime.utc(2026, 7, 14);
+    final albums = mapLibraryAlbums(
+      sources: [
+        LibrarySourceRecord(
+          id: 'webdav',
+          type: LibrarySourceType.webDav,
+          displayName: 'NAS',
+          rootUri: 'https://example.test/music/',
+          status: LibrarySourceStatus.available,
+          createdAt: now,
+          updatedAt: now,
+        ),
+      ],
+      albums: const [
+        LibraryAlbumRecord(
+          id: 'album',
+          sourceId: 'webdav',
+          title: 'Album',
+          sortTitle: 'album',
+          albumArtist: 'Artist',
+        ),
+      ],
+      tracks: [
+        LibraryTrackRecord(
+          id: 'track',
+          sourceId: 'webdav',
+          albumId: 'album',
+          relativePath: 'song.flac',
+          mediaUri: 'https://example.test/music/song.flac',
+          title: 'Song',
+          artistName: 'Artist',
+          albumTitle: 'Album',
+          durationMs: 60000,
+          modifiedAt: now,
+        ),
+      ],
+      lyricsByTrackId: const {
+        'track': [
+          LibraryLyricRecord(
+            trackId: 'track',
+            sequence: 0,
+            timestampMs: 0,
+            text: '[00:01.00]First\n[00:02.00]Second',
+          ),
+        ],
+      },
+    );
+
+    final lyrics = albums.single.tracks.single.lyrics;
+    expect(lyrics.map((line) => line.text), ['First', 'Second']);
+    expect(lyrics.map((line) => line.time), const [
+      Duration(seconds: 1),
+      Duration(seconds: 2),
+    ]);
+  });
+
   test('refresh batches lyrics and caches the flattened track list', () async {
     final now = DateTime.utc(2026, 7, 13);
     final repository = _CountingLibraryRepository(

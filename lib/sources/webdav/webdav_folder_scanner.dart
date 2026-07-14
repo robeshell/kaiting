@@ -7,6 +7,7 @@ import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as p;
 
 import '../../library/library_records.dart';
+import '../../library/scanning/embedded_lyrics_parser.dart';
 import '../../library/library_repository.dart';
 import '../../library/scanning/album_artist_resolver.dart';
 import '../../library/scanning/album_grouping.dart';
@@ -333,14 +334,7 @@ class WebDavFolderScanner {
           );
 
           if (metadata.lyrics.isNotEmpty) {
-            lyrics.add(
-              LibraryLyricRecord(
-                trackId: trackId,
-                sequence: 0,
-                timestampMs: 0,
-                text: metadata.lyrics,
-              ),
-            );
+            lyrics.addAll(parseEmbeddedLyrics(trackId, metadata.lyrics));
           }
         } catch (_) {
           // Skip damaged files.

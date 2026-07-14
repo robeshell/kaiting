@@ -35,6 +35,9 @@ class SoundPlaybackController extends ChangeNotifier {
   PlaybackMode _playbackMode = PlaybackMode.repeatAll;
   Duration? _resumePosition;
   String? _resumeTrackId;
+  Duration? _pendingSeekPosition;
+  String? _pendingSeekTrackId;
+  int _positionDiscontinuityRevision = 0;
   Track? _fallbackTrack;
   int? _completionHandledSession;
   int? _lastStartedSession;
@@ -48,9 +51,15 @@ class SoundPlaybackController extends ChangeNotifier {
   PlaybackSnapshot get snapshot => _snapshot;
   Track? get currentTrack => _snapshot.track;
   Track? get displayTrack => _snapshot.track ?? _fallbackTrack;
-  Duration get displayPosition => _snapshot.track == null
-      ? _resumePosition ?? Duration.zero
-      : _snapshot.position;
+  Duration get displayPosition {
+    final track = _snapshot.track;
+    if (track == null) return _resumePosition ?? Duration.zero;
+    if (_pendingSeekTrackId == track.id) {
+      return _pendingSeekPosition ?? _snapshot.position;
+    }
+    return _snapshot.position;
+  }
+
   Duration get displayDuration => _snapshot.track == null
       ? _fallbackTrack?.duration ?? Duration.zero
       : _snapshot.duration;
@@ -65,6 +74,7 @@ class SoundPlaybackController extends ChangeNotifier {
 
   bool get isPlaying => _snapshot.isPlaying;
   bool get hasActiveTrack => _snapshot.hasTrack;
+  int get positionDiscontinuityRevision => _positionDiscontinuityRevision;
 
   /// Allows setting engines-specific headers, e.g. WebDAV auth tokens.
   void setEngineAuthHeaders(
@@ -82,12 +92,14 @@ class SoundPlaybackController extends ChangeNotifier {
   PlaybackSession get sessionSnapshot => PlaybackSession(
     queue: _queue,
     queueIndex: _queueIndex,
-    positionMs:
-        _resumePosition?.inMilliseconds ?? _snapshot.position.inMilliseconds,
+    positionMs: displayPosition.inMilliseconds,
     playbackMode: _playbackMode,
   );
 
   Future<void> playTrack(Track track, {List<Track>? queue}) async {
+    _positionDiscontinuityRevision++;
+    _pendingSeekPosition = null;
+    _pendingSeekTrackId = null;
     _fallbackTrack = track;
     if (queue != null && queue.isNotEmpty) {
       _queue = List.of(queue);
@@ -145,7 +157,7 @@ class SoundPlaybackController extends ChangeNotifier {
     }
     if (_snapshot.phase == PlaybackPhase.completed) {
       _completionHandledSession = null;
-      await _engine.seek(Duration.zero);
+      await seek(Duration.zero);
       await _engine.play();
       return;
     }
@@ -158,7 +170,32 @@ class SoundPlaybackController extends ChangeNotifier {
 
   Future<void> seek(Duration position) async {
     _clearResumePosition();
-    await _engine.seek(position);
+    final duration = displayDuration;
+    final upperBound = duration > Duration.zero
+        ? duration.inMicroseconds
+        : position.inMicroseconds.clamp(0, 1 << 62);
+    final target = Duration(
+      microseconds: position.inMicroseconds.clamp(0, upperBound),
+    );
+    // Keep the engine snapshot authoritative while exposing a provisional
+    // display position so the scrubber and lyrics react in the same frame.
+    final seekTrackId = _snapshot.track?.id;
+    if (seekTrackId != null) {
+      _positionDiscontinuityRevision++;
+      _pendingSeekPosition = target;
+      _pendingSeekTrackId = seekTrackId;
+      notifyListeners();
+    }
+    await _engine.seek(target);
+    // Every in-tree engine publishes its confirmed seek before completing the
+    // Future. If it could not seek (for example while still loading), remove
+    // the provisional display target instead of leaving progress and lyrics
+    // pinned to a position the engine never reached.
+    if (_pendingSeekTrackId == seekTrackId && _pendingSeekPosition == target) {
+      _pendingSeekPosition = null;
+      _pendingSeekTrackId = null;
+      notifyListeners();
+    }
   }
 
   Future<void> next() async {
@@ -331,6 +368,16 @@ class SoundPlaybackController extends ChangeNotifier {
       if (index < 0) return;
       _queueIndex = index;
       _fallbackTrack = nextTrack;
+    }
+    final pendingTarget = _pendingSeekPosition;
+    if (_pendingSeekTrackId != null &&
+        (_pendingSeekTrackId != nextTrack?.id ||
+            next.phase == PlaybackPhase.error ||
+            (pendingTarget != null &&
+                (next.position - pendingTarget).abs() <=
+                    const Duration(milliseconds: 500)))) {
+      _pendingSeekPosition = null;
+      _pendingSeekTrackId = null;
     }
     _snapshot = next;
     if (nextTrack != null &&

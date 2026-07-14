@@ -284,6 +284,51 @@ void main() {
 
       expect(controller.snapshot.sessionId, sessionBefore);
     });
+
+    test('seek exposes an explicit position discontinuity revision', () async {
+      final engine = ManualPlaybackEngine();
+      final controller = SoundPlaybackController(engine: engine);
+      addTearDown(controller.dispose);
+      addTearDown(engine.dispose);
+      await controller.playTrack(_firstTrack);
+      final revisionBefore = controller.positionDiscontinuityRevision;
+
+      await controller.seek(const Duration(seconds: 15));
+
+      expect(controller.positionDiscontinuityRevision, revisionBefore + 1);
+    });
+
+    test(
+      'display position follows a seek before native confirmation',
+      () async {
+        final engine = DelayedSeekPlaybackEngine();
+        final controller = SoundPlaybackController(engine: engine);
+        addTearDown(controller.dispose);
+        addTearDown(engine.dispose);
+        await controller.playTrack(_firstTrack);
+
+        final seek = controller.seek(const Duration(seconds: 42));
+
+        expect(controller.displayPosition, const Duration(seconds: 42));
+        expect(controller.snapshot.position, Duration.zero);
+        engine.confirmSeek();
+        await seek;
+        expect(controller.snapshot.position, const Duration(seconds: 42));
+      },
+    );
+
+    test('unconfirmed seek does not leave a false display position', () async {
+      final engine = NoopSeekPlaybackEngine();
+      final controller = SoundPlaybackController(engine: engine);
+      addTearDown(controller.dispose);
+      addTearDown(engine.dispose);
+      await controller.playTrack(_firstTrack);
+
+      await controller.seek(const Duration(seconds: 42));
+
+      expect(controller.displayPosition, Duration.zero);
+      expect(controller.snapshot.position, Duration.zero);
+    });
   });
 
   // ---------------------------------------------------------------------------
@@ -1278,6 +1323,27 @@ class ManualPlaybackEngine implements PlaybackEngine {
   void dispose() {
     _controller.close();
   }
+}
+
+class DelayedSeekPlaybackEngine extends ManualPlaybackEngine {
+  final _seekCompleter = Completer<void>();
+  Duration? _target;
+
+  @override
+  Future<void> seek(Duration position) {
+    _target = position;
+    return _seekCompleter.future;
+  }
+
+  void confirmSeek() {
+    emitPosition(_target!);
+    _seekCompleter.complete();
+  }
+}
+
+class NoopSeekPlaybackEngine extends ManualPlaybackEngine {
+  @override
+  Future<void> seek(Duration position) async {}
 }
 
 class DelayedLoadPlaybackEngine implements PlaybackEngine {

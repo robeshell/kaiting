@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import '../../domain/library_models.dart';
 import '../../library/library_records.dart';
 import '../../library/library_repository.dart';
+import '../../library/scanning/embedded_lyrics_parser.dart';
 
 enum LibraryCatalogStatus { loading, ready, error }
 
@@ -117,13 +118,10 @@ List<Album> mapLibraryAlbums({
                 source: _sourceKind(sourcesById[track.sourceId]?.type),
                 trackNumber: track.trackNumber,
                 discNumber: track.discNumber,
-                lyrics: [
-                  for (final lyric in lyricsByTrackId[track.id] ?? const [])
-                    LyricLine(
-                      Duration(milliseconds: lyric.timestampMs),
-                      lyric.text,
-                    ),
-                ],
+                lyrics: _mapLyrics(
+                  track.id,
+                  lyricsByTrackId[track.id] ?? const [],
+                ),
                 mediaUri: track.mediaUri,
                 httpHeaders: _resolveWebDavHeaders(
                   track.mediaUri,
@@ -137,6 +135,17 @@ List<Album> mapLibraryAlbums({
         ),
   ];
 }
+
+List<LyricLine> _mapLyrics(String trackId, List<LibraryLyricRecord> records) =>
+    [
+      for (final lyric in normalizePersistedLyrics(trackId, records))
+        LyricLine(
+          lyric.timestampMs == unsynchronizedLyricTimestampMs
+              ? null
+              : Duration(milliseconds: lyric.timestampMs),
+          lyric.text,
+        ),
+    ];
 
 Map<String, String> _resolveWebDavHeaders(
   String mediaUri,
