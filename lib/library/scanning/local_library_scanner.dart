@@ -8,6 +8,7 @@ import '../library_repository.dart';
 import 'album_artist_resolver.dart';
 import 'album_grouping.dart';
 import 'artwork_store.dart';
+import 'audio_metadata_fallback.dart';
 import 'audio_metadata_extractor.dart';
 import 'embedded_lyrics_parser.dart';
 import 'local_media_catalog.dart';
@@ -138,7 +139,18 @@ class LocalLibraryScanner {
         PreparedLocalAudioFile? prepared;
         try {
           prepared = await catalog.prepareForMetadata(audioFile);
-          final metadata = await metadataExtractor.extract(prepared.file);
+          ExtractedAudioMetadata metadata;
+          try {
+            metadata = await metadataExtractor.extract(prepared.file);
+          } catch (_) {
+            final fallback = await readFilenameMetadataFallback(
+              prepared.file,
+              audioFile.relativePath,
+            );
+            if (fallback == null) rethrow;
+            metadata = fallback;
+            warnings.add('${audioFile.relativePath}: 元数据不可读，已按文件名导入');
+          }
           token.throwIfCancelled();
           final title = _valueOrFallback(
             metadata.title,

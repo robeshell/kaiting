@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../../core/sound_theme.dart';
+import '../../library/scanning/audio_format_registry.dart';
 import '../../sources/webdav/webdav_credentials.dart';
 import '../../sources/webdav/webdav_discovery.dart';
 import '../widgets/sound_components.dart';
@@ -98,14 +99,7 @@ class _WebDavFolderPickerState extends State<WebDavFolderPicker> {
   }
 
   bool _isAudioFile(String name) {
-    final lower = name.toLowerCase();
-    return lower.endsWith('.mp3') ||
-        lower.endsWith('.flac') ||
-        lower.endsWith('.m4a') ||
-        lower.endsWith('.ogg') ||
-        lower.endsWith('.wav') ||
-        lower.endsWith('.aac') ||
-        lower.endsWith('.opus');
+    return isSupportedAudioPath(name);
   }
 
   void _navigateTo(String path) {

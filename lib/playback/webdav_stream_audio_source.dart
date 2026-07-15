@@ -5,6 +5,8 @@ import 'dart:io';
 
 import 'package:just_audio/just_audio.dart';
 
+import '../library/scanning/audio_format_registry.dart';
+
 /// A range-capable WebDAV source used when a connection explicitly permits an
 /// untrusted certificate. Keeping the [HttpClient] here avoids weakening TLS
 /// checks for just_audio's process-wide proxy or unrelated network traffic.
@@ -68,7 +70,10 @@ class WebDavStreamAudioSource extends StreamAudioSource {
         sourceLength: rangedRequest ? sourceLength : null,
         contentLength: contentLength,
         offset: rangedRequest ? start ?? 0 : null,
-        contentType: response.headers.contentType?.mimeType ?? 'audio/mpeg',
+        contentType:
+            response.headers.contentType?.mimeType ??
+            audioContentTypeForPath(uri.path) ??
+            'application/octet-stream',
         stream: _closingStream(response, client),
       );
     } catch (_) {

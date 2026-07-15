@@ -108,6 +108,7 @@ behavior.
 - [Design foundation](docs/DESIGN_FOUNDATION.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [Playback validation plan](docs/PLAYBACK_VALIDATION.md)
+- [Audio format matrix](docs/AUDIO_FORMAT_MATRIX.md)
 - [Repeatable WebDAV fixture](docs/WEBDAV_FIXTURE.md)
 - [Desktop library reference](docs/screenshots/library-desktop.png)
 - [Desktop now playing reference](docs/screenshots/now-playing-desktop.png)

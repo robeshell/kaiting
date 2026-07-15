@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:path/path.dart' as path;
 
+import 'audio_format_registry.dart';
 import 'local_media_catalog.dart';
 
 class FileSystemLocalMediaCatalog implements LocalMediaCatalog {
@@ -28,7 +29,7 @@ class FileSystemLocalMediaCatalog implements LocalMediaCatalog {
           relativePath: relativePath,
           mediaUri: entity.uri.toString(),
           modifiedAt: stat.modified.toUtc(),
-          contentType: _contentType(entity.path),
+          contentType: audioContentTypeForPath(entity.path),
           fileSize: stat.size,
         ),
       );
@@ -55,11 +56,4 @@ class FileSystemLocalMediaCatalog implements LocalMediaCatalog {
       File(uri.toFilePath(windows: Platform.isWindows)),
     );
   }
-}
-
-String? _contentType(String filePath) {
-  final lower = filePath.toLowerCase();
-  if (lower.endsWith('.mp3')) return 'audio/mpeg';
-  if (lower.endsWith('.flac')) return 'audio/flac';
-  return null;
 }

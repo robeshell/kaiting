@@ -280,22 +280,31 @@ class WebDavDiscoveryService {
       final href = _firstText(response, 'href');
       if (href == null || href.isEmpty) continue;
 
-      final successfulPropstat = _elementsNamed(response, 'propstat')
+      final successfulPropstats = _elementsNamed(response, 'propstat')
           .where(
             (element) =>
                 _firstText(element, 'status')?.contains(' 200 ') == true,
           )
-          .firstOrNull;
-      final properties = successfulPropstat ?? response;
-      final displayName = _firstText(properties, 'displayname');
-      final isCollection = _elementsNamed(properties, 'collection').isNotEmpty;
+          .toList(growable: false);
+      // A valid WebDAV response may split requested properties across more
+      // than one successful propstat. Looking only at the first one can drop
+      // getcontentlength/getlastmodified and prevents incremental scans.
+      final propertyScopes = successfulPropstats.isEmpty
+          ? <XmlNode>[response]
+          : <XmlNode>[...successfulPropstats];
+      final displayName = _firstTextFrom(propertyScopes, 'displayname');
+      final isCollection = propertyScopes.any(
+        (scope) => _elementsNamed(scope, 'collection').isNotEmpty,
+      );
       final contentLength = int.tryParse(
-        _firstText(properties, 'getcontentlength') ?? '',
+        _firstTextFrom(propertyScopes, 'getcontentlength') ?? '',
       );
       final modifiedAt = _parseHttpDate(
-        _firstText(properties, 'getlastmodified'),
+        _firstTextFrom(propertyScopes, 'getlastmodified'),
       );
-      final etag = _normalizedOptionalText(_firstText(properties, 'getetag'));
+      final etag = _normalizedOptionalText(
+        _firstTextFrom(propertyScopes, 'getetag'),
+      );
 
       entries.add(
         WebDavFileEntry(
@@ -324,6 +333,14 @@ class WebDavDiscoveryService {
 
   String? _firstText(XmlNode node, String localName) {
     return _elementsNamed(node, localName).firstOrNull?.innerText.trim();
+  }
+
+  String? _firstTextFrom(Iterable<XmlNode> nodes, String localName) {
+    for (final node in nodes) {
+      final value = _firstText(node, localName);
+      if (value != null && value.isNotEmpty) return value;
+    }
+    return null;
   }
 
   DateTime? _parseHttpDate(String? value) {

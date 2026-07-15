@@ -484,6 +484,48 @@ void main() {
       expect(result.files.single.etag, '"fixture-v1"');
     });
 
+    test('merges properties split across successful propstat blocks', () async {
+      final discovery = WebDavDiscoveryService(
+        clientFactory: () => MockClient((request) async {
+          if (request.method == 'OPTIONS') {
+            return http.Response('', 200, headers: {'DAV': '1'});
+          }
+          return http.Response('''<?xml version="1.0"?>
+<d:multistatus xmlns:d="DAV:">
+  <d:response>
+    <d:href>/Music/Split.flac</d:href>
+    <d:propstat>
+      <d:prop>
+        <d:displayname>Split.flac</d:displayname>
+        <d:resourcetype/>
+      </d:prop>
+      <d:status>HTTP/1.1 200 OK</d:status>
+    </d:propstat>
+    <d:propstat>
+      <d:prop>
+        <d:getcontentlength>54321</d:getcontentlength>
+        <d:getlastmodified>Wed, 15 Jul 2026 01:00:00 GMT</d:getlastmodified>
+        <d:getetag>"split-v1"</d:getetag>
+      </d:prop>
+      <d:status>HTTP/1.1 200 OK</d:status>
+    </d:propstat>
+  </d:response>
+</d:multistatus>''', 207);
+        }),
+      );
+
+      final result = await discovery.probe(
+        'https://example.test/dav/',
+        credentials: const WebDavCredentials(username: '', password: ''),
+      );
+
+      expect(result.files, hasLength(1));
+      expect(result.files.single.displayName, 'Split.flac');
+      expect(result.files.single.contentLength, 54321);
+      expect(result.files.single.modifiedAt, DateTime.utc(2026, 7, 15, 1));
+      expect(result.files.single.etag, '"split-v1"');
+    });
+
     test(
       'maps an OPTIONS authentication response to authenticationFailed',
       () async {

@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'audio_format_registry.dart';
+
 class LocalAudioFile {
   const LocalAudioFile({
     required this.relativePath,
@@ -37,6 +39,5 @@ abstract interface class LocalMediaCatalog {
 }
 
 bool isSupportedLocalAudioPath(String path) {
-  final lower = path.toLowerCase();
-  return lower.endsWith('.mp3') || lower.endsWith('.flac');
+  return isSupportedAudioPath(path);
 }

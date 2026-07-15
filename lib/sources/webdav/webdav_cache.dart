@@ -6,6 +6,8 @@ import 'dart:math';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 
+import '../../library/scanning/audio_format_registry.dart';
+
 class WebDavCache {
   WebDavCache({
     required this.cacheDir,
@@ -229,21 +231,7 @@ class WebDavCache {
   }
 
   static String _extensionForUrl(String url) {
-    final withoutQuery = url.split('?').first;
-    final dotIndex = withoutQuery.lastIndexOf('.');
-    if (dotIndex < 0) return '';
-    final ext = withoutQuery.substring(dotIndex).toLowerCase();
-    if (ext == '.mp3' ||
-        ext == '.flac' ||
-        ext == '.m4a' ||
-        ext == '.ogg' ||
-        ext == '.opus' ||
-        ext == '.wav' ||
-        ext == '.aac' ||
-        ext == '.wma') {
-      return ext;
-    }
-    return '';
+    return audioExtensionForPath(url);
   }
 
   // --- manifest ---

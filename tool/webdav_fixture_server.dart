@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:sound_player/library/scanning/audio_format_registry.dart';
+
 Future<void> main(List<String> arguments) async {
   final options = FixtureServerOptions.parse(arguments);
   if (options.showHelp) {
@@ -444,15 +446,10 @@ class _TransferResult {
 }
 
 ContentType _contentType(String path) {
-  final extension = path.split('.').last.toLowerCase();
-  return switch (extension) {
-    'mp3' => ContentType('audio', 'mpeg'),
-    'flac' => ContentType('audio', 'flac'),
-    'm4a' => ContentType('audio', 'mp4'),
-    'ogg' || 'opus' => ContentType('audio', 'ogg'),
-    'wav' => ContentType('audio', 'wav'),
-    _ => ContentType.binary,
-  };
+  final value = audioContentTypeForPath(path);
+  if (value == null) return ContentType.binary;
+  final parts = value.split('/');
+  return ContentType(parts.first, parts.last);
 }
 
 String _xmlEscape(String value) =>

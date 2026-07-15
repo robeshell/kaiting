@@ -417,6 +417,54 @@ void main() {
     },
   );
 
+  test('keeps valid raw AAC discoverable by filename', () async {
+    final music = Directory('${root.path}/dav/music');
+    await File(
+      '${music.path}/raw-track.aac',
+    ).writeAsBytes(<int>[0xff, 0xf1, 0x50, 0x80, 0x01, 0x7f, 0xfc]);
+    final baseUrl = 'http://127.0.0.1:${server.port}/dav/';
+    final connectionId = WebDavConnectionService.stableWebDavConnectionId(
+      baseUrl,
+    );
+    final now = DateTime.utc(2026, 7, 15);
+    await repository.upsertSource(
+      LibrarySourceRecord(
+        id: connectionId,
+        type: LibrarySourceType.webDav,
+        displayName: 'Fixture',
+        rootUri: baseUrl,
+        status: LibrarySourceStatus.available,
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+
+    final result =
+        await WebDavFolderScanner(
+          repository: repository,
+          metadataExtractor: const _AlwaysFailingMetadataExtractor(),
+        ).scan(
+          connectionId: connectionId,
+          folderUrls: const <String>['/dav/music/'],
+          baseUrl: baseUrl,
+          credentials: const WebDavCredentials(
+            username: 'sound',
+            password: 'sound-test',
+          ),
+        );
+
+    final folderId = WebDavConnectionService.stableWebDavFolderSourceId(
+      connectionId,
+      '/dav/music/',
+    );
+    final track = (await repository.getTracks(sourceId: folderId)).single;
+    expect(result.indexedTracks, 1);
+    expect(result.skippedFiles, 0);
+    expect(track.title, 'raw-track');
+    expect(track.artistName, '未知艺人');
+    expect(track.contentType, 'audio/aac');
+  });
+
   test(
     'incremental rescans skip unchanged metadata and preserve moved track IDs',
     () async {
@@ -746,6 +794,15 @@ class _FailingDiscovery extends WebDavDiscoveryService {
       WebDavConnectionError.unreachable,
       message: 'Fixture unavailable',
     );
+  }
+}
+
+class _AlwaysFailingMetadataExtractor implements AudioMetadataExtractor {
+  const _AlwaysFailingMetadataExtractor();
+
+  @override
+  Future<ExtractedAudioMetadata> extract(File file) {
+    throw const FormatException('No metadata container.');
   }
 }
 

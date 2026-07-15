@@ -295,11 +295,23 @@ class MainActivity : AudioServiceActivity() {
 
     private fun isSupportedAudioFile(name: String, mimeType: String?): Boolean {
         val lowerName = name.lowercase()
-        return lowerName.endsWith(".mp3") ||
-            lowerName.endsWith(".flac") ||
-            mimeType == "audio/mpeg" ||
-            mimeType == "audio/flac"
+        val normalizedMimeType = mimeType?.substringBefore(';')?.trim()?.lowercase()
+        return supportedAudioExtensions.any(lowerName::endsWith) ||
+            normalizedMimeType in supportedAudioMimeTypes
     }
+
+    private val supportedAudioExtensions = setOf(
+        ".mp3", ".flac", ".m4a", ".aac", ".wav", ".ogg", ".opus",
+    )
+
+    private val supportedAudioMimeTypes = setOf(
+        "audio/mpeg", "audio/mp3",
+        "audio/flac", "audio/x-flac",
+        "audio/mp4", "audio/x-m4a", "audio/m4a",
+        "audio/aac", "audio/x-aac",
+        "audio/wav", "audio/x-wav", "audio/vnd.wave",
+        "audio/ogg", "application/ogg", "audio/opus",
+    )
 
     private fun android.database.Cursor.longOrNull(index: Int): Long? {
         return if (index < 0 || isNull(index)) null else getLong(index)

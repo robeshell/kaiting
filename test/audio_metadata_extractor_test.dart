@@ -85,6 +85,29 @@ void main() {
     expect(metadata.albumArtist, 'Fixture Album Artist');
     expect(metadata.isCompilation, isTrue);
   });
+
+  test('reads long MP3 duration from an Info frame-count header', () async {
+    final directory = await Directory.systemTemp.createTemp('sound-info-mp3-');
+    addTearDown(() => directory.delete(recursive: true));
+    final file = File('${directory.path}/long-vbr.mp3');
+    await file.writeAsBytes(<int>[
+      // Empty ID3v2 tag.
+      0x49, 0x44, 0x33, 0x04, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
+      // MPEG-1 Layer III, 128 kbps, 44.1 kHz.
+      0xff, 0xfb, 0x90, 0x00,
+      ...List<int>.filled(32, 0),
+      ...ascii.encode('Info'),
+      // Flags: frame count is present.
+      0x00, 0x00, 0x00, 0x01,
+      // 1000 frames.
+      0x00, 0x00, 0x03, 0xe8,
+    ]);
+
+    final duration = readMp3SeekHeaderDuration(file);
+
+    expect(duration, isNotNull);
+    expect(duration!.inMilliseconds, 26122);
+  });
 }
 
 Uint8List _withId3TextFrame(Uint8List bytes, String frameId, String value) {

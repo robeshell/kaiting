@@ -209,6 +209,43 @@ void main() {
     },
   );
 
+  test('indexes valid raw AAC by filename when tags are unavailable', () async {
+    final directory = await Directory.systemTemp.createTemp('sound-aac-scan-');
+    addTearDown(() => directory.delete(recursive: true));
+    final music = Directory(path.join(directory.path, 'Music'));
+    await music.create(recursive: true);
+    await File(
+      path.join(music.path, 'Raw Track.aac'),
+    ).writeAsBytes(<int>[0xff, 0xf1, 0x50, 0x80, 0x01, 0x7f, 0xfc]);
+
+    final repository = DriftLibraryRepository(
+      LibraryDatabase(NativeDatabase.memory()),
+    );
+    addTearDown(repository.close);
+    final now = DateTime.utc(2026, 7, 15);
+    final source = _source(music.uri.toString(), now);
+    await repository.upsertSource(source);
+
+    final report = await LocalLibraryScanner(
+      repository: repository,
+      catalog: FileSystemLocalMediaCatalog(),
+      metadataExtractor: const _FakeMetadataExtractor(
+        <String, ExtractedAudioMetadata>{},
+      ),
+      clock: () => now,
+    ).scan(source);
+
+    final track = (await repository.getTracks(sourceId: source.id)).single;
+    expect(report.discoveredFiles, 1);
+    expect(report.indexedTracks, 1);
+    expect(report.skippedFiles, 0);
+    expect(report.warnings.single, contains('已按文件名导入'));
+    expect(track.title, 'Raw Track');
+    expect(track.artistName, '未知艺人');
+    expect(track.albumTitle, '未知专辑');
+    expect(track.contentType, 'audio/aac');
+  });
+
   test('cancelling a scan keeps the previous source snapshot', () async {
     final directory = await Directory.systemTemp.createTemp(
       'sound-cancelled-scan-',

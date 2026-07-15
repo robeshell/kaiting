@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:math';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
@@ -13,6 +12,8 @@ import '../../library/library_repository.dart';
 import '../../library/scanning/album_artist_resolver.dart';
 import '../../library/scanning/album_grouping.dart';
 import '../../library/scanning/artwork_store.dart';
+import '../../library/scanning/audio_format_registry.dart';
+import '../../library/scanning/audio_metadata_fallback.dart';
 import '../../library/scanning/audio_metadata_extractor.dart';
 import 'webdav_connection_service.dart';
 import 'webdav_credentials.dart';
@@ -636,13 +637,11 @@ class WebDavFolderScanner {
         artworkMimeType: metadata.artwork?.mimeType,
       );
     } catch (_) {
-      // Some valid MP3 files have no Xing/VBR index or keep useful tags at the
-      // end of the file. A header-only metadata read can fail for those even
-      // though the native player can stream them. Keep a conservative MP3
-      // fallback so they remain discoverable by filename.
-      if (uri.path.toLowerCase().endsWith('.mp3') &&
-          downloadedBytes != null &&
-          _looksLikeMp3(downloadedBytes)) {
+      // A header-only metadata read can fail for a valid MP3 without a VBR
+      // index, or for raw AAC that has no supported tag container. Only use a
+      // filename fallback after validating the audio header.
+      if (downloadedBytes != null &&
+          canUseFilenameMetadataFallback(uri.path, downloadedBytes)) {
         return const _RemoteMetadata(
           title: '',
           artist: '',
@@ -663,33 +662,8 @@ class WebDavFolderScanner {
     }
   }
 
-  bool _looksLikeMp3(Uint8List bytes) {
-    if (bytes.length >= 3 &&
-        bytes[0] == 0x49 &&
-        bytes[1] == 0x44 &&
-        bytes[2] == 0x33) {
-      return true;
-    }
-    final searchLength = min(bytes.length - 1, 4096);
-    for (var i = 0; i < searchLength; i++) {
-      if (bytes[i] != 0xff || (bytes[i + 1] & 0xe0) != 0xe0) continue;
-      final version = (bytes[i + 1] >> 3) & 0x03;
-      final layer = (bytes[i + 1] >> 1) & 0x03;
-      if (version != 0x01 && layer != 0) return true;
-    }
-    return false;
-  }
-
   String? _contentTypeFor(String url) {
-    final lower = url.toLowerCase();
-    if (lower.endsWith('.mp3')) return 'audio/mpeg';
-    if (lower.endsWith('.flac')) return 'audio/flac';
-    if (lower.endsWith('.m4a')) return 'audio/mp4';
-    if (lower.endsWith('.ogg')) return 'audio/ogg';
-    if (lower.endsWith('.opus')) return 'audio/ogg';
-    if (lower.endsWith('.wav')) return 'audio/wav';
-    if (lower.endsWith('.aac')) return 'audio/aac';
-    return 'application/octet-stream';
+    return audioContentTypeForPath(url) ?? 'application/octet-stream';
   }
 
   Future<String?> _storeArtwork(
@@ -711,14 +685,7 @@ class WebDavFolderScanner {
   }
 
   bool _isAudioFile(String name) {
-    final lower = name.toLowerCase();
-    return lower.endsWith('.mp3') ||
-        lower.endsWith('.flac') ||
-        lower.endsWith('.m4a') ||
-        lower.endsWith('.ogg') ||
-        lower.endsWith('.wav') ||
-        lower.endsWith('.aac') ||
-        lower.endsWith('.opus');
+    return isSupportedAudioPath(name);
   }
 
   String _displayNameForFolder(String folderUrl, String baseUrl) {

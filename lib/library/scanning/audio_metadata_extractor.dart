@@ -65,13 +65,14 @@ ExtractedAudioMetadata _extractMetadata(String path) {
   final fallbackPicture = metadata.pictures.firstOrNull;
   final selectedPicture = picture ?? fallbackPicture;
   final year = metadata.year?.year;
+  final duration = readMp3SeekHeaderDuration(file) ?? metadata.duration;
   return ExtractedAudioMetadata(
     title: metadata.title,
     artist: identity.trackArtist ?? metadata.artist,
     album: metadata.album,
     albumArtist: identity.albumArtist,
     isCompilation: identity.isCompilation,
-    duration: metadata.duration ?? Duration.zero,
+    duration: duration ?? Duration.zero,
     trackNumber: metadata.trackNumber ?? 0,
     discNumber: metadata.discNumber ?? 0,
     year: year == null || year <= 0 ? null : year,
@@ -233,26 +234,143 @@ int _syncSafeUint32(Uint8List bytes, int offset) =>
     (bytes[offset + 3] & 0x7f);
 
 String? _readLengthPrefixedTag(Uint8List bytes, List<String> names) {
-  for (var offset = 4; offset < bytes.length; offset++) {
-    final length =
-        bytes[offset - 4] |
-        (bytes[offset - 3] << 8) |
-        (bytes[offset - 2] << 16) |
-        (bytes[offset - 1] << 24);
-    if (length <= 0 || length > 64 * 1024 || offset + length > bytes.length) {
-      continue;
+  for (final name in names) {
+    final pattern = ascii.encode('$name=');
+    for (var offset = 4; offset + pattern.length <= bytes.length; offset++) {
+      if (!_matchesAsciiCaseInsensitive(bytes, offset, pattern)) continue;
+      final length =
+          bytes[offset - 4] |
+          (bytes[offset - 3] << 8) |
+          (bytes[offset - 2] << 16) |
+          (bytes[offset - 1] << 24);
+      if (length < pattern.length ||
+          length > 64 * 1024 ||
+          offset + length > bytes.length) {
+        continue;
+      }
+      return _clean(
+        utf8.decode(
+          bytes.sublist(offset + pattern.length, offset + length),
+          allowMalformed: true,
+        ),
+      );
     }
-    final text = utf8.decode(
-      bytes.sublist(offset, offset + length),
-      allowMalformed: true,
-    );
-    final separator = text.indexOf('=');
-    if (separator <= 0) continue;
-    final key = text.substring(0, separator).trim().toUpperCase();
-    if (!names.contains(key)) continue;
-    return _clean(text.substring(separator + 1));
   }
   return null;
+}
+
+/// Reads the frame count from a bounded MP3 Xing/Info header.
+///
+/// Some VBR encoders write `Info` rather than `Xing`. The generic metadata
+/// reader currently falls back to first-frame bitrate in that case, which can
+/// be badly wrong for long files. This parser never scans the audio payload.
+Duration? readMp3SeekHeaderDuration(File file) {
+  if (!file.path.toLowerCase().endsWith('.mp3')) return null;
+  final reader = file.openSync();
+  try {
+    if (reader.lengthSync() < 16) return null;
+    reader.setPositionSync(0);
+    final prefix = reader.readSync(10);
+    var audioOffset = 0;
+    if (prefix.length == 10 &&
+        prefix[0] == 0x49 &&
+        prefix[1] == 0x44 &&
+        prefix[2] == 0x33) {
+      audioOffset = 10 + _syncSafeUint32(prefix, 6);
+    }
+    if (audioOffset >= reader.lengthSync()) return null;
+    reader.setPositionSync(audioOffset);
+    final available = reader.lengthSync() - audioOffset;
+    final probeLength = available < 8192 ? available : 8192;
+    final bytes = reader.readSync(probeLength);
+    final frameOffset = _findMp3FrameOffset(bytes);
+    if (frameOffset == null) return null;
+    final header = bytes.sublist(frameOffset, frameOffset + 4);
+    final versionBits = (header[1] >> 3) & 0x03;
+    final layerBits = (header[1] >> 1) & 0x03;
+    final sampleRateIndex = (header[2] >> 2) & 0x03;
+    final sampleRate = _mp3SampleRate(versionBits, sampleRateIndex);
+    final samplesPerFrame = _mp3SamplesPerFrame(versionBits, layerBits);
+    if (sampleRate == null || samplesPerFrame == null) return null;
+
+    for (final marker in const <String>['Xing', 'Info']) {
+      final markerOffset = _indexOfAscii(
+        bytes,
+        marker,
+        frameOffset + 4,
+        bytes.length,
+      );
+      if (markerOffset < 0 || markerOffset + 12 > bytes.length) continue;
+      final flags = _bigEndianUint32(bytes, markerOffset + 4);
+      if (flags & 0x01 == 0) continue;
+      final frameCount = _bigEndianUint32(bytes, markerOffset + 8);
+      if (frameCount <= 0) continue;
+      return Duration(
+        microseconds: (frameCount * samplesPerFrame * 1000000) ~/ sampleRate,
+      );
+    }
+    return null;
+  } finally {
+    reader.closeSync();
+  }
+}
+
+int? _findMp3FrameOffset(Uint8List bytes) {
+  for (var index = 0; index + 4 <= bytes.length; index++) {
+    if (bytes[index] != 0xff || (bytes[index + 1] & 0xe0) != 0xe0) continue;
+    final versionBits = (bytes[index + 1] >> 3) & 0x03;
+    final layerBits = (bytes[index + 1] >> 1) & 0x03;
+    final bitrateIndex = (bytes[index + 2] >> 4) & 0x0f;
+    final sampleRateIndex = (bytes[index + 2] >> 2) & 0x03;
+    if (versionBits == 0x01 ||
+        layerBits == 0 ||
+        bitrateIndex == 0 ||
+        bitrateIndex == 0x0f ||
+        sampleRateIndex == 0x03) {
+      continue;
+    }
+    return index;
+  }
+  return null;
+}
+
+int? _mp3SampleRate(int versionBits, int index) {
+  const rates = <int, List<int>>{
+    0x03: <int>[44100, 48000, 32000],
+    0x02: <int>[22050, 24000, 16000],
+    0x00: <int>[11025, 12000, 8000],
+  };
+  final values = rates[versionBits];
+  return values == null || index >= values.length ? null : values[index];
+}
+
+int? _mp3SamplesPerFrame(int versionBits, int layerBits) {
+  return switch (layerBits) {
+    0x03 => 384,
+    0x02 => 1152,
+    0x01 => versionBits == 0x03 ? 1152 : 576,
+    _ => null,
+  };
+}
+
+bool _matchesAsciiCaseInsensitive(
+  Uint8List bytes,
+  int offset,
+  List<int> pattern,
+) {
+  if (offset < 0 || offset + pattern.length > bytes.length) return false;
+  for (var index = 0; index < pattern.length; index++) {
+    final actual = bytes[offset + index];
+    final expected = pattern[index];
+    final normalizedActual = actual >= 0x61 && actual <= 0x7a
+        ? actual - 0x20
+        : actual;
+    final normalizedExpected = expected >= 0x61 && expected <= 0x7a
+        ? expected - 0x20
+        : expected;
+    if (normalizedActual != normalizedExpected) return false;
+  }
+  return true;
 }
 
 String? _readMp4StringTag(Uint8List bytes, String atom) {
