@@ -145,6 +145,18 @@ class SoundPlaybackController extends ChangeNotifier {
   }
 
   Future<void> toggle() async {
+    if (_snapshot.isPlaying) {
+      await pause();
+    } else {
+      await resume();
+    }
+  }
+
+  /// Explicitly resumes the current media item.
+  ///
+  /// System media controls send separate play and pause commands, so they
+  /// should not depend on a toggle that can race a delayed native state update.
+  Future<void> resume() async {
     if (_snapshot.track == null) {
       if (_queue.isNotEmpty) await playTrack(_queue[_queueIndex]);
       return;
@@ -160,14 +172,14 @@ class SoundPlaybackController extends ChangeNotifier {
       await _engine.play();
       return;
     }
-    if (_snapshot.isPlaying) {
-      await _engine.pause();
-    } else {
-      await _engine.play();
-    }
+    if (_snapshot.isPlaying) return;
+    await _engine.play();
   }
 
-  Future<void> pause() => _engine.pause();
+  Future<void> pause() async {
+    if (_snapshot.track == null || !_snapshot.isPlaying) return;
+    await _engine.pause();
+  }
 
   /// Reloads the failed item without losing the active queue or listen point.
   ///

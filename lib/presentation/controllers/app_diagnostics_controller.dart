@@ -84,8 +84,8 @@ class AppDiagnosticsController extends ChangeNotifier {
   }
 
   String exportText() {
-    if (_events.isEmpty) return 'Sound 诊断记录\n没有已记录的问题。';
-    final buffer = StringBuffer('Sound 诊断记录\n');
+    if (_events.isEmpty) return 'Reverie 诊断记录\n没有已记录的问题。';
+    final buffer = StringBuffer('Reverie 诊断记录\n');
     for (final event in _events.reversed) {
       buffer
         ..writeln(

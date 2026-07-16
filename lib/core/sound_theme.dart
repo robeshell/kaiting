@@ -7,6 +7,8 @@ bool get soundUsesDesktopPlatform =>
     defaultTargetPlatform == TargetPlatform.linux;
 
 const soundMacOSTitlebarInset = 38.0;
+const soundChromeSurfaceTransparency = 0.20;
+const soundChromeSurfaceOpacity = 1 - soundChromeSurfaceTransparency;
 
 extension SoundThemeContext on BuildContext {
   ThemeData get soundTheme => Theme.of(this);
@@ -22,9 +24,37 @@ extension SoundThemeContext on BuildContext {
 
   Color get soundMutedText => soundGlass.mutedText;
 
+  Color get soundChromeSurface =>
+      soundGlass.strongSurface.withValues(alpha: soundChromeSurfaceOpacity);
+
   Color get soundDivider => soundColors.outlineVariant;
 
   Color soundTint(double alpha) => soundPrimaryText.withValues(alpha: alpha);
+
+  ButtonStyle get soundDestructiveButtonStyle {
+    final error = soundColors.error;
+    return ButtonStyle(
+      foregroundColor: WidgetStateProperty.resolveWith<Color>((states) {
+        if (states.contains(WidgetState.disabled)) {
+          return error.withValues(alpha: 0.38);
+        }
+        return error;
+      }),
+      backgroundColor: WidgetStateProperty.resolveWith<Color>((states) {
+        if (states.contains(WidgetState.disabled)) {
+          return error.withValues(alpha: 0.025);
+        }
+        if (states.contains(WidgetState.pressed)) {
+          return error.withValues(alpha: 0.16);
+        }
+        if (states.contains(WidgetState.hovered) ||
+            states.contains(WidgetState.focused)) {
+          return error.withValues(alpha: 0.12);
+        }
+        return error.withValues(alpha: 0.08);
+      }),
+    );
+  }
 
   double get soundTitlebarInset => defaultTargetPlatform == TargetPlatform.macOS
       ? soundMacOSTitlebarInset
@@ -309,23 +339,51 @@ abstract final class SoundTheme {
     });
     final standardButtonStyle = ButtonStyle(
       animationDuration: _animationDuration,
-      minimumSize: const WidgetStatePropertyAll(Size(40, 40)),
+      minimumSize: const WidgetStatePropertyAll(Size(36, 36)),
       padding: const WidgetStatePropertyAll(
-        EdgeInsets.symmetric(horizontal: 17, vertical: 10),
+        EdgeInsets.symmetric(horizontal: 14, vertical: 7),
       ),
-      shape: WidgetStatePropertyAll(controlShape),
-      textStyle: WidgetStatePropertyAll(textTheme.labelLarge),
+      shape: const WidgetStatePropertyAll(StadiumBorder()),
+      textStyle: WidgetStatePropertyAll(
+        textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w700),
+      ),
+      iconSize: const WidgetStatePropertyAll(17),
       elevation: const WidgetStatePropertyAll(0),
       shadowColor: const WidgetStatePropertyAll(Colors.transparent),
       surfaceTintColor: const WidgetStatePropertyAll(Colors.transparent),
       overlayColor: focusOverlay,
-      side: focusSide,
     );
-    final outlinedSide = WidgetStateProperty.resolveWith<BorderSide>((states) {
-      if (states.contains(WidgetState.focused)) {
-        return const BorderSide(color: SoundColors.accent, width: 2);
+    final pillBackground = WidgetStateProperty.resolveWith<Color>((states) {
+      if (states.contains(WidgetState.disabled)) {
+        return foreground.withValues(alpha: 0.022);
       }
-      return BorderSide(color: border);
+      if (states.contains(WidgetState.pressed)) {
+        return foreground.withValues(alpha: 0.11);
+      }
+      if (states.contains(WidgetState.hovered) ||
+          states.contains(WidgetState.focused)) {
+        return foreground.withValues(alpha: 0.075);
+      }
+      return foreground.withValues(alpha: 0.045);
+    });
+    final quietPillBackground = WidgetStateProperty.resolveWith<Color>((
+      states,
+    ) {
+      if (states.contains(WidgetState.disabled)) return Colors.transparent;
+      if (states.contains(WidgetState.pressed)) {
+        return foreground.withValues(alpha: 0.085);
+      }
+      if (states.contains(WidgetState.hovered) ||
+          states.contains(WidgetState.focused)) {
+        return foreground.withValues(alpha: 0.055);
+      }
+      return foreground.withValues(alpha: 0.025);
+    });
+    final pillForeground = WidgetStateProperty.resolveWith<Color>((states) {
+      if (states.contains(WidgetState.disabled)) {
+        return secondary.withValues(alpha: 0.38);
+      }
+      return SoundColors.accent;
     });
     final inputBorder = OutlineInputBorder(
       borderRadius: BorderRadius.circular(SoundRadii.control),
@@ -521,36 +579,27 @@ abstract final class SoundTheme {
       ),
       filledButtonTheme: FilledButtonThemeData(
         style: standardButtonStyle.copyWith(
-          backgroundColor: WidgetStateProperty.resolveWith<Color>((states) {
-            if (states.contains(WidgetState.disabled)) {
-              return SoundColors.accent.withValues(alpha: 0.30);
-            }
-            if (states.contains(WidgetState.pressed)) {
-              return SoundColors.accentPressed;
-            }
-            if (states.contains(WidgetState.hovered)) {
-              return SoundColors.accentHover;
-            }
-            return SoundColors.accent;
-          }),
-          foregroundColor: const WidgetStatePropertyAll(Colors.white),
+          backgroundColor: pillBackground,
+          foregroundColor: pillForeground,
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: standardButtonStyle.copyWith(
-          backgroundColor: WidgetStatePropertyAll(overlay),
-          foregroundColor: WidgetStatePropertyAll(foreground),
+          backgroundColor: pillBackground,
+          foregroundColor: pillForeground,
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: standardButtonStyle.copyWith(
-          foregroundColor: WidgetStatePropertyAll(foreground),
-          side: outlinedSide,
+          backgroundColor: quietPillBackground,
+          foregroundColor: pillForeground,
+          side: const WidgetStatePropertyAll(BorderSide.none),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: standardButtonStyle.copyWith(
-          foregroundColor: const WidgetStatePropertyAll(SoundColors.accent),
+          backgroundColor: quietPillBackground,
+          foregroundColor: pillForeground,
           minimumSize: const WidgetStatePropertyAll(Size(36, 36)),
           padding: const WidgetStatePropertyAll(
             EdgeInsets.symmetric(horizontal: 12, vertical: 8),
@@ -582,7 +631,7 @@ abstract final class SoundTheme {
             return Colors.transparent;
           }),
           overlayColor: const WidgetStatePropertyAll(Colors.transparent),
-          shape: WidgetStatePropertyAll(controlShape),
+          shape: const WidgetStatePropertyAll(CircleBorder()),
           side: focusSide,
         ),
       ),
@@ -591,11 +640,9 @@ abstract final class SoundTheme {
         focusElevation: 0,
         hoverElevation: 0,
         highlightElevation: 0,
-        backgroundColor: SoundColors.accent,
-        foregroundColor: Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(SoundRadii.menu),
-        ),
+        backgroundColor: foreground.withValues(alpha: 0.045),
+        foregroundColor: SoundColors.accent,
+        shape: const CircleBorder(),
       ),
       listTileTheme: ListTileThemeData(
         iconColor: secondary,
@@ -652,19 +699,25 @@ abstract final class SoundTheme {
       chipTheme: ChipThemeData(
         elevation: 0,
         pressElevation: 0,
-        backgroundColor: subtle,
-        selectedColor: SoundColors.accent.withValues(alpha: 0.16),
+        backgroundColor: foreground.withValues(alpha: 0.025),
+        selectedColor: SoundColors.accent.withValues(alpha: 0.09),
         disabledColor: disabledSubtle,
-        side: BorderSide(color: border),
+        side: BorderSide.none,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(SoundRadii.pill),
         ),
-        labelStyle: textTheme.labelMedium?.copyWith(color: foreground),
+        labelStyle: textTheme.labelMedium?.copyWith(
+          color: secondary,
+          fontWeight: FontWeight.w600,
+        ),
         secondaryLabelStyle: textTheme.labelMedium?.copyWith(
-          color: foreground,
+          color: SoundColors.accent,
           fontWeight: FontWeight.w700,
         ),
-        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 4),
+        iconTheme: IconThemeData(size: 16, color: secondary),
+        padding: const EdgeInsets.symmetric(horizontal: 5),
+        labelPadding: const EdgeInsets.symmetric(horizontal: 7),
+        showCheckmark: false,
       ),
       dividerTheme: DividerThemeData(color: hairline, thickness: 1, space: 1),
       tooltipTheme: TooltipThemeData(

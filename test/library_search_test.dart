@@ -219,9 +219,7 @@ void main() {
     expect(find.text('Neon Sky'), findsOneWidget);
     expect(find.text('Alpha Song'), findsNothing);
 
-    await tester.tap(
-      find.widgetWithText(ChoiceChip, LibrarySearchField.albumArtist.label),
-    );
+    await tester.tap(find.byKey(const ValueKey('search-field-albumArtist')));
     await tester.pump();
     await _waitForSearch(tester, search);
     expect(search.field, LibrarySearchField.albumArtist);
@@ -293,7 +291,7 @@ void main() {
           .height,
       64,
     );
-    expect(find.text('Guest Singer — Night Drive'), findsOneWidget);
+    expect(find.text('Guest Singer · Night Drive'), findsOneWidget);
     expect(
       find.byKey(const ValueKey('search-result-menu-track-neon')),
       findsOneWidget,

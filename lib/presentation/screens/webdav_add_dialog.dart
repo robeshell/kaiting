@@ -172,29 +172,23 @@ class _WebDavAddDialogState extends State<WebDavAddDialog> {
                   controlAffinity: ListTileControlAffinity.leading,
                 ),
                 if (_errorMessage != null) ...[
-                  const SizedBox(height: 16),
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: SoundColors.accent.withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(
-                        color: SoundColors.accent.withValues(alpha: 0.3),
-                      ),
-                    ),
+                  const SizedBox(height: 14),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 2),
                     child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Icon(
+                        Icon(
                           Icons.error_outline_rounded,
-                          color: SoundColors.accent,
+                          color: context.soundColors.error,
                           size: 18,
                         ),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Text(
                             _errorMessage!,
-                            style: const TextStyle(
-                              color: SoundColors.accent,
+                            style: TextStyle(
+                              color: context.soundColors.error,
                               fontSize: 13,
                             ),
                           ),
@@ -229,10 +223,6 @@ class _WebDavAddDialogState extends State<WebDavAddDialog> {
                 : _editing
                 ? '保存'
                 : '添加',
-          ),
-          style: FilledButton.styleFrom(
-            backgroundColor: SoundColors.accent,
-            foregroundColor: Colors.white,
           ),
         ),
       ],

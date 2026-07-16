@@ -8,12 +8,14 @@ class AlbumArt extends StatelessWidget {
     required this.album,
     this.size,
     this.borderRadius = 10,
+    this.showShadow = true,
     super.key,
   });
 
   final Album album;
   final double? size;
   final double borderRadius;
+  final bool showShadow;
 
   @override
   Widget build(BuildContext context) {
@@ -35,12 +37,7 @@ class AlbumArt extends StatelessWidget {
         return Container(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(borderRadius),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: album.palette,
-            ),
-            boxShadow: hasFiniteExtent && logicalExtent < 96
+            boxShadow: !showShadow || !hasFiniteExtent || logicalExtent < 96
                 ? const []
                 : [
                     BoxShadow(
@@ -52,15 +49,24 @@ class AlbumArt extends StatelessWidget {
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(borderRadius),
-            child: imageProvider == null
-                ? _ArtworkPlaceholder(album: album)
-                : Image(
-                    image: imageProvider,
-                    fit: BoxFit.cover,
-                    filterQuality: FilterQuality.medium,
-                    errorBuilder: (_, _, _) =>
-                        _ArtworkPlaceholder(album: album),
-                  ),
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: album.palette,
+                ),
+              ),
+              child: imageProvider == null
+                  ? _ArtworkPlaceholder(album: album)
+                  : Image(
+                      image: imageProvider,
+                      fit: BoxFit.cover,
+                      filterQuality: FilterQuality.medium,
+                      errorBuilder: (_, _, _) =>
+                          _ArtworkPlaceholder(album: album),
+                    ),
+            ),
           ),
         );
       },

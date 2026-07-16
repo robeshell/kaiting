@@ -10,13 +10,13 @@ class FirstRunDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     return SoundDialog(
       maxWidth: 560,
-      title: const Text('欢迎使用 Sound'),
+      title: const Text('欢迎使用 Reverie'),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '先添加一个音乐来源，Sound 才能建立你的资料库。',
+            '先添加一个音乐来源，Reverie 才能建立你的资料库。',
             style: TextStyle(color: context.soundSecondaryText),
           ),
           const SizedBox(height: 22),

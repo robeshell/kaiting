@@ -6,6 +6,63 @@ import 'package:sound_player/core/sound_theme.dart';
 import 'package:sound_player/presentation/widgets/sound_components.dart';
 
 void main() {
+  testWidgets('browse choices and song rows share the compact Reverie rhythm', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    var selected = 'all';
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: SoundTheme.light,
+        home: StatefulBuilder(
+          builder: (context, setState) => Scaffold(
+            body: Column(
+              children: [
+                SoundChoiceStrip<String>(
+                  options: const [
+                    SoundChoiceOption(
+                      key: ValueKey('choice-all'),
+                      value: 'all',
+                      label: '全部',
+                    ),
+                    SoundChoiceOption(
+                      key: ValueKey('choice-songs'),
+                      value: 'songs',
+                      label: '歌曲',
+                    ),
+                  ],
+                  selected: selected,
+                  onSelected: (value) => setState(() => selected = value),
+                ),
+                SoundTrackListRow(
+                  key: const ValueKey('shared-track-row'),
+                  leading: const ColoredBox(color: Colors.black12),
+                  title: '测试歌曲',
+                  subtitle: '测试艺人 · 测试专辑',
+                  onActivate: () {},
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(tester.getSize(find.byKey(const ValueKey('choice-all'))).height, 32);
+    expect(
+      tester.getSize(find.byKey(const ValueKey('shared-track-row'))).height,
+      64,
+    );
+    await tester.tap(find.byKey(const ValueKey('choice-songs')));
+    await tester.pumpAndSettle();
+    expect(selected, 'songs');
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('desktop track rows select on click and activate deliberately', (
     tester,
   ) async {
@@ -84,7 +141,7 @@ void main() {
     debugDefaultTargetPlatformOverride = null;
   });
 
-  testWidgets('Sound dialog and navigation use branded components', (
+  testWidgets('Reverie dialog and navigation use branded components', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(900, 700);
@@ -119,7 +176,7 @@ void main() {
                   context: context,
                   builder: (_) => SoundDialog(
                     title: const Text('统一弹窗'),
-                    content: const Text('内容保持 Sound 的视觉语言。'),
+                    content: const Text('内容保持 Reverie 的视觉语言。'),
                     actions: [
                       FilledButton(
                         onPressed: () => Navigator.of(context).pop(),
@@ -138,6 +195,13 @@ void main() {
 
     expect(find.byType(SoundNavigationBar), findsOneWidget);
     expect(find.byType(NavigationBar), findsNothing);
+    final navigationSurface = tester.widget<SoundGlassSurface>(
+      find.descendant(
+        of: find.byType(SoundNavigationBar),
+        matching: find.byType(SoundGlassSurface),
+      ),
+    );
+    expect(navigationSurface.color?.a, closeTo(0.80, 0.01));
     await tester.tap(find.text('打开'));
     await tester.pumpAndSettle();
 
@@ -161,7 +225,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Sound dialog clamps and scrolls in a compact window', (
+  testWidgets('Reverie dialog clamps and scrolls in a compact window', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(446, 639);

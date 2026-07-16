@@ -9,10 +9,53 @@ import '../../library/scanning/embedded_lyrics_parser.dart';
 
 enum LibraryCatalogStatus { loading, ready, error }
 
+@immutable
+class LibraryCatalogSnapshot {
+  const LibraryCatalogSnapshot({
+    required this.sources,
+    required this.albums,
+    required this.tracks,
+    required this.lyricsByTrackId,
+  });
+
+  final List<LibrarySourceRecord> sources;
+  final List<LibraryAlbumRecord> albums;
+  final List<LibraryTrackRecord> tracks;
+  final Map<String, List<LibraryLyricRecord>> lyricsByTrackId;
+}
+
+Future<LibraryCatalogSnapshot> loadLibraryCatalogSnapshot(
+  LibraryRepository repository, {
+  List<LibraryTrackRecord>? trackRecords,
+}) async {
+  // Start every independent read before awaiting any of them. Drift may still
+  // serialize SQLite work internally, but this removes four Dart/isolate
+  // round-trips from the critical path and avoids rereading watched tracks.
+  final sourcesFuture = repository.getSources();
+  final albumsFuture = repository.getAlbums();
+  final tracksFuture = trackRecords == null
+      ? repository.getTracks()
+      : Future.value(trackRecords);
+  final lyricsFuture = repository.getAllLyrics();
+  return LibraryCatalogSnapshot(
+    sources: await sourcesFuture,
+    albums: await albumsFuture,
+    tracks: await tracksFuture,
+    lyricsByTrackId: await lyricsFuture,
+  );
+}
+
 class LibraryCatalogController extends ChangeNotifier {
-  LibraryCatalogController({required this.repository}) {
+  LibraryCatalogController({
+    required this.repository,
+    LibraryCatalogSnapshot? initialSnapshot,
+  }) {
+    if (initialSnapshot != null) {
+      _applySnapshot(initialSnapshot, notify: false);
+      _initialTrackSignature = _trackSignature(initialSnapshot.tracks);
+    }
     _subscription = repository.watchTracks().listen(
-      (_) => unawaited(refresh()),
+      _handleTrackRecords,
       onError: (Object error, StackTrace stackTrace) {
         _status = LibraryCatalogStatus.error;
         _errorMessage = error.toString();
@@ -30,38 +73,50 @@ class LibraryCatalogController extends ChangeNotifier {
   List<Track> _tracks = const [];
   int _refreshGeneration = 0;
   bool _disposed = false;
+  String? _initialTrackSignature;
 
   LibraryCatalogStatus get status => _status;
   String? get errorMessage => _errorMessage;
   List<Album> get albums => _albums;
   List<Track> get tracks => _tracks;
 
-  Future<void> refresh() async {
+  void _handleTrackRecords(List<LibraryTrackRecord> records) {
+    final initialSignature = _initialTrackSignature;
+    if (initialSignature != null) {
+      _initialTrackSignature = null;
+      if (initialSignature == _trackSignature(records)) return;
+    }
+    unawaited(refresh(trackRecords: records));
+  }
+
+  Future<void> refresh({List<LibraryTrackRecord>? trackRecords}) async {
     final generation = ++_refreshGeneration;
     try {
-      final sources = await repository.getSources();
-      final albumRecords = await repository.getAlbums();
-      final trackRecords = await repository.getTracks();
-      final lyricsByTrackId = await repository.getAllLyrics();
-      if (_disposed || generation != _refreshGeneration) return;
-      _albums = mapLibraryAlbums(
-        sources: sources,
-        albums: albumRecords,
-        tracks: trackRecords,
-        lyricsByTrackId: lyricsByTrackId,
+      final snapshot = await loadLibraryCatalogSnapshot(
+        repository,
+        trackRecords: trackRecords,
       );
-      _tracks = List.unmodifiable([
-        for (final album in _albums) ...album.tracks,
-      ]);
-      _status = LibraryCatalogStatus.ready;
-      _errorMessage = null;
-      notifyListeners();
+      if (_disposed || generation != _refreshGeneration) return;
+      _applySnapshot(snapshot);
     } catch (error) {
       if (_disposed || generation != _refreshGeneration) return;
       _status = LibraryCatalogStatus.error;
       _errorMessage = error.toString();
       notifyListeners();
     }
+  }
+
+  void _applySnapshot(LibraryCatalogSnapshot snapshot, {bool notify = true}) {
+    _albums = mapLibraryAlbums(
+      sources: snapshot.sources,
+      albums: snapshot.albums,
+      tracks: snapshot.tracks,
+      lyricsByTrackId: snapshot.lyricsByTrackId,
+    );
+    _tracks = List.unmodifiable([for (final album in _albums) ...album.tracks]);
+    _status = LibraryCatalogStatus.ready;
+    _errorMessage = null;
+    if (notify) notifyListeners();
   }
 
   @override
@@ -71,6 +126,11 @@ class LibraryCatalogController extends ChangeNotifier {
     super.dispose();
   }
 }
+
+String _trackSignature(List<LibraryTrackRecord> tracks) => [
+  for (final track in tracks)
+    '${track.id}\u0000${track.modifiedAt.microsecondsSinceEpoch}\u0000${track.artworkKey ?? ''}',
+].join('\u0001');
 
 List<Album> mapLibraryAlbums({
   required List<LibrarySourceRecord> sources,

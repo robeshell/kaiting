@@ -40,7 +40,15 @@ void main() {
     expect(playback.playbackMode, PlaybackMode.shuffle);
     expect(find.text('3 首歌 · 随机播放'), findsOneWidget);
 
-    await tester.tap(find.byTooltip('从队列移除 Third'));
+    expect(
+      tester
+          .getSize(find.byKey(const ValueKey('queue-track-row-third')))
+          .height,
+      64,
+    );
+    await tester.tap(find.byKey(const ValueKey('queue-track-actions-third')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('从队列移除'));
     await tester.pump();
     expect(playback.queue.map((track) => track.id), isNot(contains('third')));
     expect(find.text('Third'), findsNothing);
@@ -75,38 +83,29 @@ void main() {
 
     expect(find.byTooltip('播放队列'), findsOneWidget);
     expect(find.byTooltip('列表循环'), findsOneWidget);
+    expect(find.byKey(const ValueKey('now-playing-view-switch')), findsNothing);
+    expect(find.byKey(const ValueKey('compact-player')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('show-now-playing-lyrics')));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.byKey(const ValueKey('compact-lyrics')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('compact-lyrics-artwork')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('compact-lyrics-playback-controls')),
+      findsOneWidget,
+    );
     expect(
       tester
-          .getSize(find.byKey(const ValueKey('now-playing-view-switch')))
+          .getSize(find.byKey(const ValueKey('compact-lyrics-region')))
           .height,
-      lessThanOrEqualTo(36),
+      lessThanOrEqualTo(360),
     );
-    final coverChoice = tester.widget<AnimatedContainer>(
-      find.byKey(const ValueKey('now-playing-view-cover')),
-    );
-    final lyricsChoice = tester.widget<AnimatedContainer>(
-      find.byKey(const ValueKey('now-playing-view-lyrics')),
-    );
-    expect((coverChoice.decoration! as BoxDecoration).color, isNotNull);
-    expect(
-      (lyricsChoice.decoration! as BoxDecoration).color,
-      Colors.transparent,
-    );
-    await tester.tap(find.text('歌词'));
-    await tester.pump(const Duration(milliseconds: 200));
-    expect(
-      (tester
-                  .widget<AnimatedContainer>(
-                    find.byKey(const ValueKey('now-playing-view-lyrics')),
-                  )
-                  .decoration!
-              as BoxDecoration)
-          .color,
-      isNot(Colors.transparent),
-    );
-    await tester.tap(find.text('封面'));
-    await tester.pump(const Duration(milliseconds: 200));
-    await tester.tap(find.byTooltip('随机播放'));
+    await tester.tap(find.byKey(const ValueKey('return-now-playing-cover')));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(find.byKey(const ValueKey('compact-player')), findsOneWidget);
+    await tester.tap(find.byTooltip('随机播放').last);
     await tester.pump();
     expect(playback.playbackMode, PlaybackMode.shuffle);
 
@@ -155,13 +154,14 @@ void main() {
     final artworkSize = tester.getSize(
       find.byKey(const ValueKey('album-detail-artwork')),
     );
-    expect(artworkSize.width, lessThanOrEqualTo(196));
+    expect(artworkSize.width, inInclusiveRange(280, 420));
     expect(
       tester
           .getSize(find.byKey(const ValueKey('album-track-row-first')))
           .height,
-      lessThanOrEqualTo(54),
+      68,
     );
+    expect(find.byKey(const ValueKey('desktop-album-shuffle')), findsOneWidget);
     final hero = tester.widget<Container>(
       find.byKey(const ValueKey('album-detail-hero')),
     );
@@ -225,6 +225,12 @@ void main() {
       expect(find.text('本地'), findsNothing);
       expect(
         tester
+            .getSize(find.byKey(const ValueKey('album-track-row-first')))
+            .height,
+        64,
+      );
+      expect(
+        tester
             .getTopLeft(find.byKey(const ValueKey('album-track-row-first')))
             .dy,
         lessThan(844),
@@ -237,6 +243,47 @@ void main() {
       engine.dispose();
     },
   );
+
+  testWidgets('narrow desktop album actions fit the remaining content width', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+    tester.view.physicalSize = const Size(584, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final engine = SimulatedPlaybackEngine();
+    final playback = SoundPlaybackController(engine: engine);
+    final album = Album(
+      id: 'narrow-desktop-album',
+      title: 'A Long Desktop Album Title',
+      artist: 'Artist',
+      source: SourceKind.local,
+      palette: albumPaletteForId('narrow-desktop-album'),
+      tracks: const [_first, _second],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AlbumDetailScreen(
+          album: album,
+          playback: playback,
+          onBack: () {},
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('desktop-album-play')), findsOneWidget);
+    expect(find.byKey(const ValueKey('desktop-album-shuffle')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    debugDefaultTargetPlatformOverride = null;
+    playback.dispose();
+    engine.dispose();
+  });
 
   testWidgets('album detail separates discs and preserves playback order', (
     tester,
@@ -321,16 +368,16 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.widgetWithText(OutlinedButton, '离线保存'), findsOneWidget);
+    expect(find.byTooltip('离线保存'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('album-offline-action')));
     await tester.pumpAndSettle();
 
     expect(offline.isPinned(track), isTrue);
-    expect(find.widgetWithText(OutlinedButton, '已离线'), findsOneWidget);
+    expect(find.byTooltip('已离线'), findsOneWidget);
 
     offline.startDownloadForTest();
     await tester.pump();
-    expect(find.text('取消下载 35%'), findsOneWidget);
+    expect(find.byTooltip('取消下载 35%'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('album-offline-action')));
     await tester.pump();
     expect(offline.cancelled, isTrue);

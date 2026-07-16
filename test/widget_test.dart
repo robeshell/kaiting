@@ -12,11 +12,45 @@ import 'package:sound_player/playback/playback_controller.dart';
 import 'package:sound_player/playback/playback_session.dart';
 import 'package:sound_player/playback/simulated_playback_engine.dart';
 import 'package:sound_player/presentation/app_shell.dart';
+import 'package:sound_player/presentation/controllers/library_catalog_controller.dart';
 import 'package:sound_player/presentation/screens/now_playing_screen.dart';
 import 'package:sound_player/presentation/widgets/mini_player.dart';
 import 'package:sound_player/presentation/widgets/sound_components.dart';
 
 void main() {
+  testWidgets('preloaded catalog renders on the first app-shell frame', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final repository = await _repositoryWithAlbum();
+    final snapshot = await loadLibraryCatalogSnapshot(repository);
+    final engine = SimulatedPlaybackEngine();
+    final playback = SoundPlaybackController(engine: engine);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AppShell(
+          playback: playback,
+          libraryRepository: repository,
+          initialCatalog: snapshot,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text('正在读取资料库'), findsNothing);
+    expect(find.text('正在加载已索引的专辑和歌曲。'), findsNothing);
+    expect(find.text('Test Album'), findsWidgets);
+
+    await _unmountAndFlush(tester);
+    playback.dispose();
+    engine.dispose();
+    await repository.close();
+  });
+
   testWidgets('shows repository albums instead of production demo data', (
     tester,
   ) async {
@@ -36,7 +70,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Sound'), findsOneWidget);
+    expect(find.text('Reverie'), findsOneWidget);
     expect(find.byKey(const ValueKey('desktop-search-action')), findsOneWidget);
     expect(
       find.byKey(const ValueKey('desktop-settings-action')),
@@ -53,6 +87,38 @@ void main() {
         desktopGrid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
     expect(desktopDelegate.mainAxisExtent, lessThan(250));
     expect(desktopDelegate.mainAxisSpacing, 16);
+    final libraryArtworkDecorations = tester
+        .widgetList<DecoratedBox>(
+          find.descendant(
+            of: find.byKey(const ValueKey('library-album-art-album:test')),
+            matching: find.byType(DecoratedBox),
+          ),
+        )
+        .map((box) => box.decoration)
+        .whereType<BoxDecoration>()
+        .where(
+          (decoration) =>
+              decoration.borderRadius != null || decoration.gradient != null,
+        )
+        .toList();
+    expect(
+      libraryArtworkDecorations.every(
+        (decoration) => decoration.border == null,
+      ),
+      isTrue,
+    );
+    expect(
+      libraryArtworkDecorations.every(
+        (decoration) => decoration.boxShadow?.isEmpty ?? true,
+      ),
+      isTrue,
+    );
+    expect(
+      libraryArtworkDecorations
+          .singleWhere((decoration) => decoration.borderRadius != null)
+          .borderRadius,
+      BorderRadius.circular(6),
+    );
 
     await tester.tap(find.text('Test Album').first);
     await tester.pumpAndSettle();
@@ -103,6 +169,12 @@ void main() {
         findsOneWidget,
       );
       expect(
+        tester
+            .getSize(find.byKey(const ValueKey('compact-library-navigation')))
+            .height,
+        34,
+      );
+      expect(
         find.byKey(const ValueKey('mobile-library-user-menu')),
         findsOneWidget,
       );
@@ -134,6 +206,12 @@ void main() {
       expect(
         find.byKey(const ValueKey('library-track-actions-track:test')),
         findsOneWidget,
+      );
+      expect(
+        tester
+            .getSize(find.byKey(const ValueKey('library-track-row-track:test')))
+            .height,
+        64,
       );
       expect(
         find.byKey(const ValueKey('favorite-library-track:test')),
@@ -173,6 +251,22 @@ void main() {
     expect(find.text('Test Artist'), findsWidgets);
     expect(find.text('1 张专辑 · 1 首歌曲'), findsOneWidget);
     expect(find.text('播放全部'), findsOneWidget);
+    expect(find.byKey(const ValueKey('desktop-artist-play')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('desktop-artist-shuffle')),
+      findsOneWidget,
+    );
+    expect(
+      tester
+          .getSize(find.byKey(const ValueKey('collection-detail-artwork')))
+          .width,
+      inInclusiveRange(280, 420),
+    );
+    await tester.drag(
+      find.byKey(const ValueKey('collection-detail-hero')),
+      const Offset(0, -420),
+    );
+    await tester.pumpAndSettle();
     expect(find.text('Test Track'), findsOneWidget);
     expect(
       find.byKey(const ValueKey('library-collection-track-sort-menu')),
@@ -184,12 +278,17 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('专辑与曲序'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('播放全部'));
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('desktop-artist-play')),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('desktop-artist-play')));
     await tester.pump();
     expect(find.text('Test Track'), findsWidgets);
 
     tester.view.physicalSize = const Size(390, 844);
     await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('desktop-artist-play')), findsNothing);
     expect(
       tester
           .getSize(find.byKey(const ValueKey('collection-detail-artwork')))
@@ -210,6 +309,18 @@ void main() {
             as SliverGridDelegateWithFixedCrossAxisCount;
     expect(compactCollectionDelegate.mainAxisExtent, lessThan(220));
     expect(compactCollectionDelegate.mainAxisSpacing, 12);
+    expect(
+      tester
+          .getSize(
+            find.byKey(const ValueKey('collection-track-row-track:test')),
+          )
+          .height,
+      64,
+    );
+    expect(
+      find.byKey(const ValueKey('collection-track-actions-track:test')),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
 
     await _unmountAndFlush(tester);
@@ -232,23 +343,33 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    expect(
+      tester.getSize(find.byKey(const ValueKey('library-sort-menu'))).height,
+      36,
+    );
+    expect(
+      tester.getSize(find.byKey(const ValueKey('library-source-menu'))).height,
+      36,
+    );
     await tester.tap(find.byKey(const ValueKey('library-sort-menu')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('艺人 A–Z'));
     await tester.pumpAndSettle();
-    expect(find.text('艺人 A–Z'), findsOneWidget);
+    expect(find.byTooltip('排序：艺人 A–Z'), findsWidgets);
 
     await tester.tap(find.byKey(const ValueKey('library-source-menu')));
     await tester.pumpAndSettle();
     expect(find.text('WebDAV'), findsNothing);
     await tester.tap(find.text('本地').last);
     await tester.pumpAndSettle();
+    expect(find.byTooltip('来源：本地'), findsWidgets);
     expect(find.text('Test Album'), findsWidgets);
 
     await tester.tap(find.byKey(const ValueKey('library-source-menu')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('全部来源').last);
     await tester.pumpAndSettle();
+    expect(find.byTooltip('来源：全部来源'), findsWidgets);
     expect(find.text('Test Album'), findsWidgets);
 
     await tester.tap(find.text('歌曲').first);
@@ -302,6 +423,26 @@ void main() {
       find.byKey(const ValueKey('user-library-track-recent-track:test')),
       findsOneWidget,
     );
+    tester.view.physicalSize = const Size(390, 844);
+    await tester.pumpAndSettle();
+    expect(
+      tester
+          .getSize(find.byKey(const ValueKey('user-track-row-track:test')))
+          .height,
+      64,
+    );
+    expect(
+      find.byKey(const ValueKey('user-track-actions-track:test')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('favorite-track-track:test')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey('add-user-track:test-to-playlist')),
+      findsNothing,
+    );
 
     await tester.tap(find.text('清除历史'));
     await tester.pumpAndSettle();
@@ -311,9 +452,14 @@ void main() {
     expect(await repository.getPlayHistory(), isEmpty);
     expect((await repository.getFavoriteTracks()).single.trackId, 'track:test');
 
-    await tester.tap(find.text('收藏').first);
-    tester.view.physicalSize = const Size(390, 844);
+    await tester.tap(find.byKey(const ValueKey('user-library-mode-favorites')));
     await tester.pumpAndSettle();
+    expect(
+      tester
+          .getSize(find.byKey(const ValueKey('user-track-row-track:test')))
+          .height,
+      64,
+    );
     expect(tester.takeException(), isNull);
 
     await _unmountAndFlush(tester);
@@ -422,6 +568,14 @@ void main() {
 
     tester.view.physicalSize = const Size(390, 844);
     await tester.pumpAndSettle();
+    expect(
+      tester
+          .getSize(
+            find.byKey(const ValueKey('playlist-track-row-track:second')),
+          )
+          .height,
+      64,
+    );
     expect(tester.takeException(), isNull);
 
     await tester.tap(find.byKey(const ValueKey('delete-playlist')));
@@ -536,7 +690,7 @@ void main() {
     await _unmountAndFlush(tester);
   });
 
-  testWidgets('compact mini player sits just above bottom navigation', (
+  testWidgets('compact mini player merges into bottom navigation dock', (
     tester,
   ) async {
     _simulatePlatform(TargetPlatform.iOS);
@@ -558,7 +712,79 @@ void main() {
 
     final miniPlayerBottom = tester.getBottomLeft(find.byType(MiniPlayer)).dy;
     final navigationTop = tester.getTopLeft(find.byType(SoundNavigationBar)).dy;
-    expect(navigationTop - miniPlayerBottom, 10);
+    expect(navigationTop - miniPlayerBottom, 0);
+    expect(find.byKey(const ValueKey('compact-playback-dock')), findsOneWidget);
+    expect(tester.widget<Scaffold>(find.byType(Scaffold)).extendBody, isTrue);
+
+    await _unmountAndFlush(tester);
+    playback.dispose();
+    engine.dispose();
+    await repository.close();
+  });
+
+  testWidgets('mobile now playing opens on tap and follows downward drag', (
+    tester,
+  ) async {
+    _simulatePlatform(TargetPlatform.iOS);
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final repository = _repository();
+    final engine = SimulatedPlaybackEngine();
+    final playback = SoundPlaybackController(engine: engine);
+    await playback.playTrack(_testTrack, queue: const [_testTrack]);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AppShell(playback: playback, libraryRepository: repository),
+      ),
+    );
+    await tester.pump();
+
+    await tester.drag(find.byType(MiniPlayer), const Offset(0, -240));
+    await tester.pump();
+    expect(find.byType(NowPlayingScreen), findsNothing);
+
+    await tester.tap(find.byType(MiniPlayer));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byType(NowPlayingScreen), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.byType(NowPlayingScreen)).dy,
+      closeTo(0, 0.1),
+    );
+    expect(find.byKey(const ValueKey('now-playing-view-switch')), findsNothing);
+    final favorite = find.byKey(
+      ValueKey('favorite-now-playing-${_testTrack.id}'),
+    );
+    final addToPlaylist = find.byKey(
+      ValueKey('add-now-playing-${_testTrack.id}-to-playlist'),
+    );
+    final lyrics = find.byKey(const ValueKey('show-now-playing-lyrics'));
+    expect(
+      tester.getCenter(favorite).dx,
+      lessThan(tester.getCenter(addToPlaylist).dx),
+    );
+    expect(
+      tester.getCenter(addToPlaylist).dx,
+      lessThan(tester.getCenter(lyrics).dx),
+    );
+
+    final collapseGesture = await tester.startGesture(
+      tester.getCenter(find.byKey(const ValueKey('compact-player'))),
+    );
+    await collapseGesture.moveBy(const Offset(0, 320));
+    await collapseGesture.moveBy(const Offset(0, 40));
+    await tester.pump();
+    expect(tester.getTopLeft(find.byType(NowPlayingScreen)).dy, greaterThan(0));
+    await collapseGesture.moveBy(const Offset(0, 380));
+    await collapseGesture.up();
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(find.byType(NowPlayingScreen), findsNothing);
+    expect(find.byType(MiniPlayer), findsOneWidget);
+    expect(tester.takeException(), isNull);
 
     await _unmountAndFlush(tester);
     playback.dispose();
@@ -608,11 +834,11 @@ void main() {
     expect(contentRect.top, greaterThanOrEqualTo(32));
 
     final miniPlayer = tester.getRect(find.byType(MiniPlayer));
-    expect(miniPlayer.left, greaterThanOrEqualTo(22));
-    expect(miniPlayer.right, lessThanOrEqualTo(372));
+    expect(miniPlayer.left, 0);
+    expect(miniPlayer.right, 390);
     final navigation = tester.getRect(find.byType(SoundNavigationBar));
     expect(navigation.bottom, 844);
-    expect(navigation.height, greaterThanOrEqualTo(87));
+    expect(navigation.height, greaterThanOrEqualTo(70));
     expect(tester.takeException(), isNull);
 
     await _unmountAndFlush(tester);
@@ -685,9 +911,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Sound'), findsOneWidget);
+      expect(find.text('Reverie'), findsOneWidget);
       expect(
-        tester.getTopLeft(find.text('Sound')).dy,
+        tester.getTopLeft(find.text('Reverie')).dy,
         greaterThan(soundMacOSTitlebarInset),
       );
       expect(find.byType(SoundNavigationBar), findsNothing);
@@ -724,14 +950,14 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Sound'), findsOneWidget);
+    expect(find.text('Reverie'), findsOneWidget);
     expect(find.byType(SoundNavigationBar), findsNothing);
     expect(tester.takeException(), isNull);
 
     tester.view.physicalSize = const Size(600, 1024);
     await tester.pumpAndSettle();
 
-    expect(find.text('Sound'), findsNothing);
+    expect(find.text('Reverie'), findsNothing);
     expect(find.byType(SoundNavigationBar), findsOneWidget);
     expect(tester.takeException(), isNull);
 
@@ -763,7 +989,7 @@ void main() {
     tester.view.physicalSize = const Size(874, 402);
     await tester.pumpAndSettle();
 
-    expect(find.text('Sound'), findsNothing);
+    expect(find.text('Reverie'), findsNothing);
     expect(find.byType(SoundNavigationBar), findsOneWidget);
     expect(tester.takeException(), isNull);
 
@@ -791,17 +1017,20 @@ void main() {
     await tester.pump();
 
     expect(find.text('Test Track'), findsOneWidget);
-    expect(find.text('歌词'), findsOneWidget);
+    expect(find.byTooltip('查看歌词'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
-    await tester.tap(find.text('歌词'));
+    await tester.tap(find.byTooltip('查看歌词'));
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('这首歌曲没有内嵌歌词'), findsOneWidget);
 
     tester.view.physicalSize = const Size(834, 1194);
     await tester.pump();
 
-    expect(find.text('歌词'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('wide-now-playing-lyrics')),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
 
     await _unmountAndFlush(tester);

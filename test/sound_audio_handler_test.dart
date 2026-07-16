@@ -81,6 +81,7 @@ void main() {
     expect(handler.queue.value.map((item) => item.id), ['first', 'second']);
     expect(handler.playbackState.value.playing, isTrue);
     expect(handler.playbackState.value.controls, contains(MediaControl.pause));
+    expect(handler.playbackState.value.androidCompactActionIndices, [0, 1, 2]);
     expect(notificationPermission.requestCount, 1);
 
     await handler.seek(const Duration(seconds: 75));
@@ -98,11 +99,32 @@ void main() {
     await handler.pause();
     expect(controller.isPlaying, isFalse);
     expect(handler.playbackState.value.controls, contains(MediaControl.play));
+    expect(engine.pauseCount, 1);
+
+    await handler.play();
+    expect(controller.isPlaying, isTrue);
+    expect(engine.playCount, 3);
+    await handler.play();
+    expect(engine.playCount, 3);
+
+    await handler.pause();
+    await handler.pause();
+    expect(controller.isPlaying, isFalse);
+    expect(engine.pauseCount, 2);
 
     await handler.skipToPrevious();
     expect(controller.currentTrack, first);
     expect(handler.playbackState.value.queueIndex, 0);
     expect(notificationPermission.requestCount, 1);
+
+    await controller.playTrack(first, queue: const [first]);
+    await handler.pause();
+    expect(handler.playbackState.value.controls, [
+      MediaControl.skipToPrevious,
+      MediaControl.play,
+      MediaControl.skipToNext,
+    ]);
+    expect(handler.playbackState.value.androidCompactActionIndices, [0, 1, 2]);
   });
 }
 
@@ -120,6 +142,8 @@ class _HandlerEngine implements PlaybackEngine {
   final StreamController<PlaybackSnapshot> _snapshots =
       StreamController<PlaybackSnapshot>.broadcast(sync: true);
   PlaybackSnapshot _current = const PlaybackSnapshot.idle();
+  int playCount = 0;
+  int pauseCount = 0;
 
   @override
   PlaybackSnapshot get current => _current;
@@ -143,12 +167,14 @@ class _HandlerEngine implements PlaybackEngine {
   @override
   Future<void> play() async {
     if (_current.track == null) return;
+    playCount++;
     _emit(_current.copyWith(phase: PlaybackPhase.playing));
   }
 
   @override
   Future<void> pause() async {
     if (_current.track == null) return;
+    pauseCount++;
     _emit(_current.copyWith(phase: PlaybackPhase.paused));
   }
 

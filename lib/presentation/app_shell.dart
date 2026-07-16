@@ -40,12 +40,11 @@ import 'widgets/sound_components.dart';
 
 enum AppSection { library, search, settings }
 
-const _compactMiniPlayerBottomGap = 10.0;
-
 class AppShell extends StatefulWidget {
   const AppShell({
     required this.playback,
     this.libraryRepository,
+    this.initialCatalog,
     this.webDavCache,
     this.enableFirstRunGuide = false,
     super.key,
@@ -53,6 +52,7 @@ class AppShell extends StatefulWidget {
 
   final SoundPlaybackController playback;
   final LibraryRepository? libraryRepository;
+  final LibraryCatalogSnapshot? initialCatalog;
   final WebDavCache? webDavCache;
   final bool enableFirstRunGuide;
 
@@ -60,7 +60,8 @@ class AppShell extends StatefulWidget {
   State<AppShell> createState() => _AppShellState();
 }
 
-class _AppShellState extends State<AppShell> {
+class _AppShellState extends State<AppShell>
+    with SingleTickerProviderStateMixin {
   AppSection _section = AppSection.library;
   LibraryBrowseMode _libraryBrowseMode = LibraryBrowseMode.albums;
   LibraryUserBrowseMode? _libraryUserMode;
@@ -94,17 +95,28 @@ class _AppShellState extends State<AppShell> {
   String? _lastCatalogError;
   bool _firstRunCheckStarted = false;
   bool _firstRunDialogShown = false;
+  late final AnimationController _nowPlayingExpansion;
+  bool _mobileNowPlayingPresented = false;
+  bool _dragStartedExpanded = false;
 
   @override
   void initState() {
     super.initState();
+    _nowPlayingExpansion = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 320),
+      reverseDuration: const Duration(milliseconds: 280),
+    );
     _ownsLibraryRepository = widget.libraryRepository == null;
     _libraryRepository =
         widget.libraryRepository ?? DriftLibraryRepository.defaults();
-    _libraryCatalog = LibraryCatalogController(repository: _libraryRepository);
+    _libraryCatalog = LibraryCatalogController(
+      repository: _libraryRepository,
+      initialSnapshot: widget.initialCatalog,
+    );
     _librarySearch = LibrarySearchController(catalog: _libraryCatalog);
     _keyboardFocusNode = FocusNode(
-      debugLabel: 'Sound application keyboard shortcuts',
+      debugLabel: 'Reverie application keyboard shortcuts',
     );
     _searchFocusNode = FocusNode(
       debugLabel: 'Library search',
@@ -473,6 +485,11 @@ class _AppShellState extends State<AppShell> {
 
   void _openNowPlaying() {
     if (widget.playback.displayTrack == null) return;
+    if (!soundUsesDesktopPlatform &&
+        context.soundWindowClass == SoundWindowClass.compact) {
+      _expandMobileNowPlaying();
+      return;
+    }
     Navigator.of(context).push(
       MaterialPageRoute<void>(
         builder: (_) => NowPlayingScreen(
@@ -481,6 +498,72 @@ class _AppShellState extends State<AppShell> {
         ),
       ),
     );
+  }
+
+  void _expandMobileNowPlaying() {
+    if (!_mobileNowPlayingPresented) {
+      setState(() => _mobileNowPlayingPresented = true);
+    }
+    unawaited(
+      _nowPlayingExpansion.animateTo(
+        1,
+        duration: const Duration(milliseconds: 320),
+        curve: Curves.easeOutCubic,
+      ),
+    );
+  }
+
+  Future<void> _collapseMobileNowPlaying() async {
+    await _nowPlayingExpansion.animateTo(
+      0,
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOutCubic,
+    );
+    if (mounted && _mobileNowPlayingPresented) {
+      setState(() => _mobileNowPlayingPresented = false);
+    }
+  }
+
+  void _handleNowPlayingDragStart(DragStartDetails details) {
+    _nowPlayingExpansion.stop();
+    _dragStartedExpanded = _nowPlayingExpansion.value > 0.5;
+    if (!_mobileNowPlayingPresented) {
+      setState(() => _mobileNowPlayingPresented = true);
+    }
+  }
+
+  void _handleNowPlayingDragUpdate(DragUpdateDetails details) {
+    final height = MediaQuery.sizeOf(context).height;
+    if (height <= 0) return;
+    _nowPlayingExpansion.value =
+        (_nowPlayingExpansion.value - details.delta.dy / height).clamp(0, 1);
+  }
+
+  void _handleNowPlayingDragEnd(DragEndDetails details) {
+    _settleNowPlayingDrag(details.primaryVelocity ?? 0);
+  }
+
+  void _handleNowPlayingDragCancel() {
+    _settleNowPlayingDrag(0);
+  }
+
+  void _settleNowPlayingDrag(double velocity) {
+    if (velocity <= -520) {
+      _expandMobileNowPlaying();
+      return;
+    }
+    if (velocity >= 520) {
+      unawaited(_collapseMobileNowPlaying());
+      return;
+    }
+    final shouldExpand = _dragStartedExpanded
+        ? _nowPlayingExpansion.value >= 0.82
+        : _nowPlayingExpansion.value >= 0.18;
+    if (shouldExpand) {
+      _expandMobileNowPlaying();
+    } else {
+      unawaited(_collapseMobileNowPlaying());
+    }
   }
 
   void _openAlbum(Album album) {
@@ -591,6 +674,10 @@ class _AppShellState extends State<AppShell> {
   }
 
   bool _navigateBackWithKeyboard() {
+    if (_mobileNowPlayingPresented) {
+      unawaited(_collapseMobileNowPlaying());
+      return true;
+    }
     if (_selectedAlbum != null) {
       setState(() => _selectedAlbum = null);
       return true;
@@ -647,7 +734,6 @@ class _AppShellState extends State<AppShell> {
                 soundUsesDesktopPlatform ||
                 context.soundWindowClass != SoundWindowClass.compact;
             final sidebarWidth = context.soundSidebarWidth;
-            final safePadding = MediaQuery.paddingOf(context);
             final content = _selectedAlbum != null
                 ? AlbumDetailScreen(
                     album: _selectedAlbum!,
@@ -719,7 +805,8 @@ class _AppShellState extends State<AppShell> {
                     ),
                   };
 
-            return Scaffold(
+            final shell = Scaffold(
+              extendBody: !desktop,
               body: Stack(
                 children: [
                   Positioned.fill(
@@ -775,19 +862,6 @@ class _AppShellState extends State<AppShell> {
                             child: content,
                           ),
                   ),
-                  if (!desktop)
-                    Positioned(
-                      left: safePadding.left + 10,
-                      right: safePadding.right + 10,
-                      bottom: _compactMiniPlayerBottomGap,
-                      child: MiniPlayer(
-                        playback: widget.playback,
-                        userState: _libraryUserState,
-                        compact: true,
-                        onOpen: _openNowPlaying,
-                        onOpenQueue: _openQueue,
-                      ),
-                    ),
                   if (desktop)
                     // macOS paints this inside the full-size titlebar. Windows
                     // keeps it in Flutter's client area, below the native
@@ -854,28 +928,42 @@ class _AppShellState extends State<AppShell> {
                       onOpen: _openNowPlaying,
                       onOpenQueue: _openQueue,
                     )
-                  : SoundNavigationBar(
+                  : _CompactPlaybackDock(
+                      playback: widget.playback,
+                      userState: _libraryUserState,
                       selectedIndex: _section.index,
                       onDestinationSelected: (index) =>
                           _selectSection(AppSection.values[index]),
-                      destinations: const [
-                        SoundNavigationItem(
-                          icon: Icons.library_music_outlined,
-                          selectedIcon: Icons.library_music_rounded,
-                          label: '资料库',
-                        ),
-                        SoundNavigationItem(
-                          icon: Icons.search_rounded,
-                          selectedIcon: Icons.search_rounded,
-                          label: '搜索',
-                        ),
-                        SoundNavigationItem(
-                          icon: Icons.settings_outlined,
-                          selectedIcon: Icons.settings_rounded,
-                          label: '设置',
-                        ),
-                      ],
+                      onOpenNowPlaying: _openNowPlaying,
+                      onOpenQueue: _openQueue,
                     ),
+            );
+            if (desktop) return shell;
+            return PopScope<void>(
+              canPop: !_mobileNowPlayingPresented,
+              onPopInvokedWithResult: (didPop, result) {
+                if (!didPop && _mobileNowPlayingPresented) {
+                  unawaited(_collapseMobileNowPlaying());
+                }
+              },
+              child: Stack(
+                children: [
+                  Positioned.fill(child: shell),
+                  if (_mobileNowPlayingPresented)
+                    Positioned.fill(
+                      child: _MobileNowPlayingOverlay(
+                        animation: _nowPlayingExpansion,
+                        playback: widget.playback,
+                        userState: _libraryUserState,
+                        onClose: () => unawaited(_collapseMobileNowPlaying()),
+                        onVerticalDragStart: _handleNowPlayingDragStart,
+                        onVerticalDragUpdate: _handleNowPlayingDragUpdate,
+                        onVerticalDragEnd: _handleNowPlayingDragEnd,
+                        onVerticalDragCancel: _handleNowPlayingDragCancel,
+                      ),
+                    ),
+                ],
+              ),
             );
           },
         ),
@@ -899,8 +987,58 @@ class _AppShellState extends State<AppShell> {
     _sleepTimer.dispose();
     _diagnostics.dispose();
     _libraryCatalog.dispose();
+    _nowPlayingExpansion.dispose();
     if (_ownsLibraryRepository) unawaited(_libraryRepository.close());
     super.dispose();
+  }
+}
+
+class _MobileNowPlayingOverlay extends StatelessWidget {
+  const _MobileNowPlayingOverlay({
+    required this.animation,
+    required this.playback,
+    required this.userState,
+    required this.onClose,
+    required this.onVerticalDragStart,
+    required this.onVerticalDragUpdate,
+    required this.onVerticalDragEnd,
+    required this.onVerticalDragCancel,
+  });
+
+  final Animation<double> animation;
+  final SoundPlaybackController playback;
+  final LibraryUserStateController userState;
+  final VoidCallback onClose;
+  final GestureDragStartCallback onVerticalDragStart;
+  final GestureDragUpdateCallback onVerticalDragUpdate;
+  final GestureDragEndCallback onVerticalDragEnd;
+  final GestureDragCancelCallback onVerticalDragCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: animation,
+      builder: (context, child) {
+        final progress = animation.value;
+        final height = MediaQuery.sizeOf(context).height;
+        return IgnorePointer(
+          ignoring: progress <= 0,
+          child: Transform.translate(
+            offset: Offset(0, height * (1 - progress)),
+            child: child,
+          ),
+        );
+      },
+      child: NowPlayingScreen(
+        playback: playback,
+        userState: userState,
+        onClose: onClose,
+        onVerticalDragStart: onVerticalDragStart,
+        onVerticalDragUpdate: onVerticalDragUpdate,
+        onVerticalDragEnd: onVerticalDragEnd,
+        onVerticalDragCancel: onVerticalDragCancel,
+      ),
+    );
   }
 }
 
@@ -1114,6 +1252,7 @@ class _Sidebar extends StatelessWidget {
   Widget build(BuildContext context) {
     return SoundGlassSurface(
       strong: true,
+      color: context.soundChromeSurface,
       borderRadius: BorderRadius.zero,
       shadowOffset: const Offset(4, 0),
       shadowBlur: 16,
@@ -1137,7 +1276,7 @@ class _Sidebar extends StatelessWidget {
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        'Sound',
+                        'Reverie',
                         style: TextStyle(
                           color: context.soundPrimaryText,
                           fontSize: 18,
@@ -1256,6 +1395,81 @@ class _SidebarRow extends StatelessWidget {
   }
 }
 
+class _CompactPlaybackDock extends StatelessWidget {
+  const _CompactPlaybackDock({
+    required this.playback,
+    required this.userState,
+    required this.selectedIndex,
+    required this.onDestinationSelected,
+    required this.onOpenNowPlaying,
+    required this.onOpenQueue,
+  });
+
+  final SoundPlaybackController playback;
+  final LibraryUserStateController userState;
+  final int selectedIndex;
+  final ValueChanged<int> onDestinationSelected;
+  final VoidCallback onOpenNowPlaying;
+  final VoidCallback onOpenQueue;
+
+  static const _destinations = [
+    SoundNavigationItem(
+      icon: Icons.library_music_outlined,
+      selectedIcon: Icons.library_music_rounded,
+      label: '资料库',
+    ),
+    SoundNavigationItem(
+      icon: Icons.search_rounded,
+      selectedIcon: Icons.search_rounded,
+      label: '搜索',
+    ),
+    SoundNavigationItem(
+      icon: Icons.settings_outlined,
+      selectedIcon: Icons.settings_rounded,
+      label: '设置',
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: playback,
+      builder: (context, _) {
+        final hasTrack = playback.displayTrack != null;
+        return SoundGlassSurface(
+          key: const ValueKey('compact-playback-dock'),
+          borderRadius: BorderRadius.zero,
+          shadowOffset: const Offset(0, -5),
+          shadowBlur: 20,
+          color: context.soundChromeSurface,
+          borderColor: Colors.transparent,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (hasTrack) ...[
+                MiniPlayer(
+                  playback: playback,
+                  userState: userState,
+                  compact: true,
+                  embedded: true,
+                  onOpen: onOpenNowPlaying,
+                  onOpenQueue: onOpenQueue,
+                ),
+              ],
+              SoundNavigationBar(
+                embedded: true,
+                selectedIndex: selectedIndex,
+                onDestinationSelected: onDestinationSelected,
+                destinations: _destinations,
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
 class _KeyboardShortcutDialog extends StatelessWidget {
   const _KeyboardShortcutDialog();
 
@@ -1320,7 +1534,6 @@ class _KeyboardShortcutDialog extends StatelessWidget {
       ),
       actions: [
         FilledButton(
-          autofocus: true,
           onPressed: () => Navigator.of(context).pop(),
           child: const Text('完成'),
         ),

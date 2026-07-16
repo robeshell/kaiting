@@ -1,6 +1,6 @@
-# Sound design foundation
+# Reverie design foundation
 
-This document defines Sound's current visual and interaction direction. The
+This document defines Reverie's current visual and interaction direction. The
 light glass redesign approved in July 2026 replaces the earlier dark-first
 foundation; implementation details may evolve, but deviations from these
 principles require a deliberate design review.
@@ -13,7 +13,7 @@ desktop spacing and component composition where the two differ.
 
 ## Product character
 
-Sound is an artwork-first personal music player for local and remote libraries.
+Reverie is an artwork-first personal music player for local and remote libraries.
 It should feel calm, warm and native rather than technical: strong cover art,
 quiet metadata, milky glass surfaces, and one vivid coral-red playback accent.
 
@@ -40,7 +40,9 @@ quiet metadata, milky glass surfaces, and one vivid coral-red playback accent.
    - Desktop: translucent sidebar plus a content canvas.
    - Compact: bottom navigation for library, search, and settings.
    - Primary library views: recent, albums, songs, artists, and genres.
-   - Album cards use large square art with compact title, artist, and source.
+   - Album cards use large square art with compact title and artist. Source is
+     available through filters, details and diagnostics rather than repeated
+     badges on every card.
 2. Album detail
    - Large cover on the left, title and metadata on the right.
    - Red primary play action and quiet secondary shuffle action.
@@ -81,11 +83,13 @@ quiet metadata, milky glass surfaces, and one vivid coral-red playback accent.
 ### Shape and elevation
 
 - Album artwork: 8-10 px corner radius at normal sizes.
-- Cards and settings rows: 14-16 px continuous radius.
+- Floating cards: 14-16 px continuous radius. Settings and repeated browse
+  rows stay flat and use low-contrast hairlines instead of card containers.
 - Small controls: 10 px radius; menus: 12 px; sheets: 18 px; dialogs: 20 px.
 - Desktop player: square outer corners, soft upward shadow, thin glass border.
 - Compact player: 16 px radius above the bottom navigation.
-- Source badges: capsule shape with a subtle translucent fill.
+- Capsule shapes are reserved for actions and selection controls; ordinary
+  metadata does not become a badge.
 - Avoid strong card borders and heavy drop shadows.
 
 ### Type
@@ -106,10 +110,68 @@ quiet metadata, milky glass surfaces, and one vivid coral-red playback accent.
 - Album card artwork: adaptive 150-190 px on desktop.
 - Track row vertical padding: approximately 11 px.
 
+## Shared component grammar
+
+Browsing and utility screens must use the shared Reverie components rather than
+restyling Material controls locally. Search, the song library, favorites,
+recent playback and playlists are the reference implementation.
+
+### Buttons and page actions
+
+- Standard text actions are 36 px high compact pills with 12-13 px semibold
+  labels, a 2.5-4.5% neutral fill and no persistent outline.
+- Coral is carried by the label or icon, not by a large solid button. Hover,
+  focus and press increase the quiet fill; focus must not create an unrelated
+  thick red perimeter around the whole control.
+- Destructive actions use the semantic error color and a restrained error
+  tint. They do not become large warning banners.
+- A page-level action such as New, Clear history, Play or Rename uses the same
+  compact button sizing. Position and semantics establish hierarchy; size does
+  not change from page to page.
+
+### Search and filtering
+
+- Desktop search input is 44 px high and no wider than 760 px. It uses a weak
+  neutral fill, a pill radius and no normal or focused outline. Focus is shown
+  by cursor, icon, fill and platform accessibility state.
+- Filter choices use the shared borderless option strip: 32 px high, 12 px
+  labels, 2.5% neutral fill when idle and a 9% accent tint plus accent text
+  when selected.
+- Sort and source menus use the same 32 px quiet control. Compact layouts may
+  show only the icon when the menu label would compete with results.
+- Desktop may expose more filter fields while compact layouts shorten or omit
+  lower-priority fields, but both use the same component and state styling.
+
+### Browse rows
+
+- Standard song rows are flat: 68 px on desktop and 64 px on compact layouts,
+  with 48/44 px artwork, a 13.5 px semibold title, 11.5 px metadata and one
+  low-contrast bottom hairline.
+- Desktop song rows may expose favorite, playlist and disclosure actions
+  inline. Compact rows collapse secondary actions into one overflow menu.
+- Search results, library songs, favorites and recent playback use
+  `SoundTrackListRow`. Reorderable playlist tracks keep their drag-specific
+  structure but must match the same dimensions, typography and divider rules.
+- Playlist and other named collections use flat rows with a small semantic
+  icon. Do not wrap each collection in a large grey card or place a decorative
+  icon inside a large colored square.
+
+### Empty and status states
+
+- Empty, loading and error pages use `SoundEmptyState`: a small low-emphasis
+  icon or progress indicator, a 16 px semibold title and 12 px supporting copy.
+- Avoid oversized illustrations, colored icon tiles and decorative glass
+  cards when the state only needs a short explanation.
+
+The implementation primitives for these rules are `SoundChoiceStrip`,
+`SoundToolbarButton`, `SoundTrackListRow` and `SoundEmptyState` in
+`sound_components.dart`.
+
 ## Interaction rules
 
 - Artwork is the strongest visual element on every browsing screen.
-- Source identity is visible but quiet; it must not dominate song metadata.
+- Source identity is available but quiet: expose it in filters, details,
+  settings and diagnostics rather than repeating a type badge on every item.
 - The UI never fabricates playback progress.
 - During scrubbing, the thumb and time labels may show a local preview.
 - A seek is sent once on release; the UI then returns to engine-reported time.

@@ -65,4 +65,69 @@ void main() {
     }
     expect(providers.first, providers.last);
   });
+
+  testWidgets('artwork shadow can be disabled for flat library cards', (
+    tester,
+  ) async {
+    const album = Album(
+      id: 'album',
+      title: 'Album',
+      artist: 'Artist',
+      source: SourceKind.local,
+      palette: [Colors.indigo, Colors.black],
+      tracks: [],
+    );
+
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: Row(
+          children: [
+            SizedBox.square(
+              dimension: 160,
+              child: AlbumArt(key: ValueKey('shadowed-art'), album: album),
+            ),
+            SizedBox.square(
+              dimension: 160,
+              child: AlbumArt(
+                key: ValueKey('flat-art'),
+                album: album,
+                showShadow: false,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    await tester.pump();
+
+    List<BoxDecoration> artworkDecorations(String key) {
+      return tester
+          .widgetList<DecoratedBox>(
+            find.descendant(
+              of: find.byKey(ValueKey(key)),
+              matching: find.byType(DecoratedBox),
+            ),
+          )
+          .map((box) => box.decoration)
+          .whereType<BoxDecoration>()
+          .where(
+            (decoration) =>
+                decoration.borderRadius != null || decoration.gradient != null,
+          )
+          .toList();
+    }
+
+    expect(
+      artworkDecorations(
+        'shadowed-art',
+      ).any((decoration) => decoration.boxShadow?.isNotEmpty ?? false),
+      isTrue,
+    );
+    expect(
+      artworkDecorations(
+        'flat-art',
+      ).every((decoration) => decoration.boxShadow?.isEmpty ?? true),
+      isTrue,
+    );
+  });
 }

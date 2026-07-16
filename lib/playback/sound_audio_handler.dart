@@ -39,18 +39,12 @@ class SoundAudioHandler extends BaseAudioHandler {
 
   @override
   Future<void> play() async {
-    final controller = _controller;
-    if (controller != null && !controller.isPlaying) {
-      await controller.toggle();
-    }
+    await _controller?.resume();
   }
 
   @override
   Future<void> pause() async {
-    final controller = _controller;
-    if (controller != null && controller.isPlaying) {
-      await controller.toggle();
-    }
+    await _controller?.pause();
   }
 
   @override
@@ -135,13 +129,17 @@ class SoundAudioHandler extends BaseAudioHandler {
         }),
       );
     }
+    final controls = <MediaControl>[
+      MediaControl.skipToPrevious,
+      snapshot.isPlaying ? MediaControl.pause : MediaControl.play,
+      MediaControl.skipToNext,
+    ];
     playbackState.add(
       PlaybackState(
-        controls: [
-          MediaControl.skipToPrevious,
-          snapshot.isPlaying ? MediaControl.pause : MediaControl.play,
-          MediaControl.skipToNext,
-        ],
+        controls: controls,
+        // Keep the native transport layout stable across queue sizes. Android
+        // 13+ derives these slots from PlaybackState; older versions use these
+        // compact indices directly.
         androidCompactActionIndices: const [0, 1, 2],
         systemActions: const {MediaAction.seek},
         processingState: _processingState(snapshot.phase),

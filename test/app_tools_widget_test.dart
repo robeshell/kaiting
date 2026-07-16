@@ -32,9 +32,9 @@ void main() {
         ),
       ),
     );
-    await _pumpUntilFound(tester, find.text('欢迎使用 Sound'));
+    await _pumpUntilFound(tester, find.text('欢迎使用 Reverie'));
 
-    expect(find.text('欢迎使用 Sound'), findsOneWidget);
+    expect(find.text('欢迎使用 Reverie'), findsOneWidget);
     expect(find.text('本地文件夹'), findsOneWidget);
     expect(find.text('WebDAV'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('first-run-manage-sources')));

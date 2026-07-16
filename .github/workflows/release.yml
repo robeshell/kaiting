@@ -71,12 +71,12 @@ jobs:
           cd build/ios/iphoneos
           mkdir -p Payload
           cp -R Runner.app Payload/
-          zip -r sound_player-ios-unsigned.zip Payload/
+          zip -r reverie-ios-unsigned.zip Payload/
 
       - uses: actions/upload-artifact@v4
         with:
           name: ios-unsigned
-          path: build/ios/iphoneos/sound_player-ios-unsigned.zip
+          path: build/ios/iphoneos/reverie-ios-unsigned.zip
           if-no-files-found: error
 
   # ── macOS ────────────────────────────────────────────────
@@ -102,12 +102,12 @@ jobs:
       - name: Package macOS app
         run: |
           cd build/macos/Build/Products/Release
-          zip -r sound_player-macos.zip Runner.app
+          zip -r reverie-macos.zip Reverie.app
 
       - uses: actions/upload-artifact@v4
         with:
           name: macos-app
-          path: build/macos/Build/Products/Release/sound_player-macos.zip
+          path: build/macos/Build/Products/Release/reverie-macos.zip
           if-no-files-found: error
 
   # ── Windows ──────────────────────────────────────────────
@@ -133,12 +133,12 @@ jobs:
       - name: Package Windows app
         shell: pwsh
         run: |
-          Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath sound_player-windows.zip
+          Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath reverie-windows.zip
 
       - uses: actions/upload-artifact@v4
         with:
           name: windows-app
-          path: sound_player-windows.zip
+          path: reverie-windows.zip
           if-no-files-found: error
 
   # ── Web ──────────────────────────────────────────────────
@@ -162,12 +162,12 @@ jobs:
         run: flutter build web --release --base-href /MusicPlayerNext/
 
       - name: Package Web build
-        run: cd build && zip -r sound_player-web.zip web
+        run: cd build && zip -r reverie-web.zip web
 
       - uses: actions/upload-artifact@v4
         with:
           name: web-build
-          path: build/sound_player-web.zip
+          path: build/reverie-web.zip
           if-no-files-found: error
 
   # ── GitHub Release ───────────────────────────────────────

@@ -1,7 +1,9 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sound_player/domain/library_models.dart';
 import 'package:sound_player/playback/playback_controller.dart';
+import 'package:sound_player/playback/playback_mode.dart';
 import 'package:sound_player/playback/simulated_playback_engine.dart';
 import 'package:sound_player/presentation/screens/library_collection_screen.dart';
 
@@ -167,6 +169,179 @@ void main() {
     expect(playback.queue.map((track) => track.id), ['alpha', 'zulu']);
 
     await tester.pumpWidget(const SizedBox.shrink());
+    playback.dispose();
+    engine.dispose();
+  });
+
+  testWidgets('desktop artist hero matches album layout at narrow widths', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+    tester.view.physicalSize = const Size(584, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    const tracks = [
+      Track(
+        id: 'first',
+        title: 'First',
+        artist: 'Artist',
+        albumTitle: 'Album',
+        duration: Duration(minutes: 3),
+        source: SourceKind.local,
+      ),
+      Track(
+        id: 'second',
+        title: 'Second',
+        artist: 'Artist',
+        albumTitle: 'Album',
+        duration: Duration(minutes: 4),
+        source: SourceKind.local,
+      ),
+    ];
+    const album = Album(
+      id: 'album',
+      title: 'Album',
+      artist: 'Artist',
+      source: SourceKind.local,
+      palette: [Colors.indigo, Colors.black],
+      tracks: tracks,
+    );
+    const collection = LibraryCollection(
+      id: 'artist:artist',
+      kind: LibraryCollectionKind.artist,
+      title: 'Artist',
+      albums: [album],
+      tracks: tracks,
+    );
+    final engine = SimulatedPlaybackEngine();
+    final playback = SoundPlaybackController(engine: engine);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: LibraryCollectionScreen(
+          collection: collection,
+          playback: playback,
+          onBack: () {},
+          onOpenAlbum: (_) {},
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('desktop-artist-back')), findsOneWidget);
+    expect(find.byKey(const ValueKey('desktop-artist-play')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('desktop-artist-shuffle')),
+      findsOneWidget,
+    );
+    expect(
+      tester
+          .getSize(find.byKey(const ValueKey('collection-detail-artwork')))
+          .width,
+      280,
+    );
+    expect(
+      tester.getSize(find.byKey(const ValueKey('desktop-artist-play'))).height,
+      inInclusiveRange(36, 44),
+    );
+    expect(tester.takeException(), isNull);
+
+    await tester.tap(find.byKey(const ValueKey('desktop-artist-shuffle')));
+    await tester.pump();
+    expect(playback.playbackMode, PlaybackMode.shuffle);
+    expect(
+      playback.queue.map((track) => track.id),
+      containsAll(['first', 'second']),
+    );
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    debugDefaultTargetPlatformOverride = null;
+    playback.dispose();
+    engine.dispose();
+  });
+
+  testWidgets('mobile artist and desktop genre retain the compact hero', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    const track = Track(
+      id: 'track',
+      title: 'Track',
+      artist: 'Artist',
+      albumTitle: 'Album',
+      duration: Duration(minutes: 3),
+      source: SourceKind.local,
+    );
+    const album = Album(
+      id: 'album',
+      title: 'Album',
+      artist: 'Artist',
+      source: SourceKind.local,
+      palette: [Colors.teal, Colors.black],
+      tracks: [track],
+    );
+    final engine = SimulatedPlaybackEngine();
+    final playback = SoundPlaybackController(engine: engine);
+
+    Future<void> pumpCollection(LibraryCollection collection) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: LibraryCollectionScreen(
+            collection: collection,
+            playback: playback,
+            onBack: () {},
+            onOpenAlbum: (_) {},
+          ),
+        ),
+      );
+      await tester.pump();
+    }
+
+    await pumpCollection(
+      const LibraryCollection(
+        id: 'artist:artist',
+        kind: LibraryCollectionKind.artist,
+        title: 'Artist',
+        albums: [album],
+        tracks: [track],
+      ),
+    );
+    expect(find.byKey(const ValueKey('desktop-artist-play')), findsNothing);
+    expect(
+      tester
+          .getSize(find.byKey(const ValueKey('collection-detail-artwork')))
+          .width,
+      156,
+    );
+
+    tester.view.physicalSize = const Size(1000, 800);
+    await pumpCollection(
+      const LibraryCollection(
+        id: 'genre:rock',
+        kind: LibraryCollectionKind.genre,
+        title: 'Rock',
+        albums: [album],
+        tracks: [track],
+      ),
+    );
+    expect(find.byKey(const ValueKey('desktop-artist-play')), findsNothing);
+    expect(
+      tester
+          .getSize(find.byKey(const ValueKey('collection-detail-artwork')))
+          .width,
+      220,
+    );
+    expect(tester.takeException(), isNull);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    debugDefaultTargetPlatformOverride = null;
     playback.dispose();
     engine.dispose();
   });

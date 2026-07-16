@@ -29,6 +29,16 @@ extension LibraryUserBrowseModePresentation on LibraryUserBrowseMode {
   };
 }
 
+List<SoundChoiceOption<LibraryUserBrowseMode>> _userBrowseOptions() => [
+  for (final mode in LibraryUserBrowseMode.values)
+    SoundChoiceOption(
+      key: ValueKey('user-library-mode-${mode.name}'),
+      value: mode,
+      label: mode.label,
+      icon: mode.icon,
+    ),
+];
+
 class LibraryUserScreen extends StatefulWidget {
   const LibraryUserScreen({
     required this.mode,
@@ -67,6 +77,7 @@ class _LibraryUserScreenState extends State<LibraryUserScreen> {
       child: AnimatedBuilder(
         animation: Listenable.merge([widget.catalog, widget.userState]),
         builder: (context, _) {
+          final compact = context.soundIsCompact;
           if (widget.mode == LibraryUserBrowseMode.playlists) {
             return _buildPlaylists();
           }
@@ -91,9 +102,9 @@ class _LibraryUserScreenState extends State<LibraryUserScreen> {
               SliverPadding(
                 padding: EdgeInsets.fromLTRB(
                   context.soundPageGutter,
-                  24,
+                  compact ? 10 : 24,
                   context.soundPageGutter,
-                  18,
+                  compact ? 10 : 18,
                 ),
                 sliver: SliverToBoxAdapter(
                   child: _UserLibraryHeader(
@@ -141,6 +152,7 @@ class _LibraryUserScreenState extends State<LibraryUserScreen> {
   }
 
   Widget _buildPlaylists() {
+    final compact = context.soundIsCompact;
     final selectedPlaylist = widget.selectedPlaylistId == null
         ? null
         : widget.userState.playlistById(widget.selectedPlaylistId!);
@@ -150,9 +162,9 @@ class _LibraryUserScreenState extends State<LibraryUserScreen> {
           SliverPadding(
             padding: EdgeInsets.fromLTRB(
               context.soundPageGutter,
-              24,
+              compact ? 10 : 24,
               context.soundPageGutter,
-              18,
+              compact ? 10 : 18,
             ),
             sliver: SliverToBoxAdapter(
               child: _PlaylistOverviewHeader(
@@ -193,9 +205,8 @@ class _LibraryUserScreenState extends State<LibraryUserScreen> {
                 context.soundPageGutter,
                 context.soundContentBottomPadding,
               ),
-              sliver: SliverList.separated(
+              sliver: SliverList.builder(
                 itemCount: widget.userState.playlists.length,
-                separatorBuilder: (_, _) => const SizedBox(height: 8),
                 itemBuilder: (context, index) {
                   final playlist = widget.userState.playlists[index];
                   return _PlaylistTile(
@@ -243,9 +254,9 @@ class _LibraryUserScreenState extends State<LibraryUserScreen> {
         SliverPadding(
           padding: EdgeInsets.fromLTRB(
             context.soundPageGutter,
-            24,
+            compact ? 10 : 24,
             context.soundPageGutter,
-            18,
+            compact ? 10 : 18,
           ),
           sliver: SliverToBoxAdapter(
             child: _PlaylistDetailHeader(
@@ -365,6 +376,7 @@ class _LibraryUserScreenState extends State<LibraryUserScreen> {
           FilledButton(
             key: const ValueKey('confirm-delete-playlist'),
             onPressed: () => Navigator.of(context).pop(true),
+            style: context.soundDestructiveButtonStyle,
             child: const Text('删除'),
           ),
         ],
@@ -479,6 +491,7 @@ class _LibraryUserScreenState extends State<LibraryUserScreen> {
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
+            style: context.soundDestructiveButtonStyle,
             child: const Text('清除'),
           ),
         ],
@@ -524,25 +537,10 @@ class _PlaylistOverviewHeader extends StatelessWidget {
         ),
         if (compact) ...[
           const SizedBox(height: 12),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                for (final candidate in LibraryUserBrowseMode.values)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: ChoiceChip(
-                      key: ValueKey('user-library-mode-${candidate.name}'),
-                      avatar: Icon(candidate.icon, size: 17),
-                      label: Text(candidate.label),
-                      selected: candidate == LibraryUserBrowseMode.playlists,
-                      showCheckmark: false,
-                      onSelected: (_) => onModeChanged(candidate),
-                      selectedColor: SoundColors.accent.withValues(alpha: 0.14),
-                    ),
-                  ),
-              ],
-            ),
+          SoundChoiceStrip<LibraryUserBrowseMode>(
+            options: _userBrowseOptions(),
+            selected: LibraryUserBrowseMode.playlists,
+            onSelected: onModeChanged,
           ),
         ],
       ],
@@ -573,53 +571,85 @@ class _PlaylistTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      color: context.soundTint(0.045),
-      borderRadius: BorderRadius.circular(12),
-      child: ListTile(
-        contentPadding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      color: Colors.transparent,
+      child: InkWell(
         onTap: onTap,
-        leading: Container(
-          width: 50,
-          height: 50,
+        child: Container(
+          height: 68,
+          padding: const EdgeInsets.only(left: 4),
           decoration: BoxDecoration(
-            color: SoundColors.accent.withValues(alpha: 0.16),
-            borderRadius: BorderRadius.circular(9),
-          ),
-          child: const Icon(
-            Icons.queue_music_rounded,
-            color: SoundColors.accent,
-          ),
-        ),
-        title: Text(
-          playlist.name,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 15, fontWeight: FontWeight.w800),
-        ),
-        subtitle: Text(
-          missingTrackCount == 0
-              ? '$trackCount 首歌'
-              : '$trackCount 首歌 · $missingTrackCount 首来源暂不可用',
-          style: TextStyle(color: context.soundMutedText),
-        ),
-        trailing: PopupMenuButton<String>(
-          key: ValueKey('playlist-actions-${playlist.id}'),
-          tooltip: '播放列表操作',
-          onSelected: (value) {
-            if (value == 'play') onPlay();
-            if (value == 'rename') onRename();
-            if (value == 'delete') onDelete();
-          },
-          itemBuilder: (context) => [
-            PopupMenuItem(
-              value: 'play',
-              enabled: trackCount > missingTrackCount,
-              child: const Text('播放'),
+            border: Border(
+              bottom: BorderSide(
+                color: context.soundDivider.withValues(
+                  alpha: context.soundDivider.a * 0.72,
+                ),
+              ),
             ),
-            const PopupMenuItem(value: 'rename', child: Text('重命名')),
-            const PopupMenuItem(value: 'delete', child: Text('删除')),
-          ],
+          ),
+          child: Row(
+            children: [
+              SizedBox(
+                width: 28,
+                child: Icon(
+                  Icons.queue_music_rounded,
+                  size: 18,
+                  color: SoundColors.accent.withValues(alpha: 0.78),
+                ),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      playlist.name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: context.soundPrimaryText.withValues(
+                          alpha: context.soundPrimaryText.a * 0.92,
+                        ),
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(height: 3),
+                    Text(
+                      missingTrackCount == 0
+                          ? '$trackCount 首歌'
+                          : '$trackCount 首歌 · $missingTrackCount 首来源暂不可用',
+                      style: TextStyle(
+                        color: context.soundMutedText.withValues(
+                          alpha: context.soundMutedText.a * 0.82,
+                        ),
+                        fontSize: 11.5,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              PopupMenuButton<String>(
+                key: ValueKey('playlist-actions-${playlist.id}'),
+                tooltip: '播放列表操作',
+                icon: const Icon(Icons.more_horiz_rounded, size: 20),
+                onSelected: (value) {
+                  if (value == 'play') onPlay();
+                  if (value == 'rename') onRename();
+                  if (value == 'delete') onDelete();
+                },
+                itemBuilder: (context) => [
+                  PopupMenuItem(
+                    value: 'play',
+                    enabled: trackCount > missingTrackCount,
+                    child: const Text('播放'),
+                  ),
+                  const PopupMenuItem(value: 'rename', child: Text('重命名')),
+                  const PopupMenuItem(value: 'delete', child: Text('删除')),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -693,6 +723,7 @@ class _PlaylistDetailHeader extends StatelessWidget {
               onPressed: onDelete,
               icon: const Icon(Icons.delete_outline_rounded),
               label: const Text('删除'),
+              style: context.soundDestructiveButtonStyle,
             ),
           ],
         ),
@@ -729,6 +760,7 @@ class _PlaylistTrackRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final compact = context.soundIsCompact;
     return SoundTrackActivation(
       onActivate: onTap,
       semanticLabel: track.title,
@@ -736,68 +768,157 @@ class _PlaylistTrackRow extends StatelessWidget {
         color: Theme.of(context).scaffoldBackgroundColor,
         child: DecoratedBox(
           decoration: BoxDecoration(
-            border: Border(bottom: BorderSide(color: context.soundDivider)),
-          ),
-          child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(vertical: 5),
-            leading: SizedBox.square(
-              dimension: 48,
-              child: AlbumArt(album: album, borderRadius: 6),
-            ),
-            title: Text(
-              track.title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-            ),
-            subtitle: Text(
-              '${track.artist} · ${album.title}',
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 12, color: context.soundMutedText),
-            ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                PopupMenuButton<String>(
-                  key: ValueKey('playlist-track-actions-${track.id}'),
-                  tooltip: '歌曲操作',
-                  onSelected: (value) {
-                    if (value == 'play-next') onPlayNext();
-                    if (value == 'favorite') onToggleFavorite();
-                    if (value == 'add') onAddToPlaylist();
-                    if (value == 'album') onOpenAlbum();
-                    if (value == 'remove') onRemove();
-                  },
-                  itemBuilder: (context) => [
-                    const PopupMenuItem(
-                      value: 'play-next',
-                      child: Text('下一首播放'),
-                    ),
-                    PopupMenuItem(
-                      value: 'favorite',
-                      child: Text(favorite ? '取消收藏' : '收藏歌曲'),
-                    ),
-                    const PopupMenuItem(value: 'add', child: Text('添加到其他播放列表')),
-                    const PopupMenuItem(value: 'album', child: Text('打开专辑')),
-                    const PopupMenuItem(value: 'remove', child: Text('从此列表移除')),
-                  ],
+            border: Border(
+              bottom: BorderSide(
+                color: context.soundDivider.withValues(
+                  alpha: context.soundDivider.a * 0.72,
                 ),
-                ReorderableDragStartListener(
-                  index: index,
-                  child: Padding(
-                    padding: const EdgeInsets.all(10),
-                    child: Icon(
-                      Icons.drag_handle_rounded,
-                      color: context.soundMutedText,
+              ),
+            ),
+          ),
+          child: compact
+              ? SizedBox(
+                  key: ValueKey('playlist-track-row-${track.id}'),
+                  height: 64,
+                  child: Row(
+                    children: [
+                      SizedBox.square(
+                        dimension: 44,
+                        child: AlbumArt(album: album, borderRadius: 8),
+                      ),
+                      const SizedBox(width: 11),
+                      Expanded(
+                        child: _PlaylistTrackLabels(track: track, album: album),
+                      ),
+                      _playlistActions(),
+                      ReorderableDragStartListener(
+                        index: index,
+                        child: Padding(
+                          padding: const EdgeInsets.all(8),
+                          child: Icon(
+                            Icons.drag_handle_rounded,
+                            size: 20,
+                            color: context.soundMutedText,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              : ListTile(
+                  contentPadding: const EdgeInsets.symmetric(vertical: 5),
+                  leading: SizedBox.square(
+                    dimension: 48,
+                    child: AlbumArt(album: album, borderRadius: 6),
+                  ),
+                  title: Text(
+                    track.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: context.soundPrimaryText.withValues(
+                        alpha: context.soundPrimaryText.a * 0.92,
+                      ),
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
+                  subtitle: Text(
+                    '${track.artist} · ${album.title}',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      fontSize: 11.5,
+                      color: context.soundMutedText.withValues(
+                        alpha: context.soundMutedText.a * 0.82,
+                      ),
+                    ),
+                  ),
+                  trailing: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      _playlistActions(),
+                      ReorderableDragStartListener(
+                        index: index,
+                        child: Padding(
+                          padding: const EdgeInsets.all(10),
+                          child: Icon(
+                            Icons.drag_handle_rounded,
+                            color: context.soundMutedText,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ],
+        ),
+      ),
+    );
+  }
+
+  Widget _playlistActions() {
+    return PopupMenuButton<String>(
+      key: ValueKey('playlist-track-actions-${track.id}'),
+      tooltip: '歌曲操作',
+      icon: const Icon(Icons.more_horiz_rounded, size: 21),
+      onSelected: (value) {
+        if (value == 'play-next') onPlayNext();
+        if (value == 'favorite') onToggleFavorite();
+        if (value == 'add') onAddToPlaylist();
+        if (value == 'album') onOpenAlbum();
+        if (value == 'remove') onRemove();
+      },
+      itemBuilder: (context) => [
+        const PopupMenuItem(value: 'play-next', child: Text('下一首播放')),
+        PopupMenuItem(
+          value: 'favorite',
+          child: Text(favorite ? '取消收藏' : '收藏歌曲'),
+        ),
+        const PopupMenuItem(value: 'add', child: Text('添加到其他播放列表')),
+        const PopupMenuItem(value: 'album', child: Text('打开专辑')),
+        const PopupMenuItem(value: 'remove', child: Text('从此列表移除')),
+      ],
+    );
+  }
+}
+
+class _PlaylistTrackLabels extends StatelessWidget {
+  const _PlaylistTrackLabels({required this.track, required this.album});
+
+  final Track track;
+  final Album album;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          track.title,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            color: context.soundPrimaryText.withValues(
+              alpha: context.soundPrimaryText.a * 0.92,
+            ),
+            fontSize: 13.5,
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        const SizedBox(height: 3),
+        Text(
+          '${track.artist} · ${album.title}',
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+            fontSize: 11.5,
+            color: context.soundMutedText.withValues(
+              alpha: context.soundMutedText.a * 0.82,
             ),
           ),
         ),
-      ),
+      ],
     );
   }
 }
@@ -842,46 +963,28 @@ class _UserLibraryHeader extends StatelessWidget {
                   onPressed: onClearHistory,
                   icon: const Icon(Icons.delete_outline_rounded),
                   label: const Text('清除历史'),
+                  style: context.soundDestructiveButtonStyle,
                 ),
             ],
           ),
         if (compact) ...[
           const SizedBox(height: 12),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                for (final candidate in LibraryUserBrowseMode.values)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: ChoiceChip(
-                      key: ValueKey('user-library-mode-${candidate.name}'),
-                      avatar: Icon(candidate.icon, size: 17),
-                      label: Text(candidate.label),
-                      selected: candidate == mode,
-                      showCheckmark: false,
-                      onSelected: (_) => onModeChanged(candidate),
-                      selectedColor: SoundColors.accent.withValues(alpha: 0.14),
-                    ),
-                  ),
-              ],
-            ),
+          SoundChoiceStrip<LibraryUserBrowseMode>(
+            options: _userBrowseOptions(),
+            selected: mode,
+            onSelected: onModeChanged,
           ),
         ],
         if ((compact || onClearHistory != null) && sourceOptions.isNotEmpty)
           const SizedBox(height: 12),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
+        SoundChoiceStrip<LibrarySourceFilter>(
+          options: [
             for (final filter in sourceOptions)
-              FilterChip(
-                label: Text(filter.label),
-                selected: sourceFilter == filter,
-                showCheckmark: false,
-                onSelected: (_) => onSourceChanged(filter),
-              ),
+              SoundChoiceOption(value: filter, label: filter.label),
           ],
+          selected: sourceFilter,
+          onSelected: onSourceChanged,
+          wrap: true,
         ),
       ],
     );
@@ -910,55 +1013,57 @@ class _UserTrackRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SoundTrackActivation(
+    return SoundTrackListRow(
+      key: ValueKey('user-track-row-${track.id}'),
+      leading: AlbumArt(
+        album: album,
+        borderRadius: context.soundIsCompact ? 8 : 6,
+      ),
+      title: track.title,
+      subtitle: '${track.artist} · ${album.title}',
       onActivate: onTap,
-      semanticLabel: track.title,
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(vertical: 5),
-        shape: Border(bottom: BorderSide(color: context.soundDivider)),
-        leading: SizedBox.square(
-          dimension: 48,
-          child: AlbumArt(album: album, borderRadius: 6),
-        ),
-        title: Text(
-          track.title,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-        ),
-        subtitle: Text(
-          [track.artist, album.title, track.source.label].join(' · '),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(fontSize: 12, color: context.soundMutedText),
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            IconButton(
-              key: ValueKey('favorite-track-${track.id}'),
-              onPressed: onToggleFavorite,
-              tooltip: favorite ? '取消收藏 ${track.title}' : '收藏 ${track.title}',
-              color: favorite ? SoundColors.accent : null,
-              icon: Icon(
-                favorite
-                    ? Icons.favorite_rounded
-                    : Icons.favorite_border_rounded,
-              ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            key: ValueKey('favorite-track-${track.id}'),
+            onPressed: onToggleFavorite,
+            tooltip: favorite ? '取消收藏 ${track.title}' : '收藏 ${track.title}',
+            color: favorite ? SoundColors.accent : null,
+            icon: Icon(
+              favorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
             ),
-            IconButton(
-              key: ValueKey('add-user-${track.id}-to-playlist'),
-              onPressed: onAddToPlaylist,
-              tooltip: '将 ${track.title} 添加到播放列表',
-              icon: const Icon(Icons.playlist_add_rounded),
-            ),
-            IconButton(
-              onPressed: onOpenAlbum,
-              tooltip: '打开专辑 ${album.title}',
-              icon: const Icon(Icons.chevron_right_rounded),
-            ),
-          ],
-        ),
+          ),
+          IconButton(
+            key: ValueKey('add-user-${track.id}-to-playlist'),
+            onPressed: onAddToPlaylist,
+            tooltip: '将 ${track.title} 添加到播放列表',
+            icon: const Icon(Icons.playlist_add_rounded),
+          ),
+          IconButton(
+            onPressed: onOpenAlbum,
+            tooltip: '打开专辑 ${album.title}',
+            icon: const Icon(Icons.chevron_right_rounded),
+          ),
+        ],
+      ),
+      compactTrailing: PopupMenuButton<String>(
+        key: ValueKey('user-track-actions-${track.id}'),
+        tooltip: '更多操作 ${track.title}',
+        icon: const Icon(Icons.more_horiz_rounded, size: 21),
+        onSelected: (value) {
+          if (value == 'favorite') onToggleFavorite();
+          if (value == 'playlist') onAddToPlaylist();
+          if (value == 'album') onOpenAlbum();
+        },
+        itemBuilder: (context) => [
+          PopupMenuItem(
+            value: 'favorite',
+            child: Text(favorite ? '取消收藏' : '收藏'),
+          ),
+          const PopupMenuItem(value: 'playlist', child: Text('添加到播放列表')),
+          const PopupMenuItem(value: 'album', child: Text('打开专辑')),
+        ],
       ),
     );
   }
@@ -977,39 +1082,6 @@ class _UserLibraryMessage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(
-          context.soundPageGutter,
-          40,
-          context.soundPageGutter,
-          context.soundContentBottomPadding,
-        ),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 430),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 48, color: context.soundMutedText),
-              const SizedBox(height: 18),
-              Text(
-                title,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: TextStyle(color: context.soundMutedText, height: 1.5),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+    return SoundEmptyState(icon: icon, title: title, message: message);
   }
 }

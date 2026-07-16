@@ -21,10 +21,33 @@ import '../widgets/progress_scrubber.dart';
 import '../widgets/sound_components.dart';
 
 class NowPlayingScreen extends StatelessWidget {
-  const NowPlayingScreen({required this.playback, this.userState, super.key});
+  const NowPlayingScreen({
+    required this.playback,
+    this.userState,
+    this.onClose,
+    this.onVerticalDragStart,
+    this.onVerticalDragUpdate,
+    this.onVerticalDragEnd,
+    this.onVerticalDragCancel,
+    super.key,
+  });
 
   final SoundPlaybackController playback;
   final LibraryUserStateController? userState;
+  final VoidCallback? onClose;
+  final GestureDragStartCallback? onVerticalDragStart;
+  final GestureDragUpdateCallback? onVerticalDragUpdate;
+  final GestureDragEndCallback? onVerticalDragEnd;
+  final GestureDragCancelCallback? onVerticalDragCancel;
+
+  void _close(BuildContext context) {
+    final close = onClose;
+    if (close != null) {
+      close();
+    } else {
+      Navigator.of(context).maybePop();
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -33,9 +56,8 @@ class NowPlayingScreen extends StatelessWidget {
       skipTraversal: true,
       onKeyEvent: (node, event) {
         if (event is KeyDownEvent &&
-            event.logicalKey == LogicalKeyboardKey.escape &&
-            Navigator.of(context).canPop()) {
-          Navigator.of(context).pop();
+            event.logicalKey == LogicalKeyboardKey.escape) {
+          _close(context);
           return KeyEventResult.handled;
         }
         return KeyEventResult.ignored;
@@ -44,7 +66,7 @@ class NowPlayingScreen extends StatelessWidget {
         animation: Listenable.merge([playback, ?userState]),
         builder: (context, _) {
           final track = playback.displayTrack;
-          if (track == null) return const _NoTrackPlaying();
+          if (track == null) return _NoTrackPlaying(onClose: onClose);
           final album = albumForTrack(track);
           final snapshot = playback.snapshot;
           return Scaffold(
@@ -61,27 +83,35 @@ class NowPlayingScreen extends StatelessWidget {
                   minimum: EdgeInsets.only(top: context.soundTitlebarInset),
                   child: Column(
                     children: [
-                      Padding(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 10,
-                        ),
-                        child: Row(
-                          children: [
-                            IconButton.filledTonal(
-                              onPressed: () => Navigator.of(context).pop(),
-                              icon: const Icon(
-                                Icons.keyboard_arrow_down_rounded,
+                      GestureDetector(
+                        key: const ValueKey('now-playing-drag-handle'),
+                        behavior: HitTestBehavior.translucent,
+                        onVerticalDragStart: onVerticalDragStart,
+                        onVerticalDragUpdate: onVerticalDragUpdate,
+                        onVerticalDragEnd: onVerticalDragEnd,
+                        onVerticalDragCancel: onVerticalDragCancel,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 16,
+                          ),
+                          child: Row(
+                            children: [
+                              IconButton.filledTonal(
+                                onPressed: () => _close(context),
+                                icon: const Icon(
+                                  Icons.keyboard_arrow_down_rounded,
+                                ),
                               ),
-                            ),
-                            const Spacer(),
-                            IconButton.filledTonal(
-                              onPressed: () =>
-                                  showPlaybackQueueSheet(context, playback),
-                              tooltip: '播放队列',
-                              icon: const Icon(Icons.queue_music_rounded),
-                            ),
-                          ],
+                              const Spacer(),
+                              IconButton.filledTonal(
+                                onPressed: () =>
+                                    showPlaybackQueueSheet(context, playback),
+                                tooltip: '播放队列',
+                                icon: const Icon(Icons.queue_music_rounded),
+                              ),
+                            ],
+                          ),
                         ),
                       ),
                       Expanded(
@@ -94,6 +124,10 @@ class NowPlayingScreen extends StatelessWidget {
                                 track: track,
                                 playback: playback,
                                 userState: userState,
+                                onVerticalDragStart: onVerticalDragStart,
+                                onVerticalDragUpdate: onVerticalDragUpdate,
+                                onVerticalDragEnd: onVerticalDragEnd,
+                                onVerticalDragCancel: onVerticalDragCancel,
                               );
                             }
                             return _WideNowPlaying(
@@ -123,7 +157,9 @@ class NowPlayingScreen extends StatelessWidget {
 }
 
 class _NoTrackPlaying extends StatelessWidget {
-  const _NoTrackPlaying();
+  const _NoTrackPlaying({this.onClose});
+
+  final VoidCallback? onClose;
 
   @override
   Widget build(BuildContext context) {
@@ -136,7 +172,7 @@ class _NoTrackPlaying extends StatelessWidget {
               left: 20,
               top: 10,
               child: IconButton.filledTonal(
-                onPressed: () => Navigator.of(context).pop(),
+                onPressed: onClose ?? () => Navigator.of(context).maybePop(),
                 icon: const Icon(Icons.keyboard_arrow_down_rounded),
               ),
             ),
@@ -231,12 +267,20 @@ class _CompactNowPlaying extends StatefulWidget {
     required this.track,
     required this.playback,
     this.userState,
+    this.onVerticalDragStart,
+    this.onVerticalDragUpdate,
+    this.onVerticalDragEnd,
+    this.onVerticalDragCancel,
   });
 
   final Album album;
   final Track track;
   final SoundPlaybackController playback;
   final LibraryUserStateController? userState;
+  final GestureDragStartCallback? onVerticalDragStart;
+  final GestureDragUpdateCallback? onVerticalDragUpdate;
+  final GestureDragEndCallback? onVerticalDragEnd;
+  final GestureDragCancelCallback? onVerticalDragCancel;
 
   @override
   State<_CompactNowPlaying> createState() => _CompactNowPlayingState();
@@ -244,135 +288,119 @@ class _CompactNowPlaying extends StatefulWidget {
 
 class _CompactNowPlayingState extends State<_CompactNowPlaying> {
   bool _showLyrics = false;
+  final ScrollController _coverScrollController = ScrollController();
+  int? _coverPointer;
+  double? _coverLastGlobalDy;
+  bool _coverDismissGestureActive = false;
+
+  void _handleCoverPointerDown(PointerDownEvent event) {
+    _coverPointer = event.pointer;
+    _coverLastGlobalDy = event.position.dy;
+    _coverDismissGestureActive = false;
+  }
+
+  void _handleCoverPointerMove(PointerMoveEvent event) {
+    if (_coverPointer != event.pointer || _coverLastGlobalDy == null) return;
+    final delta = event.position.dy - _coverLastGlobalDy!;
+    _coverLastGlobalDy = event.position.dy;
+    if (!_coverDismissGestureActive) {
+      final scrollOffset = _coverScrollController.hasClients
+          ? _coverScrollController.offset
+          : 0.0;
+      if (delta <= 0 || scrollOffset > 0.5) return;
+      _coverDismissGestureActive = true;
+      widget.onVerticalDragStart?.call(
+        DragStartDetails(
+          globalPosition: event.position,
+          localPosition: event.localPosition,
+          sourceTimeStamp: event.timeStamp,
+        ),
+      );
+    }
+    widget.onVerticalDragUpdate?.call(
+      DragUpdateDetails(
+        globalPosition: event.position,
+        localPosition: event.localPosition,
+        delta: Offset(0, delta),
+        primaryDelta: delta,
+        sourceTimeStamp: event.timeStamp,
+      ),
+    );
+  }
+
+  void _finishCoverPointer() {
+    if (_coverDismissGestureActive) {
+      _coverDismissGestureActive = false;
+      widget.onVerticalDragEnd?.call(DragEndDetails());
+    }
+    _coverPointer = null;
+    _coverLastGlobalDy = null;
+  }
+
+  void _cancelCoverPointer(PointerCancelEvent event) {
+    if (_coverDismissGestureActive) {
+      _coverDismissGestureActive = false;
+      widget.onVerticalDragCancel?.call();
+    }
+    _coverPointer = null;
+    _coverLastGlobalDy = null;
+  }
+
+  @override
+  void dispose() {
+    _coverScrollController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        _NowPlayingViewSwitch(
-          showLyrics: _showLyrics,
-          onChanged: (value) => setState(() => _showLyrics = value),
-        ),
-        Expanded(
-          child: AnimatedSwitcher(
-            duration: const Duration(milliseconds: 260),
-            switchInCurve: Curves.easeOutCubic,
-            switchOutCurve: Curves.easeInCubic,
-            child: _showLyrics
-                ? Padding(
-                    key: const ValueKey('compact-lyrics'),
-                    padding: const EdgeInsets.fromLTRB(28, 18, 28, 12),
-                    child: _LyricsPanel(
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 260),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      layoutBuilder: (currentChild, previousChildren) => Stack(
+        alignment: Alignment.topCenter,
+        children: [...previousChildren, ?currentChild],
+      ),
+      child: _showLyrics
+          ? _CompactLyricsPlayer(
+              key: const ValueKey('compact-lyrics'),
+              album: widget.album,
+              track: widget.track,
+              playback: widget.playback,
+              userState: widget.userState,
+              onToggleLyrics: () => setState(() => _showLyrics = false),
+              onVerticalDragStart: widget.onVerticalDragStart,
+              onVerticalDragUpdate: widget.onVerticalDragUpdate,
+              onVerticalDragEnd: widget.onVerticalDragEnd,
+              onVerticalDragCancel: widget.onVerticalDragCancel,
+            )
+          : Listener(
+              key: const ValueKey('now-playing-cover-drag-region'),
+              behavior: HitTestBehavior.translucent,
+              onPointerDown: _handleCoverPointerDown,
+              onPointerMove: _handleCoverPointerMove,
+              onPointerUp: (_) => _finishCoverPointer(),
+              onPointerCancel: _cancelCoverPointer,
+              child: SingleChildScrollView(
+                key: const ValueKey('compact-player'),
+                controller: _coverScrollController,
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(28, 20, 28, 40),
+                child: Center(
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 430),
+                    child: _PlayerColumn(
+                      album: widget.album,
                       track: widget.track,
-                      position: widget.playback.displayPosition,
-                      discontinuityRevision:
-                          widget.playback.positionDiscontinuityRevision,
-                      onSeek: widget.playback.seek,
-                    ),
-                  )
-                : SingleChildScrollView(
-                    key: const ValueKey('compact-player'),
-                    padding: const EdgeInsets.fromLTRB(28, 18, 28, 40),
-                    child: Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(maxWidth: 430),
-                        child: _PlayerColumn(
-                          album: widget.album,
-                          track: widget.track,
-                          playback: widget.playback,
-                          userState: widget.userState,
-                        ),
-                      ),
+                      playback: widget.playback,
+                      userState: widget.userState,
+                      onToggleLyrics: () => setState(() => _showLyrics = true),
                     ),
                   ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _NowPlayingViewSwitch extends StatelessWidget {
-  const _NowPlayingViewSwitch({
-    required this.showLyrics,
-    required this.onChanged,
-  });
-
-  final bool showLyrics;
-  final ValueChanged<bool> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      label: '正在播放视图',
-      child: DecoratedBox(
-        key: const ValueKey('now-playing-view-switch'),
-        decoration: BoxDecoration(
-          color: context.soundTint(0.07),
-          borderRadius: BorderRadius.circular(18),
-        ),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            _NowPlayingViewChoice(
-              label: '封面',
-              selected: !showLyrics,
-              onTap: () => onChanged(false),
+                ),
+              ),
             ),
-            _NowPlayingViewChoice(
-              label: '歌词',
-              selected: showLyrics,
-              onTap: () => onChanged(true),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _NowPlayingViewChoice extends StatelessWidget {
-  const _NowPlayingViewChoice({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: true,
-      selected: selected,
-      child: GestureDetector(
-        behavior: HitTestBehavior.opaque,
-        onTap: onTap,
-        child: AnimatedContainer(
-          key: ValueKey(
-            'now-playing-view-${label == '封面' ? 'cover' : 'lyrics'}',
-          ),
-          duration: const Duration(milliseconds: 180),
-          margin: const EdgeInsets.all(3),
-          padding: const EdgeInsets.symmetric(horizontal: 15, vertical: 6),
-          decoration: BoxDecoration(
-            color: selected ? context.soundTint(0.12) : Colors.transparent,
-            borderRadius: BorderRadius.circular(15),
-          ),
-          child: Text(
-            label,
-            style: TextStyle(
-              color: selected
-                  ? context.soundPrimaryText
-                  : context.soundSecondaryText,
-              fontSize: 12,
-              fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-            ),
-          ),
-        ),
-      ),
     );
   }
 }
@@ -384,6 +412,7 @@ class _PlayerColumn extends StatelessWidget {
     required this.playback,
     this.userState,
     this.artSize,
+    this.onToggleLyrics,
   });
 
   final Album album;
@@ -391,19 +420,10 @@ class _PlayerColumn extends StatelessWidget {
   final SoundPlaybackController playback;
   final LibraryUserStateController? userState;
   final double? artSize;
+  final VoidCallback? onToggleLyrics;
 
   @override
   Widget build(BuildContext context) {
-    final position = playback.displayPosition;
-    final duration = playback.displayDuration;
-    final visual = PlaybackVisualState.fromSnapshot(
-      playback.snapshot,
-      hasDisplayTrack: true,
-    );
-    final remaining = duration - position;
-    final remainingLabel = duration > Duration.zero
-        ? '-${formatDuration(remaining.isNegative ? Duration.zero : remaining)}'
-        : '0:00';
     return Column(
       mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.center,
@@ -425,29 +445,12 @@ class _PlayerColumn extends StatelessWidget {
                 ),
               ),
             ),
-            if (userState case final state?)
-              IconButton(
-                key: ValueKey('add-now-playing-${track.id}-to-playlist'),
-                onPressed: () => showAddToPlaylistSheet(
-                  context,
-                  userState: state,
-                  track: track,
-                ),
-                tooltip: '添加到播放列表',
-                icon: const Icon(Icons.playlist_add_rounded),
-              ),
-            if (userState case final state?)
-              IconButton(
-                key: ValueKey('favorite-now-playing-${track.id}'),
-                onPressed: () => unawaited(state.toggleFavorite(track)),
-                tooltip: state.isFavorite(track.id) ? '取消收藏' : '收藏歌曲',
-                color: state.isFavorite(track.id) ? SoundColors.accent : null,
-                icon: Icon(
-                  state.isFavorite(track.id)
-                      ? Icons.favorite_rounded
-                      : Icons.favorite_border_rounded,
-                ),
-              ),
+            _NowPlayingActions(
+              track: track,
+              userState: userState,
+              lyricsSelected: false,
+              onToggleLyrics: onToggleLyrics,
+            ),
           ],
         ),
         const SizedBox(height: 5),
@@ -458,6 +461,143 @@ class _PlayerColumn extends StatelessWidget {
           style: TextStyle(color: context.soundSecondaryText, fontSize: 13),
         ),
         const SizedBox(height: 20),
+        _PlaybackTimelineAndControls(playback: playback),
+      ],
+    );
+  }
+}
+
+class _CompactLyricsPlayer extends StatelessWidget {
+  const _CompactLyricsPlayer({
+    required this.album,
+    required this.track,
+    required this.playback,
+    required this.userState,
+    required this.onToggleLyrics,
+    required this.onVerticalDragStart,
+    required this.onVerticalDragUpdate,
+    required this.onVerticalDragEnd,
+    required this.onVerticalDragCancel,
+    super.key,
+  });
+
+  final Album album;
+  final Track track;
+  final SoundPlaybackController playback;
+  final LibraryUserStateController? userState;
+  final VoidCallback onToggleLyrics;
+  final GestureDragStartCallback? onVerticalDragStart;
+  final GestureDragUpdateCallback? onVerticalDragUpdate;
+  final GestureDragEndCallback? onVerticalDragEnd;
+  final GestureDragCancelCallback? onVerticalDragCancel;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(28, 0, 28, 16),
+      child: Column(
+        children: [
+          GestureDetector(
+            key: const ValueKey('now-playing-expanded-drag-region'),
+            behavior: HitTestBehavior.translucent,
+            onVerticalDragStart: onVerticalDragStart,
+            onVerticalDragUpdate: onVerticalDragUpdate,
+            onVerticalDragEnd: onVerticalDragEnd,
+            onVerticalDragCancel: onVerticalDragCancel,
+            child: Row(
+              children: [
+                AlbumArt(
+                  key: const ValueKey('compact-lyrics-artwork'),
+                  album: album,
+                  size: 56,
+                  borderRadius: 8,
+                  showShadow: false,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        track.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.w900,
+                          letterSpacing: -0.3,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        '${track.artist} — ${track.albumTitle}',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: context.soundSecondaryText,
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 4),
+                _NowPlayingActions(
+                  track: track,
+                  userState: userState,
+                  lyricsSelected: true,
+                  onToggleLyrics: onToggleLyrics,
+                  compact: true,
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 14),
+          Flexible(
+            fit: FlexFit.loose,
+            child: ConstrainedBox(
+              key: const ValueKey('compact-lyrics-region'),
+              constraints: const BoxConstraints(maxHeight: 360),
+              child: _LyricsPanel(
+                track: track,
+                position: playback.displayPosition,
+                discontinuityRevision: playback.positionDiscontinuityRevision,
+                onSeek: playback.seek,
+                compact: true,
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
+          _PlaybackTimelineAndControls(
+            key: const ValueKey('compact-lyrics-playback-controls'),
+            playback: playback,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PlaybackTimelineAndControls extends StatelessWidget {
+  const _PlaybackTimelineAndControls({required this.playback, super.key});
+
+  final SoundPlaybackController playback;
+
+  @override
+  Widget build(BuildContext context) {
+    final position = playback.displayPosition;
+    final duration = playback.displayDuration;
+    final visual = PlaybackVisualState.fromSnapshot(
+      playback.snapshot,
+      hasDisplayTrack: true,
+    );
+    final remaining = duration - position;
+    final remainingLabel = duration > Duration.zero
+        ? '-${formatDuration(remaining.isNegative ? Duration.zero : remaining)}'
+        : '0:00';
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
         ProgressScrubber(
           position: position,
           duration: duration,
@@ -527,6 +667,79 @@ class _PlayerColumn extends StatelessWidget {
             ),
           ],
         ),
+      ],
+    );
+  }
+}
+
+class _NowPlayingActions extends StatelessWidget {
+  const _NowPlayingActions({
+    required this.track,
+    required this.userState,
+    required this.lyricsSelected,
+    required this.onToggleLyrics,
+    this.compact = false,
+  });
+
+  final Track track;
+  final LibraryUserStateController? userState;
+  final bool lyricsSelected;
+  final VoidCallback? onToggleLyrics;
+  final bool compact;
+
+  @override
+  Widget build(BuildContext context) {
+    final state = userState;
+    final isFavorite = state?.isFavorite(track.id) ?? false;
+    final buttonStyle = compact
+        ? IconButton.styleFrom(
+            fixedSize: const Size.square(36),
+            minimumSize: const Size.square(36),
+            padding: EdgeInsets.zero,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          )
+        : null;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (state != null)
+          IconButton(
+            key: ValueKey('favorite-now-playing-${track.id}'),
+            onPressed: () => unawaited(state.toggleFavorite(track)),
+            tooltip: isFavorite ? '取消收藏' : '收藏歌曲',
+            color: isFavorite ? SoundColors.accent : null,
+            style: buttonStyle,
+            iconSize: compact ? 22 : null,
+            icon: Icon(
+              isFavorite
+                  ? Icons.favorite_rounded
+                  : Icons.favorite_border_rounded,
+            ),
+          ),
+        if (state != null)
+          IconButton(
+            key: ValueKey('add-now-playing-${track.id}-to-playlist'),
+            onPressed: () =>
+                showAddToPlaylistSheet(context, userState: state, track: track),
+            tooltip: '添加到播放列表',
+            style: buttonStyle,
+            iconSize: compact ? 22 : null,
+            icon: const Icon(Icons.playlist_add_rounded),
+          ),
+        if (onToggleLyrics != null)
+          IconButton(
+            key: ValueKey(
+              lyricsSelected
+                  ? 'return-now-playing-cover'
+                  : 'show-now-playing-lyrics',
+            ),
+            onPressed: onToggleLyrics,
+            tooltip: lyricsSelected ? '返回封面' : '查看歌词',
+            color: lyricsSelected ? SoundColors.accent : null,
+            style: buttonStyle,
+            iconSize: compact ? 22 : null,
+            icon: const Icon(Icons.lyrics_rounded),
+          ),
       ],
     );
   }
@@ -606,12 +819,14 @@ class _LyricsPanel extends StatefulWidget {
     required this.position,
     required this.discontinuityRevision,
     required this.onSeek,
+    this.compact = false,
   });
 
   final Track track;
   final Duration position;
   final int discontinuityRevision;
   final Future<void> Function(Duration position) onSeek;
+  final bool compact;
 
   @override
   State<_LyricsPanel> createState() => _LyricsPanelState();
@@ -883,7 +1098,7 @@ class _LyricsPanelState extends State<_LyricsPanel> {
             ],
           ],
         ),
-        const SizedBox(height: 26),
+        SizedBox(height: widget.compact ? 12 : 26),
         Expanded(
           child: LayoutBuilder(
             builder: (context, constraints) => Listener(
@@ -898,8 +1113,12 @@ class _LyricsPanelState extends State<_LyricsPanel> {
                 child: SingleChildScrollView(
                   controller: _scrollController,
                   padding: EdgeInsets.only(
-                    top: math.max(110, constraints.maxHeight * 0.45),
-                    bottom: math.max(110, constraints.maxHeight * 0.55),
+                    top: widget.compact
+                        ? math.max(72, constraints.maxHeight * 0.34)
+                        : math.max(110, constraints.maxHeight * 0.45),
+                    bottom: widget.compact
+                        ? math.max(72, constraints.maxHeight * 0.66)
+                        : math.max(110, constraints.maxHeight * 0.55),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,

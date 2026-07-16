@@ -152,10 +152,6 @@ class _WebDavFolderPickerState extends State<WebDavFolderPicker> {
           label: Text(
             _selected.isEmpty ? '暂不选择' : '选择 ${_selected.length} 个文件夹',
           ),
-          style: FilledButton.styleFrom(
-            backgroundColor: SoundColors.accent,
-            foregroundColor: Colors.white,
-          ),
         ),
       ],
     );
@@ -251,24 +247,21 @@ class _ErrorBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: SoundColors.accent.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(8),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 6),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(
+          Icon(
             Icons.error_outline_rounded,
-            color: SoundColors.accent,
+            color: context.soundColors.error,
             size: 16,
           ),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               message,
-              style: const TextStyle(color: SoundColors.accent, fontSize: 12),
+              style: TextStyle(color: context.soundColors.error, fontSize: 12),
             ),
           ),
         ],

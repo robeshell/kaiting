@@ -90,12 +90,12 @@ BEGIN
         BLOCK "040904e4"
         BEGIN
             VALUE "CompanyName", "com.soundplayer" "\0"
-            VALUE "FileDescription", "Sound" "\0"
+            VALUE "FileDescription", "Reverie" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
-            VALUE "InternalName", "sound_player" "\0"
+            VALUE "InternalName", "reverie" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2026 com.soundplayer. All rights reserved." "\0"
-            VALUE "OriginalFilename", "sound_player.exe" "\0"
-            VALUE "ProductName", "Sound" "\0"
+            VALUE "OriginalFilename", "reverie.exe" "\0"
+            VALUE "ProductName", "Reverie" "\0"
             VALUE "ProductVersion", VERSION_AS_STRING "\0"
         END
     END

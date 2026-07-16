@@ -20,6 +20,15 @@ enum SettingsDestination { overview, sources, offline, diagnostics }
 
 enum _SettingsGroup { playback, library, operation, about }
 
+Color _settingsPrimaryText(BuildContext context) => context.soundPrimaryText
+    .withValues(alpha: context.soundPrimaryText.a * 0.88);
+
+Color _settingsSecondaryText(BuildContext context) =>
+    context.soundMutedText.withValues(alpha: context.soundMutedText.a * 0.76);
+
+Color _settingsHairline(BuildContext context) =>
+    context.soundDivider.withValues(alpha: context.soundDivider.a * 0.68);
+
 extension on _SettingsGroup {
   String get label => switch (this) {
     _SettingsGroup.playback => '播放',
@@ -238,7 +247,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                     ],
                   ),
-                  const SizedBox(height: 36),
+                  const SizedBox(height: 28),
                   _SettingsSection(
                     key: _groupKeys[_SettingsGroup.library],
                     title: '资料库',
@@ -270,7 +279,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         ),
                     ],
                   ),
-                  const SizedBox(height: 36),
+                  const SizedBox(height: 28),
                   _SettingsSection(
                     key: _groupKeys[_SettingsGroup.operation],
                     title: '操作',
@@ -302,7 +311,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                     ],
                   ),
-                  const SizedBox(height: 36),
+                  const SizedBox(height: 28),
                   _SettingsSection(
                     key: _groupKeys[_SettingsGroup.about],
                     title: '关于',
@@ -312,7 +321,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         flat: true,
                         icon: Icons.graphic_eq_rounded,
                         iconColor: SoundColors.webDav,
-                        title: 'Sound',
+                        title: 'Reverie',
                         subtitle: '跨平台本地与远程音乐播放器',
                         value: '开发版本',
                       ),
@@ -401,9 +410,9 @@ class _SettingsGroupTab extends StatelessWidget {
                   style: TextStyle(
                     color: selected
                         ? SoundColors.accent
-                        : context.soundSecondaryText,
-                    fontSize: 12.5,
-                    fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                        : _settingsSecondaryText(context),
+                    fontSize: 12,
+                    fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: 9),
@@ -449,15 +458,17 @@ class _SleepTimerSelector extends StatelessWidget {
   Widget build(BuildContext context) {
     const durations = [15, 30, 45, 60];
     return Padding(
-      padding: const EdgeInsets.fromLTRB(26, 0, 26, 20),
+      padding: const EdgeInsets.fromLTRB(38, 4, 0, 14),
       child: Wrap(
-        spacing: 10,
-        runSpacing: 10,
+        spacing: 8,
+        runSpacing: 8,
         children: [
           for (final minutes in durations)
             ChoiceChip(
               key: ValueKey('sleep-timer-$minutes'),
               label: Text('$minutes 分钟'),
+              visualDensity: VisualDensity.compact,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
               selected:
                   timer.mode == SleepTimerMode.duration &&
                   timer.remaining.inMinutes <= minutes &&
@@ -467,14 +478,18 @@ class _SleepTimerSelector extends StatelessWidget {
           ChoiceChip(
             key: const ValueKey('sleep-timer-end-of-track'),
             label: const Text('播完当前歌曲'),
+            visualDensity: VisualDensity.compact,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
             selected: timer.mode == SleepTimerMode.endOfTrack,
             onSelected: hasTrack ? (_) => timer.stopAfterCurrentTrack() : null,
           ),
           if (timer.isActive)
             ActionChip(
               key: const ValueKey('sleep-timer-cancel'),
-              avatar: const Icon(Icons.close_rounded, size: 18),
+              avatar: const Icon(Icons.close_rounded, size: 15),
               label: const Text('取消定时'),
+              visualDensity: VisualDensity.compact,
+              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
               onPressed: timer.cancel,
             ),
         ],
@@ -523,8 +538,8 @@ class DiagnosticsSettingsView extends StatelessWidget {
                   '问题与诊断',
                   style: TextStyle(
                     fontSize: context.soundPageTitleSize,
-                    fontWeight: FontWeight.w800,
-                    letterSpacing: -0.8,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: -0.45,
                   ),
                 ),
               ),
@@ -547,6 +562,7 @@ class DiagnosticsSettingsView extends StatelessWidget {
                 TextButton(
                   key: const ValueKey('clear-diagnostics'),
                   onPressed: diagnostics.clear,
+                  style: context.soundDestructiveButtonStyle,
                   child: const Text('清空'),
                 ),
             ],
@@ -554,21 +570,25 @@ class DiagnosticsSettingsView extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             '仅记录本次运行中的错误类型和技术信息，不记录 WebDAV 密码。',
-            style: TextStyle(color: context.soundMutedText, fontSize: 12),
+            style: TextStyle(
+              color: _settingsSecondaryText(context),
+              fontSize: 12,
+            ),
           ),
-          const SizedBox(height: 22),
+          const SizedBox(height: 18),
           if (diagnostics.events.isEmpty)
-            SoundGlassSurface(
-              blur: false,
-              showShadow: false,
-              padding: const EdgeInsets.all(28),
-              child: const Center(child: Text('当前没有已记录的问题')),
+            Padding(
+              padding: const EdgeInsets.symmetric(vertical: 28),
+              child: Center(
+                child: Text(
+                  '当前没有已记录的问题',
+                  style: TextStyle(color: _settingsSecondaryText(context)),
+                ),
+              ),
             )
           else
-            for (final event in diagnostics.events.reversed) ...[
+            for (final event in diagnostics.events.reversed)
               _DiagnosticEventCard(event: event),
-              const SizedBox(height: 12),
-            ],
         ],
       ),
     );
@@ -587,42 +607,53 @@ class _DiagnosticEventCard extends StatelessWidget {
         '${localTime.hour.toString().padLeft(2, '0')}:'
         '${localTime.minute.toString().padLeft(2, '0')}:'
         '${localTime.second.toString().padLeft(2, '0')}';
-    return SoundGlassSurface(
-      blur: false,
-      showShadow: false,
-      padding: const EdgeInsets.all(18),
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 14),
+      decoration: BoxDecoration(
+        border: Border(bottom: BorderSide(color: _settingsHairline(context))),
+      ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.error_outline_rounded, color: SoundColors.accent),
-          const SizedBox(width: 14),
+          Icon(
+            Icons.error_outline_rounded,
+            color: context.soundColors.error,
+            size: 17,
+          ),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   event.failure.title,
-                  style: const TextStyle(fontWeight: FontWeight.w800),
+                  style: TextStyle(
+                    color: _settingsPrimaryText(context),
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 const SizedBox(height: 5),
                 Text(
                   event.failure.message,
                   style: TextStyle(
-                    color: context.soundSecondaryText,
+                    color: _settingsSecondaryText(context),
                     fontSize: 12,
                   ),
                 ),
                 const SizedBox(height: 7),
                 SelectableText(
                   event.failure.rawMessage,
-                  style: TextStyle(color: context.soundMutedText, fontSize: 11),
+                  style: TextStyle(
+                    color: _settingsSecondaryText(context),
+                    fontSize: 11,
+                  ),
                 ),
                 if (event.context case final value?) ...[
                   const SizedBox(height: 5),
                   Text(
                     value,
                     style: TextStyle(
-                      color: context.soundMutedText,
+                      color: _settingsSecondaryText(context),
                       fontSize: 11,
                     ),
                   ),
@@ -633,7 +664,10 @@ class _DiagnosticEventCard extends StatelessWidget {
           const SizedBox(width: 10),
           Text(
             timestamp,
-            style: TextStyle(color: context.soundMutedText, fontSize: 10),
+            style: TextStyle(
+              color: _settingsSecondaryText(context),
+              fontSize: 10,
+            ),
           ),
         ],
       ),
@@ -681,81 +715,90 @@ class OfflineSettingsView extends StatelessWidget {
               '离线与缓存',
               style: TextStyle(
                 fontSize: context.soundPageTitleSize,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.8,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.45,
               ),
             ),
             const SizedBox(height: 6),
             Text(
               '主动保存的歌曲不会被临时缓存清理。',
-              style: TextStyle(color: context.soundMutedText, fontSize: 12),
+              style: TextStyle(
+                color: _settingsSecondaryText(context),
+                fontSize: 12,
+              ),
             ),
-            const SizedBox(height: 24),
-            SoundGlassSurface(
-              strong: true,
-              blur: false,
-              child: Padding(
-                padding: const EdgeInsets.all(22),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _formatBytes(stats.totalBytes),
-                      key: const ValueKey('offline-total-size'),
-                      style: const TextStyle(
-                        fontSize: 30,
-                        height: 1,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.8,
-                      ),
+            const SizedBox(height: 22),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _formatBytes(stats.totalBytes),
+                    key: const ValueKey('offline-total-size'),
+                    style: TextStyle(
+                      color: _settingsPrimaryText(context),
+                      fontSize: 26,
+                      height: 1,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.55,
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Sound 当前使用的音频存储',
-                      style: TextStyle(
-                        color: context.soundMutedText,
-                        fontSize: 12,
-                      ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    'Reverie 当前使用的音频存储',
+                    style: TextStyle(
+                      color: _settingsSecondaryText(context),
+                      fontSize: 11.5,
                     ),
-                    const SizedBox(height: 20),
-                    LayoutBuilder(
-                      builder: (context, constraints) {
-                        final compact = constraints.maxWidth < 520;
-                        final cards = [
-                          _OfflineStat(
-                            icon: Icons.cloud_done_rounded,
-                            label: '离线下载',
-                            value: _formatBytes(stats.pinnedBytes),
-                            detail: '${stats.pinnedEntries} 首',
-                            color: SoundColors.webDav,
-                          ),
-                          _OfflineStat(
-                            icon: Icons.bolt_rounded,
-                            label: '临时缓存',
-                            value: _formatBytes(stats.transientBytes),
-                            detail: '${stats.transientEntries} 个文件',
-                            color: SoundColors.accent,
-                          ),
-                        ];
-                        return compact
-                            ? Column(
-                                children: [
-                                  cards.first,
-                                  const SizedBox(height: 10),
-                                  cards.last,
-                                ],
-                              )
-                            : Row(
-                                children: [
-                                  Expanded(child: cards.first),
-                                  const SizedBox(width: 12),
-                                  Expanded(child: cards.last),
-                                ],
-                              );
-                      },
-                    ),
-                  ],
-                ),
+                  ),
+                  const SizedBox(height: 14),
+                  Divider(height: 1, color: _settingsHairline(context)),
+                  LayoutBuilder(
+                    builder: (context, constraints) {
+                      final compact = constraints.maxWidth < 520;
+                      final statsRows = [
+                        _OfflineStat(
+                          icon: Icons.cloud_done_rounded,
+                          label: '离线下载',
+                          value: _formatBytes(stats.pinnedBytes),
+                          detail: '${stats.pinnedEntries} 首',
+                          color: SoundColors.webDav,
+                        ),
+                        _OfflineStat(
+                          icon: Icons.bolt_rounded,
+                          label: '临时缓存',
+                          value: _formatBytes(stats.transientBytes),
+                          detail: '${stats.transientEntries} 个文件',
+                          color: SoundColors.accent,
+                        ),
+                      ];
+                      return compact
+                          ? Column(
+                              children: [
+                                statsRows.first,
+                                Divider(
+                                  height: 1,
+                                  indent: 32,
+                                  color: _settingsHairline(context),
+                                ),
+                                statsRows.last,
+                              ],
+                            )
+                          : Row(
+                              children: [
+                                Expanded(child: statsRows.first),
+                                Container(
+                                  width: 1,
+                                  height: 34,
+                                  color: _settingsHairline(context),
+                                ),
+                                Expanded(child: statsRows.last),
+                              ],
+                            );
+                    },
+                  ),
+                ],
               ),
             ),
             const SizedBox(height: 22),
@@ -888,63 +931,62 @@ class _OfflineDownloadsPanel extends StatelessWidget {
               Text(
                 '下载与离线内容',
                 style: TextStyle(
-                  color: context.soundMutedText,
-                  fontSize: 12,
-                  fontWeight: FontWeight.w700,
+                  color: _settingsSecondaryText(context),
+                  fontSize: 11.5,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
               const Spacer(),
               Text(
                 '${items.length} 项',
-                style: TextStyle(color: context.soundMutedText, fontSize: 12),
+                style: TextStyle(
+                  color: _settingsSecondaryText(context),
+                  fontSize: 11.5,
+                ),
               ),
             ],
           ),
         ),
-        SoundGlassSurface(
-          blur: false,
-          showShadow: false,
-          borderRadius: BorderRadius.circular(SoundRadii.card),
-          child: items.isEmpty
-              ? const _OfflineDownloadsEmpty()
-              : items.length <= 5
-              ? Column(
-                  children: [
-                    for (var index = 0; index < items.length; index++) ...[
-                      _OfflineDownloadRow(
-                        item: items[index],
-                        onCancel: onCancel,
-                        onRetry: onRetry,
-                        onRemove: onRemove,
-                      ),
-                      if (index != items.length - 1)
-                        Divider(
-                          height: 1,
-                          indent: 62,
-                          color: context.soundDivider,
-                        ),
-                    ],
-                  ],
-                )
-              : SizedBox(
-                  height: 430,
-                  child: ListView.separated(
-                    primary: false,
-                    itemCount: items.length,
-                    itemBuilder: (context, index) => _OfflineDownloadRow(
-                      item: items[index],
-                      onCancel: onCancel,
-                      onRetry: onRetry,
-                      onRemove: onRemove,
-                    ),
-                    separatorBuilder: (_, _) => Divider(
-                      height: 1,
-                      indent: 62,
-                      color: context.soundDivider,
-                    ),
-                  ),
+        if (items.isEmpty)
+          const _OfflineDownloadsEmpty()
+        else if (items.length <= 5)
+          Column(
+            children: [
+              for (var index = 0; index < items.length; index++) ...[
+                _OfflineDownloadRow(
+                  item: items[index],
+                  onCancel: onCancel,
+                  onRetry: onRetry,
+                  onRemove: onRemove,
                 ),
-        ),
+                if (index != items.length - 1)
+                  Divider(
+                    height: 1,
+                    indent: 42,
+                    color: _settingsHairline(context),
+                  ),
+              ],
+            ],
+          )
+        else
+          SizedBox(
+            height: 430,
+            child: ListView.separated(
+              primary: false,
+              itemCount: items.length,
+              itemBuilder: (context, index) => _OfflineDownloadRow(
+                item: items[index],
+                onCancel: onCancel,
+                onRetry: onRetry,
+                onRemove: onRemove,
+              ),
+              separatorBuilder: (_, _) => Divider(
+                height: 1,
+                indent: 42,
+                color: _settingsHairline(context),
+              ),
+            ),
+          ),
       ],
     );
   }
@@ -956,26 +998,34 @@ class _OfflineDownloadsEmpty extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 24),
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 20),
       child: Row(
         children: [
           Icon(
             Icons.download_for_offline_outlined,
-            color: context.soundMutedText,
+            size: 18,
+            color: _settingsSecondaryText(context),
           ),
           const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
+                Text(
                   '还没有离线内容',
-                  style: TextStyle(fontWeight: FontWeight.w700),
+                  style: TextStyle(
+                    color: _settingsPrimaryText(context),
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
                 const SizedBox(height: 3),
                 Text(
                   '在支持离线的专辑或歌曲菜单中选择“离线保存”。',
-                  style: TextStyle(color: context.soundMutedText, fontSize: 12),
+                  style: TextStyle(
+                    color: _settingsSecondaryText(context),
+                    fontSize: 11.5,
+                  ),
                 ),
               ],
             ),
@@ -1021,37 +1071,63 @@ class _OfflineDownloadRow extends StatelessWidget {
         : downloading
         ? SoundColors.webDav
         : SoundColors.local;
+    final status = SizedBox(
+      width: 28,
+      height: 28,
+      child: downloading
+          ? Padding(
+              padding: const EdgeInsets.all(5),
+              child: CircularProgressIndicator(
+                value: task?.progress,
+                strokeWidth: 2,
+                color: statusColor,
+              ),
+            )
+          : Icon(
+              failed ? Icons.error_outline_rounded : Icons.cloud_done_rounded,
+              size: 18,
+              color: statusColor.withValues(alpha: statusColor.a * 0.82),
+            ),
+    );
+
+    if (context.soundIsCompact) {
+      return SoundCompactMediaRow(
+        key: ValueKey('offline-item-${item.reference.storageKey}'),
+        leading: status,
+        title: item.title,
+        subtitle: subtitle,
+        titleColor: failed ? SoundColors.accent : null,
+        trailing: PopupMenuButton<String>(
+          key: ValueKey('offline-actions-${item.reference.storageKey}'),
+          tooltip: '更多操作 ${item.title}',
+          padding: EdgeInsets.zero,
+          icon: const Icon(Icons.more_horiz_rounded, size: 21),
+          onSelected: (value) {
+            if (value == 'cancel') onCancel(item);
+            if (value == 'retry') onRetry(item);
+            if (value == 'remove') onRemove(item);
+          },
+          itemBuilder: (_) => [
+            if (downloading)
+              const PopupMenuItem(value: 'cancel', child: Text('取消下载')),
+            if (failed && item.canRetry)
+              const PopupMenuItem(value: 'retry', child: Text('重试下载')),
+            if (failed)
+              const PopupMenuItem(value: 'remove', child: Text('移除失败记录')),
+            if (!downloading && !failed)
+              const PopupMenuItem(value: 'remove', child: Text('移除离线下载')),
+          ],
+        ),
+      );
+    }
 
     return Padding(
       key: ValueKey('offline-item-${item.reference.storageKey}'),
-      padding: const EdgeInsets.fromLTRB(14, 12, 10, 12),
+      padding: const EdgeInsets.fromLTRB(4, 10, 0, 10),
       child: Row(
         children: [
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              color: statusColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(9),
-            ),
-            child: downloading
-                ? Padding(
-                    padding: const EdgeInsets.all(9),
-                    child: CircularProgressIndicator(
-                      value: task?.progress,
-                      strokeWidth: 2,
-                      color: statusColor,
-                    ),
-                  )
-                : Icon(
-                    failed
-                        ? Icons.error_outline_rounded
-                        : Icons.cloud_done_rounded,
-                    size: 19,
-                    color: statusColor,
-                  ),
-          ),
-          const SizedBox(width: 12),
+          status,
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1060,9 +1136,12 @@ class _OfflineDownloadRow extends StatelessWidget {
                   item.title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                    fontSize: 14,
-                    fontWeight: FontWeight.w700,
+                  style: TextStyle(
+                    color: failed
+                        ? SoundColors.accent
+                        : _settingsPrimaryText(context),
+                    fontSize: 13.5,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 const SizedBox(height: 3),
@@ -1071,7 +1150,9 @@ class _OfflineDownloadRow extends StatelessWidget {
                   maxLines: failed ? 2 : 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: failed ? SoundColors.accent : context.soundMutedText,
+                    color: failed
+                        ? SoundColors.accent
+                        : _settingsSecondaryText(context),
                     fontSize: 11,
                   ),
                 ),
@@ -1134,33 +1215,42 @@ class _OfflineStat extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(12),
-      ),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
       child: Row(
         children: [
-          Icon(icon, color: color, size: 22),
-          const SizedBox(width: 12),
+          Icon(icon, color: color.withValues(alpha: color.a * 0.78), size: 18),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(label, style: TextStyle(color: context.soundMutedText)),
+                Text(
+                  label,
+                  style: TextStyle(
+                    color: _settingsSecondaryText(context),
+                    fontSize: 11,
+                  ),
+                ),
                 const SizedBox(height: 2),
                 Text(
                   value,
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w800,
+                  style: TextStyle(
+                    color: _settingsPrimaryText(context),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ],
             ),
           ),
-          Text(detail, style: TextStyle(color: context.soundMutedText)),
+          Text(
+            detail,
+            style: TextStyle(
+              color: _settingsSecondaryText(context),
+              fontSize: 11,
+            ),
+          ),
         ],
       ),
     );
@@ -1184,6 +1274,7 @@ Future<bool> _confirmRemoveDownload(BuildContext context, String title) async {
             ),
             FilledButton(
               onPressed: () => Navigator.pop(dialogContext, true),
+              style: dialogContext.soundDestructiveButtonStyle,
               child: const Text('移除'),
             ),
           ],
@@ -1209,6 +1300,7 @@ Future<bool> _confirmClearAll(BuildContext context) async {
             ),
             FilledButton(
               onPressed: () => Navigator.pop(dialogContext, true),
+              style: dialogContext.soundDestructiveButtonStyle,
               child: const Text('全部删除'),
             ),
           ],
@@ -1259,11 +1351,7 @@ class _SettingsSection extends StatelessWidget {
         for (var index = 0; index < children.length; index++) ...[
           children[index],
           if (index != children.length - 1)
-            Divider(
-              height: 1,
-              indent: flat ? 38 : 66,
-              color: context.soundDivider.withValues(alpha: flat ? 0.48 : 1),
-            ),
+            Divider(height: 1, indent: 38, color: _settingsHairline(context)),
         ],
       ],
     );
@@ -1278,18 +1366,13 @@ class _SettingsSection extends StatelessWidget {
           child: Text(
             title,
             style: TextStyle(
-              color: context.soundMutedText,
-              fontSize: 12,
-              fontWeight: FontWeight.w700,
+              color: _settingsSecondaryText(context),
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ),
-        SoundGlassSurface(
-          blur: false,
-          showShadow: false,
-          borderRadius: BorderRadius.circular(SoundRadii.card),
-          child: rows,
-        ),
+        rows,
       ],
     );
   }
@@ -1324,31 +1407,19 @@ class _SettingsRow extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: flat ? 0 : 16,
-            vertical: flat ? 13 : 14,
-          ),
+          padding: EdgeInsets.symmetric(horizontal: flat ? 0 : 4, vertical: 11),
           child: Row(
             children: [
-              if (flat)
-                SizedBox(
-                  width: 24,
-                  child: Icon(
-                    icon,
-                    size: 17,
-                    color: context.soundSecondaryText,
-                  ),
-                )
-              else
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    color: iconColor.withValues(alpha: 0.13),
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Icon(icon, size: 19, color: iconColor),
+              SizedBox(
+                width: 24,
+                child: Icon(
+                  icon,
+                  size: 17,
+                  color: flat
+                      ? _settingsSecondaryText(context)
+                      : iconColor.withValues(alpha: iconColor.a * 0.78),
                 ),
+              ),
               const SizedBox(width: 14),
               Expanded(
                 child: Column(
@@ -1356,7 +1427,8 @@ class _SettingsRow extends StatelessWidget {
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
+                      style: TextStyle(
+                        color: _settingsPrimaryText(context),
                         fontSize: 13.5,
                         fontWeight: FontWeight.w600,
                       ),
@@ -1367,7 +1439,7 @@ class _SettingsRow extends StatelessWidget {
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: context.soundMutedText,
+                        color: _settingsSecondaryText(context),
                         fontSize: 11.5,
                       ),
                     ),
@@ -1379,7 +1451,7 @@ class _SettingsRow extends StatelessWidget {
                 Text(
                   value!,
                   style: TextStyle(
-                    color: context.soundMutedText,
+                    color: _settingsSecondaryText(context),
                     fontSize: 11.5,
                   ),
                 ),
@@ -1390,8 +1462,8 @@ class _SettingsRow extends StatelessWidget {
                   expanded
                       ? Icons.keyboard_arrow_up_rounded
                       : Icons.chevron_right_rounded,
-                  size: flat ? 18 : 20,
-                  color: context.soundMutedText,
+                  size: 18,
+                  color: _settingsSecondaryText(context),
                 ),
               ],
             ],
@@ -1418,9 +1490,9 @@ class _PlaybackModeSelector extends StatelessWidget {
         final columns = constraints.maxWidth >= 680 ? 4 : 2;
         const gap = 8.0;
         final itemWidth =
-            (constraints.maxWidth - 28 - gap * (columns - 1)) / columns;
+            (constraints.maxWidth - 38 - gap * (columns - 1)) / columns;
         return Padding(
-          padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+          padding: const EdgeInsets.fromLTRB(38, 7, 0, 13),
           child: Wrap(
             spacing: gap,
             runSpacing: gap,
@@ -1462,26 +1534,22 @@ class _PlaybackModeChoice extends StatelessWidget {
       selected: selected,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(SoundRadii.pill),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 160),
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
+          height: 36,
+          padding: const EdgeInsets.symmetric(horizontal: 12),
           decoration: BoxDecoration(
             color: selected
-                ? SoundColors.accent.withValues(alpha: 0.15)
-                : context.soundTint(0.035),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: selected
-                  ? SoundColors.accent.withValues(alpha: 0.65)
-                  : context.soundDivider,
-            ),
+                ? SoundColors.accent.withValues(alpha: 0.09)
+                : context.soundTint(0.022),
+            borderRadius: BorderRadius.circular(SoundRadii.pill),
           ),
           child: Row(
             children: [
               Icon(
                 _playbackModeIcon(mode),
-                size: 18,
+                size: 16,
                 color: selected
                     ? SoundColors.accent
                     : context.soundSecondaryText,
@@ -1496,8 +1564,8 @@ class _PlaybackModeChoice extends StatelessWidget {
                     fontSize: 12,
                     fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
                     color: selected
-                        ? context.soundPrimaryText
-                        : context.soundSecondaryText,
+                        ? SoundColors.accent
+                        : _settingsSecondaryText(context),
                   ),
                 ),
               ),

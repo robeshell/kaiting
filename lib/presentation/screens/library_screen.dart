@@ -9,7 +9,6 @@ import '../controllers/library_user_state_controller.dart';
 import '../models/library_source_filter.dart';
 import '../widgets/add_to_playlist_sheet.dart';
 import '../widgets/album_art.dart';
-import '../widgets/source_badge.dart';
 import '../widgets/sound_components.dart';
 import 'library_user_screen.dart';
 
@@ -527,95 +526,61 @@ class _LibraryTrackRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final compact = context.soundIsCompact;
-    return SoundTrackActivation(
+    return SoundTrackListRow(
+      key: ValueKey('library-track-row-${track.id}'),
+      leading: AlbumArt(album: album, borderRadius: compact ? 8 : 6),
+      title: track.title,
+      subtitle: '${track.artist} · ${track.albumTitle}',
       onActivate: onTap,
-      semanticLabel: track.title,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          border: Border(bottom: BorderSide(color: context.soundDivider)),
-        ),
-        child: ListTile(
-          contentPadding: compact
-              ? EdgeInsets.zero
-              : const EdgeInsets.symmetric(vertical: 5),
-          horizontalTitleGap: compact ? 10 : 16,
-          visualDensity: compact
-              ? const VisualDensity(horizontal: -1, vertical: -1)
-              : null,
-          leading: SizedBox.square(
-            dimension: compact ? 44 : 48,
-            child: AlbumArt(album: album, borderRadius: 6),
+      compactTrailing: PopupMenuButton<String>(
+        key: ValueKey('library-track-actions-${track.id}'),
+        tooltip: '更多操作 ${track.title}',
+        padding: EdgeInsets.zero,
+        icon: const Icon(Icons.more_horiz_rounded, size: 21),
+        onSelected: (value) {
+          if (value == 'favorite') onToggleFavorite?.call();
+          if (value == 'playlist') onAddToPlaylist?.call();
+          if (value == 'album') onOpenAlbum();
+        },
+        itemBuilder: (_) => [
+          if (onToggleFavorite != null)
+            PopupMenuItem(
+              value: 'favorite',
+              child: Text(favorite ? '取消收藏' : '收藏'),
+            ),
+          if (onAddToPlaylist != null)
+            const PopupMenuItem(value: 'playlist', child: Text('添加到播放列表')),
+          const PopupMenuItem(value: 'album', child: Text('打开专辑')),
+        ],
+      ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (onToggleFavorite != null)
+            IconButton(
+              key: ValueKey('favorite-library-${track.id}'),
+              onPressed: onToggleFavorite,
+              tooltip: favorite ? '取消收藏 ${track.title}' : '收藏 ${track.title}',
+              color: favorite ? SoundColors.accent : null,
+              icon: Icon(
+                favorite
+                    ? Icons.favorite_rounded
+                    : Icons.favorite_border_rounded,
+              ),
+            ),
+          if (onAddToPlaylist != null)
+            IconButton(
+              key: ValueKey('add-library-${track.id}-to-playlist'),
+              onPressed: onAddToPlaylist,
+              tooltip: '将 ${track.title} 添加到播放列表',
+              icon: const Icon(Icons.playlist_add_rounded),
+            ),
+          IconButton(
+            onPressed: onOpenAlbum,
+            tooltip: '打开专辑 ${album.title}',
+            icon: const Icon(Icons.chevron_right_rounded),
           ),
-          title: Text(
-            track.title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-          ),
-          subtitle: Text(
-            '${track.artist} · ${track.albumTitle}',
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: 12, color: context.soundSecondaryText),
-          ),
-          trailing: compact
-              ? PopupMenuButton<String>(
-                  key: ValueKey('library-track-actions-${track.id}'),
-                  tooltip: '歌曲操作',
-                  padding: EdgeInsets.zero,
-                  icon: const Icon(Icons.more_vert_rounded, size: 20),
-                  onSelected: (value) {
-                    if (value == 'favorite') onToggleFavorite?.call();
-                    if (value == 'playlist') onAddToPlaylist?.call();
-                    if (value == 'album') onOpenAlbum();
-                  },
-                  itemBuilder: (_) => [
-                    if (onToggleFavorite != null)
-                      PopupMenuItem(
-                        value: 'favorite',
-                        child: Text(favorite ? '取消收藏' : '收藏歌曲'),
-                      ),
-                    if (onAddToPlaylist != null)
-                      const PopupMenuItem(
-                        value: 'playlist',
-                        child: Text('添加到播放列表'),
-                      ),
-                    const PopupMenuItem(value: 'album', child: Text('打开专辑')),
-                  ],
-                )
-              : Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    SourceBadge(track.source),
-                    if (onToggleFavorite != null)
-                      IconButton(
-                        key: ValueKey('favorite-library-${track.id}'),
-                        onPressed: onToggleFavorite,
-                        tooltip: favorite
-                            ? '取消收藏 ${track.title}'
-                            : '收藏 ${track.title}',
-                        color: favorite ? SoundColors.accent : null,
-                        icon: Icon(
-                          favorite
-                              ? Icons.favorite_rounded
-                              : Icons.favorite_border_rounded,
-                        ),
-                      ),
-                    if (onAddToPlaylist != null)
-                      IconButton(
-                        key: ValueKey('add-library-${track.id}-to-playlist'),
-                        onPressed: onAddToPlaylist,
-                        tooltip: '将 ${track.title} 添加到播放列表',
-                        icon: const Icon(Icons.playlist_add_rounded),
-                      ),
-                    IconButton(
-                      onPressed: onOpenAlbum,
-                      tooltip: '打开专辑 ${album.title}',
-                      icon: const Icon(Icons.chevron_right_rounded),
-                    ),
-                  ],
-                ),
-        ),
+        ],
       ),
     );
   }
@@ -634,61 +599,55 @@ class _CompactLibraryNavigation extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return SingleChildScrollView(
       key: const ValueKey('compact-library-navigation'),
-      children: [
-        Expanded(
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: context.soundTint(0.035),
-              borderRadius: BorderRadius.circular(12),
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: [
+          for (final candidate in LibraryBrowseMode.values) ...[
+            _CompactLibraryModeItem(
+              mode: candidate,
+              selected: mode == candidate,
+              onTap: () => onModeChanged(candidate),
             ),
-            child: Row(
-              children: [
-                for (final candidate in LibraryBrowseMode.values)
-                  Expanded(
-                    child: _CompactLibraryModeItem(
-                      mode: candidate,
-                      selected: mode == candidate,
-                      onTap: () => onModeChanged(candidate),
+            const SizedBox(width: 8),
+          ],
+          if (onOpenUserMode case final openUserMode?)
+            PopupMenuButton<LibraryUserBrowseMode>(
+              key: const ValueKey('mobile-library-user-menu'),
+              tooltip: '我的音乐',
+              onSelected: openUserMode,
+              itemBuilder: (_) => [
+                for (final candidate in LibraryUserBrowseMode.values)
+                  PopupMenuItem(
+                    value: candidate,
+                    child: Row(
+                      children: [
+                        Icon(candidate.icon, size: 18),
+                        const SizedBox(width: 10),
+                        Text(candidate.label),
+                      ],
                     ),
                   ),
               ],
-            ),
-          ),
-        ),
-        if (onOpenUserMode case final openUserMode?) ...[
-          const SizedBox(width: 8),
-          PopupMenuButton<LibraryUserBrowseMode>(
-            key: const ValueKey('mobile-library-user-menu'),
-            tooltip: '我的音乐',
-            onSelected: openUserMode,
-            itemBuilder: (_) => [
-              for (final candidate in LibraryUserBrowseMode.values)
-                PopupMenuItem(
-                  value: candidate,
-                  child: Row(
-                    children: [
-                      Icon(candidate.icon, size: 18),
-                      const SizedBox(width: 10),
-                      Text(candidate.label),
-                    ],
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: context.soundTint(0.025),
+                  borderRadius: BorderRadius.circular(SoundRadii.pill),
+                ),
+                child: SizedBox(
+                  width: 42,
+                  height: 34,
+                  child: Icon(
+                    Icons.more_horiz_rounded,
+                    size: 20,
+                    color: context.soundSecondaryText,
                   ),
                 ),
-            ],
-            child: Container(
-              width: 42,
-              height: 42,
-              alignment: Alignment.center,
-              decoration: BoxDecoration(
-                color: context.soundTint(0.035),
-                borderRadius: BorderRadius.circular(12),
               ),
-              child: const Icon(Icons.more_horiz_rounded, size: 21),
             ),
-          ),
         ],
-      ],
+      ),
     );
   }
 }
@@ -712,38 +671,25 @@ class _CompactLibraryModeItem extends StatelessWidget {
       child: InkWell(
         key: ValueKey('library-mode-${mode.name}'),
         onTap: onTap,
-        borderRadius: BorderRadius.circular(10),
+        borderRadius: BorderRadius.circular(SoundRadii.pill),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 160),
-          height: 42,
+          height: 34,
+          padding: const EdgeInsets.symmetric(horizontal: 16),
           decoration: BoxDecoration(
             color: selected
-                ? SoundColors.accent.withValues(alpha: 0.14)
-                : Colors.transparent,
-            borderRadius: BorderRadius.circular(10),
+                ? SoundColors.accent.withValues(alpha: 0.09)
+                : context.soundTint(0.025),
+            borderRadius: BorderRadius.circular(SoundRadii.pill),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                mode.icon,
-                size: 17,
-                color: selected
-                    ? SoundColors.accent
-                    : context.soundSecondaryText,
-              ),
-              const SizedBox(width: 5),
-              Text(
-                mode.label,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
-                  color: selected
-                      ? context.soundPrimaryText
-                      : context.soundSecondaryText,
-                ),
-              ),
-            ],
+          alignment: Alignment.center,
+          child: Text(
+            mode.label,
+            style: TextStyle(
+              fontSize: 14,
+              fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+              color: selected ? SoundColors.accent : context.soundSecondaryText,
+            ),
           ),
         ),
       ),
@@ -801,15 +747,15 @@ class _LibraryToolbar extends StatelessWidget {
               const SizedBox(width: 6),
             ],
             _sortMenu(
-              child: _CompactToolbarButton(
+              child: _ToolbarIconButton(
                 icon: Icons.sort_rounded,
                 tooltip: '排序：${sortOrder.label}',
               ),
             ),
             const SizedBox(width: 6),
             _sourceMenu(
-              child: _CompactToolbarButton(
-                icon: sourceFilter.icon,
+              child: _ToolbarIconButton(
+                icon: Icons.filter_alt_outlined,
                 tooltip: '来源：${sourceFilter.label}',
               ),
             ),
@@ -827,15 +773,15 @@ class _LibraryToolbar extends StatelessWidget {
           style: TextStyle(color: context.soundMutedText, fontSize: 12),
         ),
         _sortMenu(
-          child: _ToolbarButton(
+          child: _ToolbarIconButton(
             icon: Icons.sort_rounded,
-            label: sortOrder.label,
+            tooltip: '排序：${sortOrder.label}',
           ),
         ),
         _sourceMenu(
-          child: _ToolbarButton(
-            icon: sourceFilter.icon,
-            label: sourceFilter.label,
+          child: _ToolbarIconButton(
+            icon: Icons.filter_alt_outlined,
+            tooltip: '来源：${sourceFilter.label}',
           ),
         ),
       ],
@@ -845,7 +791,7 @@ class _LibraryToolbar extends StatelessWidget {
   Widget _sortMenu({required Widget child}) {
     return PopupMenuButton<LibrarySortOrder>(
       key: const ValueKey('library-sort-menu'),
-      tooltip: '选择排序方式',
+      tooltip: '排序：${sortOrder.label}',
       initialValue: sortOrder,
       onSelected: onSortChanged,
       itemBuilder: (context) => [
@@ -865,7 +811,7 @@ class _LibraryToolbar extends StatelessWidget {
   Widget _sourceMenu({required Widget child}) {
     return PopupMenuButton<LibrarySourceFilter>(
       key: const ValueKey('library-source-menu'),
-      tooltip: '筛选音乐来源',
+      tooltip: '来源：${sourceFilter.label}',
       initialValue: sourceFilter,
       onSelected: onSourceChanged,
       itemBuilder: (context) => [
@@ -891,8 +837,8 @@ class _LibraryToolbar extends StatelessWidget {
   }
 }
 
-class _CompactToolbarButton extends StatelessWidget {
-  const _CompactToolbarButton({required this.icon, required this.tooltip});
+class _ToolbarIconButton extends StatelessWidget {
+  const _ToolbarIconButton({required this.icon, required this.tooltip});
 
   final IconData icon;
   final String tooltip;
@@ -901,15 +847,15 @@ class _CompactToolbarButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return Tooltip(
       message: tooltip,
-      child: Container(
-        width: 40,
-        height: 40,
-        alignment: Alignment.center,
+      child: DecoratedBox(
         decoration: BoxDecoration(
-          color: context.soundTint(0.045),
-          borderRadius: BorderRadius.circular(10),
+          color: context.soundTint(0.035),
+          shape: BoxShape.circle,
         ),
-        child: Icon(icon, size: 19, color: context.soundSecondaryText),
+        child: SizedBox.square(
+          dimension: 36,
+          child: Icon(icon, size: 18, color: context.soundSecondaryText),
+        ),
       ),
     );
   }
@@ -922,51 +868,16 @@ class _CompactPlayAllButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return FilledButton.icon(
+    return TextButton.icon(
       key: const ValueKey('compact-library-play-all'),
       onPressed: onPressed,
       icon: const Icon(Icons.play_arrow_rounded, size: 17),
       label: const Text('播放全部'),
-      style: FilledButton.styleFrom(
+      style: TextButton.styleFrom(
         minimumSize: const Size(0, 40),
-        padding: const EdgeInsets.symmetric(horizontal: 10),
-        backgroundColor: SoundColors.accent,
-        foregroundColor: Colors.white,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        foregroundColor: SoundColors.accent,
         textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w700),
-      ),
-    );
-  }
-}
-
-class _ToolbarButton extends StatelessWidget {
-  const _ToolbarButton({required this.icon, required this.label});
-
-  final IconData icon;
-  final String label;
-
-  @override
-  Widget build(BuildContext context) {
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: context.soundTint(0.045),
-        border: Border.all(color: context.soundDivider),
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
-        child: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 17, color: context.soundSecondaryText),
-            const SizedBox(width: 7),
-            Text(
-              label,
-              style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
-            ),
-            const SizedBox(width: 5),
-            const Icon(Icons.arrow_drop_down_rounded, size: 18),
-          ],
-        ),
       ),
     );
   }
@@ -1091,10 +1002,6 @@ class _CatalogMessage extends StatelessWidget {
                   onPressed: onAction,
                   icon: const Icon(Icons.folder_open_rounded),
                   label: Text(actionLabel!),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: SoundColors.accent,
-                    foregroundColor: Colors.white,
-                  ),
                 ),
               ],
             ],
@@ -1124,10 +1031,6 @@ class _SongHeader extends StatelessWidget {
           onPressed: onPlayAll,
           icon: const Icon(Icons.play_arrow_rounded),
           label: const Text('播放全部'),
-          style: FilledButton.styleFrom(
-            backgroundColor: SoundColors.accent,
-            foregroundColor: Colors.white,
-          ),
         ),
       ],
     );
@@ -1144,11 +1047,16 @@ class _AlbumCard extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          AlbumArt(album: album),
+          AlbumArt(
+            key: ValueKey('library-album-art-${album.id}'),
+            album: album,
+            borderRadius: 6,
+            showShadow: false,
+          ),
           const SizedBox(height: 7),
           Text(
             album.title,
@@ -1186,13 +1094,18 @@ class _CollectionCard extends StatelessWidget {
     return InkWell(
       key: ValueKey('library-collection-${collection.id}'),
       onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
+      borderRadius: BorderRadius.circular(8),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Stack(
             children: [
-              AlbumArt(album: album),
+              AlbumArt(
+                key: ValueKey('library-collection-art-${collection.id}'),
+                album: album,
+                borderRadius: 6,
+                showShadow: false,
+              ),
               if (!compact)
                 Positioned(
                   right: 10,

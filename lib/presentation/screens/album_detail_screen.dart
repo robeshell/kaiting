@@ -6,12 +6,12 @@ import '../../core/sound_theme.dart';
 import '../../domain/library_models.dart';
 import '../../offline/offline_media_provider.dart';
 import '../../playback/playback_controller.dart';
+import '../../playback/playback_mode.dart';
 import '../controllers/library_user_state_controller.dart';
 import '../controllers/offline_download_controller.dart';
 import '../widgets/add_to_playlist_sheet.dart';
 import '../widgets/album_art.dart';
 import '../widgets/progress_scrubber.dart';
-import '../widgets/source_badge.dart';
 import '../widgets/sound_components.dart';
 
 class AlbumDetailScreen extends StatelessWidget {
@@ -129,7 +129,7 @@ class _Hero extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final compact = constraints.maxWidth < 680;
+        final compact = context.soundIsCompact;
         final discCount = {
           for (final track in album.tracks) _effectiveDiscNumber(track),
         }.length;
@@ -154,105 +154,127 @@ class _Hero extends StatelessWidget {
         final offlineCount = supportedTracks.isEmpty
             ? 0
             : offline!.pinnedCount(supportedTracks);
-        final details = Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              album.title,
-              style: TextStyle(
-                fontSize: compact ? 24 : 32,
-                height: 1.08,
-                fontWeight: FontWeight.w900,
-                letterSpacing: -0.8,
-              ),
+        final offlineLabel = downloading
+            ? '取消下载 ${((offlineProgress ?? 0) * 100).round()}%'
+            : allOffline
+            ? '已离线'
+            : offlineCount > 0
+            ? '继续下载 $offlineCount/${supportedTracks.length}'
+            : '离线保存';
+
+        if (compact) {
+          return Container(
+            key: const ValueKey('album-detail-hero'),
+            padding: EdgeInsets.fromLTRB(
+              context.soundPageGutter,
+              8,
+              context.soundPageGutter,
+              16,
             ),
-            SizedBox(height: compact ? 5 : 7),
-            Text(
-              album.artist,
-              style: TextStyle(
-                color: context.soundSecondaryText,
-                fontSize: compact ? 14 : 15,
-                fontWeight: FontWeight.w600,
-              ),
+            decoration: BoxDecoration(
+              border: Border(bottom: BorderSide(color: context.soundDivider)),
             ),
-            SizedBox(height: compact ? 7 : 10),
-            Wrap(
-              spacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.center,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                IconButton(
+                  onPressed: onBack,
+                  tooltip: '返回',
+                  icon: const Icon(Icons.arrow_back_rounded),
+                  style: IconButton.styleFrom(
+                    minimumSize: const Size.square(40),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Center(
+                  child: AlbumArt(
+                    key: const ValueKey('album-detail-artwork'),
+                    album: album,
+                    size: 156,
+                  ),
+                ),
+                const SizedBox(height: 14),
+                Text(
+                  album.title,
+                  style: const TextStyle(
+                    fontSize: 24,
+                    height: 1.08,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: -0.8,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  album.artist,
+                  style: TextStyle(
+                    color: context.soundSecondaryText,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 7),
                 Text(
                   metadata,
                   style: TextStyle(fontSize: 13, color: context.soundMutedText),
                 ),
-                if (!compact) SourceBadge(album.source),
-              ],
-            ),
-            SizedBox(height: compact ? 14 : 18),
-            Wrap(
-              spacing: 10,
-              runSpacing: 8,
-              children: [
-                FilledButton.icon(
-                  onPressed: album.tracks.isEmpty
-                      ? null
-                      : () => playback.playTrack(
-                          album.tracks.first,
-                          queue: album.tracks,
+                const SizedBox(height: 14),
+                Wrap(
+                  spacing: 10,
+                  runSpacing: 8,
+                  children: [
+                    FilledButton.icon(
+                      onPressed: album.tracks.isEmpty
+                          ? null
+                          : () => playback.playTrack(
+                              album.tracks.first,
+                              queue: album.tracks,
+                            ),
+                      icon: const Icon(Icons.play_arrow_rounded),
+                      label: const Text('播放'),
+                      style: FilledButton.styleFrom(
+                        minimumSize: const Size(0, 40),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 8,
                         ),
-                  icon: const Icon(Icons.play_arrow_rounded),
-                  label: const Text('播放'),
-                  style: FilledButton.styleFrom(
-                    backgroundColor: SoundColors.accent,
-                    foregroundColor: Colors.white,
-                    minimumSize: Size(0, compact ? 40 : 44),
-                    padding: EdgeInsets.symmetric(
-                      horizontal: compact ? 16 : 18,
-                      vertical: compact ? 8 : 10,
+                      ),
                     ),
-                  ),
+                    if (supportedTracks.isNotEmpty)
+                      OutlinedButton.icon(
+                        key: const ValueKey('album-offline-action'),
+                        onPressed: () => unawaited(
+                          _toggleAlbumOffline(context, offline!, album),
+                        ),
+                        icon: downloading
+                            ? const Icon(Icons.close_rounded)
+                            : Icon(
+                                allOffline
+                                    ? Icons.cloud_done_rounded
+                                    : Icons.download_for_offline_outlined,
+                              ),
+                        label: Text(offlineLabel),
+                      ),
+                  ],
                 ),
-                if (supportedTracks.isNotEmpty)
-                  OutlinedButton.icon(
-                    key: const ValueKey('album-offline-action'),
-                    onPressed: () => unawaited(
-                      _toggleAlbumOffline(context, offline!, album),
-                    ),
-                    icon: downloading
-                        ? const Icon(Icons.close_rounded)
-                        : Icon(
-                            allOffline
-                                ? Icons.cloud_done_rounded
-                                : Icons.download_for_offline_outlined,
-                          ),
-                    label: Text(
-                      downloading
-                          ? '取消下载 ${((offlineProgress ?? 0) * 100).round()}%'
-                          : allOffline
-                          ? '已离线'
-                          : offlineCount > 0
-                          ? '继续下载 $offlineCount/${supportedTracks.length}'
-                          : '离线保存',
-                    ),
-                  ),
               ],
             ),
-          ],
-        );
+          );
+        }
 
-        final artworkSize = compact
-            ? 156.0
-            : constraints.maxWidth >= 1000
-            ? 196.0
-            : 180.0;
+        final artworkSize = (constraints.maxWidth * 0.36)
+            .clamp(280.0, 420.0)
+            .toDouble();
+        final buttonWidth = constraints.maxWidth >= 1040 ? 146.0 : 132.0;
+        final horizontalGap = constraints.maxWidth >= 1000 ? 48.0 : 32.0;
 
         return Container(
           key: const ValueKey('album-detail-hero'),
           padding: EdgeInsets.fromLTRB(
             context.soundPageGutter,
-            compact ? 8 : 14,
+            8,
             context.soundPageGutter,
-            compact ? 16 : 22,
+            30,
           ),
           decoration: BoxDecoration(
             border: Border(bottom: BorderSide(color: context.soundDivider)),
@@ -260,50 +282,219 @@ class _Hero extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              IconButton(
-                onPressed: onBack,
-                tooltip: '返回',
-                icon: const Icon(Icons.arrow_back_rounded),
-                style: compact
-                    ? IconButton.styleFrom(
-                        minimumSize: const Size.square(40),
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      )
-                    : null,
+              Row(
+                children: [
+                  IconButton.filledTonal(
+                    key: const ValueKey('desktop-album-back'),
+                    onPressed: onBack,
+                    tooltip: '返回',
+                    icon: const Icon(Icons.arrow_back_rounded),
+                  ),
+                  const Spacer(),
+                  if (supportedTracks.isNotEmpty)
+                    IconButton.filledTonal(
+                      key: const ValueKey('album-offline-action'),
+                      onPressed: () => unawaited(
+                        _toggleAlbumOffline(context, offline!, album),
+                      ),
+                      tooltip: offlineLabel,
+                      icon: downloading
+                          ? const Icon(Icons.close_rounded)
+                          : Icon(
+                              allOffline
+                                  ? Icons.cloud_done_rounded
+                                  : Icons.download_for_offline_outlined,
+                            ),
+                    ),
+                  const SizedBox(width: 8),
+                  PopupMenuButton<String>(
+                    key: const ValueKey('desktop-album-actions'),
+                    tooltip: '更多专辑操作',
+                    icon: const Icon(Icons.more_horiz_rounded),
+                    onSelected: (value) {
+                      if (value == 'shuffle' && album.tracks.isNotEmpty) {
+                        playback.setPlaybackMode(PlaybackMode.shuffle);
+                        unawaited(
+                          playback.playTrack(
+                            album.tracks.first,
+                            queue: album.tracks,
+                          ),
+                        );
+                      }
+                      if (value == 'offline' && supportedTracks.isNotEmpty) {
+                        unawaited(
+                          _toggleAlbumOffline(context, offline!, album),
+                        );
+                      }
+                    },
+                    itemBuilder: (_) => [
+                      const PopupMenuItem(
+                        value: 'shuffle',
+                        child: Text('随机播放'),
+                      ),
+                      if (supportedTracks.isNotEmpty)
+                        PopupMenuItem(
+                          value: 'offline',
+                          child: Text(offlineLabel),
+                        ),
+                    ],
+                  ),
+                ],
               ),
-              SizedBox(height: compact ? 4 : 10),
-              if (compact) ...[
-                Center(
-                  child: AlbumArt(
+              const SizedBox(height: 24),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  AlbumArt(
                     key: const ValueKey('album-detail-artwork'),
                     album: album,
                     size: artworkSize,
+                    borderRadius: 12,
                   ),
-                ),
-                const SizedBox(height: 14),
-                details,
-              ] else
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    AlbumArt(
-                      key: const ValueKey('album-detail-artwork'),
-                      album: album,
-                      size: artworkSize,
-                    ),
-                    const SizedBox(width: 28),
-                    Expanded(
-                      child: Padding(
-                        padding: const EdgeInsets.only(top: 4),
-                        child: details,
+                  SizedBox(width: horizontalGap),
+                  Expanded(
+                    child: SizedBox(
+                      height: artworkSize,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            album.title,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              fontSize: 38,
+                              height: 1.04,
+                              fontWeight: FontWeight.w900,
+                              letterSpacing: -1.25,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            album.artist,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                              color: SoundColors.accent,
+                              fontSize: 28,
+                              height: 1.08,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.45,
+                            ),
+                          ),
+                          const SizedBox(height: 14),
+                          Text(
+                            metadata,
+                            style: TextStyle(
+                              color: context.soundMutedText,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
+                            ),
+                          ),
+                          const Spacer(),
+                          LayoutBuilder(
+                            builder: (context, buttonConstraints) {
+                              final condensed =
+                                  buttonConstraints.maxWidth <
+                                  buttonWidth * 2 + 16;
+                              final playButton = _DesktopAlbumActionButton(
+                                key: const ValueKey('desktop-album-play'),
+                                label: '播放',
+                                icon: Icons.play_arrow_rounded,
+                                showIcon: !condensed,
+                                onPressed: album.tracks.isEmpty
+                                    ? null
+                                    : () => playback.playTrack(
+                                        album.tracks.first,
+                                        queue: album.tracks,
+                                      ),
+                              );
+                              final shuffleButton = _DesktopAlbumActionButton(
+                                key: const ValueKey('desktop-album-shuffle'),
+                                label: '随机播放',
+                                icon: Icons.shuffle_rounded,
+                                showIcon: !condensed,
+                                onPressed: album.tracks.isEmpty
+                                    ? null
+                                    : () {
+                                        playback.setPlaybackMode(
+                                          PlaybackMode.shuffle,
+                                        );
+                                        unawaited(
+                                          playback.playTrack(
+                                            album.tracks.first,
+                                            queue: album.tracks,
+                                          ),
+                                        );
+                                      },
+                              );
+                              return Row(
+                                children: [
+                                  if (condensed)
+                                    Expanded(child: playButton)
+                                  else
+                                    SizedBox(
+                                      width: buttonWidth,
+                                      child: playButton,
+                                    ),
+                                  SizedBox(width: condensed ? 8 : 16),
+                                  if (condensed)
+                                    Expanded(child: shuffleButton)
+                                  else
+                                    SizedBox(
+                                      width: buttonWidth,
+                                      child: shuffleButton,
+                                    ),
+                                ],
+                              );
+                            },
+                          ),
+                        ],
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
+              ),
             ],
           ),
         );
       },
+    );
+  }
+}
+
+class _DesktopAlbumActionButton extends StatelessWidget {
+  const _DesktopAlbumActionButton({
+    required this.label,
+    required this.icon,
+    required this.showIcon,
+    required this.onPressed,
+    super.key,
+  });
+
+  final String label;
+  final IconData icon;
+  final bool showIcon;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final style = FilledButton.styleFrom(
+      minimumSize: const Size(0, 44),
+      padding: EdgeInsets.symmetric(horizontal: showIcon ? 14 : 8),
+    );
+    if (!showIcon) {
+      return FilledButton(
+        onPressed: onPressed,
+        style: style,
+        child: Text(label, maxLines: 1),
+      );
+    }
+    return FilledButton.icon(
+      onPressed: onPressed,
+      icon: Icon(icon),
+      label: Text(label, maxLines: 1),
+      style: style,
     );
   }
 }
@@ -364,6 +555,7 @@ class _TrackRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final compact = context.soundIsCompact;
     final offlineTask = offline?.taskFor(track);
     final downloading =
         offlineTask?.state == OfflineDownloadTaskState.downloading;
@@ -375,130 +567,136 @@ class _TrackRow extends StatelessWidget {
       borderRadius: BorderRadius.circular(8),
       child: Container(
         key: ValueKey('album-track-row-${track.id}'),
-        constraints: const BoxConstraints(minHeight: 50),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 9),
+        constraints: BoxConstraints.tightFor(height: compact ? 64 : 68),
+        padding: EdgeInsets.symmetric(horizontal: compact ? 0 : 18),
         decoration: BoxDecoration(
           color: active
               ? SoundColors.accent.withValues(alpha: 0.075)
               : Colors.transparent,
           border: Border(bottom: BorderSide(color: context.soundDivider)),
         ),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 34,
-              child: active
-                  ? const Icon(
-                      Icons.graphic_eq_rounded,
-                      color: SoundColors.accent,
-                      size: 18,
-                    )
-                  : Text(
-                      track.trackNumber > 0 ? '${track.trackNumber}' : '–',
-                      style: TextStyle(color: context.soundSecondaryText),
+        child: compact
+            ? SoundCompactMediaRow(
+                leading: active
+                    ? const Icon(
+                        Icons.graphic_eq_rounded,
+                        color: SoundColors.accent,
+                        size: 18,
+                      )
+                    : Text(
+                        track.trackNumber > 0 ? '${track.trackNumber}' : '–',
+                        style: TextStyle(color: context.soundSecondaryText),
+                      ),
+                title: track.title,
+                titleColor: active ? SoundColors.accent : null,
+                subtitle: '${track.artist} — ${formatDuration(track.duration)}',
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (onToggleOffline != null)
+                      _TrackOfflineIndicator(track: track, offline: offline!),
+                    _actions(
+                      compact: true,
+                      downloading: downloading,
+                      failed: failed,
                     ),
-            ),
-            Expanded(
-              child: Text(
-                track.title,
-                style: TextStyle(
-                  color: active ? SoundColors.accent : context.soundPrimaryText,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w700,
+                  ],
                 ),
-              ),
-            ),
-            const SizedBox(width: 12),
-            if (onToggleOffline != null) ...[
-              _TrackOfflineIndicator(track: track, offline: offline!),
-              const SizedBox(width: 10),
-            ],
-            Text(
-              formatDuration(track.duration),
-              style: TextStyle(
-                fontSize: 12,
-                color: context.soundSecondaryText,
-                fontFeatures: [FontFeature.tabularFigures()],
-              ),
-            ),
-            PopupMenuButton<String>(
-              key: ValueKey('track-actions-${track.id}'),
-              tooltip: '歌曲操作',
-              padding: EdgeInsets.zero,
-              iconSize: 20,
-              style: IconButton.styleFrom(
-                minimumSize: const Size.square(32),
-                maximumSize: const Size.square(32),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              ),
-              onSelected: (value) {
-                if (value == 'play-next') onPlayNext();
-                if (value == 'favorite') onToggleFavorite?.call();
-                if (value == 'playlist') onAddToPlaylist?.call();
-                if (value == 'offline') onToggleOffline?.call();
-              },
-              itemBuilder: (_) => [
-                const PopupMenuItem(
-                  value: 'play-next',
-                  child: ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Icon(Icons.playlist_play_rounded),
-                    title: Text('下一首播放'),
+              )
+            : Row(
+                children: [
+                  SizedBox(
+                    width: 48,
+                    child: active
+                        ? const Icon(
+                            Icons.graphic_eq_rounded,
+                            color: SoundColors.accent,
+                            size: 18,
+                          )
+                        : Text(
+                            track.trackNumber > 0
+                                ? '${track.trackNumber}'
+                                : '–',
+                            style: TextStyle(color: context.soundSecondaryText),
+                          ),
                   ),
-                ),
-                if (onToggleFavorite != null)
-                  PopupMenuItem(
-                    value: 'favorite',
-                    child: ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: Icon(
-                        favorite
-                            ? Icons.favorite_rounded
-                            : Icons.favorite_border_rounded,
-                        color: favorite ? SoundColors.accent : null,
-                      ),
-                      title: Text(favorite ? '取消收藏' : '收藏歌曲'),
-                    ),
-                  ),
-                if (onAddToPlaylist != null)
-                  const PopupMenuItem(
-                    value: 'playlist',
-                    child: ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: Icon(Icons.playlist_add_rounded),
-                      title: Text('添加到播放列表'),
-                    ),
-                  ),
-                if (onToggleOffline != null)
-                  PopupMenuItem(
-                    value: 'offline',
-                    child: ListTile(
-                      contentPadding: EdgeInsets.zero,
-                      leading: Icon(
-                        downloading
-                            ? Icons.close_rounded
-                            : offline!.isPinned(track)
-                            ? Icons.cloud_off_outlined
-                            : failed
-                            ? Icons.refresh_rounded
-                            : Icons.download_for_offline_outlined,
-                      ),
-                      title: Text(
-                        downloading
-                            ? '取消下载'
-                            : offline!.isPinned(track)
-                            ? '移除离线下载'
-                            : failed
-                            ? '重试下载'
-                            : '离线保存',
+                  Expanded(
+                    child: Text(
+                      track.title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: active
+                            ? SoundColors.accent
+                            : context.soundPrimaryText,
+                        fontSize: 15.5,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
-              ],
-            ),
-          ],
-        ),
+                  const SizedBox(width: 12),
+                  if (onToggleOffline != null) ...[
+                    _TrackOfflineIndicator(track: track, offline: offline!),
+                    const SizedBox(width: 10),
+                  ],
+                  Text(
+                    formatDuration(track.duration),
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: context.soundSecondaryText,
+                      fontFeatures: [FontFeature.tabularFigures()],
+                    ),
+                  ),
+                  _actions(
+                    compact: false,
+                    downloading: downloading,
+                    failed: failed,
+                  ),
+                ],
+              ),
       ),
+    );
+  }
+
+  Widget _actions({
+    required bool compact,
+    required bool downloading,
+    required bool failed,
+  }) {
+    return PopupMenuButton<String>(
+      key: ValueKey('track-actions-${track.id}'),
+      tooltip: '更多操作 ${track.title}',
+      padding: EdgeInsets.zero,
+      icon: Icon(Icons.more_horiz_rounded, size: 21),
+      onSelected: (value) {
+        if (value == 'play-next') onPlayNext();
+        if (value == 'favorite') onToggleFavorite?.call();
+        if (value == 'playlist') onAddToPlaylist?.call();
+        if (value == 'offline') onToggleOffline?.call();
+      },
+      itemBuilder: (_) => [
+        const PopupMenuItem(value: 'play-next', child: Text('下一首播放')),
+        if (onToggleFavorite != null)
+          PopupMenuItem(
+            value: 'favorite',
+            child: Text(favorite ? '取消收藏' : '收藏'),
+          ),
+        if (onAddToPlaylist != null)
+          const PopupMenuItem(value: 'playlist', child: Text('添加到播放列表')),
+        if (onToggleOffline != null)
+          PopupMenuItem(
+            value: 'offline',
+            child: Text(
+              downloading
+                  ? '取消下载'
+                  : offline!.isPinned(track)
+                  ? '移除离线下载'
+                  : failed
+                  ? '重试下载'
+                  : '离线保存',
+            ),
+          ),
+      ],
     );
   }
 }
@@ -626,6 +824,7 @@ Future<bool> _confirmRemoveOfflineAlbum(
             ),
             FilledButton(
               onPressed: () => Navigator.pop(dialogContext, true),
+              style: dialogContext.soundDestructiveButtonStyle,
               child: const Text('移除'),
             ),
           ],

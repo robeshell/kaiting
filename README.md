@@ -1,7 +1,7 @@
-# Sound Next
+# Reverie
 
-Sound Next is a clean cross-platform rewrite of the original Sound music
-player prototype. It keeps the artwork-first visual language and core screens,
+Reverie is a clean cross-platform personal music player. It keeps an
+artwork-first visual language and focused core screens,
 while rebuilding playback, library scanning, persistence, and remote sources
 from explicit platform-independent contracts.
 

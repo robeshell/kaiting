@@ -30,6 +30,15 @@ typedef SourceDirectoryScanCallback =
       List<String> directoryIds,
     );
 
+Color _sourcePrimaryText(BuildContext context) => context.soundPrimaryText
+    .withValues(alpha: context.soundPrimaryText.a * 0.88);
+
+Color _sourceSecondaryText(BuildContext context) =>
+    context.soundMutedText.withValues(alpha: context.soundMutedText.a * 0.76);
+
+Color _sourceHairline(BuildContext context) =>
+    context.soundDivider.withValues(alpha: context.soundDivider.a * 0.68);
+
 class RemoteSourceSettingsAdapter {
   const RemoteSourceSettingsAdapter({
     required this.definition,
@@ -275,6 +284,7 @@ class _SourceSettingsScreenState extends State<SourceSettingsScreen> {
           ),
           FilledButton(
             onPressed: () => Navigator.of(context).pop(true),
+            style: context.soundDestructiveButtonStyle,
             child: const Text('移除'),
           ),
         ],
@@ -542,8 +552,8 @@ class _SourceSettingsScreenState extends State<SourceSettingsScreen> {
                 '音乐来源',
                 style: TextStyle(
                   fontSize: context.soundPageTitleSize,
-                  fontWeight: FontWeight.w800,
-                  letterSpacing: -0.8,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.45,
                 ),
               ),
             ),
@@ -553,8 +563,11 @@ class _SourceSettingsScreenState extends State<SourceSettingsScreen> {
         Padding(
           padding: const EdgeInsets.only(left: 4),
           child: Text(
-            '选择 Sound 要索引的本地文件夹和远程音乐目录。',
-            style: TextStyle(color: context.soundMutedText, fontSize: 12),
+            '选择 Reverie 要索引的本地文件夹和远程音乐目录。',
+            style: TextStyle(
+              color: _sourceSecondaryText(context),
+              fontSize: 12,
+            ),
           ),
         ),
         const SizedBox(height: 24),
@@ -571,22 +584,18 @@ class _SourceSettingsScreenState extends State<SourceSettingsScreen> {
                       dimension: 16,
                       child: CircularProgressIndicator(strokeWidth: 2),
                     )
-                  : const Icon(Icons.create_new_folder_outlined),
+                  : const Icon(Icons.create_new_folder_outlined, size: 17),
               label: Text(localProvider?.addActionLabel ?? '本地来源不可用'),
-              style: FilledButton.styleFrom(
-                backgroundColor: SoundColors.accent,
-                foregroundColor: Colors.white,
-              ),
             ),
             for (final adapter in _remoteAdapters)
-              OutlinedButton.icon(
+              FilledButton.icon(
                 onPressed: () => adapter.openEditor(context, null),
-                icon: Icon(adapter.addIcon),
+                icon: Icon(adapter.addIcon, size: 17),
                 label: Text(adapter.definition.addActionLabel),
               ),
           ],
         ),
-        const SizedBox(height: 30),
+        const SizedBox(height: 26),
         _SourceSection(
           title: localProvider?.displayName ?? '本地文件夹',
           description: localProvider?.sectionDescription ?? '本地来源 provider 未注册',
@@ -638,7 +647,7 @@ class _SourceSettingsScreenState extends State<SourceSettingsScreen> {
           ),
         ),
         for (final adapter in _remoteAdapters) ...[
-          const SizedBox(height: 28),
+          const SizedBox(height: 24),
           _remoteSection(adapter),
         ],
       ],
@@ -734,9 +743,10 @@ class _SourceSection extends StatelessWidget {
             children: [
               Text(
                 title,
-                style: const TextStyle(
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
+                style: TextStyle(
+                  color: _sourcePrimaryText(context),
+                  fontSize: 15,
+                  fontWeight: FontWeight.w700,
                 ),
               ),
               const SizedBox(width: 10),
@@ -745,7 +755,10 @@ class _SourceSection extends StatelessWidget {
                   description,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(color: context.soundMutedText, fontSize: 11),
+                  style: TextStyle(
+                    color: _sourceSecondaryText(context),
+                    fontSize: 11,
+                  ),
                 ),
               ),
             ],
@@ -766,19 +779,16 @@ class _SourceMessage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SoundGlassSurface(
-      blur: false,
-      showShadow: false,
-      borderRadius: BorderRadius.circular(16),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 18),
       child: Row(
         children: [
-          Icon(icon, size: 19, color: context.soundMutedText),
+          Icon(icon, size: 18, color: _sourceSecondaryText(context)),
           const SizedBox(width: 12),
           Expanded(
             child: Text(
               message,
-              style: TextStyle(color: context.soundMutedText),
+              style: TextStyle(color: _sourceSecondaryText(context)),
             ),
           ),
         ],
@@ -794,19 +804,14 @@ class _SourceGroup extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SoundGlassSurface(
-      blur: false,
-      showShadow: false,
-      borderRadius: BorderRadius.circular(SoundRadii.card),
-      child: Column(
-        children: [
-          for (var index = 0; index < children.length; index++) ...[
-            children[index],
-            if (index != children.length - 1)
-              Divider(height: 1, indent: 66, color: context.soundDivider),
-          ],
+    return Column(
+      children: [
+        for (var index = 0; index < children.length; index++) ...[
+          children[index],
+          if (index != children.length - 1)
+            Divider(height: 1, indent: 42, color: _sourceHairline(context)),
         ],
-      ),
+      ],
     );
   }
 }
@@ -844,19 +849,18 @@ class _SourceRow extends StatelessWidget {
       builder: (context, constraints) {
         final compact = constraints.maxWidth < 560;
         return Padding(
-          padding: const EdgeInsets.fromLTRB(14, 11, 8, 11),
+          padding: const EdgeInsets.fromLTRB(4, 10, 0, 10),
           child: Row(
             children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  color: iconColor.withValues(alpha: 0.13),
-                  borderRadius: BorderRadius.circular(11),
+              SizedBox(
+                width: 28,
+                child: Icon(
+                  icon,
+                  size: 18,
+                  color: iconColor.withValues(alpha: iconColor.a * 0.78),
                 ),
-                child: Icon(icon, size: 20, color: iconColor),
               ),
-              const SizedBox(width: 13),
+              const SizedBox(width: 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -865,9 +869,10 @@ class _SourceRow extends StatelessWidget {
                       title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
+                      style: TextStyle(
+                        color: _sourcePrimaryText(context),
+                        fontSize: 13.5,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 3),
@@ -876,7 +881,7 @@ class _SourceRow extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: context.soundMutedText,
+                        color: _sourceSecondaryText(context),
                         fontSize: 11,
                       ),
                     ),
@@ -894,7 +899,7 @@ class _SourceRow extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: context.soundMutedText,
+                      color: _sourceSecondaryText(context),
                       fontSize: 11,
                     ),
                   ),

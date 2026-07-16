@@ -14,12 +14,15 @@ import '../playback/playback_media_provider.dart';
 import '../playback/playback_session.dart';
 import '../playback/sound_audio_handler.dart';
 import '../presentation/app_shell.dart';
+import '../presentation/controllers/library_catalog_controller.dart';
 import '../sources/webdav/webdav_cache.dart';
 
 class SoundApp extends StatefulWidget {
   const SoundApp({
     required this.engine,
     this.repository,
+    this.initialCatalog,
+    this.ownsRepository = false,
     this.sessionStore,
     this.audioHandler,
     this.webDavCache,
@@ -29,6 +32,8 @@ class SoundApp extends StatefulWidget {
 
   final PlaybackEngine engine;
   final LibraryRepository? repository;
+  final LibraryCatalogSnapshot? initialCatalog;
+  final bool ownsRepository;
   final PlaybackSessionStore? sessionStore;
   final SoundAudioHandler? audioHandler;
   final WebDavCache? webDavCache;
@@ -260,6 +265,7 @@ class _SoundAppState extends State<SoundApp> with WidgetsBindingObserver {
     widget.audioHandler?.detach();
     playback?.dispose();
     _engine.dispose();
+    if (widget.ownsRepository) unawaited(widget.repository?.close());
     super.dispose();
   }
 
@@ -267,7 +273,7 @@ class _SoundAppState extends State<SoundApp> with WidgetsBindingObserver {
   Widget build(BuildContext context) {
     final playback = _playback;
     return MaterialApp(
-      title: 'Sound',
+      title: 'Reverie',
       debugShowCheckedModeBanner: false,
       theme: SoundTheme.light,
       darkTheme: SoundTheme.dark,
@@ -287,6 +293,7 @@ class _SoundAppState extends State<SoundApp> with WidgetsBindingObserver {
           : AppShell(
               playback: playback,
               libraryRepository: widget.repository,
+              initialCatalog: widget.initialCatalog,
               webDavCache: widget.webDavCache,
               enableFirstRunGuide:
                   widget.enableFirstRunGuide ?? widget.repository == null,

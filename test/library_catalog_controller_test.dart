@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sound_player/domain/library_models.dart';
@@ -216,16 +218,75 @@ void main() {
     await Future<void>.delayed(Duration.zero);
     await repository.close();
   });
+
+  test(
+    'initial snapshot is ready synchronously and skips the duplicate watch read',
+    () async {
+      final repository = _CountingLibraryRepository(
+        LibraryDatabase(NativeDatabase.memory()),
+      );
+      const snapshot = LibraryCatalogSnapshot(
+        sources: [],
+        albums: [],
+        tracks: [],
+        lyricsByTrackId: {},
+      );
+
+      final catalog = LibraryCatalogController(
+        repository: repository,
+        initialSnapshot: snapshot,
+      );
+
+      expect(catalog.status, LibraryCatalogStatus.ready);
+      expect(catalog.albums, isEmpty);
+      expect(repository.catalogReadCalls, 0);
+
+      repository.emitTracks(const []);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(repository.catalogReadCalls, 0);
+
+      catalog.dispose();
+      await Future<void>.delayed(Duration.zero);
+      await repository.close();
+    },
+  );
 }
 
 class _CountingLibraryRepository extends DriftLibraryRepository {
   _CountingLibraryRepository(super.database);
 
+  final _trackChanges = StreamController<List<LibraryTrackRecord>>.broadcast();
+  int sourcesCalls = 0;
+  int albumsCalls = 0;
+  int tracksCalls = 0;
   int allLyricsCalls = 0;
   int singleTrackLyricCalls = 0;
+  int get catalogReadCalls =>
+      sourcesCalls + albumsCalls + tracksCalls + allLyricsCalls;
+
+  void emitTracks(List<LibraryTrackRecord> tracks) => _trackChanges.add(tracks);
 
   @override
-  Stream<List<LibraryTrackRecord>> watchTracks() => const Stream.empty();
+  Stream<List<LibraryTrackRecord>> watchTracks() => _trackChanges.stream;
+
+  @override
+  Future<List<LibrarySourceRecord>> getSources() {
+    sourcesCalls++;
+    return super.getSources();
+  }
+
+  @override
+  Future<List<LibraryAlbumRecord>> getAlbums({String? sourceId}) {
+    albumsCalls++;
+    return super.getAlbums(sourceId: sourceId);
+  }
+
+  @override
+  Future<List<LibraryTrackRecord>> getTracks({String? sourceId}) {
+    tracksCalls++;
+    return super.getTracks(sourceId: sourceId);
+  }
 
   @override
   Future<Map<String, List<LibraryLyricRecord>>> getAllLyrics() {
@@ -237,5 +298,11 @@ class _CountingLibraryRepository extends DriftLibraryRepository {
   Future<List<LibraryLyricRecord>> getLyrics(String trackId) {
     singleTrackLyricCalls++;
     return super.getLyrics(trackId);
+  }
+
+  @override
+  Future<void> close() async {
+    await _trackChanges.close();
+    await super.close();
   }
 }

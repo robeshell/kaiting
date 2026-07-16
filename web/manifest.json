@@ -1,11 +1,11 @@
 {
-    "name": "sound_player",
-    "short_name": "sound_player",
+    "name": "Reverie",
+    "short_name": "Reverie",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "description": "A cross-platform player for local and remote music libraries.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

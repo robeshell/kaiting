@@ -10,7 +10,6 @@ import '../controllers/library_search_controller.dart';
 import '../controllers/library_user_state_controller.dart';
 import '../widgets/add_to_playlist_sheet.dart';
 import '../widgets/album_art.dart';
-import '../widgets/source_badge.dart';
 import '../widgets/sound_components.dart';
 
 class SearchScreen extends StatefulWidget {
@@ -172,9 +171,11 @@ class _SearchScreenState extends State<SearchScreen> {
                         Text(
                           '${widget.search.hits.length} 首歌曲',
                           style: TextStyle(
-                            fontSize: compact ? 13 : 16,
-                            fontWeight: FontWeight.w700,
-                            color: compact ? context.soundMutedText : null,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: context.soundMutedText.withValues(
+                              alpha: context.soundMutedText.a * 0.76,
+                            ),
                           ),
                         ),
                         const Spacer(),
@@ -243,104 +244,60 @@ class _SearchScreenState extends State<SearchScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        SizedBox(
-          height: compact ? 44 : null,
-          child: TextField(
-            key: const ValueKey('library-search-field'),
-            controller: _queryController,
-            focusNode: widget.focusNode,
-            autofocus: false,
-            textInputAction: TextInputAction.search,
-            onChanged: widget.search.setQuery,
-            decoration: InputDecoration(
-              hintText: compact ? '搜索歌曲、专辑或艺人' : '歌曲、专辑、艺人或流派',
-              prefixIcon: Icon(Icons.search_rounded, size: compact ? 20 : 24),
-              prefixIconConstraints: compact
-                  ? const BoxConstraints(minWidth: 42)
-                  : null,
-              suffixIcon: widget.search.query.isEmpty
-                  ? null
-                  : IconButton(
-                      onPressed: _clearQuery,
-                      tooltip: '清除搜索',
-                      icon: const Icon(Icons.close_rounded),
-                    ),
-              suffixIconConstraints: compact
-                  ? const BoxConstraints(minWidth: 42)
-                  : null,
-              isDense: compact,
-              contentPadding: compact
-                  ? const EdgeInsets.symmetric(vertical: 11)
-                  : null,
-              filled: true,
-              fillColor: context.soundTint(compact ? 0.06 : 0.045),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(
-                  compact ? 14 : SoundRadii.control,
+        ConstrainedBox(
+          constraints: BoxConstraints(
+            maxWidth: compact ? double.infinity : 760,
+          ),
+          child: SizedBox(
+            height: 44,
+            child: TextField(
+              key: const ValueKey('library-search-field'),
+              controller: _queryController,
+              focusNode: widget.focusNode,
+              autofocus: false,
+              cursorColor: SoundColors.accent,
+              style: const TextStyle(fontSize: 14),
+              textInputAction: TextInputAction.search,
+              onChanged: widget.search.setQuery,
+              decoration: InputDecoration(
+                hintText: compact ? '搜索歌曲、专辑或艺人' : '歌曲、专辑、艺人或流派',
+                prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                prefixIconConstraints: const BoxConstraints(minWidth: 42),
+                suffixIcon: widget.search.query.isEmpty
+                    ? null
+                    : IconButton(
+                        onPressed: _clearQuery,
+                        tooltip: '清除搜索',
+                        icon: const Icon(Icons.close_rounded, size: 18),
+                      ),
+                suffixIconConstraints: const BoxConstraints(minWidth: 42),
+                isDense: true,
+                contentPadding: const EdgeInsets.symmetric(vertical: 11),
+                filled: true,
+                fillColor: context.soundTint(0.025),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(SoundRadii.pill),
+                  borderSide: BorderSide.none,
                 ),
-                borderSide: BorderSide.none,
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(
-                  compact ? 14 : SoundRadii.control,
+                enabledBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(SoundRadii.pill),
+                  borderSide: BorderSide.none,
                 ),
-                borderSide: BorderSide(
-                  color: SoundColors.accent.withValues(alpha: 0.65),
-                  width: 1.5,
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(SoundRadii.pill),
+                  borderSide: BorderSide.none,
                 ),
               ),
             ),
           ),
         ),
-        SizedBox(height: compact ? 10 : 13),
-        if (compact)
-          _CompactSearchControls(
-            field: widget.search.field,
-            sort: widget.search.sort,
-            onFieldChanged: widget.search.setField,
-            onSortChanged: widget.search.setSort,
-          )
-        else
-          Row(
-            children: [
-              Expanded(
-                child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(
-                    children: [
-                      for (final field in LibrarySearchField.values)
-                        Padding(
-                          padding: const EdgeInsets.only(right: 8),
-                          child: ChoiceChip(
-                            label: Text(field.label),
-                            selected: widget.search.field == field,
-                            showCheckmark: false,
-                            onSelected: (_) => widget.search.setField(field),
-                            selectedColor: SoundColors.accent.withValues(
-                              alpha: 0.14,
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-              const SizedBox(width: 10),
-              PopupMenuButton<LibrarySearchSort>(
-                tooltip: '排序方式',
-                initialValue: widget.search.sort,
-                onSelected: widget.search.setSort,
-                itemBuilder: (context) => [
-                  for (final sort in LibrarySearchSort.values)
-                    PopupMenuItem(value: sort, child: Text(sort.label)),
-                ],
-                child: Chip(
-                  avatar: const Icon(Icons.sort_rounded, size: 17),
-                  label: Text(widget.search.sort.label),
-                ),
-              ),
-            ],
-          ),
+        const SizedBox(height: 10),
+        _SearchControls(
+          field: widget.search.field,
+          sort: widget.search.sort,
+          onFieldChanged: widget.search.setField,
+          onSortChanged: widget.search.setSort,
+        ),
       ],
     );
   }
@@ -367,176 +324,87 @@ class _SearchResultRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (compact) return _buildCompact(context);
-    final genre = hit.track.genre ?? hit.album.genre;
-    return SoundTrackActivation(
+    return SoundTrackListRow(
+      key: ValueKey('search-result-${hit.track.id}'),
+      leading: AlbumArt(album: hit.album, borderRadius: compact ? 8 : 6),
+      title: hit.track.title,
+      subtitle: '${hit.track.artist} · ${hit.album.title}',
       onActivate: onPlay,
-      semanticLabel: hit.track.title,
-      child: ListTile(
-        key: ValueKey('search-result-${hit.track.id}'),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        leading: SizedBox.square(
-          dimension: 50,
-          child: AlbumArt(album: hit.album, borderRadius: 7),
-        ),
-        title: Text(
-          hit.track.title,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-        ),
-        subtitle: Text(
-          [
-            hit.track.artist,
-            hit.album.title,
-            if (hit.album.artist != hit.track.artist) hit.album.artist,
-            if (genre?.trim().isNotEmpty == true) genre!,
-          ].join(' · '),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(fontSize: 12, color: context.soundMutedText),
-        ),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SourceBadge(hit.track.source),
-            if (onToggleFavorite != null)
-              IconButton(
-                key: ValueKey('favorite-search-${hit.track.id}'),
-                onPressed: onToggleFavorite,
-                tooltip: favorite
-                    ? '取消收藏 ${hit.track.title}'
-                    : '收藏 ${hit.track.title}',
-                color: favorite ? SoundColors.accent : null,
-                icon: Icon(
-                  favorite
-                      ? Icons.favorite_rounded
-                      : Icons.favorite_border_rounded,
-                ),
-              ),
-            if (onAddToPlaylist != null)
-              IconButton(
-                key: ValueKey('add-search-${hit.track.id}-to-playlist'),
-                onPressed: onAddToPlaylist,
-                tooltip: '将 ${hit.track.title} 添加到播放列表',
-                icon: const Icon(Icons.playlist_add_rounded),
-              ),
+      trailing: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (onToggleFavorite != null)
             IconButton(
-              onPressed: onOpenAlbum,
-              tooltip: '打开专辑 ${hit.album.title}',
-              icon: const Icon(Icons.chevron_right_rounded),
+              key: ValueKey('favorite-search-${hit.track.id}'),
+              onPressed: onToggleFavorite,
+              tooltip: favorite
+                  ? '取消收藏 ${hit.track.title}'
+                  : '收藏 ${hit.track.title}',
+              color: favorite ? SoundColors.accent : null,
+              icon: Icon(
+                favorite
+                    ? Icons.favorite_rounded
+                    : Icons.favorite_border_rounded,
+              ),
             ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCompact(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        SoundTrackActivation(
-          onActivate: onPlay,
-          semanticLabel: hit.track.title,
-          child: SizedBox(
-            key: ValueKey('search-result-${hit.track.id}'),
-            height: 64,
-            child: Row(
-              children: [
-                SizedBox.square(
-                  dimension: 44,
-                  child: AlbumArt(album: hit.album, borderRadius: 8),
-                ),
-                const SizedBox(width: 11),
-                Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        hit.track.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          fontWeight: FontWeight.w700,
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        '${hit.track.artist} — ${hit.album.title}',
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: 12,
-                          color: context.soundMutedText,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                PopupMenuButton<_SearchResultAction>(
-                  key: ValueKey('search-result-menu-${hit.track.id}'),
-                  tooltip: '更多操作 ${hit.track.title}',
-                  icon: const Icon(Icons.more_horiz_rounded, size: 21),
-                  onSelected: (action) {
-                    switch (action) {
-                      case _SearchResultAction.openAlbum:
-                        onOpenAlbum();
-                        break;
-                      case _SearchResultAction.favorite:
-                        onToggleFavorite?.call();
-                        break;
-                      case _SearchResultAction.addToPlaylist:
-                        onAddToPlaylist?.call();
-                        break;
-                    }
-                  },
-                  itemBuilder: (context) => [
-                    const PopupMenuItem(
-                      value: _SearchResultAction.openAlbum,
-                      child: Text('打开专辑'),
-                    ),
-                    if (onToggleFavorite != null)
-                      PopupMenuItem(
-                        value: _SearchResultAction.favorite,
-                        child: Text(favorite ? '取消收藏' : '收藏'),
-                      ),
-                    if (onAddToPlaylist != null)
-                      const PopupMenuItem(
-                        value: _SearchResultAction.addToPlaylist,
-                        child: Text('添加到播放列表'),
-                      ),
-                  ],
-                ),
-              ],
+          if (onAddToPlaylist != null)
+            IconButton(
+              key: ValueKey('add-search-${hit.track.id}-to-playlist'),
+              onPressed: onAddToPlaylist,
+              tooltip: '将 ${hit.track.title} 添加到播放列表',
+              icon: const Icon(Icons.playlist_add_rounded),
             ),
+          IconButton(
+            onPressed: onOpenAlbum,
+            tooltip: '打开专辑 ${hit.album.title}',
+            icon: const Icon(Icons.chevron_right_rounded),
           ),
-        ),
-        Divider(height: 1, color: context.soundTint(0.07)),
-      ],
+        ],
+      ),
+      compactTrailing: PopupMenuButton<_SearchResultAction>(
+        key: ValueKey('search-result-menu-${hit.track.id}'),
+        tooltip: '更多操作 ${hit.track.title}',
+        icon: const Icon(Icons.more_horiz_rounded, size: 21),
+        onSelected: (action) {
+          switch (action) {
+            case _SearchResultAction.openAlbum:
+              onOpenAlbum();
+            case _SearchResultAction.favorite:
+              onToggleFavorite?.call();
+            case _SearchResultAction.addToPlaylist:
+              onAddToPlaylist?.call();
+          }
+        },
+        itemBuilder: (context) => [
+          const PopupMenuItem(
+            value: _SearchResultAction.openAlbum,
+            child: Text('打开专辑'),
+          ),
+          if (onToggleFavorite != null)
+            PopupMenuItem(
+              value: _SearchResultAction.favorite,
+              child: Text(favorite ? '取消收藏' : '收藏'),
+            ),
+          if (onAddToPlaylist != null)
+            const PopupMenuItem(
+              value: _SearchResultAction.addToPlaylist,
+              child: Text('添加到播放列表'),
+            ),
+        ],
+      ),
     );
   }
 }
 
 enum _SearchResultAction { openAlbum, favorite, addToPlaylist }
 
-class _CompactSearchControls extends StatelessWidget {
-  const _CompactSearchControls({
+class _SearchControls extends StatelessWidget {
+  const _SearchControls({
     required this.field,
     required this.sort,
     required this.onFieldChanged,
     required this.onSortChanged,
   });
-
-  static const _fields = [
-    LibrarySearchField.all,
-    LibrarySearchField.title,
-    LibrarySearchField.album,
-    LibrarySearchField.trackArtist,
-  ];
 
   final LibrarySearchField field;
   final LibrarySearchSort sort;
@@ -545,32 +413,35 @@ class _CompactSearchControls extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final fields = context.soundIsCompact
+        ? const [
+            LibrarySearchField.all,
+            LibrarySearchField.title,
+            LibrarySearchField.album,
+            LibrarySearchField.trackArtist,
+          ]
+        : LibrarySearchField.values;
     return Row(
       children: [
         Expanded(
-          child: SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: [
-                for (final item in _fields)
-                  Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: _CompactSearchFilter(
-                      label: item == LibrarySearchField.trackArtist
-                          ? '艺人'
-                          : item.label,
-                      selected:
-                          field == item ||
-                          (item == LibrarySearchField.trackArtist &&
-                              field == LibrarySearchField.albumArtist),
-                      onTap: () => onFieldChanged(item),
-                    ),
-                  ),
-              ],
-            ),
+          child: SoundChoiceStrip<LibrarySearchField>(
+            options: [
+              for (final option in fields)
+                SoundChoiceOption(
+                  key: ValueKey('search-field-${option.name}'),
+                  value: option,
+                  label:
+                      context.soundIsCompact &&
+                          option == LibrarySearchField.trackArtist
+                      ? '艺人'
+                      : option.label,
+                ),
+            ],
+            selected: field,
+            onSelected: onFieldChanged,
           ),
         ),
-        const SizedBox(width: 6),
+        const SizedBox(width: 8),
         PopupMenuButton<LibrarySearchSort>(
           key: const ValueKey('compact-search-sort'),
           tooltip: '排序方式',
@@ -580,62 +451,13 @@ class _CompactSearchControls extends StatelessWidget {
             for (final item in LibrarySearchSort.values)
               PopupMenuItem(value: item, child: Text(item.label)),
           ],
-          child: Container(
-            height: 34,
-            padding: const EdgeInsets.symmetric(horizontal: 10),
-            decoration: BoxDecoration(
-              color: context.soundTint(0.055),
-              borderRadius: BorderRadius.circular(11),
-            ),
-            child: Row(
-              children: [
-                const Icon(Icons.sort_rounded, size: 17),
-                const SizedBox(width: 5),
-                Text(sort.label, style: const TextStyle(fontSize: 12)),
-              ],
-            ),
+          child: SoundToolbarButton(
+            icon: Icons.sort_rounded,
+            label: context.soundIsCompact ? null : sort.label,
+            tooltip: '排序：${sort.label}',
           ),
         ),
       ],
-    );
-  }
-}
-
-class _CompactSearchFilter extends StatelessWidget {
-  const _CompactSearchFilter({
-    required this.label,
-    required this.selected,
-    required this.onTap,
-  });
-
-  final String label;
-  final bool selected;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: selected
-          ? SoundColors.accent.withValues(alpha: 0.13)
-          : Colors.transparent,
-      borderRadius: BorderRadius.circular(11),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(11),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Text(
-            label,
-            style: TextStyle(
-              fontSize: 12,
-              fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
-              color: selected
-                  ? context.soundPrimaryText
-                  : context.soundSecondaryText,
-            ),
-          ),
-        ),
-      ),
     );
   }
 }
@@ -655,36 +477,11 @@ class _SearchMessage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Center(
-      child: Padding(
-        padding: EdgeInsets.fromLTRB(
-          context.soundPageGutter,
-          30,
-          context.soundPageGutter,
-          context.soundContentBottomPadding,
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            if (loading)
-              const CircularProgressIndicator()
-            else
-              Icon(icon, size: 48, color: context.soundMutedText),
-            const SizedBox(height: 18),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              message,
-              textAlign: TextAlign.center,
-              style: TextStyle(color: context.soundMutedText, height: 1.5),
-            ),
-          ],
-        ),
-      ),
+    return SoundEmptyState(
+      icon: icon,
+      title: title,
+      message: message,
+      loading: loading,
     );
   }
 }

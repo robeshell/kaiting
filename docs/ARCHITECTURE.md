@@ -1,4 +1,4 @@
-# Sound Next architecture
+# Reverie architecture
 
 The rewrite starts from behavior contracts rather than the old Swift module
 layout. No production playback, persistence, or scanning code is copied from

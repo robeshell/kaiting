@@ -9,6 +9,7 @@ import 'package:sound_player/playback/playback_engine.dart';
 import 'package:sound_player/presentation/screens/now_playing_screen.dart';
 import 'package:sound_player/presentation/widgets/mini_player.dart';
 import 'package:sound_player/presentation/widgets/playback_status_badge.dart';
+import 'package:sound_player/presentation/widgets/sound_components.dart';
 
 void main() {
   test('maps every engine phase to a distinct visual state', () {
@@ -68,6 +69,13 @@ void main() {
       find.byKey(const ValueKey('now-playing-artwork-warmup')),
       findsOneWidget,
     );
+    final miniPlayerSurface = tester.widget<SoundGlassSurface>(
+      find.descendant(
+        of: find.byType(MiniPlayer),
+        matching: find.byType(SoundGlassSurface),
+      ),
+    );
+    expect(miniPlayerSurface.color?.a, closeTo(0.80, 0.01));
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox.shrink());
     playback.dispose();

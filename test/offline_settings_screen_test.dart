@@ -70,6 +70,39 @@ void main() {
       expect(find.text('Downloaded'), findsNothing);
     },
   );
+
+  testWidgets('compact download center uses one action menu per media row', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final controller = _FakeDownloadsController();
+    addTearDown(controller.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: SoundTheme.light,
+        home: Scaffold(
+          body: OfflineSettingsView(offline: controller, onBack: () {}),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final storageKey = _reference('downloaded').storageKey;
+    await tester.ensureVisible(
+      find.byKey(ValueKey('offline-item-$storageKey')),
+    );
+    await tester.pump();
+    expect(
+      tester.getSize(find.byKey(ValueKey('offline-item-$storageKey'))).height,
+      64,
+    );
+    expect(find.byKey(ValueKey('offline-actions-$storageKey')), findsOneWidget);
+    expect(find.byKey(ValueKey('offline-remove-$storageKey')), findsNothing);
+  });
 }
 
 class _FakeDownloadsController extends OfflineDownloadController {

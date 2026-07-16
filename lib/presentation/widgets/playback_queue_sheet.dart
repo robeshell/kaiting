@@ -23,6 +23,7 @@ class PlaybackQueueSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final compact = context.soundIsCompact;
     return FractionallySizedBox(
       heightFactor: 0.78,
       child: AnimatedBuilder(
@@ -69,6 +70,7 @@ class PlaybackQueueSheet extends StatelessWidget {
                     ),
                     TextButton(
                       onPressed: queue.isEmpty ? null : playback.clearQueue,
+                      style: context.soundDestructiveButtonStyle,
                       child: const Text('清空'),
                     ),
                     IconButton(
@@ -121,6 +123,86 @@ class PlaybackQueueSheet extends StatelessWidget {
                         itemBuilder: (context, index) {
                           final track = queue[index];
                           final active = track.id == activeId;
+                          if (compact) {
+                            return SoundTrackActivation(
+                              key: ValueKey(track.id),
+                              onActivate: () => playback.playQueueIndex(index),
+                              semanticLabel: track.title,
+                              child: DecoratedBox(
+                                decoration: BoxDecoration(
+                                  color: active
+                                      ? SoundColors.accent.withValues(
+                                          alpha: 0.075,
+                                        )
+                                      : Colors.transparent,
+                                  border: Border(
+                                    bottom: BorderSide(
+                                      color: context.soundDivider,
+                                    ),
+                                  ),
+                                ),
+                                child: SoundCompactMediaRow(
+                                  key: ValueKey('queue-track-row-${track.id}'),
+                                  leading: active
+                                      ? const Icon(
+                                          Icons.graphic_eq_rounded,
+                                          color: SoundColors.accent,
+                                          size: 18,
+                                        )
+                                      : Text(
+                                          '${index + 1}',
+                                          style: TextStyle(
+                                            color: context.soundMutedText,
+                                          ),
+                                        ),
+                                  title: track.title,
+                                  titleColor: active
+                                      ? SoundColors.accent
+                                      : null,
+                                  subtitle:
+                                      '${track.artist} — ${track.albumTitle}',
+                                  trailing: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      PopupMenuButton<String>(
+                                        key: ValueKey(
+                                          'queue-track-actions-${track.id}',
+                                        ),
+                                        tooltip: '更多操作 ${track.title}',
+                                        padding: EdgeInsets.zero,
+                                        icon: const Icon(
+                                          Icons.more_horiz_rounded,
+                                          size: 21,
+                                        ),
+                                        onSelected: (value) {
+                                          if (value == 'remove') {
+                                            playback.removeQueueItemAt(index);
+                                          }
+                                        },
+                                        itemBuilder: (_) => const [
+                                          PopupMenuItem(
+                                            value: 'remove',
+                                            child: Text('从队列移除'),
+                                          ),
+                                        ],
+                                      ),
+                                      ReorderableDragStartListener(
+                                        index: index,
+                                        child: Padding(
+                                          padding: const EdgeInsets.all(8),
+                                          child: Icon(
+                                            Icons.drag_handle_rounded,
+                                            size: 20,
+                                            color: context.soundMutedText,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            );
+                          }
                           return ListTile(
                             key: ValueKey(track.id),
                             selected: active,

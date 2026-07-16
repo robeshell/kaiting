@@ -35,7 +35,10 @@ dependencies:
   # Use with the CupertinoIcons class for iOS style icons.
   cupertino_icons: ^1.0.8
   audio_metadata_reader: ^1.6.0
-  audio_service: ^0.18.19
+  # Keep the Android notification transport workaround local until it is
+  # available upstream. See third_party/audio_service/LOCAL_PATCHES.md.
+  audio_service:
+    path: third_party/audio_service
   audio_session: ^0.2.4
   crypto: ^3.0.7
   drift: ^2.34.1
