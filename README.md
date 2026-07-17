@@ -66,16 +66,3 @@ bash tool/build_pages.sh
 - [Audio Format Matrix · 音频格式矩阵](docs/AUDIO_FORMAT_MATRIX.md)
 - [WebDAV Fixture · WebDAV 测试夹具](docs/WEBDAV_FIXTURE.md)
 
-## Screenshots · 截图
-
-| Desktop Library · 桌面音乐库 | Desktop Now Playing · 桌面正在播放 |
-|:---:|:---:|
-| ![Desktop Library](docs/screenshots/library-desktop.png) | ![Desktop Now Playing](docs/screenshots/now-playing-desktop.png) |
-
-| Mobile Library · 移动端音乐库 | Mobile Now Playing · 移动端正播放 |
-|:---:|:---:|
-| ![Mobile Library](docs/screenshots/library-mobile.png) | ![Mobile Now Playing](docs/screenshots/now-playing-mobile.png) |
-
-| Android Library · 音乐库 | Android Now Playing · 正在播放 | Android Sources · 音源 |
-|:---:|:---:|:---:|
-| ![Android Library](docs/screenshots/android-library.png) | ![Android Now Playing](docs/screenshots/android-now-playing.png) | ![Android Sources](docs/screenshots/android-sources.png) |
