@@ -1,46 +1,230 @@
-<!DOCTYPE html>
-<html>
-<head>
-  <!--
-    If you are serving your web app in a path other than the root, change the
-    href value below to reflect the base path you are serving from.
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#0b0b0c">
+    <meta name="color-scheme" content="dark">
+    <meta
+      name="description"
+      content="Reverie 是支持本地音乐与 WebDAV 的跨平台个人音乐播放器。"
+    >
+    <meta property="og:type" content="website">
+    <meta property="og:locale" content="zh_CN">
+    <meta property="og:title" content="Reverie — 跨平台个人音乐播放器">
+    <meta property="og:description" content="播放本地与 WebDAV 音乐。">
+    <meta property="og:url" content="https://robeshell.github.io/MusicPlayerNext/">
+    <meta
+      property="og:image"
+      content="https://robeshell.github.io/MusicPlayerNext/assets/app-icon.png"
+    >
+    <link rel="canonical" href="https://robeshell.github.io/MusicPlayerNext/">
+    <link rel="icon" type="image/png" href="assets/favicon.png">
+    <link rel="apple-touch-icon" href="assets/app-icon.png">
+    <script>document.documentElement.classList.add('js');</script>
+    <link rel="stylesheet" href="styles.css">
+    <title>Reverie — 跨平台个人音乐播放器</title>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "SoftwareApplication",
+        "name": "Reverie",
+        "applicationCategory": "MultimediaApplication",
+        "operatingSystem": "Android, iOS, iPadOS, macOS, Windows, Web",
+        "description": "A cross-platform personal music player for local and WebDAV libraries.",
+        "url": "https://robeshell.github.io/MusicPlayerNext/",
+        "downloadUrl": "https://github.com/robeshell/MusicPlayerNext/releases"
+      }
+    </script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">跳到主要内容</a>
 
-    The path provided below has to start and end with a slash "/" in order for
-    it to work correctly.
+    <header class="site-header" data-header>
+      <div class="nav-wrap">
+        <a class="wordmark" href="#top" aria-label="Reverie 首页">
+          <i aria-hidden="true"></i>REVERIE
+        </a>
 
-    For more details:
-    * https://developer.mozilla.org/en-US/docs/Web/HTML/Element/base
+        <button
+          class="nav-toggle"
+          type="button"
+          aria-expanded="false"
+          aria-controls="site-nav"
+          aria-label="打开导航"
+          data-nav-toggle
+        >
+          <span></span><span></span>
+        </button>
 
-    This is a placeholder for base href that will be replaced by the value of
-    the `--base-href` argument provided to `flutter build`.
-  -->
-  <base href="/MusicPlayerNext/">
+        <nav class="site-nav" id="site-nav" aria-label="主导航" data-nav>
+          <a href="#features">功能</a>
+          <a href="#screens">界面</a>
+          <a href="#download">下载</a>
+          <a href="https://github.com/robeshell/MusicPlayerNext">GitHub</a>
+          <a class="nav-web" href="app/">Web 版 ↗</a>
+        </nav>
+      </div>
+    </header>
 
-  <meta charset="UTF-8">
-  <meta content="IE=Edge" http-equiv="X-UA-Compatible">
-  <meta name="description" content="A new Flutter project.">
+    <main id="main">
+      <section class="hero" id="top">
+        <div class="hero-copy reveal">
+          <p class="label">跨平台个人音乐播放器</p>
+          <h1>听自己的<br>音乐。</h1>
+          <p class="lead">本地文件与 WebDAV，一个资料库。</p>
+          <div class="hero-actions">
+            <a class="button button-primary" href="app/">打开 Web 版</a>
+            <a class="text-link" href="#download">下载客户端 <span>↓</span></a>
+          </div>
+          <p class="hero-note">无推荐 · 无订阅 · 开源</p>
+        </div>
 
-  <!-- iOS meta tags & icons -->
-  <meta name="mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black">
-  <meta name="apple-mobile-web-app-title" content="sound_player">
-  <link rel="apple-touch-icon" href="icons/Icon-192.png">
+        <figure class="hero-media reveal">
+          <div class="desktop-frame">
+            <img
+              src="assets/app-settings-light.jpg"
+              alt="Reverie 当前浅色设置界面"
+              width="1280"
+              height="720"
+            >
+          </div>
+        </figure>
+      </section>
 
-  <!-- Favicon -->
-  <link rel="icon" type="image/png" href="favicon.png"/>
+      <div class="platforms" aria-label="支持平台">
+        <span>Android</span>
+        <span>iPhone / iPad</span>
+        <span>macOS</span>
+        <span>Windows</span>
+        <span>Web</span>
+      </div>
 
-  <title>sound_player</title>
-  <link rel="manifest" href="manifest.json">
-</head>
-<body>
-  <!--
-    You can customize the "flutter_bootstrap.js" script.
-    This is useful to provide a custom configuration to the Flutter loader
-    or to give the user feedback during the initialization process.
+      <section class="section features" id="features">
+        <header class="section-head reveal">
+          <p class="label">功能</p>
+          <h2>只做播放器该做的事。</h2>
+        </header>
 
-    For more details:
-    * https://docs.flutter.dev/platform-integration/web/initialization
-  -->
-  <script src="flutter_bootstrap.js" async></script>
-</body>
+        <div class="feature-list">
+          <article class="feature-item reveal">
+            <span>01</span>
+            <h3>本地资料库</h3>
+            <p>扫描音乐，读取封面、歌词和元数据。</p>
+          </article>
+          <article class="feature-item reveal">
+            <span>02</span>
+            <h3>WebDAV</h3>
+            <p>连接 NAS，浏览和播放远程收藏。</p>
+          </article>
+          <article class="feature-item reveal">
+            <span>03</span>
+            <h3>播放管理</h3>
+            <p>搜索、收藏、历史、队列和播放列表。</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section product" id="screens">
+        <header class="product-head reveal">
+          <div>
+            <p class="label">界面</p>
+            <h2>桌面高效，移动顺手。</h2>
+          </div>
+          <p>大屏使用侧栏和快捷键，小屏专注单手操作。</p>
+        </header>
+
+        <div class="product-media reveal">
+          <div class="library-frame">
+            <img
+              src="assets/app-library-light.jpg"
+              alt="Reverie 当前浅色资料库界面"
+              width="1280"
+              height="720"
+              loading="lazy"
+            >
+          </div>
+          <p><span>资料库</span> 当前 Web 构建</p>
+        </div>
+      </section>
+
+      <section class="web-entry reveal" aria-labelledby="web-title">
+        <div>
+          <p class="label">Web</p>
+          <h2 id="web-title">直接在浏览器使用。</h2>
+        </div>
+        <div class="web-entry-action">
+          <p>无需安装。部分功能受浏览器权限和跨域限制。</p>
+          <a class="button button-light" href="app/">打开 Web 版 ↗</a>
+        </div>
+      </section>
+
+      <section class="section downloads" id="download">
+        <header class="download-head reveal">
+          <div>
+            <p class="label">客户端</p>
+            <h2>下载 Reverie</h2>
+          </div>
+          <p id="release-status" aria-live="polite">读取版本信息…</p>
+        </header>
+
+        <div class="download-list">
+          <article class="download-row reveal" data-platform="android" data-asset="app-release.apk">
+            <h3>Android</h3>
+            <p>APK</p>
+            <a href="https://github.com/robeshell/MusicPlayerNext/releases" data-download-link>
+              <span data-download-label>发布页</span> ↗
+            </a>
+          </article>
+
+          <article class="download-row reveal" data-platform="macos" data-asset="reverie-macos.zip">
+            <h3>macOS</h3>
+            <p>Apple Silicon / Intel</p>
+            <a href="https://github.com/robeshell/MusicPlayerNext/releases" data-download-link>
+              <span data-download-label>发布页</span> ↗
+            </a>
+          </article>
+
+          <article class="download-row reveal" data-platform="windows" data-asset="reverie-windows.zip">
+            <h3>Windows</h3>
+            <p>Windows 10 / 11</p>
+            <a href="https://github.com/robeshell/MusicPlayerNext/releases" data-download-link>
+              <span data-download-label>发布页</span> ↗
+            </a>
+          </article>
+
+          <article class="download-row reveal" data-platform="ios" data-asset="reverie-ios-unsigned.zip">
+            <h3>iPhone / iPad</h3>
+            <p>未签名构建</p>
+            <a href="https://github.com/robeshell/MusicPlayerNext/releases" data-download-link>
+              <span data-download-label>发布页</span> ↗
+            </a>
+          </article>
+
+          <article class="download-row reveal">
+            <h3>Web</h3>
+            <p>无需安装</p>
+            <a href="app/">立即打开 ↗</a>
+          </article>
+        </div>
+
+        <p class="download-note reveal">
+          开发版尚未签名或公证。安装前请查看
+          <a href="https://github.com/robeshell/MusicPlayerNext/releases">版本说明</a>。
+        </p>
+      </section>
+    </main>
+
+    <footer>
+      <a class="wordmark" href="#top"><i aria-hidden="true"></i>REVERIE</a>
+      <div>
+        <a href="https://github.com/robeshell/MusicPlayerNext">GitHub</a>
+        <a href="https://github.com/robeshell/MusicPlayerNext/issues">反馈</a>
+        <a href="https://github.com/robeshell/MusicPlayerNext/releases">版本</a>
+      </div>
+      <small>© <span data-year></span> Reverie</small>
+    </footer>
+
+    <script src="app.js" defer></script>
+  </body>
 </html>
