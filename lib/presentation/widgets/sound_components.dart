@@ -94,10 +94,9 @@ class SoundTrackActivation extends StatefulWidget {
     required this.onActivate,
     required this.child,
     this.semanticLabel,
-    this.showFocusOutline = true,
-    this.borderRadius = const BorderRadius.all(
-      Radius.circular(SoundRadii.control),
-    ),
+    this.showFocusOutline = false,
+    this.focusColor,
+    this.borderRadius = BorderRadius.zero,
     super.key,
   });
 
@@ -105,6 +104,7 @@ class SoundTrackActivation extends StatefulWidget {
   final Widget child;
   final String? semanticLabel;
   final bool showFocusOutline;
+  final Color? focusColor;
   final BorderRadius borderRadius;
 
   @override
@@ -179,7 +179,8 @@ class _SoundTrackActivationState extends State<SoundTrackActivation> {
               decoration: BoxDecoration(borderRadius: widget.borderRadius),
               foregroundDecoration: BoxDecoration(
                 color: desktop && _focused
-                    ? SoundColors.accent.withValues(alpha: 0.08)
+                    ? widget.focusColor ??
+                          context.soundTint(0.045)
                     : Colors.transparent,
                 borderRadius: widget.borderRadius,
                 border: desktop && _focused && widget.showFocusOutline

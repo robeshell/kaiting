@@ -559,6 +559,16 @@ class SoundPlaybackController extends ChangeNotifier {
     _queueRevision++;
   }
 
+  /// Sets the output volume (0.0 = mute, 1.0 = normal).
+  Future<void> setVolume(double value) async {
+    if (_disposed) return;
+    await _engine.setVolume(value.clamp(0.0, 1.0));
+    if (!_disposed) notifyListeners();
+  }
+
+  /// Current volume level from the audio engine.
+  double get volume => _engine.volume;
+
   @override
   void dispose() {
     _disposed = true;

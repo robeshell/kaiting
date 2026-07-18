@@ -211,5 +211,11 @@ class _RecoveryEngine implements PlaybackEngine {
   }
 
   @override
+  Future<void> setVolume(double value) async {}
+
+  @override
+  double get volume => 1.0;
+
+  @override
   void dispose() => _snapshots.close();
 }

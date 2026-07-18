@@ -292,6 +292,7 @@ class _WideMiniPlayer extends StatelessWidget {
                     tooltip: state.isFavorite(track.id) ? '取消收藏' : '收藏歌曲',
                     onTap: () => unawaited(state.toggleFavorite(track)),
                   ),
+                _VolumeControl(playback: playback),
                 _MiniIconButton(
                   icon: Icons.lyrics_outlined,
                   tooltip: '打开歌词',
@@ -374,6 +375,7 @@ class _DockedMiniPlayer extends StatelessWidget {
                       ),
                     ],
                     const Spacer(),
+                    _VolumeControl(playback: playback),
                     _MiniIconButton(
                       icon: Icons.lyrics_outlined,
                       tooltip: '打开歌词',
@@ -788,3 +790,178 @@ TextStyle _timeStyle(BuildContext context) => TextStyle(
   fontSize: 10,
   fontFeatures: const [FontFeature.tabularFigures()],
 );
+
+class _VolumeControl extends StatefulWidget {
+  const _VolumeControl({required this.playback});
+
+  final SoundPlaybackController playback;
+
+  @override
+  State<_VolumeControl> createState() => _VolumeControlState();
+}
+
+class _VolumeControlState extends State<_VolumeControl> {
+  final LayerLink _layerLink = LayerLink();
+  OverlayEntry? _overlayEntry;
+  Timer? _removalTimer;
+  bool _iconHovered = false;
+  bool _overlayHovered = false;
+  double _lastAudibleVolume = 1.0;
+
+  IconData get _icon {
+    final v = widget.playback.volume;
+    if (v == 0) return Icons.volume_off_rounded;
+    if (v < 0.5) return Icons.volume_down_rounded;
+    return Icons.volume_up_rounded;
+  }
+
+  void _showOverlay() {
+    if (_overlayEntry != null) return;
+    _removalTimer?.cancel();
+    final overlay = Overlay.of(context);
+    _overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        width: 44,
+        height: 132,
+        child: CompositedTransformFollower(
+          link: _layerLink,
+          showWhenUnlinked: false,
+          targetAnchor: Alignment.topCenter,
+          followerAnchor: Alignment.bottomCenter,
+          offset: const Offset(0, -6),
+          child: MouseRegion(
+            onEnter: (_) {
+              _removalTimer?.cancel();
+              _overlayHovered = true;
+            },
+            onExit: (_) {
+              _overlayHovered = false;
+              _scheduleRemoval();
+            },
+            child: Material(
+              color: Colors.transparent,
+              child: Container(
+                key: const ValueKey('mini-player-volume-popup'),
+                margin: const EdgeInsets.all(2),
+                decoration: BoxDecoration(
+                  color: Theme.of(
+                    context,
+                  ).colorScheme.surfaceContainerHighest.withValues(alpha: 0.96),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: context.soundDivider),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.24),
+                      blurRadius: 12,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  child: RotatedBox(
+                    quarterTurns: -1,
+                    child: SliderTheme(
+                      data: SliderTheme.of(context).copyWith(
+                        trackHeight: 3,
+                        thumbShape: const RoundSliderThumbShape(
+                          enabledThumbRadius: 5,
+                        ),
+                        overlayShape: const RoundSliderOverlayShape(
+                          overlayRadius: 12,
+                        ),
+                        activeTrackColor: SoundColors.accent,
+                        inactiveTrackColor: context.soundTint(0.12),
+                      ),
+                      child: AnimatedBuilder(
+                        animation: widget.playback,
+                        builder: (context, _) => Slider(
+                          key: const ValueKey('mini-player-volume-slider'),
+                          value: widget.playback.volume,
+                          onChanged: _setVolume,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    overlay.insert(_overlayEntry!);
+  }
+
+  void _setVolume(double value) {
+    if (value > 0.001) _lastAudibleVolume = value;
+    unawaited(widget.playback.setVolume(value));
+  }
+
+  void _scheduleRemoval() {
+    _removalTimer?.cancel();
+    _removalTimer = Timer(const Duration(milliseconds: 180), () {
+      if (!mounted) return;
+      if (!_iconHovered && !_overlayHovered) _removeOverlay();
+    });
+  }
+
+  void _removeOverlay() {
+    _removalTimer?.cancel();
+    _removalTimer = null;
+    final entry = _overlayEntry;
+    _overlayEntry = null;
+    entry?.remove();
+  }
+
+  void _toggleMute() {
+    final volume = widget.playback.volume;
+    if (volume > 0.001) {
+      _lastAudibleVolume = volume;
+      _setVolume(0);
+    } else {
+      _setVolume(_lastAudibleVolume.clamp(0.05, 1.0));
+    }
+  }
+
+  @override
+  void dispose() {
+    _removeOverlay();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: widget.playback,
+      builder: (context, _) {
+        return CompositedTransformTarget(
+          link: _layerLink,
+          child: MouseRegion(
+            onEnter: (_) {
+              _removalTimer?.cancel();
+              _iconHovered = true;
+              _showOverlay();
+            },
+            onExit: (_) {
+              _iconHovered = false;
+              _scheduleRemoval();
+            },
+            child: IconButton(
+              key: const ValueKey('mini-player-volume-button'),
+              icon: Icon(_icon),
+              iconSize: 20,
+              tooltip: '音量',
+              onPressed: _toggleMute,
+              style: IconButton.styleFrom(
+                minimumSize: const Size.square(40),
+                maximumSize: const Size.square(40),
+                padding: EdgeInsets.zero,
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+}

@@ -10,6 +10,7 @@ class SimulatedPlaybackEngine implements PlaybackEngine {
       StreamController<PlaybackSnapshot>.broadcast(sync: true);
   PlaybackSnapshot _current = const PlaybackSnapshot.idle();
   Timer? _clock;
+  double _volume = 1.0;
 
   @override
   Stream<PlaybackSnapshot> get snapshots => _snapshots.stream;
@@ -82,6 +83,14 @@ class SimulatedPlaybackEngine implements PlaybackEngine {
     _current = next;
     if (!_snapshots.isClosed) _snapshots.add(next);
   }
+
+  @override
+  Future<void> setVolume(double value) async {
+    _volume = value.clamp(0.0, 1.0);
+  }
+
+  @override
+  double get volume => _volume;
 
   @override
   void dispose() {

@@ -47,7 +47,6 @@ class RemoteSourceSettingsAdapter {
     required this.openEditor,
     required this.scanDirectories,
     required this.color,
-    required this.addIcon,
     required this.connectionIcon,
     required this.catalogIcon,
   });
@@ -58,7 +57,6 @@ class RemoteSourceSettingsAdapter {
   final SourceEditorCallback openEditor;
   final SourceDirectoryScanCallback scanDirectories;
   final Color color;
-  final IconData addIcon;
   final IconData connectionIcon;
   final IconData catalogIcon;
 }
@@ -148,7 +146,6 @@ class _SourceSettingsScreenState extends State<SourceSettingsScreen> {
                     folderUrls: directoryIds,
                   ),
               color: SoundColors.webDav,
-              addIcon: Icons.add_to_drive_outlined,
               connectionIcon: Icons.cloud_rounded,
               catalogIcon: Icons.folder_rounded,
             ),
@@ -239,10 +236,7 @@ class _SourceSettingsScreenState extends State<SourceSettingsScreen> {
   Future<void> _addWebDavSource() async {
     final webDav = widget.webDavService;
     if (webDav == null) return;
-    final result = await showDialog<WebDavDiscoveryResult>(
-      context: context,
-      builder: (_) => WebDavAddDialog(service: webDav),
-    );
+    final result = await _showWebDavEditor(webDav);
     if (result != null && mounted) {
       final fileCount = result.files.where((f) => !f.isCollection).length;
       final dirCount = result.files.where((f) => f.isCollection).length;
@@ -309,10 +303,7 @@ class _SourceSettingsScreenState extends State<SourceSettingsScreen> {
     if (webDav == null) return;
     final connection = await webDav.getManagedSource(resource.id);
     if (connection == null || !mounted) return;
-    final result = await showDialog<WebDavDiscoveryResult>(
-      context: context,
-      builder: (_) => WebDavAddDialog(service: webDav, connection: connection),
-    );
+    final result = await _showWebDavEditor(webDav, connection: connection);
     if (result != null && mounted) {
       final message = result.error == null
           ? 'WebDAV 连接已更新'
@@ -321,6 +312,26 @@ class _SourceSettingsScreenState extends State<SourceSettingsScreen> {
         context,
       ).showSnackBar(SnackBar(content: Text(message)));
     }
+  }
+
+  Future<WebDavDiscoveryResult?> _showWebDavEditor(
+    WebDavConnectionService service, {
+    WebDavConnectionRecord? connection,
+  }) {
+    if (context.soundIsCompact) {
+      return showSoundBottomSheet<WebDavDiscoveryResult>(
+        context,
+        builder: (_) => WebDavAddDialog(
+          service: service,
+          connection: connection,
+          bottomSheet: true,
+        ),
+      );
+    }
+    return showDialog<WebDavDiscoveryResult>(
+      context: context,
+      builder: (_) => WebDavAddDialog(service: service, connection: connection),
+    );
   }
 
   Future<void> _probeRemoteConnection(
@@ -365,10 +376,16 @@ class _SourceSettingsScreenState extends State<SourceSettingsScreen> {
     }
     if (!mounted) return;
 
-    final selected = await showDialog<List<String>>(
-      context: context,
-      builder: (_) => WebDavFolderPicker(browser: browser),
-    );
+    final selected = context.soundIsCompact
+        ? await showSoundBottomSheet<List<String>>(
+            context,
+            builder: (_) =>
+                WebDavFolderPicker(browser: browser, bottomSheet: true),
+          )
+        : await showDialog<List<String>>(
+            context: context,
+            builder: (_) => WebDavFolderPicker(browser: browser),
+          );
     if (!mounted || selected == null || selected.isEmpty) return;
 
     try {
@@ -438,24 +455,21 @@ class _SourceSettingsScreenState extends State<SourceSettingsScreen> {
 
   Widget _remoteSection(RemoteSourceSettingsAdapter adapter) {
     return _SourceSection(
-      title: adapter.definition.displayName,
-      description: adapter.definition.sectionDescription,
+      title: '远程连接',
+      actionLabel: '添加连接',
+      onAction: () => adapter.openEditor(context, null),
       child: StreamBuilder<List<SourceManagedResource>>(
         stream: adapter.connections.watchResources(),
         builder: (context, snapshot) {
           final resources = snapshot.data ?? const [];
           if (snapshot.hasError) {
             return _SourceMessage(
-              icon: Icons.error_outline_rounded,
               message:
                   '无法读取${adapter.definition.displayName}来源：${snapshot.error}',
             );
           }
           if (resources.isEmpty) {
-            return _SourceMessage(
-              icon: Icons.cloud_off_outlined,
-              message: '还没有添加${adapter.definition.displayName}来源',
-            );
+            return const _SourceMessage(message: '还没有远程连接');
           }
           final connections = resources
               .where(
@@ -469,58 +483,86 @@ class _SourceSettingsScreenState extends State<SourceSettingsScreen> {
                     resource.kind == SourceManagedResourceKind.catalog,
               )
               .toList(growable: false);
+          final orphanCatalogs = catalogs
+              .where(
+                (catalog) => !connections.any(
+                  (connection) => connection.id == catalog.parentConnectionId,
+                ),
+              )
+              .toList(growable: false);
           return _SourceGroup(
             children: [
               for (final connection in connections)
-                _SourceRow(
-                  icon: adapter.connectionIcon,
-                  iconColor: adapter.color,
-                  title: connection.displayName,
-                  location: formatSourceLocation(connection.location),
-                  status: _managedStatus(connection),
-                  statusColor: _managedStatusColor(connection, adapter.color),
-                  primaryActionLabel: connection.isAvailable
-                      ? '选择扫描目录'
-                      : '重新探测',
-                  primaryActionIcon: connection.isAvailable
-                      ? Icons.folder_open_rounded
-                      : Icons.refresh_rounded,
-                  onPrimaryAction: connection.isAvailable
+                _RemoteConnectionTree(
+                  key: ValueKey('source-connection-tree-${connection.id}'),
+                  connection: _SourceRow(
+                    key: ValueKey('source-connection-${connection.id}'),
+                    icon: adapter.connectionIcon,
+                    iconColor: adapter.color,
+                    title: connection.displayName,
+                    location:
+                        '${adapter.definition.displayName} · ${formatSourceLocation(connection.location)}',
+                    status: _managedStatus(connection),
+                    statusColor: _managedStatusColor(connection, adapter.color),
+                    primaryActionLabel: connection.isAvailable
+                        ? '选择目录'
+                        : '重新连接',
+                    primaryActionIcon: connection.isAvailable
+                        ? Icons.add_rounded
+                        : Icons.refresh_rounded,
+                    onPrimaryAction: connection.isAvailable
+                        ? () => _browseRemoteDirectories(adapter, connection)
+                        : () => _probeRemoteConnection(adapter, connection),
+                    onEdit: () => adapter.openEditor(context, connection),
+                    onRemove: () => _removeRemoteSource(adapter, connection),
+                  ),
+                  directories: catalogs
+                      .where(
+                        (catalog) =>
+                            catalog.parentConnectionId == connection.id,
+                      )
+                      .map((source) => _remoteCatalogRow(adapter, source))
+                      .toList(growable: false),
+                  onAddDirectory: connection.isAvailable
                       ? () => _browseRemoteDirectories(adapter, connection)
-                      : () => _probeRemoteConnection(adapter, connection),
-                  onEdit: () => adapter.openEditor(context, connection),
-                  onRemove: () => _removeRemoteSource(adapter, connection),
+                      : null,
                 ),
-              for (final source in catalogs)
-                Builder(
-                  builder: (context) {
-                    final scanning =
-                        _scanningSourceIds.contains(source.id) ||
-                        adapter.scanner.isScanning(source.id);
-                    return _SourceRow(
-                      icon: adapter.catalogIcon,
-                      iconColor: adapter.color,
-                      title: source.displayName,
-                      location: formatSourceLocation(source.location),
-                      status: _managedStatus(source),
-                      statusColor: _managedStatusColor(source, adapter.color),
-                      primaryActionLabel: scanning ? '取消扫描' : '重新扫描',
-                      primaryActionIcon: scanning
-                          ? Icons.close_rounded
-                          : Icons.sync_rounded,
-                      onPrimaryAction: scanning
-                          ? () => adapter.scanner.cancel(source.id)
-                          : () => _scanSource(source.type, source.id),
-                      onRemove: scanning
-                          ? null
-                          : () => _removeRemoteSource(adapter, source),
-                    );
-                  },
+              if (orphanCatalogs.isNotEmpty)
+                _UnassignedDirectories(
+                  children: [
+                    for (final source in orphanCatalogs)
+                      _remoteCatalogRow(adapter, source),
+                  ],
                 ),
             ],
           );
         },
       ),
+    );
+  }
+
+  Widget _remoteCatalogRow(
+    RemoteSourceSettingsAdapter adapter,
+    SourceManagedResource source,
+  ) {
+    final scanning =
+        _scanningSourceIds.contains(source.id) ||
+        adapter.scanner.isScanning(source.id);
+    return _SourceRow(
+      key: ValueKey('source-directory-${source.id}'),
+      icon: adapter.catalogIcon,
+      iconColor: adapter.color,
+      title: source.displayName,
+      location: formatSourceLocation(source.location),
+      status: _managedStatus(source),
+      statusColor: _managedStatusColor(source, adapter.color),
+      primaryActionLabel: scanning ? '取消扫描' : '重新扫描',
+      primaryActionIcon: scanning ? Icons.close_rounded : Icons.sync_rounded,
+      onPrimaryAction: scanning
+          ? () => adapter.scanner.cancel(source.id)
+          : () => _scanSource(source.type, source.id),
+      onRemove: scanning ? null : () => _removeRemoteSource(adapter, source),
+      compact: true,
     );
   }
 
@@ -559,61 +601,22 @@ class _SourceSettingsScreenState extends State<SourceSettingsScreen> {
             ),
           ],
         ),
-        const SizedBox(height: 6),
-        Padding(
-          padding: const EdgeInsets.only(left: 4),
-          child: Text(
-            '选择 Reverie 要索引的本地文件夹和远程音乐目录。',
-            style: TextStyle(
-              color: _sourceSecondaryText(context),
-              fontSize: 12,
-            ),
-          ),
-        ),
-        const SizedBox(height: 24),
-        Wrap(
-          spacing: 10,
-          runSpacing: 10,
-          children: [
-            FilledButton.icon(
-              onPressed: _addingSource || localProvider == null
-                  ? null
-                  : _addLocalSource,
-              icon: _addingSource
-                  ? const SizedBox.square(
-                      dimension: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.create_new_folder_outlined, size: 17),
-              label: Text(localProvider?.addActionLabel ?? '本地来源不可用'),
-            ),
-            for (final adapter in _remoteAdapters)
-              FilledButton.icon(
-                onPressed: () => adapter.openEditor(context, null),
-                icon: Icon(adapter.addIcon, size: 17),
-                label: Text(adapter.definition.addActionLabel),
-              ),
-          ],
-        ),
-        const SizedBox(height: 26),
+        const SizedBox(height: 30),
         _SourceSection(
-          title: localProvider?.displayName ?? '本地文件夹',
-          description: localProvider?.sectionDescription ?? '本地来源 provider 未注册',
+          title: '本机',
+          actionLabel: _addingSource ? '正在添加…' : '添加文件夹',
+          onAction: _addingSource || localProvider == null
+              ? null
+              : _addLocalSource,
           child: StreamBuilder<List<LibrarySourceRecord>>(
             stream: widget.localSources.watchLocalSources(),
             builder: (context, snapshot) {
               final sources = snapshot.data ?? const [];
               if (snapshot.hasError) {
-                return _SourceMessage(
-                  icon: Icons.error_outline_rounded,
-                  message: '无法读取本地来源：${snapshot.error}',
-                );
+                return _SourceMessage(message: '无法读取本机来源：${snapshot.error}');
               }
               if (sources.isEmpty) {
-                return const _SourceMessage(
-                  icon: Icons.folder_off_outlined,
-                  message: '还没有添加本地文件夹',
-                );
+                return const _SourceMessage(message: '还没有添加本机文件夹');
               }
               return _SourceGroup(
                 children: [
@@ -622,7 +625,8 @@ class _SourceSettingsScreenState extends State<SourceSettingsScreen> {
                       builder: (context) {
                         final scanning = _scanningSourceIds.contains(source.id);
                         return _SourceRow(
-                          icon: Icons.folder_rounded,
+                          key: ValueKey('local-source-${source.id}'),
+                          icon: Icons.folder_outlined,
                           iconColor: SoundColors.local,
                           title: source.displayName,
                           location: formatSourceLocation(source.rootUri),
@@ -647,7 +651,7 @@ class _SourceSettingsScreenState extends State<SourceSettingsScreen> {
           ),
         ),
         for (final adapter in _remoteAdapters) ...[
-          const SizedBox(height: 24),
+          const SizedBox(height: 30),
           _remoteSection(adapter),
         ],
       ],
@@ -723,12 +727,14 @@ String _decodeLoose(String value) {
 class _SourceSection extends StatelessWidget {
   const _SourceSection({
     required this.title,
-    required this.description,
+    required this.actionLabel,
+    required this.onAction,
     required this.child,
   });
 
   final String title;
-  final String description;
+  final String actionLabel;
+  final VoidCallback? onAction;
   final Widget child;
 
   @override
@@ -739,27 +745,25 @@ class _SourceSection extends StatelessWidget {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4),
           child: Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              Text(
-                title,
-                style: TextStyle(
-                  color: _sourcePrimaryText(context),
-                  fontSize: 15,
-                  fontWeight: FontWeight.w700,
-                ),
-              ),
-              const SizedBox(width: 10),
               Expanded(
                 child: Text(
-                  description,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  title,
                   style: TextStyle(
-                    color: _sourceSecondaryText(context),
-                    fontSize: 11,
+                    color: _sourcePrimaryText(context),
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
                   ),
                 ),
+              ),
+              TextButton(
+                onPressed: onAction,
+                style: TextButton.styleFrom(
+                  minimumSize: const Size(0, 34),
+                  padding: const EdgeInsets.symmetric(horizontal: 8),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Text(actionLabel),
               ),
             ],
           ),
@@ -772,26 +776,17 @@ class _SourceSection extends StatelessWidget {
 }
 
 class _SourceMessage extends StatelessWidget {
-  const _SourceMessage({required this.icon, required this.message});
+  const _SourceMessage({required this.message});
 
-  final IconData icon;
   final String message;
 
   @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 18),
-      child: Row(
-        children: [
-          Icon(icon, size: 18, color: _sourceSecondaryText(context)),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              message,
-              style: TextStyle(color: _sourceSecondaryText(context)),
-            ),
-          ),
-        ],
+      child: Text(
+        message,
+        style: TextStyle(color: _sourceSecondaryText(context), fontSize: 12),
       ),
     );
   }
@@ -833,6 +828,8 @@ class _SourceRow extends StatelessWidget {
     required this.onPrimaryAction,
     this.onEdit,
     this.onRemove,
+    this.compact = false,
+    super.key,
   });
 
   final IconData icon;
@@ -846,27 +843,31 @@ class _SourceRow extends StatelessWidget {
   final VoidCallback onPrimaryAction;
   final VoidCallback? onEdit;
   final VoidCallback? onRemove;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final compact = context.soundIsCompact || constraints.maxWidth < 560;
+        final narrow = context.soundIsCompact || constraints.maxWidth < 560;
         return Padding(
-          padding: const EdgeInsets.fromLTRB(4, 10, 0, 10),
+          padding: EdgeInsets.fromLTRB(
+            4,
+            compact ? 8 : 10,
+            0,
+            compact ? 8 : 10,
+          ),
           child: Row(
             children: [
-              if (!compact) ...[
-                SizedBox(
-                  width: 28,
-                  child: Icon(
-                    icon,
-                    size: 18,
-                    color: iconColor.withValues(alpha: iconColor.a * 0.78),
-                  ),
+              SizedBox(
+                width: compact ? 24 : 28,
+                child: Icon(
+                  icon,
+                  size: compact ? 17 : 18,
+                  color: iconColor.withValues(alpha: iconColor.a * 0.78),
                 ),
-                const SizedBox(width: 10),
-              ],
+              ),
+              SizedBox(width: compact ? 8 : 10),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -883,7 +884,7 @@ class _SourceRow extends StatelessWidget {
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      compact ? '$status · $location' : location,
+                      narrow ? '$status · $location' : location,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
@@ -894,7 +895,7 @@ class _SourceRow extends StatelessWidget {
                   ],
                 ),
               ),
-              if (!compact) ...[
+              if (!narrow) ...[
                 const SizedBox(width: 14),
                 _StatusDot(color: statusColor),
                 const SizedBox(width: 7),
@@ -915,11 +916,13 @@ class _SourceRow extends StatelessWidget {
                 onPressed: onPrimaryAction,
                 tooltip: primaryActionLabel,
                 icon: Icon(primaryActionIcon, size: 19),
+                visualDensity: VisualDensity.compact,
               ),
               if (onEdit != null || onRemove != null)
                 PopupMenuButton<_SourceMenuAction>(
                   tooltip: '更多操作',
                   icon: const Icon(Icons.more_horiz_rounded, size: 20),
+                  padding: const EdgeInsets.all(8),
                   onSelected: (action) {
                     switch (action) {
                       case _SourceMenuAction.edit:
@@ -953,6 +956,121 @@ class _SourceRow extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _RemoteConnectionTree extends StatelessWidget {
+  const _RemoteConnectionTree({
+    required this.connection,
+    required this.directories,
+    required this.onAddDirectory,
+    super.key,
+  });
+
+  final Widget connection;
+  final List<Widget> directories;
+  final VoidCallback? onAddDirectory;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        connection,
+        Padding(
+          padding: const EdgeInsets.only(left: 18),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              border: Border(left: BorderSide(color: _sourceHairline(context))),
+            ),
+            child: Padding(
+              padding: const EdgeInsets.only(left: 14),
+              child: directories.isEmpty
+                  ? _EmptyDirectoryBranch(onAddDirectory: onAddDirectory)
+                  : Column(
+                      children: [
+                        for (
+                          var index = 0;
+                          index < directories.length;
+                          index++
+                        ) ...[
+                          directories[index],
+                          if (index != directories.length - 1)
+                            Divider(height: 1, color: _sourceHairline(context)),
+                        ],
+                      ],
+                    ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _EmptyDirectoryBranch extends StatelessWidget {
+  const _EmptyDirectoryBranch({required this.onAddDirectory});
+
+  final VoidCallback? onAddDirectory;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 4, 0, 10),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              '尚未选择目录',
+              style: TextStyle(
+                color: _sourceSecondaryText(context),
+                fontSize: 11.5,
+              ),
+            ),
+          ),
+          if (onAddDirectory != null)
+            TextButton(
+              onPressed: onAddDirectory,
+              style: TextButton.styleFrom(
+                minimumSize: const Size(0, 32),
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: const Text('选择目录'),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _UnassignedDirectories extends StatelessWidget {
+  const _UnassignedDirectories({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(top: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(4, 8, 4, 2),
+            child: Text(
+              '待确认归属的目录',
+              style: TextStyle(
+                color: _sourceSecondaryText(context),
+                fontSize: 11,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          ...children,
+        ],
+      ),
     );
   }
 }

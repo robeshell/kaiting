@@ -1368,6 +1368,12 @@ class ManualPlaybackEngine implements PlaybackEngine {
   }
 
   @override
+  Future<void> setVolume(double value) async {}
+
+  @override
+  double get volume => 1.0;
+
+  @override
   void dispose() {
     _controller.close();
   }
@@ -1449,6 +1455,12 @@ class DelayedLoadPlaybackEngine implements PlaybackEngine {
     _current = snapshot;
     if (!_controller.isClosed) _controller.add(snapshot);
   }
+
+  @override
+  Future<void> setVolume(double value) async {}
+
+  @override
+  double get volume => 1.0;
 
   @override
   void dispose() {

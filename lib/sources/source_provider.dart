@@ -157,6 +157,7 @@ class SourceManagedResource {
     required this.displayName,
     required this.location,
     required this.status,
+    this.parentConnectionId,
     this.errorMessage,
   });
 
@@ -166,6 +167,13 @@ class SourceManagedResource {
   final String displayName;
   final String location;
   final SourceManagedStatus status;
+
+  /// The connection that owns this catalog resource.
+  ///
+  /// Connection resources leave this unset. Exposing the relationship here
+  /// lets settings surfaces present remote sources as a connection tree
+  /// without depending on provider-specific ID formats.
+  final String? parentConnectionId;
   final String? errorMessage;
 
   bool get isAvailable => status == SourceManagedStatus.available;

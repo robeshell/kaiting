@@ -178,12 +178,30 @@ recent playback and playlists are the reference implementation.
   icon. Do not wrap each collection in a large grey card or place a decorative
   icon inside a large colored square.
 
+### Icons and decorative containers
+
+- Do not place a standalone icon inside a softly colored rounded square,
+  rounded rectangle, or circle purely for decoration. This pattern is not part
+  of Reverie's visual language and is prohibited in status banners, empty
+  states, settings rows, dialog headings, onboarding features, collection
+  cards, and page shortcuts.
+- Render informational and semantic icons directly. Establish hierarchy with
+  icon size, semantic color, typography, alignment, and whitespace rather than
+  an ornamental tile behind the glyph.
+- A background is allowed only when it communicates real behavior or content:
+  an interactive icon button's hit, hover, or selected state; album artwork or
+  an artwork placeholder; an app or source identity mark; or a state badge
+  whose container itself carries information.
+- Review test: if removing the icon's background changes neither interaction
+  nor meaning, the background is decorative and must be removed.
+
 ### Empty and status states
 
 - Empty, loading and error pages use `SoundEmptyState`: a small low-emphasis
   icon or progress indicator, a 16 px semibold title and 12 px supporting copy.
 - Avoid oversized illustrations, colored icon tiles and decorative glass
-  cards when the state only needs a short explanation.
+  cards when the state only needs a short explanation. Error and recovery
+  banners use a direct semantic icon; they never add an icon tile.
 
 The implementation primitives for these rules are `SoundChoiceStrip`,
 `SoundToolbarButton`, `SoundTrackListRow` and `SoundEmptyState` in

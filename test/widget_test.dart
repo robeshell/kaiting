@@ -1376,7 +1376,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('source-settings')), findsOneWidget);
     expect(find.text('音乐来源'), findsOneWidget);
-    expect(find.text('添加本地文件夹'), findsOneWidget);
+    expect(find.text('添加文件夹'), findsOneWidget);
     expect(tester.takeException(), isNull);
 
     await tester.binding.handlePopRoute();
@@ -1472,6 +1472,53 @@ void main() {
     await tester.pump();
 
     expect(engine.current.position, const Duration(seconds: 10));
+    expect(tester.takeException(), isNull);
+
+    await _unmountAndFlush(tester);
+    playback.dispose();
+    engine.dispose();
+  });
+
+  testWidgets('synchronized lyrics start near the top before the first cue', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1100, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    const track = Track(
+      id: 'track:lyrics-opening',
+      title: 'Opening Lyrics Track',
+      artist: 'Artist',
+      albumTitle: 'Album',
+      duration: Duration(minutes: 1),
+      source: SourceKind.local,
+      mediaUri: 'file:///test/lyrics-opening.flac',
+      lyrics: [
+        LyricLine(Duration(seconds: 2), 'Opening first lyric'),
+        LyricLine(Duration(seconds: 10), 'Opening second lyric'),
+      ],
+    );
+    final engine = SimulatedPlaybackEngine();
+    final playback = SoundPlaybackController(engine: engine);
+    await playback.playTrack(track, queue: const [track]);
+
+    await tester.pumpWidget(
+      MaterialApp(home: NowPlayingScreen(playback: playback)),
+    );
+    await tester.pump();
+
+    final panelTop = tester
+        .getTopLeft(find.byKey(const ValueKey('wide-now-playing-lyrics')))
+        .dy;
+    final firstLyricTop = tester
+        .getTopLeft(find.text('Opening first lyric'))
+        .dy;
+    expect(
+      firstLyricTop - panelTop,
+      lessThan(100),
+      reason: 'The lyric list should not reserve half a viewport above line 1.',
+    );
     expect(tester.takeException(), isNull);
 
     await _unmountAndFlush(tester);

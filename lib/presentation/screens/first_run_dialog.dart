@@ -16,25 +16,17 @@ class FirstRunDialog extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            '先添加一个音乐来源，Reverie 才能建立你的资料库。',
-            style: TextStyle(color: context.soundSecondaryText),
+            '选择音乐来源后，Reverie 会从本机文件夹或 WebDAV 目录建立资料库。',
+            style: TextStyle(color: context.soundSecondaryText, height: 1.55),
           ),
-          const SizedBox(height: 22),
-          const _FirstRunFeature(
-            icon: Icons.folder_outlined,
-            title: '本地文件夹',
-            description: '选择电脑、手机或系统 Files 中的音乐目录',
-          ),
-          const SizedBox(height: 12),
-          const _FirstRunFeature(
-            icon: Icons.cloud_outlined,
-            title: 'WebDAV',
-            description: '连接 NAS 或公网服务器，并选择要扫描的目录',
-          ),
-          const SizedBox(height: 18),
+          const SizedBox(height: 14),
           Text(
-            '扫描失败不会删除上一版资料库；密码只保存在系统安全存储中。',
-            style: TextStyle(color: context.soundMutedText, fontSize: 11),
+            '之后可以随时在设置中添加、移除或重新扫描来源。',
+            style: TextStyle(
+              color: context.soundMutedText,
+              fontSize: 12,
+              height: 1.45,
+            ),
           ),
         ],
       ),
@@ -44,67 +36,12 @@ class FirstRunDialog extends StatelessWidget {
           onPressed: () => Navigator.of(context).pop(false),
           child: const Text('稍后'),
         ),
-        FilledButton.icon(
+        FilledButton(
           key: const ValueKey('first-run-manage-sources'),
           onPressed: () => Navigator.of(context).pop(true),
-          icon: const Icon(Icons.add_rounded),
-          label: const Text('添加音乐来源'),
+          child: const Text('管理音乐来源'),
         ),
       ],
-    );
-  }
-}
-
-class _FirstRunFeature extends StatelessWidget {
-  const _FirstRunFeature({
-    required this.icon,
-    required this.title,
-    required this.description,
-  });
-
-  final IconData icon;
-  final String title;
-  final String description;
-
-  @override
-  Widget build(BuildContext context) {
-    return SoundGlassSurface(
-      blur: false,
-      showShadow: false,
-      padding: const EdgeInsets.all(16),
-      child: Row(
-        children: [
-          Container(
-            width: 42,
-            height: 42,
-            decoration: BoxDecoration(
-              color: SoundColors.accent.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Icon(icon, color: SoundColors.accent),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(fontWeight: FontWeight.w800),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  description,
-                  style: TextStyle(
-                    color: context.soundSecondaryText,
-                    fontSize: 12,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

@@ -3,6 +3,21 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sound_player/core/sound_theme.dart';
 
 void main() {
+  tearDown(SoundColors.defaultAccentPreset.apply);
+
+  test('coral remains the default and presets use the muted palette', () {
+    expect(SoundColors.defaultAccentPreset.id, 'coral');
+    expect(SoundColors.accentPresets.first, SoundColors.defaultAccentPreset);
+    expect(SoundColors.accentPresets.map((preset) => preset.accent), const [
+      Color(0xFFFF5A4D),
+      Color(0xFFD95770),
+      Color(0xFF6673C7),
+      Color(0xFF3F9E98),
+      Color(0xFFC7842F),
+      Color(0xFF8067BC),
+    ]);
+  });
+
   test('light theme exposes the approved warm glass tokens', () {
     final theme = SoundTheme.light;
     final glass = theme.extension<SoundGlassTheme>();
@@ -62,5 +77,39 @@ void main() {
       isA<CircleBorder>(),
     );
     expect(theme.floatingActionButtonTheme.shape, isA<CircleBorder>());
+    expect(theme.listTileTheme.shape, const RoundedRectangleBorder());
+    expect(
+      theme.listTileTheme.selectedTileColor,
+      SoundColors.accent.withValues(alpha: 0.035),
+    );
+    expect(theme.focusColor, primaryText.withValues(alpha: 0.065));
   });
+
+  test(
+    'accent presets rebuild theme tokens and choose readable foregrounds',
+    () {
+      final amber = SoundColors.accentPresets.firstWhere(
+        (preset) => preset.id == 'amber',
+      );
+      amber.apply();
+
+      final theme = SoundTheme.light;
+
+      expect(theme.colorScheme.primary, amber.accent);
+      expect(
+        theme.filledButtonTheme.style?.foregroundColor?.resolve({}),
+        amber.accent,
+      );
+      expect(theme.sliderTheme.activeTrackColor, amber.accent);
+      expect(theme.colorScheme.onPrimary, amber.onAccent);
+      expect(
+        theme.checkboxTheme.checkColor?.resolve({WidgetState.selected}),
+        theme.colorScheme.onPrimary,
+      );
+      expect(
+        theme.switchTheme.thumbColor?.resolve({WidgetState.selected}),
+        theme.colorScheme.onPrimary,
+      );
+    },
+  );
 }

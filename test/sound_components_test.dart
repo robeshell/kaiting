@@ -103,7 +103,9 @@ void main() {
                 )
                 .foregroundDecoration
             as BoxDecoration;
-    expect(selectedDecoration.border, isNotNull);
+    expect(selectedDecoration.border, isNull);
+    expect(selectedDecoration.borderRadius, BorderRadius.zero);
+    expect(selectedDecoration.color, isNot(Colors.transparent));
 
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);
     await tester.pump();

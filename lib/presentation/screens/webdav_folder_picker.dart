@@ -5,9 +5,14 @@ import '../../sources/source_provider.dart';
 import '../widgets/sound_components.dart';
 
 class WebDavFolderPicker extends StatefulWidget {
-  const WebDavFolderPicker({required this.browser, super.key});
+  const WebDavFolderPicker({
+    required this.browser,
+    this.bottomSheet = false,
+    super.key,
+  });
 
   final SourceDirectoryBrowser browser;
+  final bool bottomSheet;
 
   @override
   State<WebDavFolderPicker> createState() => _WebDavFolderPickerState();
@@ -86,71 +91,132 @@ class _WebDavFolderPickerState extends State<WebDavFolderPicker> {
   Widget build(BuildContext context) {
     final entries = _cache[_currentPath] ?? [];
     final isLoading = _loading.contains(_currentPath);
+    final content = _pickerContent(
+      context,
+      entries: entries,
+      isLoading: isLoading,
+    );
+    final actions = _pickerActions(context);
 
-    return SoundDialog(
-      maxWidth: 540,
-      title: Row(
-        children: [
-          const Text('选择 WebDAV 文件夹'),
-          const Spacer(),
-          Text(
-            '已选 ${_selected.length}',
-            style: TextStyle(
-              fontSize: 13,
-              color: context.soundSecondaryText,
-              fontWeight: FontWeight.w400,
-            ),
-          ),
-        ],
-      ),
-      content: SizedBox(
-        width: 480,
-        height: 440,
+    if (widget.bottomSheet) {
+      final height = MediaQuery.sizeOf(context).height * 0.78;
+      return SizedBox(
+        height: height.clamp(420.0, 720.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _BreadcrumbBar(
-              path: _currentPath,
-              canGoBack: _pathStack.length > 1,
-              onBack: _goBack,
+            Padding(
+              padding: const EdgeInsets.fromLTRB(22, 18, 18, 10),
+              child: _PickerTitle(selectedCount: _selected.length),
             ),
-            const SizedBox(height: 8),
-            if (_errorMessage != null)
-              Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                child: _ErrorBanner(message: _errorMessage!),
-              )
-            else if (isLoading)
-              const Expanded(child: Center(child: CircularProgressIndicator()))
-            else
-              Expanded(
-                child: ListView(
-                  children: [
-                    for (final entry in entries)
-                      _FolderEntry(
-                        entry: entry,
-                        isSelected: _selected.contains(entry.id),
-                        onTap: () {
-                          if (entry.isDirectory) _navigateTo(entry.id);
-                        },
-                        onToggle: () => _toggleSelection(entry.id),
-                      ),
-                  ],
-                ),
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 18),
+                child: content,
               ),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(18, 10, 18, 18),
+              child: OverflowBar(
+                alignment: MainAxisAlignment.end,
+                spacing: 10,
+                children: actions,
+              ),
+            ),
           ],
         ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(),
-          child: const Text('取消'),
+      );
+    }
+
+    return SoundDialog(
+      maxWidth: 540,
+      title: _PickerTitle(selectedCount: _selected.length),
+      content: SizedBox(width: 480, height: 440, child: content),
+      actions: actions,
+    );
+  }
+
+  Widget _pickerContent(
+    BuildContext context, {
+    required List<SourceDirectoryEntry> entries,
+    required bool isLoading,
+  }) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _BreadcrumbBar(
+          path: _currentPath,
+          canGoBack: _pathStack.length > 1,
+          onBack: _goBack,
         ),
-        FilledButton.icon(
-          onPressed: () => Navigator.of(context).pop(_selected.toList()),
-          icon: const Icon(Icons.check_rounded),
-          label: Text(
-            _selected.isEmpty ? '暂不选择' : '选择 ${_selected.length} 个文件夹',
+        Divider(height: 1, color: context.soundDivider),
+        if (_errorMessage != null)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16),
+            child: _ErrorBanner(message: _errorMessage!),
+          )
+        else if (isLoading)
+          const Expanded(child: Center(child: CircularProgressIndicator()))
+        else if (entries.isEmpty)
+          Expanded(
+            child: Center(
+              child: Text(
+                '这个目录是空的',
+                style: TextStyle(color: context.soundMutedText),
+              ),
+            ),
+          )
+        else
+          Expanded(
+            child: ListView.separated(
+              itemCount: entries.length,
+              separatorBuilder: (_, _) =>
+                  Divider(height: 1, indent: 34, color: context.soundDivider),
+              itemBuilder: (context, index) {
+                final entry = entries[index];
+                return _FolderEntry(
+                  entry: entry,
+                  isSelected: _selected.contains(entry.id),
+                  onTap: () {
+                    if (entry.isDirectory) _navigateTo(entry.id);
+                  },
+                  onToggle: () => _toggleSelection(entry.id),
+                );
+              },
+            ),
+          ),
+      ],
+    );
+  }
+
+  List<Widget> _pickerActions(BuildContext context) => [
+    TextButton(
+      onPressed: () => Navigator.of(context).pop(),
+      child: const Text('取消'),
+    ),
+    FilledButton(
+      onPressed: () => Navigator.of(context).pop(_selected.toList()),
+      child: Text(_selected.isEmpty ? '暂不选择' : '选择 ${_selected.length} 个目录'),
+    ),
+  ];
+}
+
+class _PickerTitle extends StatelessWidget {
+  const _PickerTitle({required this.selectedCount});
+
+  final int selectedCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        const Expanded(child: Text('选择目录')),
+        Text(
+          '已选 $selectedCount',
+          style: TextStyle(
+            fontSize: 13,
+            color: context.soundSecondaryText,
+            fontWeight: FontWeight.w400,
           ),
         ),
       ],
@@ -180,7 +246,7 @@ class _BreadcrumbBar extends StatelessWidget {
             visualDensity: VisualDensity.compact,
           )
         else
-          const SizedBox(width: 8),
+          const SizedBox(width: 40),
         const SizedBox(width: 4),
         Expanded(
           child: Text(
@@ -218,9 +284,7 @@ class _FolderEntry extends StatelessWidget {
       dense: true,
       leading: Icon(
         entry.isDirectory ? Icons.folder_rounded : Icons.audio_file_rounded,
-        color: entry.isDirectory
-            ? SoundColors.webDav
-            : context.soundSecondaryText,
+        color: context.soundSecondaryText,
         size: 20,
       ),
       title: Text(
@@ -228,11 +292,17 @@ class _FolderEntry extends StatelessWidget {
         style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600),
       ),
       trailing: entry.isDirectory
-          ? Checkbox(
-              value: isSelected,
-              onChanged: (_) => onToggle(),
-              activeColor: SoundColors.accent,
+          ? IconButton(
+              onPressed: onToggle,
+              tooltip: isSelected ? '取消选择' : '选择此目录',
               visualDensity: VisualDensity.compact,
+              icon: Icon(
+                isSelected ? Icons.check_rounded : Icons.add_rounded,
+                color: isSelected
+                    ? SoundColors.accent
+                    : context.soundSecondaryText,
+                size: 20,
+              ),
             )
           : null,
       onTap: entry.isDirectory ? onTap : null,

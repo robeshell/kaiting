@@ -128,6 +128,13 @@ class AccentPreset {
   final Color accentHover;
   final Color accentPressed;
 
+  static Color readableForeground(Color color) =>
+      ThemeData.estimateBrightnessForColor(color) == Brightness.dark
+      ? Colors.white
+      : const Color(0xFF1C1C22);
+
+  Color get onAccent => readableForeground(accent);
+
   void apply() {
     SoundColors.accent = accent;
     SoundColors.accentHover = accentHover;
@@ -136,9 +143,17 @@ class AccentPreset {
 }
 
 abstract final class SoundColors {
-  static Color accent = const Color(0xFFE0556D);
-  static Color accentHover = const Color(0xFFEE7B8D);
-  static Color accentPressed = const Color(0xFFC94458);
+  static const defaultAccentPreset = AccentPreset(
+    id: 'coral',
+    name: '珊瑚',
+    accent: Color(0xFFFF5A4D),
+    accentHover: Color(0xFFFF7567),
+    accentPressed: Color(0xFFE3483E),
+  );
+
+  static Color accent = defaultAccentPreset.accent;
+  static Color accentHover = defaultAccentPreset.accentHover;
+  static Color accentPressed = defaultAccentPreset.accentPressed;
   static const darkCanvas = Color(0xFF0D0D0F);
   static const darkSurface = Color(0xFF17171A);
   static const darkElevated = Color(0xFF202024);
@@ -151,12 +166,42 @@ abstract final class SoundColors {
   static const local = Color(0xFF55B889);
 
   static const List<AccentPreset> accentPresets = [
-    AccentPreset(id: 'rose', name: '玫红', accent: Color(0xFFE0556D), accentHover: Color(0xFFEE7B8D), accentPressed: Color(0xFFC94458)),
-    AccentPreset(id: 'indigo', name: '靛蓝', accent: Color(0xFF818CF8), accentHover: Color(0xFFA5B4FC), accentPressed: Color(0xFF6366E0)),
-    AccentPreset(id: 'teal', name: '青绿', accent: Color(0xFF4ECDC4), accentHover: Color(0xFF7EDDD6), accentPressed: Color(0xFF3DBDB5)),
-    AccentPreset(id: 'amber', name: '琥珀', accent: Color(0xFFF59E0B), accentHover: Color(0xFFF7B84D), accentPressed: Color(0xFFD97706)),
-    AccentPreset(id: 'violet', name: '紫罗兰', accent: Color(0xFFA78BFA), accentHover: Color(0xFFC4B5FD), accentPressed: Color(0xFF8B5CF6)),
-    AccentPreset(id: 'coral', name: '珊瑚', accent: Color(0xFFFF5A4D), accentHover: Color(0xFFFF7567), accentPressed: Color(0xFFE3483E)),
+    defaultAccentPreset,
+    AccentPreset(
+      id: 'rose',
+      name: '玫瑰',
+      accent: Color(0xFFD95770),
+      accentHover: Color(0xFFE66C82),
+      accentPressed: Color(0xFFBF465D),
+    ),
+    AccentPreset(
+      id: 'indigo',
+      name: '靛蓝',
+      accent: Color(0xFF6673C7),
+      accentHover: Color(0xFF7884D2),
+      accentPressed: Color(0xFF5360AE),
+    ),
+    AccentPreset(
+      id: 'teal',
+      name: '青绿',
+      accent: Color(0xFF3F9E98),
+      accentHover: Color(0xFF51ADA7),
+      accentPressed: Color(0xFF338781),
+    ),
+    AccentPreset(
+      id: 'amber',
+      name: '暖金',
+      accent: Color(0xFFC7842F),
+      accentHover: Color(0xFFD4953F),
+      accentPressed: Color(0xFFAB6E24),
+    ),
+    AccentPreset(
+      id: 'violet',
+      name: '紫罗兰',
+      accent: Color(0xFF8067BC),
+      accentHover: Color(0xFF9279C8),
+      accentPressed: Color(0xFF6D54A5),
+    ),
   ];
 }
 
@@ -321,7 +366,7 @@ abstract final class SoundTheme {
           surface: surface,
         ).copyWith(
           primary: SoundColors.accent,
-          onPrimary: Colors.white,
+          onPrimary: AccentPreset.readableForeground(SoundColors.accent),
           surface: surface,
           onSurface: foreground,
           onSurfaceVariant: secondary,
@@ -363,9 +408,6 @@ abstract final class SoundTheme {
       bodySmall: baseTextTheme.bodySmall?.copyWith(color: secondary),
     );
 
-    final controlShape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(SoundRadii.control),
-    );
     final focusOverlay = WidgetStateProperty.resolveWith<Color?>((states) {
       if (states.contains(WidgetState.focused)) {
         return SoundColors.accent.withValues(alpha: 0.16);
@@ -446,7 +488,7 @@ abstract final class SoundTheme {
       fontFamily: '.SF Pro Text',
       fontFamilyFallback: _fontFallback,
       textTheme: textTheme,
-      focusColor: SoundColors.accent.withValues(alpha: 0.20),
+      focusColor: foreground.withValues(alpha: 0.065),
       hoverColor: foreground.withValues(alpha: 0.055),
       highlightColor: Colors.transparent,
       splashColor: Colors.transparent,
@@ -694,9 +736,9 @@ abstract final class SoundTheme {
         iconColor: secondary,
         textColor: foreground,
         selectedColor: SoundColors.accent,
-        selectedTileColor: SoundColors.accent.withValues(alpha: 0.10),
+        selectedTileColor: SoundColors.accent.withValues(alpha: 0.035),
         contentPadding: const EdgeInsets.symmetric(horizontal: 14),
-        shape: controlShape,
+        shape: const RoundedRectangleBorder(),
       ),
       checkboxTheme: CheckboxThemeData(
         visualDensity: VisualDensity.compact,
@@ -706,7 +748,7 @@ abstract final class SoundTheme {
           if (states.contains(WidgetState.selected)) return SoundColors.accent;
           return Colors.transparent;
         }),
-        checkColor: const WidgetStatePropertyAll(Colors.white),
+        checkColor: WidgetStatePropertyAll(scheme.onPrimary),
         overlayColor: focusOverlay,
       ),
       radioTheme: RadioThemeData(
@@ -721,7 +763,7 @@ abstract final class SoundTheme {
       switchTheme: SwitchThemeData(
         thumbColor: WidgetStateProperty.resolveWith<Color>((states) {
           return states.contains(WidgetState.selected)
-              ? Colors.white
+              ? scheme.onPrimary
               : secondary;
         }),
         trackColor: WidgetStateProperty.resolveWith<Color>((states) {

@@ -1,9 +1,11 @@
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sound_player/core/sound_theme.dart';
 import 'package:sound_player/library/persistence/drift_library_repository.dart';
 import 'package:sound_player/library/persistence/library_database.dart';
 import 'package:sound_player/presentation/screens/webdav_add_dialog.dart';
+import 'package:sound_player/presentation/widgets/sound_components.dart';
 import 'package:sound_player/sources/webdav/webdav_connection_service.dart';
 import 'package:sound_player/sources/webdav/webdav_credentials.dart';
 import 'package:sound_player/sources/webdav/webdav_discovery.dart';
@@ -62,7 +64,7 @@ void main() {
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
 
-    expect(find.text('编辑 WebDAV 服务器'), findsOneWidget);
+    expect(find.text('编辑 WebDAV 连接'), findsOneWidget);
     final username = tester.widget<TextFormField>(
       find.widgetWithText(TextFormField, '用户名'),
     );
@@ -74,11 +76,45 @@ void main() {
     await tester.tap(find.widgetWithText(FilledButton, '保存'));
     await tester.pumpAndSettle();
 
-    expect(find.text('编辑 WebDAV 服务器'), findsNothing);
+    expect(find.text('编辑 WebDAV 连接'), findsNothing);
     final updated = (await service.listConnections()).single;
     expect(updated.displayName, 'Renamed NAS');
     final stored = await credentialStore.read(updated.id);
     expect(stored?.password, 'keep-me');
+  });
+
+  testWidgets('compact connection form uses a bottom sheet without overflow', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: SoundTheme.light,
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: FilledButton(
+              onPressed: () => showSoundBottomSheet<WebDavDiscoveryResult>(
+                context,
+                builder: (_) =>
+                    WebDavAddDialog(service: service, bottomSheet: true),
+              ),
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(SoundBottomSheet), findsOneWidget);
+    expect(find.byType(SoundDialog), findsNothing);
+    expect(find.text('添加 WebDAV 连接'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }
 

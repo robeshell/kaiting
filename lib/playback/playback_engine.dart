@@ -73,6 +73,13 @@ abstract interface class PlaybackEngine {
   Future<void> pause();
   Future<void> seek(Duration position);
   Future<void> stop();
+
+  /// Sets the output volume (0.0 = mute, 1.0 = normal).
+  Future<void> setVolume(double value);
+
+  /// Current normalized output volume.
+  double get volume;
+
   void dispose();
 }
 

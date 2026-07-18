@@ -817,8 +817,6 @@ class _TrackRow extends StatelessWidget {
     return SoundTrackActivation(
       onActivate: onTap,
       semanticLabel: track.title,
-      showFocusOutline: false,
-      borderRadius: BorderRadius.circular(8),
       child: Container(
         key: ValueKey('album-track-row-${track.id}'),
         constraints: BoxConstraints.tightFor(height: compact ? 64 : 68),
@@ -827,7 +825,7 @@ class _TrackRow extends StatelessWidget {
           color: active
               ? compact && pagePalette != null
                     ? pagePalette!.controlSurface
-                    : SoundColors.accent.withValues(alpha: 0.075)
+                    : SoundColors.accent.withValues(alpha: 0.035)
               : Colors.transparent,
           border: Border(
             bottom: BorderSide(

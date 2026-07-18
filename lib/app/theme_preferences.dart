@@ -10,10 +10,10 @@ class ThemePreferences {
   ThemePreferences._(this._file, this.selectedPreset);
 
   final File _file;
-  final AccentPreset selectedPreset;
+  AccentPreset selectedPreset;
 
-  static Future<ThemePreferences> load() async {
-    final dir = await getApplicationSupportDirectory();
+  static Future<ThemePreferences> load({Directory? supportDirectory}) async {
+    final dir = supportDirectory ?? await getApplicationSupportDirectory();
     final file = File(p.join(dir.path, 'theme.json'));
     try {
       if (await file.exists()) {
@@ -28,14 +28,13 @@ class ThemePreferences {
           }
         }
         if (preset != null) {
-          preset.apply();
           return ThemePreferences._(file, preset);
         }
       }
     } catch (_) {
       // Corrupted file — fall back to default (rose, already applied).
     }
-    return ThemePreferences._(file, SoundColors.accentPresets[0]);
+    return ThemePreferences._(file, SoundColors.defaultAccentPreset);
   }
 
   Future<void> save(AccentPreset preset) async {
@@ -44,5 +43,6 @@ class ThemePreferences {
       jsonEncode({'accentPreset': preset.id}),
       flush: true,
     );
+    selectedPreset = preset;
   }
 }

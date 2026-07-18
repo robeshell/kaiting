@@ -88,6 +88,7 @@ class NowPlayingScreen extends StatelessWidget {
     final snapshot = playback.snapshot;
     final compactChrome = context.soundIsCompact;
     final foldableChrome = context.soundUsesMobileShell && !compactChrome;
+    final desktopIntegratedQueue = soundUsesDesktopPlatform && !compactChrome;
     return Scaffold(
       backgroundColor: album.palette.last,
       body: Stack(
@@ -125,12 +126,13 @@ class NowPlayingScreen extends StatelessWidget {
                           icon: const Icon(Icons.keyboard_arrow_down_rounded),
                         ),
                         const Spacer(),
-                        IconButton.filledTonal(
-                          onPressed: () =>
-                              showPlaybackQueueSheet(context, playback),
-                          tooltip: '播放队列',
-                          icon: const Icon(Icons.queue_music_rounded),
-                        ),
+                        if (!desktopIntegratedQueue)
+                          IconButton.filledTonal(
+                            onPressed: () =>
+                                showPlaybackQueueSheet(context, playback),
+                            tooltip: '播放队列',
+                            icon: const Icon(Icons.queue_music_rounded),
+                          ),
                       ],
                     ),
                   ),
@@ -160,6 +162,7 @@ class NowPlayingScreen extends StatelessWidget {
                         track: track,
                         playback: playback,
                         userState: userState,
+                        integratedQueue: desktopIntegratedQueue,
                       );
                     },
                   ),
@@ -225,18 +228,29 @@ class _NoTrackPlaying extends StatelessWidget {
   }
 }
 
-class _WideNowPlaying extends StatelessWidget {
+enum _WideNowPlayingView { lyrics, queue }
+
+class _WideNowPlaying extends StatefulWidget {
   const _WideNowPlaying({
     required this.album,
     required this.track,
     required this.playback,
+    required this.integratedQueue,
     this.userState,
   });
 
   final Album album;
   final Track track;
   final SoundPlaybackController playback;
+  final bool integratedQueue;
   final LibraryUserStateController? userState;
+
+  @override
+  State<_WideNowPlaying> createState() => _WideNowPlayingState();
+}
+
+class _WideNowPlayingState extends State<_WideNowPlaying> {
+  _WideNowPlayingView _view = _WideNowPlayingView.lyrics;
 
   @override
   Widget build(BuildContext context) {
@@ -263,9 +277,10 @@ class _WideNowPlaying extends StatelessWidget {
           math.max(160.0, playerHeight - playerChromeHeight),
         );
         return Padding(
+          key: const ValueKey('wide-now-playing-content'),
           padding: EdgeInsets.fromLTRB(
             horizontalPadding,
-            foldableWidth ? 0 : 8,
+            0,
             horizontalPadding,
             24,
           ),
@@ -282,10 +297,10 @@ class _WideNowPlaying extends StatelessWidget {
                     constraints: const BoxConstraints(maxWidth: 390),
                     child: SingleChildScrollView(
                       child: _PlayerColumn(
-                        album: album,
-                        track: track,
-                        playback: playback,
-                        userState: userState,
+                        album: widget.album,
+                        track: widget.track,
+                        playback: widget.playback,
+                        userState: widget.userState,
                         artSize: artSize,
                       ),
                     ),
@@ -297,21 +312,161 @@ class _WideNowPlaying extends StatelessWidget {
                 child: Padding(
                   key: const ValueKey('wide-now-playing-lyrics'),
                   padding: EdgeInsets.fromLTRB(
-                    8, 6, 0, foldableWidth ? 24 : 0,
+                    8,
+                    6,
+                    0,
+                    foldableWidth ? 24 : 32,
                   ),
-                  child: _LyricsPanel(
-                    track: track,
-                    position: playback.displayPosition,
-                    discontinuityRevision:
-                        playback.positionDiscontinuityRevision,
-                    onSeek: playback.seek,
-                  ),
+                  child: widget.integratedQueue
+                      ? _DesktopNowPlayingPane(
+                          view: _view,
+                          track: widget.track,
+                          playback: widget.playback,
+                          onViewChanged: (view) => setState(() => _view = view),
+                        )
+                      : _LyricsPanel(
+                          track: widget.track,
+                          position: widget.playback.displayPosition,
+                          discontinuityRevision:
+                              widget.playback.positionDiscontinuityRevision,
+                          onSeek: widget.playback.seek,
+                        ),
                 ),
               ),
             ],
           ),
         );
       },
+    );
+  }
+}
+
+class _DesktopNowPlayingPane extends StatelessWidget {
+  const _DesktopNowPlayingPane({
+    required this.view,
+    required this.track,
+    required this.playback,
+    required this.onViewChanged,
+  });
+
+  final _WideNowPlayingView view;
+  final Track track;
+  final SoundPlaybackController playback;
+  final ValueChanged<_WideNowPlayingView> onViewChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      key: const ValueKey('desktop-now-playing-pane'),
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: [
+        Expanded(
+          child: IndexedStack(
+            index: view.index,
+            children: [
+              _LyricsPanel(
+                key: const ValueKey('desktop-lyrics-panel'),
+                track: track,
+                position: playback.displayPosition,
+                discontinuityRevision: playback.positionDiscontinuityRevision,
+                onSeek: playback.seek,
+                verticalControls: true,
+              ),
+              PlaybackQueuePanel(
+                key: const ValueKey('desktop-playback-queue'),
+                playback: playback,
+                embedded: true,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        _DesktopPaneIconSwitch(
+          key: const ValueKey('now-playing-view-switch'),
+          view: view,
+          onChanged: onViewChanged,
+        ),
+      ],
+    );
+  }
+}
+
+class _DesktopPaneIconSwitch extends StatelessWidget {
+  const _DesktopPaneIconSwitch({
+    required this.view,
+    required this.onChanged,
+    super.key,
+  });
+
+  final _WideNowPlayingView view;
+  final ValueChanged<_WideNowPlayingView> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    Widget button({
+      required Key key,
+      required _WideNowPlayingView value,
+      required String tooltip,
+      required IconData icon,
+      double iconSize = 19,
+      double opticalOffsetY = 0,
+    }) {
+      final selected = view == value;
+      Widget normalizedIcon() => SizedBox.square(
+        dimension: 22,
+        child: Center(
+          child: Transform.translate(
+            offset: Offset(0, opticalOffsetY),
+            child: Icon(icon, size: iconSize),
+          ),
+        ),
+      );
+
+      return IconButton(
+        key: key,
+        onPressed: () => onChanged(value),
+        tooltip: tooltip,
+        isSelected: selected,
+        icon: normalizedIcon(),
+        selectedIcon: normalizedIcon(),
+        color: selected ? SoundColors.accent : context.soundMutedText,
+        visualDensity: VisualDensity.compact,
+        style: ButtonStyle(
+          fixedSize: const WidgetStatePropertyAll(Size.square(40)),
+          backgroundColor: const WidgetStatePropertyAll(Colors.transparent),
+          overlayColor: WidgetStateProperty.resolveWith((states) {
+            if (states.contains(WidgetState.pressed)) {
+              return context.soundTint(0.08);
+            }
+            if (states.contains(WidgetState.hovered) ||
+                states.contains(WidgetState.focused)) {
+              return context.soundTint(0.05);
+            }
+            return Colors.transparent;
+          }),
+        ),
+      );
+    }
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        button(
+          key: const ValueKey('show-desktop-lyrics'),
+          value: _WideNowPlayingView.lyrics,
+          tooltip: '显示歌词',
+          icon: Icons.lyrics_rounded,
+          iconSize: 17.5,
+          opticalOffsetY: 1.5,
+        ),
+        button(
+          key: const ValueKey('show-desktop-queue'),
+          value: _WideNowPlayingView.queue,
+          tooltip: '显示播放清单',
+          icon: Icons.queue_music_rounded,
+          opticalOffsetY: -1,
+        ),
+      ],
     );
   }
 }
@@ -503,13 +658,13 @@ class _PlayerColumn extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        AlbumArt(
+        _PlaybackResponsiveAlbumArt(
           key: compactLayout
               ? const ValueKey('compact-now-playing-artwork')
               : null,
           album: album,
           size: artSize,
-          gaplessPlayback: true,
+          isPlaying: playback.snapshot.isPlaying,
         ),
         SizedBox(height: compactLayout ? 26 : 24),
         if (compactLayout)
@@ -587,6 +742,94 @@ class _PlayerColumn extends StatelessWidget {
           ),
         ],
       ],
+    );
+  }
+}
+
+/// Keeps the artwork visually in sync with the play/pause interaction.
+///
+/// Uses an explicit [AnimationController] driven by Material Design's
+/// [Curves.fastOutSlowIn] for a silky-smooth start/stop feel that avoids
+/// the mechanical stiffness of polynomial easing curves. Rapid play/pause
+/// taps reverse direction smoothly instead of snapping to either endpoint.
+class _PlaybackResponsiveAlbumArt extends StatefulWidget {
+  const _PlaybackResponsiveAlbumArt({
+    required this.album,
+    required this.isPlaying,
+    this.size,
+    super.key,
+  });
+
+  final Album album;
+  final bool isPlaying;
+  final double? size;
+
+  @override
+  State<_PlaybackResponsiveAlbumArt> createState() =>
+      _PlaybackResponsiveAlbumArtState();
+}
+
+class _PlaybackResponsiveAlbumArtState
+    extends State<_PlaybackResponsiveAlbumArt>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  late final Animation<double> _animation;
+
+  /// How much the artwork shrinks when paused.
+  ///
+  /// 1.0 = full size, 0.0 = fully collapsed. 0.88 gives a noticeable but
+  /// tasteful contraction that subtly signals the paused state.
+  static const _pausedScale = 0.88;
+
+  /// Matches the play/pause button's interaction timing so the artwork
+  /// arrives at its final scale simultaneously with the button feedback.
+  static const _transitionDuration = Duration(milliseconds: 260);
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: _transitionDuration,
+    );
+    _animation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.fastOutSlowIn,
+    );
+    _controller.value = widget.isPlaying ? 1.0 : 0.0;
+  }
+
+  @override
+  void didUpdateWidget(_PlaybackResponsiveAlbumArt oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.isPlaying == oldWidget.isPlaying) return;
+    if (widget.isPlaying) {
+      _controller.forward();
+    } else {
+      _controller.reverse();
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _animation,
+      builder: (context, child) => Transform.scale(
+        scale: _pausedScale + (1.0 - _pausedScale) * _animation.value,
+        alignment: Alignment.center,
+        child: child,
+      ),
+      child: AlbumArt(
+        album: widget.album,
+        size: widget.size,
+        gaplessPlayback: true,
+      ),
     );
   }
 }
@@ -914,16 +1157,23 @@ class _PlaybackErrorBanner extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
         child: SoundGlassSurface(
-          padding: const EdgeInsets.fromLTRB(14, 10, 8, 10),
-          borderRadius: BorderRadius.circular(12),
-          borderColor: SoundColors.accent.withValues(alpha: 0.52),
+          key: const ValueKey('playback-error-banner'),
+          color: context.soundChromeSurface,
+          padding: const EdgeInsets.fromLTRB(10, 9, 8, 9),
+          borderRadius: BorderRadius.circular(14),
+          borderColor: Colors.transparent,
           blur: false,
           showShadow: false,
           child: Row(
             children: [
-              Icon(
-                Icons.error_outline_rounded,
-                color: SoundColors.accent,
+              SizedBox(
+                width: 30,
+                height: 30,
+                child: Icon(
+                  Icons.error_outline_rounded,
+                  size: 19,
+                  color: context.soundColors.error.withValues(alpha: 0.82),
+                ),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -935,24 +1185,45 @@ class _PlaybackErrorBanner extends StatelessWidget {
                       failure.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(fontWeight: FontWeight.w800),
+                      style: TextStyle(
+                        color: context.soundPrimaryText,
+                        fontSize: 13,
+                        height: 1.15,
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
+                    const SizedBox(height: 2),
                     Text(
                       failure.message,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: context.soundSecondaryText,
-                        fontSize: 11,
+                        color: context.soundMutedText,
+                        fontSize: 11.5,
+                        height: 1.3,
                       ),
                     ),
                   ],
                 ),
               ),
-              TextButton.icon(
+              const SizedBox(width: 6),
+              TextButton(
                 onPressed: onRetry,
-                icon: const Icon(Icons.refresh_rounded),
-                label: const Text('重试'),
+                style: TextButton.styleFrom(
+                  foregroundColor: context.soundColors.error,
+                  backgroundColor: Colors.transparent,
+                  minimumSize: const Size(48, 32),
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  textStyle: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                ),
+                child: const Text('重试'),
               ),
             ],
           ),
@@ -975,6 +1246,8 @@ class _LyricsPanel extends StatefulWidget {
     required this.discontinuityRevision,
     required this.onSeek,
     this.compact = false,
+    this.verticalControls = false,
+    super.key,
   });
 
   final Track track;
@@ -982,6 +1255,7 @@ class _LyricsPanel extends StatefulWidget {
   final int discontinuityRevision;
   final Future<void> Function(Duration position) onSeek;
   final bool compact;
+  final bool verticalControls;
 
   @override
   State<_LyricsPanel> createState() => _LyricsPanelState();
@@ -1124,6 +1398,108 @@ class _LyricsPanelState extends State<_LyricsPanel> {
     return '${seconds >= 0 ? '+' : ''}${seconds.toStringAsFixed(1)}s';
   }
 
+  Widget _buildVerticalControls() {
+    return SizedBox(
+      width: 52,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            '同步\n歌词',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: context.soundMutedText.withValues(alpha: 0.72),
+              fontSize: 10,
+              height: 1.25,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 10),
+          if (_autoFollowPaused) ...[
+            _LyricsOffsetButton(
+              label: '跟随',
+              tooltip: '恢复自动跟随',
+              onTap: _resumeAutoFollow,
+            ),
+            const SizedBox(height: 6),
+          ],
+          _LyricsOffsetButton(
+            label: '−.5',
+            tooltip: '歌词延后 0.5 秒',
+            onTap: () => _changeOffset(-_offsetStep),
+          ),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 6),
+            child: GestureDetector(
+              onTap: _offset == Duration.zero
+                  ? null
+                  : () => setState(() {
+                      _offset = Duration.zero;
+                      _lastActiveIndex = null;
+                      _snapNextFollow = true;
+                    }),
+              child: Text(
+                _offsetLabel,
+                style: TextStyle(
+                  color: context.soundMutedText.withValues(
+                    alpha: _offset == Duration.zero ? 0.56 : 0.86,
+                  ),
+                  fontSize: 10,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+            ),
+          ),
+          _LyricsOffsetButton(
+            label: '+.5',
+            tooltip: '歌词提前 0.5 秒',
+            onTap: () => _changeOffset(_offsetStep),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildLyricsScroller(
+    List<LyricLine> lyrics, {
+    required int? active,
+    required bool synchronized,
+  }) {
+    return LayoutBuilder(
+      builder: (context, constraints) => Listener(
+        onPointerSignal: (event) {
+          if (event is PointerScrollEvent) _pauseAutoFollow();
+        },
+        child: NotificationListener<ScrollStartNotification>(
+          onNotification: (notification) {
+            if (notification.dragDetails != null) _pauseAutoFollow();
+            return false;
+          },
+          child: SingleChildScrollView(
+            controller: _scrollController,
+            padding: EdgeInsets.only(
+              bottom: widget.compact
+                  ? math.max(72, constraints.maxHeight * 0.66)
+                  : math.max(110, constraints.maxHeight * 0.55),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (var index = 0; index < lyrics.length; index++)
+                  _buildLyricLine(
+                    lyrics,
+                    index,
+                    active: active,
+                    synchronized: synchronized,
+                  ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildLyricLine(
     List<LyricLine> lyrics,
     int index, {
@@ -1195,6 +1571,25 @@ class _LyricsPanelState extends State<_LyricsPanel> {
     } else if (synchronized) {
       _followPreamble();
     }
+    if (widget.verticalControls) {
+      return Stack(
+        fit: StackFit.expand,
+        children: [
+          Padding(
+            padding: EdgeInsets.only(
+              right: synchronized && _timeline.hasTimedContent ? 68 : 0,
+            ),
+            child: _buildLyricsScroller(
+              lyrics,
+              active: active,
+              synchronized: synchronized,
+            ),
+          ),
+          if (synchronized && _timeline.hasTimedContent)
+            Positioned(top: 2, right: 0, child: _buildVerticalControls()),
+        ],
+      );
+    }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1255,41 +1650,10 @@ class _LyricsPanelState extends State<_LyricsPanel> {
         ),
         SizedBox(height: widget.compact ? 12 : 26),
         Expanded(
-          child: LayoutBuilder(
-            builder: (context, constraints) => Listener(
-              onPointerSignal: (event) {
-                if (event is PointerScrollEvent) _pauseAutoFollow();
-              },
-              child: NotificationListener<ScrollStartNotification>(
-                onNotification: (notification) {
-                  if (notification.dragDetails != null) _pauseAutoFollow();
-                  return false;
-                },
-                child: SingleChildScrollView(
-                  controller: _scrollController,
-                  padding: EdgeInsets.only(
-                    top: widget.compact
-                        ? math.max(72, constraints.maxHeight * 0.34)
-                        : math.max(110, constraints.maxHeight * 0.45),
-                    bottom: widget.compact
-                        ? math.max(72, constraints.maxHeight * 0.66)
-                        : math.max(110, constraints.maxHeight * 0.55),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      for (var index = 0; index < lyrics.length; index++)
-                        _buildLyricLine(
-                          lyrics,
-                          index,
-                          active: active,
-                          synchronized: synchronized,
-                        ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
+          child: _buildLyricsScroller(
+            lyrics,
+            active: active,
+            synchronized: synchronized,
           ),
         ),
       ],

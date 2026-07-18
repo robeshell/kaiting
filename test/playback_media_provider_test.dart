@@ -237,5 +237,11 @@ class _AccessRecordingEngine
   Future<void> stop() async {}
 
   @override
+  Future<void> setVolume(double value) async {}
+
+  @override
+  double get volume => 1.0;
+
+  @override
   void dispose() {}
 }

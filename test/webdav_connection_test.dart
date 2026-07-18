@@ -199,6 +199,9 @@ void main() {
           connection.id,
           '/dav/music/',
         );
+        final managedFuture = WebDavSourceConnectionProvider(
+          service,
+        ).watchResources().firstWhere((resources) => resources.length == 2);
         final now = DateTime.utc(2025, 1, 1);
         await repository.upsertSource(
           LibrarySourceRecord(
@@ -220,6 +223,11 @@ void main() {
           ),
           isTrue,
         );
+        final managed = await managedFuture;
+        final folder = managed.singleWhere(
+          (resource) => resource.kind == SourceManagedResourceKind.catalog,
+        );
+        expect(folder.parentConnectionId, connection.id);
 
         await service.removeConnection(connection.id);
         expect(await repository.getSource(connection.id), isNull);

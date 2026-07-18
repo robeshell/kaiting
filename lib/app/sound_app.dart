@@ -29,6 +29,7 @@ class SoundApp extends StatefulWidget {
     this.sessionIsPreloaded = false,
     this.audioHandler,
     this.webDavCache,
+    this.initialThemePreferences,
     this.enableFirstRunGuide,
     super.key,
   }) : assert(!sessionIsPreloaded || sessionStore != null);
@@ -42,6 +43,7 @@ class SoundApp extends StatefulWidget {
   final bool sessionIsPreloaded;
   final SoundAudioHandler? audioHandler;
   final WebDavCache? webDavCache;
+  final ThemePreferences? initialThemePreferences;
   final bool? enableFirstRunGuide;
 
   @override
@@ -69,7 +71,9 @@ class _SoundAppState extends State<SoundApp> with WidgetsBindingObserver {
   SoundPlaybackController? _playback;
   PlaybackSessionStore? _sessionStore;
   ThemePreferences? _themePrefs;
-  AccentPreset _accentPreset = SoundColors.accentPresets[0];
+  AccentPreset _accentPreset = SoundColors.defaultAccentPreset;
+  int _accentChangeRevision = 0;
+  Future<void> _themeWriteTail = Future<void>.value();
   Timer? _sessionSaveTimer;
   DateTime? _lastSessionSaveStartedAt;
   Future<void> _writeTail = Future<void>.value();
@@ -77,13 +81,22 @@ class _SoundAppState extends State<SoundApp> with WidgetsBindingObserver {
   bool _saveInProgress = false;
   bool _forceSaveAfterCurrent = false;
   bool _disposed = false;
+  final _failureOverlayController = AppFailureOverlayController();
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _engine = widget.engine;
-    _loadThemePreferences();
+    final initialThemePreferences = widget.initialThemePreferences;
+    if (initialThemePreferences != null) {
+      _themePrefs = initialThemePreferences;
+      _accentPreset = initialThemePreferences.selectedPreset;
+      _accentPreset.apply();
+    } else {
+      SoundColors.defaultAccentPreset.apply();
+      unawaited(_loadThemePreferences());
+    }
     if (widget.sessionIsPreloaded) {
       _attachPlayback(widget.sessionStore!, widget.initialSession);
     } else {
@@ -93,16 +106,53 @@ class _SoundAppState extends State<SoundApp> with WidgetsBindingObserver {
 
   Future<void> _loadThemePreferences() async {
     try {
-      _themePrefs = await ThemePreferences.load();
-      if (mounted) setState(() => _accentPreset = _themePrefs!.selectedPreset);
-    } catch (_) {}
+      final preferences = await ThemePreferences.load();
+      _themePrefs = preferences;
+      if (_accentChangeRevision == 0) {
+        preferences.selectedPreset.apply();
+        if (mounted) {
+          setState(() => _accentPreset = preferences.selectedPreset);
+        }
+      } else {
+        await _saveAccentPreference(preferences, _accentPreset);
+      }
+    } catch (_) {
+      // Theme preferences are optional. Keep the already-applied default
+      // accent when storage is unavailable or the file cannot be read.
+    }
   }
 
   Future<void> _changeAccent(AccentPreset preset) async {
     if (preset.id == _accentPreset.id) return;
+    _accentChangeRevision++;
     preset.apply();
-    if (_themePrefs != null) await _themePrefs!.save(preset);
     if (mounted) setState(() => _accentPreset = preset);
+    final preferences = _themePrefs;
+    if (preferences == null) return;
+    await _saveAccentPreference(preferences, preset);
+  }
+
+  Future<void> _saveAccentPreference(
+    ThemePreferences preferences,
+    AccentPreset preset,
+  ) {
+    _themeWriteTail = _themeWriteTail.then((_) async {
+      try {
+        await preferences.save(preset);
+      } catch (error, stackTrace) {
+        FlutterError.reportError(
+          FlutterErrorDetails(
+            exception: error,
+            stack: stackTrace,
+            library: 'sound theme preferences',
+            context: ErrorDescription(
+              'while saving the selected accent color',
+            ),
+          ),
+        );
+      }
+    });
+    return _themeWriteTail;
   }
 
   Future<void> _bootstrapPlayback() async {
@@ -301,6 +351,7 @@ class _SoundAppState extends State<SoundApp> with WidgetsBindingObserver {
       playback.removeListener(_scheduleSessionSave);
     }
     widget.audioHandler?.detach();
+    _failureOverlayController.dispose();
     playback?.dispose();
     _engine.dispose();
     if (widget.ownsRepository) unawaited(widget.repository?.close());
@@ -324,7 +375,10 @@ class _SoundAppState extends State<SoundApp> with WidgetsBindingObserver {
           systemStatusBarContrastEnforced: false,
           systemNavigationBarContrastEnforced: false,
         ),
-        child: child ?? const SizedBox.shrink(),
+        child: AppFailureOverlayHost(
+          controller: _failureOverlayController,
+          child: child ?? const SizedBox.shrink(),
+        ),
       ),
       home: playback == null
           ? const _PlaybackBootstrapScreen()
@@ -338,6 +392,7 @@ class _SoundAppState extends State<SoundApp> with WidgetsBindingObserver {
                   widget.enableFirstRunGuide ?? widget.repository == null,
               accentPreset: _accentPreset,
               onAccentChanged: _changeAccent,
+              failureOverlayController: _failureOverlayController,
             ),
     );
   }

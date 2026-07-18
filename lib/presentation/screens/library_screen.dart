@@ -108,6 +108,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
       animation: Listenable.merge([widget.catalog, ?widget.userState]),
       builder: (context, _) {
         final compact = context.soundIsCompact;
+        final mobileShell = context.soundUsesMobileShell;
         final gutter = context.soundPageGutter;
         final bottomPadding = context.soundContentBottomPadding;
         final allAlbums = widget.catalog.albums;
@@ -137,7 +138,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
           key: PageStorageKey<String>('library-${widget.mode.name}'),
           controller: _scrollController,
           slivers: [
-            if (compact)
+            if (mobileShell)
               SliverPadding(
                 padding: EdgeInsets.fromLTRB(gutter, 12, gutter, 10),
                 sliver: SliverToBoxAdapter(
@@ -170,7 +171,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
               SliverPadding(
                 padding: EdgeInsets.fromLTRB(
                   gutter,
-                  compact ? 0 : 24,
+                  mobileShell ? 0 : 24,
                   gutter,
                   12,
                 ),
@@ -554,7 +555,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 final collection = collections[index];
                 return _CollectionCard(
                   collection: collection,
-                  compact: compact,
                   onTap: () => widget.onOpenCollection(collection),
                 );
               },
@@ -1463,12 +1463,10 @@ class _AlbumCard extends StatelessWidget {
 class _CollectionCard extends StatelessWidget {
   const _CollectionCard({
     required this.collection,
-    required this.compact,
     required this.onTap,
   });
 
   final LibraryCollection collection;
-  final bool compact;
   final VoidCallback onTap;
 
   @override
@@ -1481,35 +1479,11 @@ class _CollectionCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Stack(
-            children: [
-              AlbumArt(
-                key: ValueKey('library-collection-art-${collection.id}'),
-                album: album,
-                borderRadius: 6,
-                showShadow: false,
-              ),
-              if (!compact)
-                Positioned(
-                  right: 10,
-                  bottom: 10,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: Colors.black.withValues(alpha: 0.62),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Padding(
-                      padding: const EdgeInsets.all(8),
-                      child: Icon(
-                        collection.kind == LibraryCollectionKind.artist
-                            ? Icons.person_rounded
-                            : Icons.grid_view_rounded,
-                        size: 18,
-                      ),
-                    ),
-                  ),
-                ),
-            ],
+          AlbumArt(
+            key: ValueKey('library-collection-art-${collection.id}'),
+            album: album,
+            borderRadius: 6,
+            showShadow: false,
           ),
           const SizedBox(height: 7),
           Text(

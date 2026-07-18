@@ -319,10 +319,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         if (_accentColorExpanded)
                           _AccentPresetSelector(
                             selected: widget.accentPreset,
-                            onSelected: (preset) {
-                              widget.onAccentChanged(preset);
-                              setState(() => _accentColorExpanded = false);
-                            },
+                            onSelected: widget.onAccentChanged,
                           ),
                       ],
                     ),
@@ -501,10 +498,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     if (_accentColorExpanded)
                       _AccentPresetSelector(
                         selected: widget.accentPreset,
-                        onSelected: (preset) {
-                          widget.onAccentChanged(preset);
-                          setState(() => _accentColorExpanded = false);
-                        },
+                        onSelected: widget.onAccentChanged,
                       ),
                   ],
                 ),
@@ -1031,6 +1025,7 @@ class _DiagnosticEventCard extends StatelessWidget {
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   event.failure.title,
@@ -1417,6 +1412,7 @@ class _OfflineDownloadsEmpty extends StatelessWidget {
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
               children: [
                 Text(
                   '还没有离线内容',
@@ -1474,7 +1470,7 @@ class _OfflineDownloadRow extends StatelessWidget {
               _formatBytes(item.size),
           ].join(' · ');
     final statusColor = failed
-        ? SoundColors.accent
+        ? context.soundColors.error
         : downloading
         ? SoundColors.webDav
         : SoundColors.local;
@@ -1503,7 +1499,7 @@ class _OfflineDownloadRow extends StatelessWidget {
         leading: status,
         title: item.title,
         subtitle: subtitle,
-        titleColor: failed ? SoundColors.accent : null,
+        titleColor: failed ? context.soundColors.error : null,
         trailing: PopupMenuButton<String>(
           key: ValueKey('offline-actions-${item.reference.storageKey}'),
           tooltip: '更多操作 ${item.title}',
@@ -1985,11 +1981,7 @@ class _PlaybackModeChoice extends StatelessWidget {
                 ),
               ),
               if (selected)
-                Icon(
-                  Icons.check_rounded,
-                  size: 17,
-                  color: SoundColors.accent,
-                ),
+                Icon(Icons.check_rounded, size: 17, color: SoundColors.accent),
             ],
           ),
         ),
@@ -2073,7 +2065,7 @@ class _AccentPresetSwatch extends StatelessWidget {
                   : null,
             ),
             child: selected
-                ? const Icon(Icons.check_rounded, color: Colors.white, size: 20)
+                ? Icon(Icons.check_rounded, color: preset.onAccent, size: 20)
                 : null,
           ),
         ),

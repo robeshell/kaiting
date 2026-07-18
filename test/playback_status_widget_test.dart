@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sound_player/core/sound_theme.dart';
@@ -130,6 +131,70 @@ void main() {
     engine.dispose();
   });
 
+  testWidgets('volume popup stays bounded and does not block nearby actions', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 220);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final engine = StaticPlaybackEngine(
+      _snapshot(PlaybackPhase.paused, track: _track),
+    );
+    final playback = SoundPlaybackController(engine: engine);
+    var queueOpenCount = 0;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: SoundTheme.dark,
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.bottomCenter,
+            child: MiniPlayer(
+              playback: playback,
+              compact: false,
+              docked: true,
+              onOpen: () {},
+              onOpenQueue: () => queueOpenCount++,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final volumeButton = find.byKey(
+      const ValueKey('mini-player-volume-button'),
+    );
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: tester.getCenter(volumeButton));
+    addTearDown(mouse.removePointer);
+    await tester.pump();
+
+    final popup = find.byKey(const ValueKey('mini-player-volume-popup'));
+    expect(popup, findsOneWidget);
+    expect(tester.getSize(popup), const Size(44, 132));
+
+    await tester.tap(find.byTooltip('打开播放队列'));
+    await tester.pump();
+    expect(queueOpenCount, 1);
+
+    await tester.tap(volumeButton);
+    await tester.pump();
+    expect(engine.volume, 0);
+
+    final slider = tester.widget<Slider>(
+      find.byKey(const ValueKey('mini-player-volume-slider')),
+    );
+    slider.onChanged!(0.65);
+    await tester.pump();
+    expect(engine.volume, closeTo(0.65, 0.001));
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    playback.dispose();
+    engine.dispose();
+  });
+
   testWidgets('wide now-playing fits a short desktop window', (tester) async {
     tester.view.physicalSize = const Size(1024, 600);
     tester.view.devicePixelRatio = 1;
@@ -158,6 +223,14 @@ void main() {
         .getRect(find.byKey(const ValueKey('wide-now-playing-lyrics')))
         .top;
     expect((playerTop - lyricsTop).abs(), lessThan(12));
+    final contentPadding = tester.widget<Padding>(
+      find.byKey(const ValueKey('wide-now-playing-content')),
+    );
+    expect(contentPadding.padding, const EdgeInsets.fromLTRB(44, 0, 44, 24));
+    final lyricsPadding = tester.widget<Padding>(
+      find.byKey(const ValueKey('wide-now-playing-lyrics')),
+    );
+    expect(lyricsPadding.padding, const EdgeInsets.fromLTRB(8, 6, 0, 32));
     expect(
       tester.getTopLeft(find.text(_longTrack.title)).dy,
       lessThan(430),
@@ -230,6 +303,16 @@ void main() {
       if (testCase.$1 == PlaybackPhase.error) {
         expect(find.text('操作没有完成'), findsOneWidget);
         expect(find.text('重试'), findsOneWidget);
+        final failureSurface = tester.widget<SoundGlassSurface>(
+          find.byKey(const ValueKey('playback-error-banner')),
+        );
+        expect(failureSurface.borderColor, Colors.transparent);
+        expect(
+          tester
+              .getSize(find.byKey(const ValueKey('playback-error-banner')))
+              .height,
+          lessThan(100),
+        );
       }
 
       await tester.pumpWidget(const SizedBox.shrink());
@@ -285,6 +368,7 @@ class StaticPlaybackEngine implements PlaybackEngine {
   final StreamController<PlaybackSnapshot> _snapshots =
       StreamController<PlaybackSnapshot>.broadcast(sync: true);
   final List<Duration> seekPositions = [];
+  double _volume = 1.0;
 
   @override
   PlaybackSnapshot get current => _current;
@@ -308,6 +392,14 @@ class StaticPlaybackEngine implements PlaybackEngine {
 
   @override
   Future<void> stop() async {}
+
+  @override
+  Future<void> setVolume(double value) async {
+    _volume = value.clamp(0.0, 1.0);
+  }
+
+  @override
+  double get volume => _volume;
 
   @override
   void dispose() {

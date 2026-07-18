@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sound_player/core/sound_theme.dart';
 import 'package:sound_player/presentation/screens/webdav_folder_picker.dart';
+import 'package:sound_player/presentation/widgets/sound_components.dart';
 import 'package:sound_player/sources/source_provider.dart';
 import 'package:sound_player/sources/webdav/webdav_credentials.dart';
 import 'package:sound_player/sources/webdav/webdav_discovery.dart';
@@ -121,14 +122,49 @@ void main() {
     expect(find.text('Album'), findsOneWidget);
     expect(find.text('song.flac'), findsOneWidget);
 
-    await tester.tap(find.byType(Checkbox));
+    await tester.tap(find.byTooltip('选择此目录'));
     await tester.pump();
-    expect(find.text('选择 1 个文件夹'), findsOneWidget);
+    expect(find.text('选择 1 个目录'), findsOneWidget);
 
     await tester.tap(find.text('Album'));
     await tester.pumpAndSettle();
     expect(find.text('disc-1'), findsOneWidget);
     expect(browser.requestedIds, ['/music/', '/music/Album/']);
+  });
+
+  testWidgets('compact folder picker uses a bottom sheet without overflow', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final browser = _FakeDirectoryBrowser();
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: SoundTheme.light,
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: FilledButton(
+              onPressed: () => showSoundBottomSheet<List<String>>(
+                context,
+                builder: (_) =>
+                    WebDavFolderPicker(browser: browser, bottomSheet: true),
+              ),
+              child: const Text('打开目录'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('打开目录'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(SoundBottomSheet), findsOneWidget);
+    expect(find.byType(SoundDialog), findsNothing);
+    expect(find.text('选择目录'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 }
 

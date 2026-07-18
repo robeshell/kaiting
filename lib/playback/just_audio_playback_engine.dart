@@ -57,6 +57,7 @@ class JustAudioPlaybackEngine
           .listen(_onPosition),
       _player.playerEventStream.listen(_onPlayerEvent),
       _player.errorStream.listen(_onError),
+      _player.volumeStream.listen((v) => _volume = v),
     ]);
   }
 
@@ -80,6 +81,7 @@ class JustAudioPlaybackEngine
   just_audio.ProcessingState _processingState = just_audio.ProcessingState.idle;
   bool _loading = false;
   bool _playing = false;
+  double _volume = 1.0;
   bool _disposed = false;
   PlaybackPhase? _lastTracedPhase;
   int? _lastTracedSecond;
@@ -567,6 +569,17 @@ class JustAudioPlaybackEngine
       });
     });
   }
+
+  @override
+  Future<void> setVolume(double value) async {
+    if (_disposed) return;
+    final clamped = value.clamp(0.0, 1.0);
+    _volume = clamped;
+    await _player.setVolume(clamped);
+  }
+
+  @override
+  double get volume => _volume;
 
   @override
   void dispose() {

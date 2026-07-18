@@ -41,6 +41,69 @@ import 'widgets/sound_components.dart';
 
 enum AppSection { library, search, settings }
 
+/// Presents application-wide failures above the root Navigator, including
+/// modal routes and their barriers.
+class AppFailureOverlayController extends ChangeNotifier {
+  _AppFailurePresentation? _presentation;
+
+  void _show(_AppFailurePresentation presentation) {
+    _presentation = presentation;
+    notifyListeners();
+  }
+
+  void _hide() {
+    if (_presentation == null) return;
+    _presentation = null;
+    notifyListeners();
+  }
+}
+
+class AppFailureOverlayHost extends StatelessWidget {
+  const AppFailureOverlayHost({
+    required this.controller,
+    required this.child,
+    super.key,
+  });
+
+  final AppFailureOverlayController controller;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: controller,
+      builder: (context, _) {
+        final presentation = controller._presentation;
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            child,
+            if (presentation != null)
+              Positioned.fill(
+                child: Overlay(
+                  key: ValueKey(
+                    'app-failure-overlay-'
+                    '${presentation.event.id}-${presentation.busy}',
+                  ),
+                  initialEntries: [
+                    OverlayEntry(
+                      builder: (context) => Material(
+                        type: MaterialType.transparency,
+                        child: _AppFailureOverlayLayer(
+                          presentation: presentation,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+          ],
+        );
+      },
+    );
+  }
+}
+
 class AppShell extends StatefulWidget {
   const AppShell({
     required this.playback,
@@ -51,6 +114,7 @@ class AppShell extends StatefulWidget {
     this.enableFirstRunGuide = false,
     this.accentPreset,
     this.onAccentChanged,
+    this.failureOverlayController,
     super.key,
   });
 
@@ -62,6 +126,7 @@ class AppShell extends StatefulWidget {
   final bool enableFirstRunGuide;
   final AccentPreset? accentPreset;
   final ValueChanged<AccentPreset>? onAccentChanged;
+  final AppFailureOverlayController? failureOverlayController;
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -145,6 +210,9 @@ class _AppShellState extends State<AppShell>
       _diagnostics,
       beforeRetry: _preparePlaybackRetry,
     );
+    _diagnostics.addListener(_syncFailureOverlay);
+    _playbackRecovery.addListener(_syncFailureOverlay);
+    _syncFailureOverlay();
     final cache = widget.webDavCache;
     if (cache != null) {
       _webDavOfflineProvider = WebDavOfflineMediaProvider(cache: cache);
@@ -470,6 +538,28 @@ class _AppShellState extends State<AppShell>
     }
   }
 
+  void _syncFailureOverlay() {
+    final controller = widget.failureOverlayController;
+    if (controller == null) return;
+    final event = _diagnostics.activeEvent;
+    if (event == null) {
+      controller._hide();
+      return;
+    }
+    controller._show(_failurePresentation(event));
+  }
+
+  _AppFailurePresentation _failurePresentation(DiagnosticEvent event) {
+    return _AppFailurePresentation(
+      event: event,
+      busy: _playbackRecovery.isRetrying,
+      onAction: event.failure.action == AppFailureAction.none
+          ? null
+          : () => unawaited(_handleFailureAction(event)),
+      onDismiss: _diagnostics.dismissActive,
+    );
+  }
+
   void _selectLibraryMode(LibraryBrowseMode mode) {
     setState(() {
       _section = AppSection.library;
@@ -747,12 +837,10 @@ class _AppShellState extends State<AppShell>
             if (constraints.maxWidth <= 0 || constraints.maxHeight <= 0) {
               return const SizedBox.shrink();
             }
-            // Desktop operating systems always retain desktop navigation and
-            // the bottom dock. Mobile/tablet platforms may promote themselves
-            // to the wider shell when both dimensions can support it.
-            final desktop =
-                soundUsesDesktopPlatform ||
-                context.soundWindowClass != SoundWindowClass.compact;
+            // Foldable inner displays use a medium content density while
+            // retaining touch-first navigation. Only sufficiently wide tablet
+            // windows and native desktop platforms promote to the sidebar.
+            final desktop = !context.soundUsesMobileShell;
             final sidebarWidth = context.soundSidebarWidth;
             final mobileContentIdentity = _selectedAlbum != null
                 ? 'album:${_selectedAlbum!.id}'
@@ -761,8 +849,9 @@ class _AppShellState extends State<AppShell>
                       '${_selectedCollection!.id}'
                 : 'root';
             final immersiveMobileContent =
-                _selectedAlbum != null ||
-                _selectedCollection?.kind == LibraryCollectionKind.artist;
+                context.soundIsCompact &&
+                (_selectedAlbum != null ||
+                    _selectedCollection?.kind == LibraryCollectionKind.artist);
             final content = _selectedAlbum != null
                 ? AlbumDetailScreen(
                     album: _selectedAlbum!,
@@ -832,7 +921,7 @@ class _AppShellState extends State<AppShell>
                       onShowKeyboardShortcuts: _showKeyboardShortcuts,
                       initialDestination: _settingsDestination,
                       accentPreset:
-                          widget.accentPreset ?? SoundColors.accentPresets[0],
+                          widget.accentPreset ?? SoundColors.defaultAccentPreset,
                       onAccentChanged: widget.onAccentChanged ?? (_) {},
                     ),
                   };
@@ -953,40 +1042,26 @@ class _AppShellState extends State<AppShell>
                         ),
                       ),
                     ),
-                  Positioned.fill(
-                    child: AnimatedBuilder(
-                      animation: Listenable.merge([
-                        _diagnostics,
-                        _playbackRecovery,
-                      ]),
-                      builder: (context, _) {
-                        final event = _diagnostics.activeEvent;
-                        if (event == null) {
-                          return const IgnorePointer(child: SizedBox.shrink());
-                        }
-                        return Align(
-                          alignment: Alignment.topCenter,
-                          child: Padding(
-                            padding: EdgeInsets.only(
-                              top: context.soundTitlebarInset + 12,
-                              left: desktop ? sidebarWidth + 24 : 18,
-                              right: 18,
-                            ),
-                            child: _AppFailureBanner(
-                              event: event,
-                              busy: _playbackRecovery.isRetrying,
-                              onAction:
-                                  event.failure.action == AppFailureAction.none
-                                  ? null
-                                  : () =>
-                                        unawaited(_handleFailureAction(event)),
-                              onDismiss: _diagnostics.dismissActive,
-                            ),
-                          ),
-                        );
-                      },
+                  if (widget.failureOverlayController == null)
+                    Positioned.fill(
+                      child: AnimatedBuilder(
+                        animation: Listenable.merge([
+                          _diagnostics,
+                          _playbackRecovery,
+                        ]),
+                        builder: (context, _) {
+                          final event = _diagnostics.activeEvent;
+                          if (event == null) {
+                            return const IgnorePointer(
+                              child: SizedBox.shrink(),
+                            );
+                          }
+                          return _AppFailureOverlayLayer(
+                            presentation: _failurePresentation(event),
+                          );
+                        },
+                      ),
                     ),
-                  ),
                 ],
               ),
               bottomNavigationBar: desktop
@@ -1060,6 +1135,9 @@ class _AppShellState extends State<AppShell>
     _libraryUserState.dispose();
     _offline?.removeListener(_observeOfflineFailures);
     _offline?.dispose();
+    _diagnostics.removeListener(_syncFailureOverlay);
+    _playbackRecovery.removeListener(_syncFailureOverlay);
+    widget.failureOverlayController?._hide();
     _playbackRecovery.dispose();
     _sleepTimer.dispose();
     _diagnostics.dispose();
@@ -1156,6 +1234,47 @@ class _MobileNowPlayingOverlayState extends State<_MobileNowPlayingOverlay> {
   }
 }
 
+class _AppFailurePresentation {
+  const _AppFailurePresentation({
+    required this.event,
+    required this.busy,
+    required this.onAction,
+    required this.onDismiss,
+  });
+
+  final DiagnosticEvent event;
+  final bool busy;
+  final VoidCallback? onAction;
+  final VoidCallback onDismiss;
+}
+
+class _AppFailureOverlayLayer extends StatelessWidget {
+  const _AppFailureOverlayLayer({required this.presentation});
+
+  final _AppFailurePresentation presentation;
+
+  @override
+  Widget build(BuildContext context) {
+    final desktop = !context.soundUsesMobileShell;
+    return Align(
+      alignment: Alignment.topCenter,
+      child: Padding(
+        padding: EdgeInsets.only(
+          top: context.soundTitlebarInset + 12,
+          left: desktop ? context.soundSidebarWidth + 24 : 18,
+          right: 18,
+        ),
+        child: _AppFailureBanner(
+          event: presentation.event,
+          busy: presentation.busy,
+          onAction: presentation.onAction,
+          onDismiss: presentation.onDismiss,
+        ),
+      ),
+    );
+  }
+}
+
 class _AppFailureBanner extends StatelessWidget {
   const _AppFailureBanner({
     required this.event,
@@ -1176,40 +1295,74 @@ class _AppFailureBanner extends StatelessWidget {
       child: SoundGlassSurface(
         key: const ValueKey('global-failure-banner'),
         strong: true,
-        borderColor: SoundColors.accent.withValues(alpha: 0.42),
-        padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+        color: context.soundChromeSurface,
+        borderRadius: BorderRadius.circular(14),
+        borderColor: Colors.transparent,
+        shadowOffset: const Offset(0, 3),
+        shadowBlur: 10,
+        padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
         child: Row(
           children: [
-            Icon(Icons.error_outline_rounded, color: SoundColors.accent),
-            const SizedBox(width: 12),
+            SizedBox(
+              width: 32,
+              height: 32,
+              child: Icon(
+                Icons.error_outline_rounded,
+                size: 20,
+                color: SoundColors.accent.withValues(alpha: 0.82),
+              ),
+            ),
+            const SizedBox(width: 10),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
                     event.failure.title,
-                    style: const TextStyle(fontWeight: FontWeight.w800),
+                    style: TextStyle(
+                      color: context.soundPrimaryText,
+                      fontSize: 13.5,
+                      height: 1.15,
+                      fontWeight: FontWeight.w700,
+                    ),
                   ),
-                  const SizedBox(height: 2),
+                  const SizedBox(height: 3),
                   Text(
                     event.failure.message,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      color: context.soundSecondaryText,
-                      fontSize: 11,
+                      color: context.soundMutedText,
+                      fontSize: 11.5,
+                      height: 1.35,
                     ),
                   ),
                 ],
               ),
             ),
+            const SizedBox(width: 6),
             if (onAction != null)
               TextButton(
                 key: const ValueKey('global-failure-action'),
                 onPressed: busy ? null : onAction,
+                style: TextButton.styleFrom(
+                  foregroundColor: SoundColors.accent,
+                  backgroundColor: Colors.transparent,
+                  minimumSize: const Size(48, 32),
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  textStyle: const TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(9),
+                  ),
+                ),
                 child: busy
                     ? const SizedBox.square(
-                        dimension: 16,
+                        dimension: 14,
                         child: CircularProgressIndicator(strokeWidth: 2),
                       )
                     : Text(_failureActionLabel(event.failure.action)),
@@ -1218,7 +1371,13 @@ class _AppFailureBanner extends StatelessWidget {
               key: const ValueKey('global-failure-dismiss'),
               onPressed: onDismiss,
               tooltip: '暂时关闭',
-              icon: const Icon(Icons.close_rounded, size: 19),
+              visualDensity: VisualDensity.compact,
+              constraints: const BoxConstraints.tightFor(
+                width: 32,
+                height: 32,
+              ),
+              color: context.soundMutedText,
+              icon: const Icon(Icons.close_rounded, size: 17),
             ),
           ],
         ),
@@ -1487,9 +1646,9 @@ class _SidebarRow extends StatelessWidget {
         visualDensity: const VisualDensity(horizontal: -1, vertical: -3),
         minLeadingWidth: 20,
         horizontalTitleGap: 8,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(7)),
+        shape: const RoundedRectangleBorder(),
         selected: active,
-        selectedTileColor: context.soundTint(0.055),
+        selectedTileColor: SoundColors.accent.withValues(alpha: 0.035),
         leading: Icon(
           icon,
           size: 18,
@@ -1566,7 +1725,7 @@ class _CompactPlaybackDock extends StatelessWidget {
                 MiniPlayer(
                   playback: playback,
                   userState: userState,
-                  compact: true,
+                  compact: context.soundIsCompact,
                   embedded: true,
                   onOpen: onOpenNowPlaying,
                   onOpenQueue: onOpenQueue,

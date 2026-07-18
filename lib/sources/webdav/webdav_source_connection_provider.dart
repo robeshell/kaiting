@@ -13,9 +13,22 @@ class WebDavSourceConnectionProvider implements SourceConnectionProvider {
 
   @override
   Stream<List<SourceManagedResource>> watchResources() {
-    return service.watchManagedSources().map(
-      (resources) => resources.map(_mapResource).toList(growable: false),
-    );
+    return service.watchManagedSources().map((resources) {
+      final connections = resources
+          .where(
+            (resource) =>
+                WebDavConnectionService.isConnectionSourceId(resource.id),
+          )
+          .toList(growable: false);
+      return resources
+          .map(
+            (resource) => _mapResource(
+              resource,
+              parentConnectionId: _parentConnectionId(resource, connections),
+            ),
+          )
+          .toList(growable: false);
+    });
   }
 
   @override
@@ -53,7 +66,29 @@ class WebDavSourceConnectionProvider implements SourceConnectionProvider {
   Future<void> remove(String resourceId) =>
       service.removeConnection(resourceId);
 
-  SourceManagedResource _mapResource(WebDavConnectionRecord resource) {
+  String? _parentConnectionId(
+    WebDavConnectionRecord resource,
+    List<WebDavConnectionRecord> connections,
+  ) {
+    if (WebDavConnectionService.isConnectionSourceId(resource.id)) return null;
+    for (final connection in connections) {
+      if (WebDavConnectionService.isFolderSourceForConnection(
+        resource.id,
+        connection.id,
+      )) {
+        return connection.id;
+      }
+    }
+    // Early builds used folder IDs without the connection hash. Preserve a
+    // useful hierarchy when there is only one possible owner.
+    if (connections.length == 1) return connections.single.id;
+    return null;
+  }
+
+  SourceManagedResource _mapResource(
+    WebDavConnectionRecord resource, {
+    String? parentConnectionId,
+  }) {
     return SourceManagedResource(
       id: resource.id,
       type: type,
@@ -71,6 +106,7 @@ class WebDavSourceConnectionProvider implements SourceConnectionProvider {
         WebDavConnectionStatus.unreachable => SourceManagedStatus.unavailable,
         WebDavConnectionStatus.error => SourceManagedStatus.error,
       },
+      parentConnectionId: parentConnectionId,
       errorMessage: resource.lastError,
     );
   }

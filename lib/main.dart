@@ -8,6 +8,8 @@ import 'package:flutter/widgets.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'app/sound_app.dart';
+import 'app/theme_preferences.dart';
+import 'core/sound_theme.dart';
 import 'library/persistence/drift_library_repository.dart';
 import 'playback/just_audio_playback_engine.dart';
 import 'playback/playback_media_provider.dart';
@@ -19,6 +21,23 @@ import 'sources/webdav/webdav_playback_media_provider.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+
+  ThemePreferences? themePreferences;
+  var initialAccent = SoundColors.defaultAccentPreset;
+  try {
+    themePreferences = await ThemePreferences.load();
+    initialAccent = themePreferences.selectedPreset;
+  } catch (error, stackTrace) {
+    FlutterError.reportError(
+      FlutterErrorDetails(
+        exception: error,
+        stack: stackTrace,
+        library: 'sound theme preferences',
+        context: ErrorDescription('while preloading the selected accent color'),
+      ),
+    );
+  }
+  initialAccent.apply();
 
   final libraryRepository = DriftLibraryRepository.defaults();
   final initialCatalogFuture = loadLibraryCatalogSnapshot(libraryRepository)
@@ -37,12 +56,12 @@ Future<void> main() async {
 
   final audioHandler = await AudioService.init(
     builder: SoundAudioHandler.new,
-    config: const AudioServiceConfig(
+    config: AudioServiceConfig(
       androidNotificationChannelId: 'com.soundplayer.sound_player.audio',
       androidNotificationChannelName: '音乐播放',
       androidNotificationChannelDescription: '播放控制和当前歌曲信息',
       androidNotificationIcon: 'drawable/ic_stat_sound',
-      notificationColor: Color(0xFFFF5B55),
+      notificationColor: initialAccent.accent,
       androidNotificationOngoing: false,
       // OriginOS occasionally treats taps near a media action as a tap on the
       // notification body. Keep the card passive so a slightly imprecise tap
@@ -83,6 +102,7 @@ Future<void> main() async {
       ownsRepository: true,
       sessionStore: playbackSessionStore,
       initialSession: initialPlaybackSession,
+      initialThemePreferences: themePreferences,
       sessionIsPreloaded: true,
       audioHandler: audioHandler,
       webDavCache: cache,

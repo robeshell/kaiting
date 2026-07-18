@@ -70,7 +70,7 @@ class PlaybackVisualState {
       ),
       PlaybackPhase.error => PlaybackVisualState(
         label: '播放错误',
-        color: SoundColors.accent,
+        color: Colors.redAccent,
         statusIcon: Icons.error_outline_rounded,
         primaryVisual: PlaybackPrimaryVisual.retry,
       ),

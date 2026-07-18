@@ -11,6 +11,7 @@ import 'package:sound_player/presentation/screens/now_playing_screen.dart';
 import 'package:sound_player/presentation/controllers/offline_download_controller.dart';
 import 'package:sound_player/presentation/widgets/playback_queue_sheet.dart';
 import 'package:sound_player/presentation/widgets/album_art.dart';
+import 'package:sound_player/presentation/widgets/sound_components.dart';
 
 void main() {
   testWidgets('queue sheet changes mode, removes tracks, and clears queue', (
@@ -90,7 +91,10 @@ void main() {
     expect(
       tester
           .widget<AlbumArt>(
-            find.byKey(const ValueKey('compact-now-playing-artwork')),
+            find.descendant(
+              of: find.byKey(const ValueKey('compact-now-playing-artwork')),
+              matching: find.byType(AlbumArt),
+            ),
           )
           .gaplessPlayback,
       isTrue,
@@ -141,6 +145,66 @@ void main() {
     expect(find.textContaining('随机播放'), findsWidgets);
 
     await playback.clearQueue();
+    await tester.pumpWidget(const SizedBox.shrink());
+    debugDefaultTargetPlatformOverride = null;
+    playback.dispose();
+    engine.dispose();
+  });
+
+  testWidgets('desktop now playing integrates lyrics and queue in one pane', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+    tester.view.physicalSize = const Size(1100, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final engine = SimulatedPlaybackEngine();
+    final playback = SoundPlaybackController(engine: engine);
+    await playback.playTrack(_second, queue: const [_first, _second, _third]);
+
+    await tester.pumpWidget(
+      MaterialApp(home: NowPlayingScreen(playback: playback)),
+    );
+    await tester.pump();
+
+    expect(find.byTooltip('播放队列'), findsNothing);
+    expect(
+      find.byKey(const ValueKey('now-playing-view-switch')),
+      findsOneWidget,
+    );
+    expect(find.text('歌词'), findsNothing);
+    expect(find.text('播放清单'), findsNothing);
+    expect(find.text('同步\n歌词'), findsOneWidget);
+    final playerTop = tester
+        .getTopLeft(find.byKey(const ValueKey('wide-now-playing-player')))
+        .dy;
+    final lyricTop = tester.getTopLeft(find.text('Second lyric')).dy;
+    expect(lyricTop, lessThan(playerTop + 30));
+
+    await tester.tap(find.byKey(const ValueKey('show-desktop-queue')));
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('desktop-playback-queue')),
+      findsOneWidget,
+    );
+    expect(find.text('播放清单'), findsWidgets);
+    expect(find.text('3 首歌 · 列表循环'), findsOneWidget);
+    expect(find.byType(ChoiceChip), findsNothing);
+    final activeRow = find.byKey(const ValueKey('queue-track-row-second'));
+    final activation = tester.widget<SoundTrackActivation>(
+      find.ancestor(of: activeRow, matching: find.byType(SoundTrackActivation)),
+    );
+    expect(activation.borderRadius, BorderRadius.zero);
+    expect(activation.showFocusOutline, isFalse);
+    expect(activation.focusColor, isNotNull);
+
+    await tester.tap(find.byKey(const ValueKey('show-desktop-lyrics')));
+    await tester.pump();
+    expect(find.text('Second lyric'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
     await tester.pumpWidget(const SizedBox.shrink());
     debugDefaultTargetPlatformOverride = null;
     playback.dispose();
