@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../core/app_failure.dart';
+import '../core/now_playing_style.dart';
 import '../core/sound_theme.dart';
 import '../domain/library_models.dart';
 import '../library/library_repository.dart';
@@ -116,6 +117,8 @@ class AppShell extends StatefulWidget {
     this.onAccentChanged,
     this.skinPreset,
     this.onSkinChanged,
+    this.nowPlayingStyle = NowPlayingStyle.classic,
+    this.onNowPlayingStyleChanged,
     this.failureOverlayController,
     super.key,
   });
@@ -130,6 +133,8 @@ class AppShell extends StatefulWidget {
   final ValueChanged<AccentPreset>? onAccentChanged;
   final SoundSkinPreset? skinPreset;
   final ValueChanged<SoundSkinPreset>? onSkinChanged;
+  final NowPlayingStyle nowPlayingStyle;
+  final ValueChanged<NowPlayingStyle>? onNowPlayingStyleChanged;
   final AppFailureOverlayController? failureOverlayController;
 
   @override
@@ -597,6 +602,7 @@ class _AppShellState extends State<AppShell>
             NowPlayingScreen(
               playback: widget.playback,
               userState: _libraryUserState,
+              style: widget.nowPlayingStyle,
             ),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return SlideTransition(
@@ -930,6 +936,9 @@ class _AppShellState extends State<AppShell>
                       onAccentChanged: widget.onAccentChanged ?? (_) {},
                       skinPreset: widget.skinPreset ?? SoundSkins.defaultPreset,
                       onSkinChanged: widget.onSkinChanged ?? (_) {},
+                      nowPlayingStyle: widget.nowPlayingStyle,
+                      onNowPlayingStyleChanged:
+                          widget.onNowPlayingStyleChanged ?? (_) {},
                     ),
                   };
 
@@ -1113,6 +1122,7 @@ class _AppShellState extends State<AppShell>
                         animation: _nowPlayingExpansion,
                         playback: widget.playback,
                         userState: _libraryUserState,
+                        style: widget.nowPlayingStyle,
                         onClose: () => unawaited(_collapseMobileNowPlaying()),
                         onVerticalDragStart: _handleNowPlayingDragStart,
                         onVerticalDragUpdate: _handleNowPlayingDragUpdate,
@@ -1160,6 +1170,7 @@ class _MobileNowPlayingOverlay extends StatefulWidget {
     required this.animation,
     required this.playback,
     required this.userState,
+    required this.style,
     required this.onClose,
     required this.onVerticalDragStart,
     required this.onVerticalDragUpdate,
@@ -1170,6 +1181,7 @@ class _MobileNowPlayingOverlay extends StatefulWidget {
   final Animation<double> animation;
   final SoundPlaybackController playback;
   final LibraryUserStateController userState;
+  final NowPlayingStyle style;
   final VoidCallback onClose;
   final GestureDragStartCallback onVerticalDragStart;
   final GestureDragUpdateCallback onVerticalDragUpdate;
@@ -1230,6 +1242,7 @@ class _MobileNowPlayingOverlayState extends State<_MobileNowPlayingOverlay> {
       child: NowPlayingScreen(
         playback: widget.playback,
         userState: widget.userState,
+        style: widget.style,
         isActive: _contentActive,
         onClose: widget.onClose,
         onVerticalDragStart: widget.onVerticalDragStart,

@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sound_player/app/theme_preferences.dart';
+import 'package:sound_player/core/now_playing_style.dart';
 import 'package:sound_player/core/sound_theme.dart';
 
 void main() {
@@ -33,6 +34,7 @@ void main() {
       await preferences.save(
         accentPreset: violet,
         skinPreset: SoundSkins.deepNight,
+        nowPlayingStyle: NowPlayingStyle.immersiveLyrics,
       );
 
       SoundColors.defaultAccentPreset.apply();
@@ -42,6 +44,7 @@ void main() {
 
       expect(restored.selectedAccentPreset, same(violet));
       expect(restored.selectedSkinPreset, same(SoundSkins.deepNight));
+      expect(restored.selectedNowPlayingStyle, NowPlayingStyle.immersiveLyrics);
       expect(SoundColors.accent, SoundColors.defaultAccentPreset.accent);
     },
   );
@@ -60,6 +63,7 @@ void main() {
       same(SoundColors.defaultAccentPreset),
     );
     expect(restored.selectedSkinPreset, same(SoundSkins.defaultPreset));
+    expect(restored.selectedNowPlayingStyle, NowPlayingStyle.classic);
   });
 
   test('migrates an accent-only preference to the default skin', () async {
@@ -73,6 +77,7 @@ void main() {
 
     expect(restored.selectedAccentPreset.id, 'indigo');
     expect(restored.selectedSkinPreset, same(SoundSkins.standard));
+    expect(restored.selectedNowPlayingStyle, NowPlayingStyle.classic);
   });
 
   test('migrates the temporary warm-mist skin identifier', () async {

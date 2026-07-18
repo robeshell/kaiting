@@ -1366,6 +1366,36 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('skin-preset-selector')), findsOneWidget);
 
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('settings-player-style-row')),
+    );
+    await tester.tap(find.byKey(const ValueKey('settings-player-style-row')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('now-playing-style-selector')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('now-playing-style-classic')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('now-playing-style-cover-focus')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('now-playing-style-immersive-lyrics')),
+      findsOneWidget,
+    );
+    await tester.tap(
+      find.byKey(const ValueKey('now-playing-style-immersive-lyrics')),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('now-playing-style-selector')),
+      findsOneWidget,
+    );
+
     await tester.tap(find.text('播放模式'));
     await tester.pumpAndSettle();
     expect(find.byType(SoundBottomSheet), findsOneWidget);

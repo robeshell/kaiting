@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:path_provider/path_provider.dart';
 
 import '../core/sound_theme.dart';
+import '../core/now_playing_style.dart';
 import 'theme_preferences.dart';
 import '../domain/library_models.dart';
 import '../library/library_repository.dart';
@@ -73,8 +74,10 @@ class _SoundAppState extends State<SoundApp> with WidgetsBindingObserver {
   ThemePreferences? _themePrefs;
   AccentPreset _accentPreset = SoundColors.defaultAccentPreset;
   SoundSkinPreset _skinPreset = SoundSkins.defaultPreset;
+  NowPlayingStyle _nowPlayingStyle = NowPlayingStyle.classic;
   int _accentChangeRevision = 0;
   int _skinChangeRevision = 0;
+  int _nowPlayingStyleChangeRevision = 0;
   Future<void> _themeWriteTail = Future<void>.value();
   Timer? _sessionSaveTimer;
   DateTime? _lastSessionSaveStartedAt;
@@ -95,6 +98,7 @@ class _SoundAppState extends State<SoundApp> with WidgetsBindingObserver {
       _themePrefs = initialThemePreferences;
       _accentPreset = initialThemePreferences.selectedAccentPreset;
       _skinPreset = initialThemePreferences.selectedSkinPreset;
+      _nowPlayingStyle = initialThemePreferences.selectedNowPlayingStyle;
       _accentPreset.apply();
     } else {
       SoundColors.defaultAccentPreset.apply();
@@ -117,18 +121,25 @@ class _SoundAppState extends State<SoundApp> with WidgetsBindingObserver {
       final loadedSkin = _skinChangeRevision == 0
           ? preferences.selectedSkinPreset
           : _skinPreset;
+      final loadedNowPlayingStyle = _nowPlayingStyleChangeRevision == 0
+          ? preferences.selectedNowPlayingStyle
+          : _nowPlayingStyle;
       loadedAccent.apply();
       if (mounted) {
         setState(() {
           _accentPreset = loadedAccent;
           _skinPreset = loadedSkin;
+          _nowPlayingStyle = loadedNowPlayingStyle;
         });
       }
-      if (_accentChangeRevision != 0 || _skinChangeRevision != 0) {
+      if (_accentChangeRevision != 0 ||
+          _skinChangeRevision != 0 ||
+          _nowPlayingStyleChangeRevision != 0) {
         await _saveThemePreference(
           preferences,
           accentPreset: loadedAccent,
           skinPreset: loadedSkin,
+          nowPlayingStyle: loadedNowPlayingStyle,
         );
       }
     } catch (_) {
@@ -148,6 +159,7 @@ class _SoundAppState extends State<SoundApp> with WidgetsBindingObserver {
       preferences,
       accentPreset: preset,
       skinPreset: _skinPreset,
+      nowPlayingStyle: _nowPlayingStyle,
     );
   }
 
@@ -161,6 +173,21 @@ class _SoundAppState extends State<SoundApp> with WidgetsBindingObserver {
       preferences,
       accentPreset: _accentPreset,
       skinPreset: preset,
+      nowPlayingStyle: _nowPlayingStyle,
+    );
+  }
+
+  Future<void> _changeNowPlayingStyle(NowPlayingStyle style) async {
+    if (style == _nowPlayingStyle) return;
+    _nowPlayingStyleChangeRevision++;
+    if (mounted) setState(() => _nowPlayingStyle = style);
+    final preferences = _themePrefs;
+    if (preferences == null) return;
+    await _saveThemePreference(
+      preferences,
+      accentPreset: _accentPreset,
+      skinPreset: _skinPreset,
+      nowPlayingStyle: style,
     );
   }
 
@@ -168,12 +195,14 @@ class _SoundAppState extends State<SoundApp> with WidgetsBindingObserver {
     ThemePreferences preferences, {
     required AccentPreset accentPreset,
     required SoundSkinPreset skinPreset,
+    required NowPlayingStyle nowPlayingStyle,
   }) {
     _themeWriteTail = _themeWriteTail.then((_) async {
       try {
         await preferences.save(
           accentPreset: accentPreset,
           skinPreset: skinPreset,
+          nowPlayingStyle: nowPlayingStyle,
         );
       } catch (error, stackTrace) {
         FlutterError.reportError(
@@ -430,6 +459,8 @@ class _SoundAppState extends State<SoundApp> with WidgetsBindingObserver {
               onAccentChanged: _changeAccent,
               skinPreset: _skinPreset,
               onSkinChanged: _changeSkin,
+              nowPlayingStyle: _nowPlayingStyle,
+              onNowPlayingStyleChanged: _changeNowPlayingStyle,
               failureOverlayController: _failureOverlayController,
             ),
     );

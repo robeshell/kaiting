@@ -5,17 +5,20 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../core/sound_theme.dart';
+import '../core/now_playing_style.dart';
 
 class ThemePreferences {
   ThemePreferences._(
     this._file,
     this.selectedAccentPreset,
     this.selectedSkinPreset,
+    this.selectedNowPlayingStyle,
   );
 
   final File _file;
   AccentPreset selectedAccentPreset;
   SoundSkinPreset selectedSkinPreset;
+  NowPlayingStyle selectedNowPlayingStyle;
 
   /// Kept as a compatibility alias for callers created before skin support.
   AccentPreset get selectedPreset => selectedAccentPreset;
@@ -50,6 +53,7 @@ class ThemePreferences {
           file,
           accentPreset ?? SoundColors.defaultAccentPreset,
           skinPreset ?? SoundSkins.defaultPreset,
+          nowPlayingStyleFromId(json['nowPlayingStyle'] as String?),
         );
       }
     } catch (_) {
@@ -59,21 +63,29 @@ class ThemePreferences {
       file,
       SoundColors.defaultAccentPreset,
       SoundSkins.defaultPreset,
+      NowPlayingStyle.classic,
     );
   }
 
   Future<void> save({
     AccentPreset? accentPreset,
     SoundSkinPreset? skinPreset,
+    NowPlayingStyle? nowPlayingStyle,
   }) async {
     final nextAccent = accentPreset ?? selectedAccentPreset;
     final nextSkin = skinPreset ?? selectedSkinPreset;
+    final nextNowPlayingStyle = nowPlayingStyle ?? selectedNowPlayingStyle;
     await _file.parent.create(recursive: true);
     await _file.writeAsString(
-      jsonEncode({'accentPreset': nextAccent.id, 'skinPreset': nextSkin.id}),
+      jsonEncode({
+        'accentPreset': nextAccent.id,
+        'skinPreset': nextSkin.id,
+        'nowPlayingStyle': nextNowPlayingStyle.id,
+      }),
       flush: true,
     );
     selectedAccentPreset = nextAccent;
     selectedSkinPreset = nextSkin;
+    selectedNowPlayingStyle = nextNowPlayingStyle;
   }
 }

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/sound_theme.dart';
+import '../../core/now_playing_style.dart';
 import '../../library/scanning/local_library_scanner.dart';
 import '../../offline/offline_media_provider.dart';
 import '../../playback/playback_controller.dart';
@@ -53,6 +54,8 @@ class SettingsScreen extends StatefulWidget {
     required this.onAccentChanged,
     required this.skinPreset,
     required this.onSkinChanged,
+    this.nowPlayingStyle = NowPlayingStyle.classic,
+    this.onNowPlayingStyleChanged,
     super.key,
   });
 
@@ -69,6 +72,8 @@ class SettingsScreen extends StatefulWidget {
   final ValueChanged<AccentPreset> onAccentChanged;
   final SoundSkinPreset skinPreset;
   final ValueChanged<SoundSkinPreset> onSkinChanged;
+  final NowPlayingStyle nowPlayingStyle;
+  final ValueChanged<NowPlayingStyle>? onNowPlayingStyleChanged;
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -86,6 +91,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   bool _sleepTimerExpanded = false;
   bool _skinExpanded = false;
   bool _accentColorExpanded = false;
+  bool _nowPlayingStyleExpanded = false;
 
   @override
   void initState() {
@@ -325,6 +331,25 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             onSelected: widget.onSkinChanged,
                           ),
                         _SettingsRow(
+                          key: const ValueKey('settings-player-style-row'),
+                          icon: Icons.now_wallpaper_outlined,
+                          iconColor: SoundColors.accent,
+                          title: '播放器样式',
+                          subtitle: '调整正在播放页在不同设备上的构图',
+                          value: widget.nowPlayingStyle.label,
+                          expanded: _nowPlayingStyleExpanded,
+                          onTap: () => setState(
+                            () => _nowPlayingStyleExpanded =
+                                !_nowPlayingStyleExpanded,
+                          ),
+                        ),
+                        if (_nowPlayingStyleExpanded)
+                          _NowPlayingStyleSelector(
+                            selected: widget.nowPlayingStyle,
+                            onSelected:
+                                widget.onNowPlayingStyleChanged ?? (_) {},
+                          ),
+                        _SettingsRow(
                           key: const ValueKey('settings-accent-row'),
                           icon: Icons.palette_outlined,
                           iconColor: SoundColors.accent,
@@ -518,6 +543,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       _SkinPresetSelector(
                         selected: widget.skinPreset,
                         onSelected: widget.onSkinChanged,
+                      ),
+                    _SettingsRow(
+                      key: const ValueKey('settings-player-style-row'),
+                      icon: Icons.now_wallpaper_outlined,
+                      iconColor: SoundColors.accent,
+                      title: '播放器样式',
+                      subtitle: '调整正在播放页在不同设备上的构图',
+                      value: widget.nowPlayingStyle.label,
+                      expanded: _nowPlayingStyleExpanded,
+                      onTap: () => setState(
+                        () => _nowPlayingStyleExpanded =
+                            !_nowPlayingStyleExpanded,
+                      ),
+                    ),
+                    if (_nowPlayingStyleExpanded)
+                      _NowPlayingStyleSelector(
+                        selected: widget.nowPlayingStyle,
+                        onSelected: widget.onNowPlayingStyleChanged ?? (_) {},
                       ),
                     _SettingsRow(
                       key: const ValueKey('settings-accent-row'),
@@ -2019,6 +2062,198 @@ class _PlaybackModeChoice extends StatelessWidget {
               if (selected)
                 Icon(Icons.check_rounded, size: 17, color: SoundColors.accent),
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _NowPlayingStyleSelector extends StatelessWidget {
+  const _NowPlayingStyleSelector({
+    required this.selected,
+    required this.onSelected,
+  });
+
+  final NowPlayingStyle selected;
+  final ValueChanged<NowPlayingStyle> onSelected;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      key: const ValueKey('now-playing-style-selector'),
+      padding: const EdgeInsets.fromLTRB(4, 8, 0, 14),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          const spacing = 10.0;
+          final columns = constraints.maxWidth < 460 ? 2 : 3;
+          final width =
+              (constraints.maxWidth - spacing * (columns - 1)) / columns;
+          return Wrap(
+            spacing: spacing,
+            runSpacing: spacing,
+            children: [
+              for (final style in NowPlayingStyle.values)
+                SizedBox(
+                  width: width,
+                  child: _NowPlayingStyleCard(
+                    style: style,
+                    selected: style == selected,
+                    onTap: () => onSelected(style),
+                  ),
+                ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _NowPlayingStyleCard extends StatelessWidget {
+  const _NowPlayingStyleCard({
+    required this.style,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final NowPlayingStyle style;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final (playerFlex, lyricsFlex) = switch (style) {
+      NowPlayingStyle.classic => (1, 1),
+      NowPlayingStyle.coverFocus => (6, 4),
+      NowPlayingStyle.immersiveLyrics => (4, 6),
+    };
+    return Semantics(
+      button: true,
+      selected: selected,
+      label: '${style.label}播放器样式',
+      child: Tooltip(
+        message: style.description,
+        child: InkWell(
+          key: ValueKey('now-playing-style-${style.id}'),
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: AnimatedContainer(
+            duration: const Duration(milliseconds: 180),
+            padding: const EdgeInsets.all(7),
+            decoration: BoxDecoration(
+              color: selected
+                  ? SoundColors.accent.withValues(alpha: 0.055)
+                  : context.soundTint(0.018),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: selected
+                    ? SoundColors.accent.withValues(alpha: 0.72)
+                    : context.soundDivider,
+                width: selected ? 1.5 : 1,
+              ),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                AspectRatio(
+                  aspectRatio: 1.65,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      color: Theme.of(context).colorScheme.surface,
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Padding(
+                      padding: const EdgeInsets.all(8),
+                      child: Row(
+                        children: [
+                          Expanded(
+                            flex: playerFlex,
+                            child: Center(
+                              child: FractionallySizedBox(
+                                widthFactor: style == NowPlayingStyle.coverFocus
+                                    ? 0.78
+                                    : 0.64,
+                                child: AspectRatio(
+                                  aspectRatio: 1,
+                                  child: DecoratedBox(
+                                    decoration: BoxDecoration(
+                                      color: SoundColors.accent.withValues(
+                                        alpha: selected ? 0.72 : 0.42,
+                                      ),
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 7),
+                          Expanded(
+                            flex: lyricsFlex,
+                            child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                for (final factor in const [
+                                  0.72,
+                                  1.0,
+                                  0.84,
+                                  0.6,
+                                ])
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 2.5,
+                                    ),
+                                    child: FractionallySizedBox(
+                                      alignment: Alignment.centerLeft,
+                                      widthFactor: factor,
+                                      child: Container(
+                                        height: 4,
+                                        color: factor == 1.0
+                                            ? SoundColors.accent.withValues(
+                                                alpha: 0.78,
+                                              )
+                                            : context.soundMutedText.withValues(
+                                                alpha: 0.42,
+                                              ),
+                                      ),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 7),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        style.label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: selected
+                              ? SoundColors.accent
+                              : _settingsPrimaryText(context),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                    ),
+                    if (selected)
+                      Icon(
+                        Icons.check_rounded,
+                        size: 16,
+                        color: SoundColors.accent,
+                      ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ),
       ),

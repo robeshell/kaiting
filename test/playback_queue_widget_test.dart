@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sound_player/core/sound_theme.dart';
+import 'package:sound_player/core/now_playing_style.dart';
 import 'package:sound_player/domain/library_models.dart';
 import 'package:sound_player/playback/playback_controller.dart';
 import 'package:sound_player/playback/playback_mode.dart';
@@ -145,6 +146,62 @@ void main() {
     expect(find.textContaining('随机播放'), findsWidgets);
 
     await playback.clearQueue();
+    await tester.pumpWidget(const SizedBox.shrink());
+    debugDefaultTargetPlatformOverride = null;
+    playback.dispose();
+    engine.dispose();
+  });
+
+  testWidgets('player styles adapt wide and compact now playing layouts', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+    tester.view.physicalSize = const Size(1100, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final engine = SimulatedPlaybackEngine();
+    final playback = SoundPlaybackController(engine: engine);
+    await playback.playTrack(_second, queue: const [_second]);
+
+    Future<(double, double)> paneWidths(NowPlayingStyle style) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: NowPlayingScreen(playback: playback, style: style),
+        ),
+      );
+      await tester.pump();
+      return (
+        tester
+            .getSize(find.byKey(const ValueKey('wide-now-playing-player')))
+            .width,
+        tester
+            .getSize(find.byKey(const ValueKey('wide-now-playing-lyrics')))
+            .width,
+      );
+    }
+
+    final classic = await paneWidths(NowPlayingStyle.classic);
+    expect(classic.$1, closeTo(classic.$2, 1));
+    final cover = await paneWidths(NowPlayingStyle.coverFocus);
+    expect(cover.$1, greaterThan(cover.$2));
+    final lyrics = await paneWidths(NowPlayingStyle.immersiveLyrics);
+    expect(lyrics.$1, lessThan(lyrics.$2));
+
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    tester.view.physicalSize = const Size(390, 844);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NowPlayingScreen(
+          playback: playback,
+          style: NowPlayingStyle.immersiveLyrics,
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.byKey(const ValueKey('compact-lyrics')), findsOneWidget);
+
     await tester.pumpWidget(const SizedBox.shrink());
     debugDefaultTargetPlatformOverride = null;
     playback.dispose();

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/app_failure.dart';
+import '../../core/now_playing_style.dart';
 import '../../core/sound_theme.dart';
 import '../../domain/library_models.dart';
 import '../../playback/playback_controller.dart';
@@ -24,6 +25,7 @@ class NowPlayingScreen extends StatelessWidget {
   const NowPlayingScreen({
     required this.playback,
     this.userState,
+    this.style = NowPlayingStyle.classic,
     this.isActive = true,
     this.onClose,
     this.onVerticalDragStart,
@@ -35,6 +37,7 @@ class NowPlayingScreen extends StatelessWidget {
 
   final SoundPlaybackController playback;
   final LibraryUserStateController? userState;
+  final NowPlayingStyle style;
 
   /// Whether this surface should consume real-time playback ticks and animate
   /// its full-screen background. Mobile keeps this false while the surface is
@@ -151,6 +154,7 @@ class NowPlayingScreen extends StatelessWidget {
                           track: track,
                           playback: playback,
                           userState: userState,
+                          style: style,
                           onVerticalDragStart: onVerticalDragStart,
                           onVerticalDragUpdate: onVerticalDragUpdate,
                           onVerticalDragEnd: onVerticalDragEnd,
@@ -162,6 +166,7 @@ class NowPlayingScreen extends StatelessWidget {
                         track: track,
                         playback: playback,
                         userState: userState,
+                        style: style,
                         integratedQueue: desktopIntegratedQueue,
                       );
                     },
@@ -236,6 +241,7 @@ class _WideNowPlaying extends StatefulWidget {
     required this.track,
     required this.playback,
     required this.integratedQueue,
+    required this.style,
     this.userState,
   });
 
@@ -243,6 +249,7 @@ class _WideNowPlaying extends StatefulWidget {
   final Track track;
   final SoundPlaybackController playback;
   final bool integratedQueue;
+  final NowPlayingStyle style;
   final LibraryUserStateController? userState;
 
   @override
@@ -264,16 +271,35 @@ class _WideNowPlayingState extends State<_WideNowPlaying> {
           foldableWidth ? 24.0 : 48.0,
           _centerDisplayFeatureGap(context, constraints),
         );
-        final paneWidth = math.max(
-          160.0,
-          (constraints.maxWidth - horizontalPadding * 2 - paneGap) / 2,
+        final (playerFlex, contentFlex) = foldableWidth
+            ? (1, 1)
+            : switch (widget.style) {
+                NowPlayingStyle.classic => (1, 1),
+                NowPlayingStyle.coverFocus => (6, 4),
+                NowPlayingStyle.immersiveLyrics => (4, 6),
+              };
+        final availableWidth = math.max(
+          320.0,
+          constraints.maxWidth - horizontalPadding * 2 - paneGap,
         );
+        final paneWidth =
+            availableWidth * playerFlex / (playerFlex + contentFlex);
         final playerHeight = math.max(
           0.0,
           constraints.maxHeight - verticalPadding,
         );
+        final artLimit = switch (widget.style) {
+          NowPlayingStyle.classic => 340.0,
+          NowPlayingStyle.coverFocus => 420.0,
+          NowPlayingStyle.immersiveLyrics => 280.0,
+        };
+        final playerWidthLimit = switch (widget.style) {
+          NowPlayingStyle.classic => 390.0,
+          NowPlayingStyle.coverFocus => 470.0,
+          NowPlayingStyle.immersiveLyrics => 330.0,
+        };
         final artSize = math.min(
-          math.min(340.0, paneWidth),
+          math.min(artLimit, paneWidth),
           math.max(160.0, playerHeight - playerChromeHeight),
         );
         return Padding(
@@ -290,11 +316,12 @@ class _WideNowPlayingState extends State<_WideNowPlaying> {
                 : CrossAxisAlignment.stretch,
             children: [
               Expanded(
+                flex: playerFlex,
                 child: Align(
                   key: const ValueKey('wide-now-playing-player'),
                   alignment: Alignment.topCenter,
                   child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 390),
+                    constraints: BoxConstraints(maxWidth: playerWidthLimit),
                     child: SingleChildScrollView(
                       child: _PlayerColumn(
                         album: widget.album,
@@ -309,6 +336,7 @@ class _WideNowPlayingState extends State<_WideNowPlaying> {
               ),
               SizedBox(width: paneGap),
               Expanded(
+                flex: contentFlex,
                 child: Padding(
                   key: const ValueKey('wide-now-playing-lyrics'),
                   padding: EdgeInsets.fromLTRB(
@@ -492,6 +520,7 @@ class _CompactNowPlaying extends StatefulWidget {
     required this.album,
     required this.track,
     required this.playback,
+    required this.style,
     this.userState,
     this.onVerticalDragStart,
     this.onVerticalDragUpdate,
@@ -502,6 +531,7 @@ class _CompactNowPlaying extends StatefulWidget {
   final Album album;
   final Track track;
   final SoundPlaybackController playback;
+  final NowPlayingStyle style;
   final LibraryUserStateController? userState;
   final GestureDragStartCallback? onVerticalDragStart;
   final GestureDragUpdateCallback? onVerticalDragUpdate;
@@ -513,11 +543,24 @@ class _CompactNowPlaying extends StatefulWidget {
 }
 
 class _CompactNowPlayingState extends State<_CompactNowPlaying> {
-  bool _showLyrics = false;
+  late bool _showLyrics;
   final ScrollController _coverScrollController = ScrollController();
   int? _coverPointer;
   double? _coverLastGlobalDy;
   bool _coverDismissGestureActive = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _showLyrics = widget.style == NowPlayingStyle.immersiveLyrics;
+  }
+
+  @override
+  void didUpdateWidget(covariant _CompactNowPlaying oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.style == widget.style) return;
+    _showLyrics = widget.style == NowPlayingStyle.immersiveLyrics;
+  }
 
   void _handleCoverPointerDown(PointerDownEvent event) {
     _coverPointer = event.pointer;
