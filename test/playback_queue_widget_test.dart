@@ -53,7 +53,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('queue-track-actions-third')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('从队列移除'));
-    await tester.pump();
+    await tester.pumpAndSettle();
     expect(playback.queue.map((track) => track.id), isNot(contains('third')));
     expect(find.text('Third'), findsNothing);
 
@@ -124,6 +124,8 @@ void main() {
       find.byKey(const ValueKey('compact-lyrics-secondary-actions')),
       findsOneWidget,
     );
+    expect(find.text('同步歌词'), findsNothing);
+    expect(find.byKey(const ValueKey('compact-lyrics-more')), findsOneWidget);
     expect(find.text('Second lyric'), findsOneWidget);
     expect(
       tester
@@ -131,6 +133,12 @@ void main() {
           .height,
       lessThanOrEqualTo(392),
     );
+    await tester.tap(find.byKey(const ValueKey('compact-lyrics-more')));
+    await tester.pump(const Duration(milliseconds: 350));
+    expect(find.text('歌词设置'), findsOneWidget);
+    expect(find.text('歌词延后 0.5 秒'), findsOneWidget);
+    await tester.tapAt(const Offset(8, 8));
+    await tester.pump(const Duration(milliseconds: 350));
     await tester.tap(find.byKey(const ValueKey('return-now-playing-cover')));
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.byKey(const ValueKey('compact-player')), findsOneWidget);
@@ -234,18 +242,18 @@ void main() {
     expect(find.text('歌词'), findsNothing);
     expect(find.text('播放清单'), findsNothing);
     expect(find.text('同步\n歌词'), findsOneWidget);
-    final playerTop = tester
-        .getTopLeft(find.byKey(const ValueKey('wide-now-playing-player')))
-        .dy;
-    final lyricTop = tester.getTopLeft(find.text('Second lyric')).dy;
-    expect(lyricTop, lessThan(playerTop + 30));
-
-    await tester.tap(find.byKey(const ValueKey('show-desktop-queue')));
-    await tester.pump();
-    expect(
-      find.byKey(const ValueKey('desktop-playback-queue')),
-      findsOneWidget,
+    final lyricPane = tester.getRect(
+      find.byKey(const ValueKey('wide-now-playing-lyrics')),
     );
+    final lyricTop = tester.getTopLeft(find.text('Second lyric')).dy;
+    expect(
+      lyricTop - lyricPane.top,
+      inInclusiveRange(lyricPane.height * 0.30, lyricPane.height * 0.45),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('show-wide-queue')));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('wide-playback-queue')), findsOneWidget);
     expect(find.text('播放清单'), findsWidgets);
     expect(find.text('3 首歌 · 列表循环'), findsOneWidget);
     expect(find.byType(ChoiceChip), findsNothing);
@@ -257,7 +265,7 @@ void main() {
     expect(activation.showFocusOutline, isFalse);
     expect(activation.focusColor, isNotNull);
 
-    await tester.tap(find.byKey(const ValueKey('show-desktop-lyrics')));
+    await tester.tap(find.byKey(const ValueKey('show-wide-lyrics')));
     await tester.pump();
     expect(find.text('Second lyric'), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -267,6 +275,62 @@ void main() {
     playback.dispose();
     engine.dispose();
   });
+
+  testWidgets(
+    'foldable and tablet share the integrated lyrics and queue pane',
+    (tester) async {
+      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+      addTearDown(() => debugDefaultTargetPlatformOverride = null);
+      tester.view.physicalSize = const Size(720, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final engine = SimulatedPlaybackEngine();
+      final playback = SoundPlaybackController(engine: engine);
+      await playback.playTrack(_second, queue: const [_first, _second, _third]);
+
+      await tester.pumpWidget(
+        MaterialApp(home: NowPlayingScreen(playback: playback)),
+      );
+      await tester.pump();
+
+      expect(
+        find.byKey(const ValueKey('wide-now-playing-player')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('now-playing-view-switch')),
+        findsOneWidget,
+      );
+      expect(find.byTooltip('播放队列'), findsNothing);
+      expect(find.text('同步\n歌词'), findsOneWidget);
+      final foldablePlayerTop = tester
+          .getTopLeft(find.byKey(const ValueKey('wide-now-playing-player')))
+          .dy;
+      final foldableLyricsTop = tester
+          .getTopLeft(find.byKey(const ValueKey('wide-now-playing-lyrics')))
+          .dy;
+      expect(foldablePlayerTop, greaterThan(foldableLyricsTop + 8));
+
+      await tester.tap(find.byKey(const ValueKey('show-wide-queue')));
+      await tester.pump();
+      expect(find.byKey(const ValueKey('wide-playback-queue')), findsOneWidget);
+
+      tester.view.physicalSize = const Size(834, 1194);
+      await tester.pump();
+      expect(
+        find.byKey(const ValueKey('now-playing-view-switch')),
+        findsOneWidget,
+      );
+      expect(find.byTooltip('播放队列'), findsNothing);
+      expect(tester.takeException(), isNull);
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      debugDefaultTargetPlatformOverride = null;
+      playback.dispose();
+      engine.dispose();
+    },
+  );
 
   testWidgets('album track menu inserts a song as next', (tester) async {
     tester.view.physicalSize = const Size(900, 800);

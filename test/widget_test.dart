@@ -2,7 +2,9 @@ import 'package:drift/native.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:sound_player/app/sound_app.dart';
+import 'package:sound_player/app/reverie_launch_screen.dart';
 import 'package:sound_player/core/sound_theme.dart';
 import 'package:sound_player/domain/library_models.dart';
 import 'package:sound_player/library/library_records.dart';
@@ -19,6 +21,30 @@ import 'package:sound_player/presentation/widgets/mini_player.dart';
 import 'package:sound_player/presentation/widgets/sound_components.dart';
 
 void main() {
+  PackageInfo.setMockInitialValues(
+    appName: 'Reverie',
+    packageName: 'com.soundplayer.sound_player',
+    version: '1.0.1',
+    buildNumber: '4',
+    buildSignature: '',
+  );
+
+  testWidgets('shared launch surface shows the complete Reverie lockup', (
+    tester,
+  ) async {
+    await tester.pumpWidget(const ReverieLaunchApp());
+
+    expect(
+      find.image(const AssetImage('assets/branding/launch_mark.png')),
+      findsOneWidget,
+    );
+    expect(find.text('Reverie'), findsOneWidget);
+    expect(find.text('听自己的音乐'), findsOneWidget);
+
+    final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
+    expect(scaffold.backgroundColor, reverieLaunchBackground);
+  });
+
   testWidgets('preloaded playback session skips the Flutter launch screen', (
     tester,
   ) async {
@@ -687,10 +713,10 @@ void main() {
     await tester.pumpAndSettle();
     expect((await repository.getPlaylists()).single.name, 'Morning Drive');
 
-    await tester.drag(
-      find.byIcon(Icons.drag_handle_rounded).first,
-      const Offset(0, 80),
+    final reorderable = tester.widget<SliverReorderableList>(
+      find.byType(SliverReorderableList),
     );
+    reorderable.onReorderItem!(0, 1);
     await tester.pumpAndSettle();
     expect(
       (await repository.getPlaylistTracks()).map((entry) => entry.trackId),
@@ -1328,6 +1354,8 @@ void main() {
     await tester.tap(find.byIcon(Icons.settings_outlined));
     await tester.pumpAndSettle();
     expect(find.text('设置'), findsWidgets);
+    expect(find.text('开发版本'), findsNothing);
+    expect(find.text('1.0.1'), findsOneWidget);
     expect(find.text('播放'), findsWidgets);
     expect(find.text('资料库'), findsWidgets);
     expect(find.text('音乐来源'), findsOneWidget);
@@ -1396,6 +1424,36 @@ void main() {
       findsOneWidget,
     );
 
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('settings-accent-row')),
+    );
+    await tester.tap(find.byKey(const ValueKey('settings-accent-row')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('custom-accent-swatch')),
+    );
+    expect(find.byKey(const ValueKey('custom-accent-swatch')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('custom-accent-swatch')));
+    await tester.pumpAndSettle();
+    expect(find.text('自定义主题色'), findsWidgets);
+    expect(find.byKey(const ValueKey('custom-accent-preview')), findsOneWidget);
+    expect(find.byKey(const ValueKey('custom-accent-hue')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('apply-custom-accent')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('custom-accent-preview')), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('settings-accent-row')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(
+      find.byKey(const ValueKey('settings-player-style-row')),
+    );
+    await tester.tap(find.byKey(const ValueKey('settings-player-style-row')));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byKey(const ValueKey('settings-skin-row')));
+    await tester.tap(find.byKey(const ValueKey('settings-skin-row')));
+    await tester.pumpAndSettle();
+
+    await tester.ensureVisible(find.text('播放模式'));
     await tester.tap(find.text('播放模式'));
     await tester.pumpAndSettle();
     expect(find.byType(SoundBottomSheet), findsOneWidget);
@@ -1530,7 +1588,7 @@ void main() {
     engine.dispose();
   });
 
-  testWidgets('synchronized lyrics start near the top before the first cue', (
+  testWidgets('wide synchronized lyrics start slightly above center', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(1100, 800);
@@ -1562,13 +1620,16 @@ void main() {
     final panelTop = tester
         .getTopLeft(find.byKey(const ValueKey('wide-now-playing-lyrics')))
         .dy;
+    final panelHeight = tester
+        .getSize(find.byKey(const ValueKey('wide-now-playing-lyrics')))
+        .height;
     final firstLyricTop = tester
         .getTopLeft(find.text('Opening first lyric'))
         .dy;
     expect(
       firstLyricTop - panelTop,
-      lessThan(100),
-      reason: 'The lyric list should not reserve half a viewport above line 1.',
+      inInclusiveRange(panelHeight * 0.30, panelHeight * 0.45),
+      reason: 'The opening lyric should sit above center without touching top.',
     );
     expect(tester.takeException(), isNull);
 

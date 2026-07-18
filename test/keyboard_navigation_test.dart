@@ -94,7 +94,6 @@ void main() {
 
     await _sendPrimaryShortcut(tester, LogicalKeyboardKey.digit3);
     expect(find.byKey(const ValueKey('settings-overview')), findsOneWidget);
-    expect(find.text('音乐来源'), findsOneWidget);
     await _sendPrimaryShortcut(tester, LogicalKeyboardKey.digit1);
     expect(find.text('Test Album'), findsWidgets);
 

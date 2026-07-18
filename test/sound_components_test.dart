@@ -6,6 +6,105 @@ import 'package:sound_player/core/sound_theme.dart';
 import 'package:sound_player/presentation/widgets/sound_components.dart';
 
 void main() {
+  testWidgets('Sound menus use a custom bottom sheet in compact windows', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    String? selected;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: SoundTheme.light,
+        home: Scaffold(
+          body: Center(
+            child: SoundMenuButton<String>(
+              key: const ValueKey('compact-sound-menu'),
+              tooltip: '更多操作',
+              menuTitle: '测试歌曲',
+              onSelected: (value) => selected = value,
+              actions: const [
+                SoundMenuAction(
+                  value: 'next',
+                  label: '下一首播放',
+                  icon: Icons.playlist_play_rounded,
+                ),
+                SoundMenuAction(
+                  value: 'remove',
+                  label: '移除',
+                  icon: Icons.delete_outline_rounded,
+                  destructive: true,
+                  dividerBefore: true,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('compact-sound-menu')));
+    await tester.pumpAndSettle();
+    expect(find.byType(SoundBottomSheet), findsOneWidget);
+    expect(find.text('测试歌曲'), findsOneWidget);
+    expect(find.byType(PopupMenuItem), findsNothing);
+    await tester.tap(find.text('下一首播放'));
+    await tester.pumpAndSettle();
+    expect(selected, 'next');
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('Sound menus use a custom anchored surface in wide windows', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    String? selected;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: SoundTheme.light,
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.topRight,
+            child: SoundMenuButton<String>(
+              key: const ValueKey('wide-sound-menu'),
+              tooltip: '排序方式',
+              onSelected: (value) => selected = value,
+              actions: const [
+                SoundMenuAction(
+                  value: 'title',
+                  label: '按标题',
+                  icon: Icons.sort_by_alpha_rounded,
+                  selected: true,
+                ),
+                SoundMenuAction(
+                  value: 'artist',
+                  label: '按艺人',
+                  icon: Icons.person_outline_rounded,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('wide-sound-menu')));
+    await tester.pumpAndSettle();
+    expect(find.byType(SoundBottomSheet), findsNothing);
+    expect(find.text('按标题'), findsOneWidget);
+    expect(find.byType(PopupMenuItem), findsNothing);
+    await tester.tap(find.text('按艺人'));
+    await tester.pumpAndSettle();
+    expect(selected, 'artist');
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('browse choices and song rows share the compact Reverie rhythm', (
     tester,
   ) async {

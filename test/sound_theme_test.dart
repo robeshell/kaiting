@@ -18,6 +18,16 @@ void main() {
     ]);
   });
 
+  test('custom accents derive readable interaction states', () {
+    final custom = AccentPreset.custom(const Color(0x803F8F88));
+
+    expect(custom.id, 'custom');
+    expect(custom.accent.a, 1);
+    expect(custom.accentHover, isNot(custom.accent));
+    expect(custom.accentPressed, isNot(custom.accent));
+    expect(custom.onAccent, AccentPreset.readableForeground(custom.accent));
+  });
+
   test('skins preserve the default and provide distinct adaptive surfaces', () {
     final standard = SoundTheme.forSkin(SoundSkins.standard);
     final pure = SoundTheme.forSkin(SoundSkins.pure);
@@ -27,10 +37,18 @@ void main() {
     expect(SoundSkins.standard.name, '默认');
     expect(standard.scaffoldBackgroundColor, SoundColors.lightCanvas);
     expect(standard.extension<SoundGlassTheme>(), same(SoundGlassTheme.light));
-    expect(pure.scaffoldBackgroundColor, const Color(0xFFF4F5F7));
+    expect(
+      standard.extension<SoundSkinEffects>(),
+      same(SoundSkinEffects.standard),
+    );
+    expect(pure.scaffoldBackgroundColor, const Color(0xFFF1F4F8));
     expect(pure.extension<SoundGlassTheme>()?.blur, 0);
+    expect(pure.extension<SoundGlassTheme>()?.shadow.a, 0);
+    expect(pure.extension<SoundSkinEffects>()?.motionStrength, 0.22);
+    expect(pure.extension<SoundSkinEffects>()?.shadowScale, 0);
     expect(deep.brightness, Brightness.dark);
     expect(deep.scaffoldBackgroundColor, SoundColors.darkCanvas);
+    expect(deep.extension<SoundSkinEffects>()?.darkVeilOpacity, 0.22);
     expect(SoundSkins.presets.first, same(SoundSkins.defaultPreset));
   });
 

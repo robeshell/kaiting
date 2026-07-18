@@ -102,6 +102,69 @@ void main() {
     },
   );
 
+  test('ignores macOS AppleDouble sidecars exposed by WebDAV', () async {
+    final music = Directory('${root.path}/dav/music');
+    await File('${music.path}/Track.mp3').writeAsBytes(<int>[1, 2, 3, 4]);
+    // Some NAS products rewrite hrefs to an opaque playable-looking URL and
+    // preserve the AppleDouble name only in the WebDAV displayname property.
+    await File(
+      '${music.path}/sidecar-download.mp3',
+    ).writeAsBytes(<int>[5, 6, 7, 8]);
+    await File(
+      '${music.path}/metadata-header.mp3',
+    ).writeAsBytes(<int>[0x00, 0x05, 0x16, 0x07, 0x00, 0x02, 0x00, 0x00]);
+
+    final baseUrl = 'http://127.0.0.1:${server.port}/dav/';
+    final connectionId = WebDavConnectionService.stableWebDavConnectionId(
+      baseUrl,
+    );
+    final now = DateTime.utc(2026, 7, 18);
+    await repository.upsertSource(
+      LibrarySourceRecord(
+        id: connectionId,
+        type: LibrarySourceType.webDav,
+        displayName: 'Fixture',
+        rootUri: baseUrl,
+        status: LibrarySourceStatus.available,
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+
+    final result =
+        await WebDavFolderScanner(
+          repository: repository,
+          metadataExtractor: const _AlwaysFailingMetadataExtractor(),
+          discovery: _DisplayNameDiscovery(<String, String>{
+            'http://127.0.0.1:${server.port}/dav/music/Track.mp3':
+                '100% Track.mp3',
+            'http://127.0.0.1:${server.port}/dav/music/sidecar-download.mp3':
+                '._Track.mp3',
+            'http://127.0.0.1:${server.port}/dav/music/metadata-header.mp3':
+                'innocent-looking.mp3',
+          }),
+        ).scan(
+          connectionId: connectionId,
+          folderUrls: const <String>['/dav/music/'],
+          baseUrl: baseUrl,
+          credentials: const WebDavCredentials(
+            username: 'sound',
+            password: 'sound-test',
+          ),
+        );
+
+    final folderId = WebDavConnectionService.stableWebDavFolderSourceId(
+      connectionId,
+      '/dav/music/',
+    );
+    final tracks = await repository.getTracks(sourceId: folderId);
+    expect(result.indexedTracks, 1);
+    expect(result.skippedFiles, 1);
+    expect(tracks, hasLength(1));
+    expect(tracks.single.title, '100% Track');
+    expect(tracks.single.mediaUri, endsWith('/Track.mp3'));
+  });
+
   test(
     'rescans a legacy folder ID without creating a conflicting source',
     () async {

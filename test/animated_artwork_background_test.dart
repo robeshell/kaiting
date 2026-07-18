@@ -90,10 +90,50 @@ void main() {
     final initial = _backgroundPainter(tester);
     final initialPhase = initial.phase;
     expect(initial.colors, hasLength(3));
+    expect(initial.motionStrength, SoundSkinEffects.standard.motionStrength);
+    expect(
+      initial.primaryGlowOpacity,
+      SoundSkinEffects.standard.primaryGlowOpacity,
+    );
 
     await tester.pump(const Duration(seconds: 1));
     final moved = _backgroundPainter(tester);
     expect(moved.phase, isNot(initialPhase));
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('artwork background consumes skin material and motion tokens', (
+    tester,
+  ) async {
+    final album = Album(
+      id: 'skin-effects-album',
+      title: 'Skin Effects Album',
+      artist: 'Artist',
+      source: SourceKind.local,
+      palette: const [Color(0xFF58736E), Color(0xFF26312F)],
+      tracks: const [],
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: SoundTheme.forSkin(SoundSkins.pure),
+        home: Scaffold(
+          body: AnimatedArtworkBackground(
+            album: album,
+            position: Duration.zero,
+            isPlaying: true,
+          ),
+        ),
+      ),
+    );
+
+    final painter = _backgroundPainter(tester);
+    expect(painter.motionStrength, SoundSkins.pure.effects.motionStrength);
+    expect(
+      painter.primaryGlowOpacity,
+      SoundSkins.pure.effects.primaryGlowOpacity,
+    );
+    expect(painter.lightVeilOpacity, SoundSkins.pure.effects.lightVeilOpacity);
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox.shrink());
   });

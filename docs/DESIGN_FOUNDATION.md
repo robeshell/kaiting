@@ -11,6 +11,13 @@ Phone and compact-window behavior is defined separately in
 [MOBILE_DESIGN_SPEC.md](MOBILE_DESIGN_SPEC.md). The mobile document overrides
 desktop spacing and component composition where the two differ.
 
+Settings information architecture, inline expansion, subpages and asynchronous
+operation flows are defined in [SETTINGS_DESIGN_SPEC.md](SETTINGS_DESIGN_SPEC.md).
+
+Popup menus, action sheets, selection lists and overlay row states are defined in
+[OVERLAY_MENU_DESIGN_SPEC.md](OVERLAY_MENU_DESIGN_SPEC.md); business UI must not fall back to
+platform-default Material list styling.
+
 ## Product character
 
 Reverie is an artwork-first personal music player for local and remote libraries.
@@ -75,10 +82,11 @@ without collapsing the selector.
    - Artwork and transport on one side, lyrics or queue on the other.
    - Synchronized lyrics keep the active line near the visual center.
 4. Settings and music sources
-   - Settings begins with real Playback, Library, Operations and About groups.
-   - Desktop uses category anchors and inline selectors. Compact mobile uses a
-     grouped settings index and bottom-sheet selectors; desktop-only keyboard
-     and window controls never appear there.
+   - Settings uses a page title, horizontal category anchors and one constrained
+     form column; the application sidebar remains its only vertical navigation.
+   - Desktop uses calm, text-first rows and unified inline selector surfaces.
+     Compact mobile uses a grouped settings index and bottom-sheet selectors;
+     desktop-only keyboard and window controls never appear there.
    - Music sources are a Library subpage rather than the whole settings area.
    - Connections and indexed folders are separate concepts.
    - Local folder and WebDAV are first-release source types.
@@ -93,15 +101,19 @@ without collapsing the selector.
 
 - Startup uses a native launch surface so audio, cache and library
   initialization never exposes an empty white or black window.
-- The launch surface is deliberately quiet: `#F7F7F8` canvas and the rounded
-  coral Reverie music icon. macOS and web pair it with a 20 px semibold
-  wordmark; Android and iOS follow the platform's icon-only convention. It
-  contains no artwork card, slogan, progress percentage or decorative gradient.
-- Playback-session loading completes before the production app renders its
-  first Flutter frame. Native Android, iOS and macOS surfaces therefore
-  transition directly into the app shell instead of showing a second branded
-  bootstrap page. macOS and web dismiss their overlay only when that first
-  ready frame arrives; fixed-duration splash delays are not allowed.
+- The launch surface uses a quiet, consistent brand lockup: a `#F7F7F8`
+  canvas, the transparent coral Reverie music mark, a semibold `Reverie`
+  wordmark and the supporting line `听自己的音乐`. It contains no app-icon
+  plate, artwork card, progress percentage or decorative gradient. Android 12+
+  keeps the mark inside the system splash icon area and places the wordmark and
+  supporting line in the platform branding area; other targets use a centered
+  vertical lockup.
+- Android keeps its system SplashScreen visible while audio, cache, library and
+  playback-session state initialize, then renders the ready app shell as its
+  first Flutter frame. This avoids a second splash and color differences between
+  Android's system renderer and Flutter. Other targets hand their native launch
+  surface to the shared branded Flutter surface while initialization continues.
+  No fixed-duration delay or progress percentage is allowed.
 - The launch screen follows the light-first product identity even when the
   operating system is in dark mode, avoiding a dark flash before Reverie's
   light canvas appears.
@@ -140,6 +152,12 @@ without collapsing the selector.
 - Page heading: 26 px on compact layouts and 28 px on medium/wide layouts.
 - Section heading: 16-20 px, bold.
 - Album hero title: 28-34 px, heavy, slightly tight tracking.
+- Now Playing uses 680 px of available width as its two-pane capability boundary. Open foldables,
+  tablets, and desktop share the integrated lyrics/queue pane and vertical lyric-sync controls;
+  platform names do not determine feature completeness.
+- In the wide lyrics pane, the followed cue uses a 40% vertical focal line. Before the first cue,
+  the opening lyric begins around 36% of the available height: visually above center, never pinned
+  to the top edge.
 - Body/track title: 13-14 px, semibold.
 - Secondary metadata: 11-13 px.
 - Time values use tabular/monospaced figures.

@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:sound_player/app/theme_preferences.dart';
 import 'package:sound_player/core/now_playing_style.dart';
@@ -90,5 +91,29 @@ void main() {
     );
 
     expect(restored.selectedSkinPreset, same(SoundSkins.standard));
+  });
+
+  test('persists and restores a custom accent color', () async {
+    final preferences = await ThemePreferences.load(
+      supportDirectory: supportDirectory,
+    );
+    final custom = AccentPreset.custom(const Color(0xFF327A74));
+
+    await preferences.save(accentPreset: custom);
+    final restored = await ThemePreferences.load(
+      supportDirectory: supportDirectory,
+    );
+
+    expect(restored.selectedAccentPreset.id, 'custom');
+    expect(restored.selectedAccentPreset.name, '自定义');
+    expect(restored.selectedAccentPreset.accent, const Color(0xFF327A74));
+    expect(
+      restored.selectedAccentPreset.accentHover,
+      isNot(restored.selectedAccentPreset.accent),
+    );
+    expect(
+      restored.selectedAccentPreset.accentPressed,
+      isNot(restored.selectedAccentPreset.accent),
+    );
   });
 }
