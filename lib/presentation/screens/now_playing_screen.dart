@@ -855,7 +855,13 @@ class _PlayerColumn extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         artwork,
-        SizedBox(height: compactLayout ? 26 : 24),
+        // Vinyl keeps a larger gap: the platter sits low in its square, so
+        // the same 24px feels tighter than a full-bleed cover art.
+        SizedBox(
+          height: style == NowPlayingStyle.vinyl
+              ? (compactLayout ? 40.0 : 36.0)
+              : (compactLayout ? 26.0 : 24.0),
+        ),
         if (compactLayout)
           _TrackChangeTransition(
             trackId: track.id,

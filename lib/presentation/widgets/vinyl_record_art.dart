@@ -48,10 +48,9 @@ class VinylRecordArtState extends State<VinylRecordArt>
 
   /// Angle the tonearm swings through to land the needle on the record, in
   /// turns (clockwise). Zero is the rest position above the right rim. Tuned
-  /// so the cartridge body centers on 0.80 record radii from the center —
-  /// the radial middle of the grooved band between the label edge (0.66r)
-  /// and the record's surface edge (0.94r).
-  static const _armPlayTurns = 0.063;
+  /// so the cartridge body sits in the grooved band between the label edge
+  /// (0.66r) and the outer rim (~0.94r).
+  static const _armPlayTurns = 0.066;
 
   /// Diameter of the record relative to the widget side (tonearm needs a
   /// little headroom above the platter).
@@ -61,11 +60,12 @@ class VinylRecordArtState extends State<VinylRecordArt>
   /// Kept in lockstep with [_VinylDiscPainter.labelFrameRadius].
   static const _labelFraction = _VinylDiscPainter.labelFrameRadius;
 
-  /// The record sits low in the composition so the tonearm has room above it.
-  static const _discCenterFraction = Offset(0.5, 0.58);
+  /// Platter sits slightly below center so the arm has room, but not so low
+  /// that the disc hugs the title under the art block.
+  static const _discCenterFraction = Offset(0.5, 0.54);
 
-  /// Tonearm pivot relative to the widget side, just above the record.
-  static const _armPivotFraction = Offset(0.47, 0.08);
+  /// Tonearm pivot just above the larger platter.
+  static const _armPivotFraction = Offset(0.48, 0.055);
 
   late final AnimationController _rotation;
   bool _reduceMotion = false;
