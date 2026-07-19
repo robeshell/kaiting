@@ -7,14 +7,17 @@ import 'album_art.dart';
 
 /// A skeuomorphic vinyl record used by the vinyl now-playing style.
 ///
-/// The record spins only while [isPlaying] is true and freezes mid-revolution
-/// on pause. The white tonearm pivots above the platter: it swings down onto
-/// the record when playback starts and lifts back to its rest position above
-/// the right rim when it pauses.
+/// The record spins only while [isPlaying] is true, [isActive] is true, and
+/// the platform is not requesting reduced motion. Pausing freezes the disc
+/// mid-revolution; deactivating the surface (e.g. while the mobile player is
+/// sliding) freezes spin without lifting the tonearm. The white tonearm pivots
+/// above the platter: it swings down onto the record when playback starts and
+/// lifts back to its rest position above the right rim when it pauses.
 class VinylRecordArt extends StatefulWidget {
   const VinylRecordArt({
     required this.album,
     required this.isPlaying,
+    this.isActive = true,
     this.size,
     super.key,
   });
@@ -22,15 +25,20 @@ class VinylRecordArt extends StatefulWidget {
   final Album album;
   final bool isPlaying;
 
+  /// When false, continuous disc rotation is frozen so route / expansion
+  /// motion does not compete with the spin ticker. Tonearm pose still follows
+  /// [isPlaying].
+  final bool isActive;
+
   /// Square extent of the whole composition (record plus tonearm). When null,
   /// the widget sizes itself from its layout constraints like [AlbumArt].
   final double? size;
 
   @override
-  State<VinylRecordArt> createState() => _VinylRecordArtState();
+  State<VinylRecordArt> createState() => VinylRecordArtState();
 }
 
-class _VinylRecordArtState extends State<VinylRecordArt>
+class VinylRecordArtState extends State<VinylRecordArt>
     with SingleTickerProviderStateMixin {
   /// One revolution of the record. Real 33⅓ rpm vinyl spins about four times
   /// faster; a slower rotation reads better on screen.
@@ -49,7 +57,8 @@ class _VinylRecordArtState extends State<VinylRecordArt>
   static const _discFraction = 0.80;
 
   /// Diameter of the center label (the album artwork) relative to the record.
-  static const _labelFraction = 0.66;
+  /// Kept in lockstep with [_VinylDiscPainter.labelFrameRadius].
+  static const _labelFraction = _VinylDiscPainter.labelFrameRadius;
 
   /// The record sits low in the composition so the tonearm has room above it.
   static const _discCenterFraction = Offset(0.5, 0.6);
@@ -58,6 +67,15 @@ class _VinylRecordArtState extends State<VinylRecordArt>
   static const _armPivotFraction = Offset(0.47, 0.10);
 
   late final AnimationController _rotation;
+  bool _reduceMotion = false;
+
+  /// Whether the disc rotation ticker is currently running.
+  @visibleForTesting
+  bool get isDiscSpinning => _rotation.isAnimating;
+
+  /// Current disc angle in turns (0..1), for freeze-resume assertions.
+  @visibleForTesting
+  double get discTurns => _rotation.value;
 
   @override
   void initState() {
@@ -66,15 +84,32 @@ class _VinylRecordArtState extends State<VinylRecordArt>
       vsync: this,
       duration: _revolutionDuration,
     );
-    if (widget.isPlaying) _rotation.repeat();
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+    if (reduceMotion != _reduceMotion) {
+      _reduceMotion = reduceMotion;
+    }
+    _syncRotation();
   }
 
   @override
   void didUpdateWidget(covariant VinylRecordArt oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (widget.isPlaying == oldWidget.isPlaying) return;
-    if (widget.isPlaying) {
-      _rotation.repeat();
+    if (widget.isPlaying != oldWidget.isPlaying ||
+        widget.isActive != oldWidget.isActive) {
+      _syncRotation();
+    }
+  }
+
+  void _syncRotation() {
+    final shouldSpin =
+        widget.isPlaying && widget.isActive && !_reduceMotion;
+    if (shouldSpin) {
+      if (!_rotation.isAnimating) _rotation.repeat();
     } else {
       // Freeze mid-revolution; resuming picks up where the record stopped.
       _rotation.stop();
@@ -89,6 +124,7 @@ class _VinylRecordArtState extends State<VinylRecordArt>
 
   @override
   Widget build(BuildContext context) {
+    final armDuration = _reduceMotion ? Duration.zero : _armSwingDuration;
     return LayoutBuilder(
       builder: (context, constraints) {
         final available = widget.size ?? constraints.biggest.shortestSide;
@@ -130,6 +166,7 @@ class _VinylRecordArtState extends State<VinylRecordArt>
                             child: AlbumArt(
                               album: widget.album,
                               size: labelDiameter,
+                              borderRadius: 0,
                               showShadow: false,
                               gaplessPlayback: true,
                             ),
@@ -145,7 +182,7 @@ class _VinylRecordArtState extends State<VinylRecordArt>
                 top: armPivot.dy - armBox / 2,
                 child: AnimatedRotation(
                   turns: widget.isPlaying ? _armPlayTurns : 0,
-                  duration: _armSwingDuration,
+                  duration: armDuration,
                   curve: Curves.easeOutCubic,
                   child: CustomPaint(
                     size: Size.square(armBox),
@@ -163,6 +200,11 @@ class _VinylRecordArtState extends State<VinylRecordArt>
 
 class _VinylDiscPainter extends CustomPainter {
   const _VinylDiscPainter();
+
+  /// Label radius relative to the record radius: the label diameter is
+  /// [VinylRecordArtState._labelFraction] of the record diameter, so its
+  /// edge sits at the same fraction of the record radius.
+  static const labelFrameRadius = 0.66;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -199,7 +241,7 @@ class _VinylDiscPainter extends CustomPainter {
     // Thin dark ring framing the label.
     canvas.drawCircle(
       center,
-      radius * (_labelFrameRadius + 0.012),
+      radius * (labelFrameRadius + 0.012),
       Paint()
         ..style = PaintingStyle.stroke
         ..strokeWidth = radius * 0.022
@@ -226,11 +268,6 @@ class _VinylDiscPainter extends CustomPainter {
         ).createShader(Rect.fromCircle(center: center, radius: radius)),
     );
   }
-
-  /// Label radius relative to the record radius: the label diameter is
-  /// [_VinylRecordArtState._labelFraction] of the record diameter, so its
-  /// edge sits at the same fraction of the record radius.
-  static const _labelFrameRadius = 0.66;
 
   @override
   bool shouldRepaint(_VinylDiscPainter oldPainter) => false;

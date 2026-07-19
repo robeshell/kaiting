@@ -9,9 +9,11 @@ import '../core/sound_theme.dart';
 import '../core/now_playing_style.dart';
 import 'theme_preferences.dart';
 import '../domain/library_models.dart';
+import '../library/library_playback_lyrics_source.dart';
 import '../library/library_repository.dart';
 import '../playback/playback_controller.dart';
 import '../playback/playback_engine.dart';
+import '../playback/playback_lyrics_source.dart';
 import '../playback/playback_media_provider.dart';
 import '../playback/playback_session.dart';
 import '../playback/sound_audio_handler.dart';
@@ -76,9 +78,11 @@ class _SoundAppState extends State<SoundApp> with WidgetsBindingObserver {
   AccentPreset _accentPreset = SoundColors.defaultAccentPreset;
   SoundSkinPreset _skinPreset = SoundSkins.defaultPreset;
   NowPlayingStyle _nowPlayingStyle = NowPlayingStyle.classic;
+  bool _openLyricsByDefault = false;
   int _accentChangeRevision = 0;
   int _skinChangeRevision = 0;
   int _nowPlayingStyleChangeRevision = 0;
+  int _openLyricsByDefaultChangeRevision = 0;
   Future<void> _themeWriteTail = Future<void>.value();
   Timer? _sessionSaveTimer;
   DateTime? _lastSessionSaveStartedAt;
@@ -100,6 +104,7 @@ class _SoundAppState extends State<SoundApp> with WidgetsBindingObserver {
       _accentPreset = initialThemePreferences.selectedAccentPreset;
       _skinPreset = initialThemePreferences.selectedSkinPreset;
       _nowPlayingStyle = initialThemePreferences.selectedNowPlayingStyle;
+      _openLyricsByDefault = initialThemePreferences.openLyricsByDefault;
       _accentPreset.apply();
     } else {
       SoundColors.defaultAccentPreset.apply();
@@ -125,22 +130,28 @@ class _SoundAppState extends State<SoundApp> with WidgetsBindingObserver {
       final loadedNowPlayingStyle = _nowPlayingStyleChangeRevision == 0
           ? preferences.selectedNowPlayingStyle
           : _nowPlayingStyle;
+      final loadedOpenLyrics = _openLyricsByDefaultChangeRevision == 0
+          ? preferences.openLyricsByDefault
+          : _openLyricsByDefault;
       loadedAccent.apply();
       if (mounted) {
         setState(() {
           _accentPreset = loadedAccent;
           _skinPreset = loadedSkin;
           _nowPlayingStyle = loadedNowPlayingStyle;
+          _openLyricsByDefault = loadedOpenLyrics;
         });
       }
       if (_accentChangeRevision != 0 ||
           _skinChangeRevision != 0 ||
-          _nowPlayingStyleChangeRevision != 0) {
+          _nowPlayingStyleChangeRevision != 0 ||
+          _openLyricsByDefaultChangeRevision != 0) {
         await _saveThemePreference(
           preferences,
           accentPreset: loadedAccent,
           skinPreset: loadedSkin,
           nowPlayingStyle: loadedNowPlayingStyle,
+          openLyricsByDefault: loadedOpenLyrics,
         );
       }
     } catch (_) {
@@ -161,6 +172,7 @@ class _SoundAppState extends State<SoundApp> with WidgetsBindingObserver {
       accentPreset: preset,
       skinPreset: _skinPreset,
       nowPlayingStyle: _nowPlayingStyle,
+      openLyricsByDefault: _openLyricsByDefault,
     );
   }
 
@@ -175,6 +187,7 @@ class _SoundAppState extends State<SoundApp> with WidgetsBindingObserver {
       accentPreset: _accentPreset,
       skinPreset: preset,
       nowPlayingStyle: _nowPlayingStyle,
+      openLyricsByDefault: _openLyricsByDefault,
     );
   }
 
@@ -189,6 +202,22 @@ class _SoundAppState extends State<SoundApp> with WidgetsBindingObserver {
       accentPreset: _accentPreset,
       skinPreset: _skinPreset,
       nowPlayingStyle: style,
+      openLyricsByDefault: _openLyricsByDefault,
+    );
+  }
+
+  Future<void> _changeOpenLyricsByDefault(bool enabled) async {
+    if (enabled == _openLyricsByDefault) return;
+    _openLyricsByDefaultChangeRevision++;
+    if (mounted) setState(() => _openLyricsByDefault = enabled);
+    final preferences = _themePrefs;
+    if (preferences == null) return;
+    await _saveThemePreference(
+      preferences,
+      accentPreset: _accentPreset,
+      skinPreset: _skinPreset,
+      nowPlayingStyle: _nowPlayingStyle,
+      openLyricsByDefault: enabled,
     );
   }
 
@@ -197,6 +226,7 @@ class _SoundAppState extends State<SoundApp> with WidgetsBindingObserver {
     required AccentPreset accentPreset,
     required SoundSkinPreset skinPreset,
     required NowPlayingStyle nowPlayingStyle,
+    required bool openLyricsByDefault,
   }) {
     _themeWriteTail = _themeWriteTail.then((_) async {
       try {
@@ -204,6 +234,7 @@ class _SoundAppState extends State<SoundApp> with WidgetsBindingObserver {
           accentPreset: accentPreset,
           skinPreset: skinPreset,
           nowPlayingStyle: nowPlayingStyle,
+          openLyricsByDefault: openLyricsByDefault,
         );
       } catch (error, stackTrace) {
         FlutterError.reportError(
@@ -245,9 +276,11 @@ class _SoundAppState extends State<SoundApp> with WidgetsBindingObserver {
     PlaybackSession? session, {
     bool rebuild = false,
   }) {
+    final lyricsSource = _playbackLyricsSource();
     final playback = SoundPlaybackController(
       engine: _engine,
       initialSession: session,
+      lyricsSource: lyricsSource,
     );
     playback.addListener(_scheduleSessionSave);
     widget.audioHandler?.attach(playback);
@@ -265,6 +298,12 @@ class _SoundAppState extends State<SoundApp> with WidgetsBindingObserver {
         }
       });
     }
+  }
+
+  PlaybackLyricsSource? _playbackLyricsSource() {
+    final repository = widget.repository;
+    if (repository == null) return null;
+    return LibraryPlaybackLyricsSource(repository);
   }
 
   void _scheduleSessionSave() {
@@ -462,6 +501,8 @@ class _SoundAppState extends State<SoundApp> with WidgetsBindingObserver {
               onSkinChanged: _changeSkin,
               nowPlayingStyle: _nowPlayingStyle,
               onNowPlayingStyleChanged: _changeNowPlayingStyle,
+              openLyricsByDefault: _openLyricsByDefault,
+              onOpenLyricsByDefaultChanged: _changeOpenLyricsByDefault,
               failureOverlayController: _failureOverlayController,
             ),
     );

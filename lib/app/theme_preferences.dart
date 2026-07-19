@@ -14,12 +14,16 @@ class ThemePreferences {
     this.selectedAccentPreset,
     this.selectedSkinPreset,
     this.selectedNowPlayingStyle,
+    this.openLyricsByDefault,
   );
 
   final File _file;
   AccentPreset selectedAccentPreset;
   SoundSkinPreset selectedSkinPreset;
   NowPlayingStyle selectedNowPlayingStyle;
+
+  /// When true, the compact now-playing surface opens on the lyrics pane.
+  bool openLyricsByDefault;
 
   /// Kept as a compatibility alias for callers created before skin support.
   AccentPreset get selectedPreset => selectedAccentPreset;
@@ -55,11 +59,16 @@ class ThemePreferences {
             break;
           }
         }
+        final styleId = json['nowPlayingStyle'] as String?;
+        final openLyrics = json.containsKey('openLyricsByDefault')
+            ? json['openLyricsByDefault'] == true
+            : openLyricsByDefaultFromLegacyStyleId(styleId);
         return ThemePreferences._(
           file,
           accentPreset ?? SoundColors.defaultAccentPreset,
           skinPreset ?? SoundSkins.defaultPreset,
-          nowPlayingStyleFromId(json['nowPlayingStyle'] as String?),
+          nowPlayingStyleFromId(styleId),
+          openLyrics,
         );
       }
     } catch (_) {
@@ -70,6 +79,7 @@ class ThemePreferences {
       SoundColors.defaultAccentPreset,
       SoundSkins.defaultPreset,
       NowPlayingStyle.classic,
+      false,
     );
   }
 
@@ -77,10 +87,12 @@ class ThemePreferences {
     AccentPreset? accentPreset,
     SoundSkinPreset? skinPreset,
     NowPlayingStyle? nowPlayingStyle,
+    bool? openLyricsByDefault,
   }) async {
     final nextAccent = accentPreset ?? selectedAccentPreset;
     final nextSkin = skinPreset ?? selectedSkinPreset;
     final nextNowPlayingStyle = nowPlayingStyle ?? selectedNowPlayingStyle;
+    final nextOpenLyrics = openLyricsByDefault ?? this.openLyricsByDefault;
     await _file.parent.create(recursive: true);
     await _file.writeAsString(
       jsonEncode({
@@ -89,11 +101,13 @@ class ThemePreferences {
           'customAccent': nextAccent.accent.toARGB32(),
         'skinPreset': nextSkin.id,
         'nowPlayingStyle': nextNowPlayingStyle.id,
+        'openLyricsByDefault': nextOpenLyrics,
       }),
       flush: true,
     );
     selectedAccentPreset = nextAccent;
     selectedSkinPreset = nextSkin;
     selectedNowPlayingStyle = nextNowPlayingStyle;
+    this.openLyricsByDefault = nextOpenLyrics;
   }
 }

@@ -192,10 +192,8 @@ void main() {
 
     final classic = await paneWidths(NowPlayingStyle.classic);
     expect(classic.$1, closeTo(classic.$2, 1));
-    final cover = await paneWidths(NowPlayingStyle.coverFocus);
-    expect(cover.$1, greaterThan(cover.$2));
-    final lyrics = await paneWidths(NowPlayingStyle.immersiveLyrics);
-    expect(lyrics.$1, lessThan(lyrics.$2));
+    final vinyl = await paneWidths(NowPlayingStyle.vinyl);
+    expect(vinyl.$1, closeTo(vinyl.$2, 1));
 
     debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
     tester.view.physicalSize = const Size(390, 844);
@@ -203,7 +201,8 @@ void main() {
       MaterialApp(
         home: NowPlayingScreen(
           playback: playback,
-          style: NowPlayingStyle.immersiveLyrics,
+          style: NowPlayingStyle.classic,
+          openLyricsByDefault: true,
         ),
       ),
     );

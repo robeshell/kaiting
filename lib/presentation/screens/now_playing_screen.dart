@@ -37,6 +37,7 @@ class NowPlayingScreen extends StatelessWidget {
     required this.playback,
     this.userState,
     this.style = NowPlayingStyle.classic,
+    this.openLyricsByDefault = false,
     this.isActive = true,
     this.onClose,
     this.onVerticalDragStart,
@@ -49,6 +50,9 @@ class NowPlayingScreen extends StatelessWidget {
   final SoundPlaybackController playback;
   final LibraryUserStateController? userState;
   final NowPlayingStyle style;
+
+  /// When true, the compact layout opens on the lyrics pane.
+  final bool openLyricsByDefault;
 
   /// Whether this surface should consume real-time playback ticks and animate
   /// its full-screen background. Mobile keeps this false while the surface is
@@ -183,6 +187,8 @@ class NowPlayingScreen extends StatelessWidget {
                           playback: playback,
                           userState: userState,
                           style: style,
+                          openLyricsByDefault: openLyricsByDefault,
+                          isActive: isActive,
                           onVerticalDragStart: onVerticalDragStart,
                           onVerticalDragUpdate: onVerticalDragUpdate,
                           onVerticalDragEnd: onVerticalDragEnd,
@@ -195,6 +201,7 @@ class NowPlayingScreen extends StatelessWidget {
                         playback: playback,
                         userState: userState,
                         style: style,
+                        isActive: isActive,
                       );
                     },
                   ),
@@ -301,6 +308,7 @@ class _WideNowPlaying extends StatefulWidget {
     required this.playback,
     required this.style,
     this.userState,
+    this.isActive = true,
   });
 
   final Album album;
@@ -308,6 +316,7 @@ class _WideNowPlaying extends StatefulWidget {
   final SoundPlaybackController playback;
   final NowPlayingStyle style;
   final LibraryUserStateController? userState;
+  final bool isActive;
 
   @override
   State<_WideNowPlaying> createState() => _WideNowPlayingState();
@@ -328,14 +337,9 @@ class _WideNowPlayingState extends State<_WideNowPlaying> {
           foldableWidth ? 24.0 : 48.0,
           _centerDisplayFeatureGap(context, constraints),
         );
-        final (playerFlex, contentFlex) = foldableWidth
-            ? (1, 1)
-            : switch (widget.style) {
-                NowPlayingStyle.classic => (1, 1),
-                NowPlayingStyle.coverFocus => (6, 4),
-                NowPlayingStyle.immersiveLyrics => (4, 6),
-                NowPlayingStyle.vinyl => (1, 1),
-              };
+        // Classic and vinyl share a balanced dual pane; only artwork differs.
+        const playerFlex = 1;
+        const contentFlex = 1;
         final availableWidth = math.max(
           320.0,
           constraints.maxWidth - horizontalPadding * 2 - paneGap,
@@ -348,14 +352,10 @@ class _WideNowPlayingState extends State<_WideNowPlaying> {
         );
         final artLimit = switch (widget.style) {
           NowPlayingStyle.classic => 340.0,
-          NowPlayingStyle.coverFocus => 420.0,
-          NowPlayingStyle.immersiveLyrics => 280.0,
           NowPlayingStyle.vinyl => 360.0,
         };
         final playerWidthLimit = switch (widget.style) {
           NowPlayingStyle.classic => 390.0,
-          NowPlayingStyle.coverFocus => 470.0,
-          NowPlayingStyle.immersiveLyrics => 330.0,
           NowPlayingStyle.vinyl => 400.0,
         };
         final artSize = math.min(
@@ -391,6 +391,7 @@ class _WideNowPlayingState extends State<_WideNowPlaying> {
                           playback: widget.playback,
                           style: widget.style,
                           userState: widget.userState,
+                          isActive: widget.isActive,
                           artSize: artSize,
                         ),
                       ),
@@ -577,7 +578,9 @@ class _CompactNowPlaying extends StatefulWidget {
     required this.track,
     required this.playback,
     required this.style,
+    this.openLyricsByDefault = false,
     this.userState,
+    this.isActive = true,
     this.onVerticalDragStart,
     this.onVerticalDragUpdate,
     this.onVerticalDragEnd,
@@ -588,7 +591,9 @@ class _CompactNowPlaying extends StatefulWidget {
   final Track track;
   final SoundPlaybackController playback;
   final NowPlayingStyle style;
+  final bool openLyricsByDefault;
   final LibraryUserStateController? userState;
+  final bool isActive;
   final GestureDragStartCallback? onVerticalDragStart;
   final GestureDragUpdateCallback? onVerticalDragUpdate;
   final GestureDragEndCallback? onVerticalDragEnd;
@@ -609,14 +614,18 @@ class _CompactNowPlayingState extends State<_CompactNowPlaying> {
   @override
   void initState() {
     super.initState();
-    _showLyrics = widget.style == NowPlayingStyle.immersiveLyrics;
+    _showLyrics = widget.openLyricsByDefault;
   }
 
   @override
   void didUpdateWidget(covariant _CompactNowPlaying oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.style == widget.style) return;
-    _showLyrics = widget.style == NowPlayingStyle.immersiveLyrics;
+    if (oldWidget.openLyricsByDefault == widget.openLyricsByDefault) return;
+    // Only adopt the new default when the user has not toggled away yet —
+    // if they already opened/closed lyrics this session, leave their choice.
+    if (_showLyrics == oldWidget.openLyricsByDefault) {
+      _showLyrics = widget.openLyricsByDefault;
+    }
   }
 
   void _handleCoverPointerDown(PointerDownEvent event) {
@@ -740,6 +749,7 @@ class _CompactNowPlayingState extends State<_CompactNowPlaying> {
                         playback: widget.playback,
                         style: widget.style,
                         userState: widget.userState,
+                        isActive: widget.isActive,
                         compactLayout: true,
                         onToggleLyrics: () =>
                             setState(() => _showLyrics = true),
@@ -760,6 +770,7 @@ class _PlayerColumn extends StatelessWidget {
     required this.playback,
     required this.style,
     this.userState,
+    this.isActive = true,
     this.artSize,
     this.compactLayout = false,
     this.onToggleLyrics,
@@ -770,6 +781,7 @@ class _PlayerColumn extends StatelessWidget {
   final SoundPlaybackController playback;
   final NowPlayingStyle style;
   final LibraryUserStateController? userState;
+  final bool isActive;
   final double? artSize;
   final bool compactLayout;
   final VoidCallback? onToggleLyrics;
@@ -784,6 +796,7 @@ class _PlayerColumn extends StatelessWidget {
             album: album,
             size: artSize,
             isPlaying: playback.snapshot.isPlaying,
+            isActive: isActive,
           )
         : _PlaybackResponsiveAlbumArt(
             key: compactLayout

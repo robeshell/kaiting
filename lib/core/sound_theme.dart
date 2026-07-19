@@ -114,7 +114,10 @@ extension SoundThemeContext on BuildContext {
 
   double get soundPageTitleSize => soundIsCompact ? 26 : 28;
 
-  double get soundContentBottomPadding => soundUsesMobileShell ? 140 : 32;
+  /// Scroll padding under list content so the last rows clear the overlaid
+  /// mini player / mobile dock (`Scaffold.extendBody` is always on).
+  /// Desktop: docked mini player is 76pt tall; keep a little air below.
+  double get soundContentBottomPadding => soundUsesMobileShell ? 140 : 96;
 
   double get soundSidebarWidth => switch (soundWindowClass) {
     SoundWindowClass.compact => 0,

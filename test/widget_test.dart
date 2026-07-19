@@ -21,6 +21,7 @@ import 'package:sound_player/presentation/widgets/animated_artwork_background.da
 import 'package:sound_player/presentation/widgets/mini_player.dart';
 import 'package:sound_player/presentation/widgets/progress_scrubber.dart';
 import 'package:sound_player/presentation/widgets/sound_components.dart';
+import 'package:sound_player/presentation/widgets/vinyl_record_art.dart';
 
 void main() {
   PackageInfo.setMockInitialValues(
@@ -1410,16 +1411,22 @@ void main() {
       findsOneWidget,
     );
     expect(
-      find.byKey(const ValueKey('now-playing-style-cover-focus')),
+      find.byKey(const ValueKey('now-playing-style-vinyl')),
       findsOneWidget,
     );
     expect(
+      find.byKey(const ValueKey('now-playing-style-cover-focus')),
+      findsNothing,
+    );
+    expect(
       find.byKey(const ValueKey('now-playing-style-immersive-lyrics')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey('settings-open-lyrics-default-row')),
       findsOneWidget,
     );
-    await tester.tap(
-      find.byKey(const ValueKey('now-playing-style-immersive-lyrics')),
-    );
+    await tester.tap(find.byKey(const ValueKey('now-playing-style-vinyl')));
     await tester.pumpAndSettle();
     expect(
       find.byKey(const ValueKey('now-playing-style-selector')),
@@ -1677,6 +1684,230 @@ void main() {
       findsOneWidget,
     );
     expect(tester.takeException(), isNull);
+
+    await _unmountAndFlush(tester);
+    playback.dispose();
+    engine.dispose();
+  });
+
+  testWidgets('vinyl disc spins while playing and freezes on pause', (
+    tester,
+  ) async {
+    final album = albumForTrack(_testTrack);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: VinylRecordArt(
+              album: album,
+              isPlaying: true,
+              size: 240,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final spinning = tester.state<VinylRecordArtState>(
+      find.byType(VinylRecordArt),
+    );
+    expect(spinning.isDiscSpinning, isTrue);
+
+    await tester.pump(const Duration(seconds: 2));
+    final turnsWhilePlaying = spinning.discTurns;
+    expect(turnsWhilePlaying, greaterThan(0));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: VinylRecordArt(
+              album: album,
+              isPlaying: false,
+              size: 240,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final paused = tester.state<VinylRecordArtState>(
+      find.byType(VinylRecordArt),
+    );
+    expect(paused.isDiscSpinning, isFalse);
+    final frozenTurns = paused.discTurns;
+    expect(frozenTurns, closeTo(turnsWhilePlaying, 0.001));
+
+    await tester.pump(const Duration(seconds: 2));
+    expect(paused.discTurns, closeTo(frozenTurns, 0.001));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: VinylRecordArt(
+              album: album,
+              isPlaying: true,
+              size: 240,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final resumed = tester.state<VinylRecordArtState>(
+      find.byType(VinylRecordArt),
+    );
+    expect(resumed.isDiscSpinning, isTrue);
+    expect(resumed.discTurns, closeTo(frozenTurns, 0.001));
+
+    await _unmountAndFlush(tester);
+  });
+
+  testWidgets('vinyl freezes spin when inactive without requiring pause', (
+    tester,
+  ) async {
+    final album = albumForTrack(_testTrack);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: VinylRecordArt(
+              album: album,
+              isPlaying: true,
+              isActive: true,
+              size: 240,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+
+    final active = tester.state<VinylRecordArtState>(
+      find.byType(VinylRecordArt),
+    );
+    expect(active.isDiscSpinning, isTrue);
+    final turnsAtDeactivate = active.discTurns;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: Center(
+            child: VinylRecordArt(
+              album: album,
+              isPlaying: true,
+              isActive: false,
+              size: 240,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final inactive = tester.state<VinylRecordArtState>(
+      find.byType(VinylRecordArt),
+    );
+    expect(inactive.isDiscSpinning, isFalse);
+    expect(inactive.discTurns, closeTo(turnsAtDeactivate, 0.001));
+
+    await tester.pump(const Duration(seconds: 2));
+    expect(inactive.discTurns, closeTo(turnsAtDeactivate, 0.001));
+
+    await _unmountAndFlush(tester);
+  });
+
+  testWidgets('vinyl does not spin when reduced motion is enabled', (
+    tester,
+  ) async {
+    final album = albumForTrack(_testTrack);
+    await tester.pumpWidget(
+      MaterialApp(
+        home: MediaQuery(
+          data: const MediaQueryData(disableAnimations: true),
+          child: Scaffold(
+            body: Center(
+              child: VinylRecordArt(
+                album: album,
+                isPlaying: true,
+                size: 240,
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final state = tester.state<VinylRecordArtState>(
+      find.byType(VinylRecordArt),
+    );
+    expect(state.isDiscSpinning, isFalse);
+    expect(state.discTurns, 0);
+
+    await tester.pump(const Duration(seconds: 2));
+    expect(state.isDiscSpinning, isFalse);
+    expect(state.discTurns, 0);
+
+    await _unmountAndFlush(tester);
+  });
+
+  testWidgets('vinyl now-playing freezes spin when surface is inactive', (
+    tester,
+  ) async {
+    _simulatePlatform(TargetPlatform.iOS);
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final engine = SimulatedPlaybackEngine();
+    final playback = SoundPlaybackController(engine: engine);
+    await playback.playTrack(_testTrack, queue: const [_testTrack]);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NowPlayingScreen(
+          playback: playback,
+          style: NowPlayingStyle.vinyl,
+          isActive: true,
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 500));
+
+    final active = tester.state<VinylRecordArtState>(
+      find.byType(VinylRecordArt),
+    );
+    expect(active.isDiscSpinning, isTrue);
+    final turnsWhenActive = active.discTurns;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NowPlayingScreen(
+          playback: playback,
+          style: NowPlayingStyle.vinyl,
+          isActive: false,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final inactive = tester.state<VinylRecordArtState>(
+      find.byType(VinylRecordArt),
+    );
+    expect(inactive.isDiscSpinning, isFalse);
+    expect(inactive.discTurns, closeTo(turnsWhenActive, 0.001));
+
+    await tester.pump(const Duration(seconds: 1));
+    expect(inactive.discTurns, closeTo(turnsWhenActive, 0.001));
+    // Playback itself is still running; only the surface animation freezes.
+    expect(playback.snapshot.isPlaying, isTrue);
 
     await _unmountAndFlush(tester);
     playback.dispose();

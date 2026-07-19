@@ -120,6 +120,8 @@ class AppShell extends StatefulWidget {
     this.onSkinChanged,
     this.nowPlayingStyle = NowPlayingStyle.classic,
     this.onNowPlayingStyleChanged,
+    this.openLyricsByDefault = false,
+    this.onOpenLyricsByDefaultChanged,
     this.failureOverlayController,
     super.key,
   });
@@ -136,6 +138,8 @@ class AppShell extends StatefulWidget {
   final ValueChanged<SoundSkinPreset>? onSkinChanged;
   final NowPlayingStyle nowPlayingStyle;
   final ValueChanged<NowPlayingStyle>? onNowPlayingStyleChanged;
+  final bool openLyricsByDefault;
+  final ValueChanged<bool>? onOpenLyricsByDefaultChanged;
   final AppFailureOverlayController? failureOverlayController;
 
   @override
@@ -604,6 +608,7 @@ class _AppShellState extends State<AppShell>
               playback: widget.playback,
               userState: _libraryUserState,
               style: widget.nowPlayingStyle,
+              openLyricsByDefault: widget.openLyricsByDefault,
             ),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           return SlideTransition(
@@ -940,11 +945,18 @@ class _AppShellState extends State<AppShell>
                       nowPlayingStyle: widget.nowPlayingStyle,
                       onNowPlayingStyleChanged:
                           widget.onNowPlayingStyleChanged ?? (_) {},
+                      openLyricsByDefault: widget.openLyricsByDefault,
+                      onOpenLyricsByDefaultChanged:
+                          widget.onOpenLyricsByDefaultChanged ?? (_) {},
                     ),
                   };
 
+            // Always extend body under the bottom chrome so the canvas
+            // gradient continues behind the mini player / mobile dock. Without
+            // this, Scaffold carves a hard horizontal seam between body and
+            // bottomNavigationBar (especially visible on desktop).
             final shell = Scaffold(
-              extendBody: !desktop,
+              extendBody: true,
               body: Stack(
                 children: [
                   Positioned.fill(
@@ -1079,14 +1091,22 @@ class _AppShellState extends State<AppShell>
                     ),
                 ],
               ),
+              // Transparent Material so Scaffold does not paint an extra
+              // elevation/surface-tint hairline above the docked mini player.
               bottomNavigationBar: desktop
-                  ? MiniPlayer(
-                      playback: widget.playback,
-                      userState: _libraryUserState,
-                      compact: false,
-                      docked: true,
-                      onOpen: _openNowPlaying,
-                      onOpenQueue: _openQueue,
+                  ? Material(
+                      elevation: 0,
+                      color: Colors.transparent,
+                      shadowColor: Colors.transparent,
+                      surfaceTintColor: Colors.transparent,
+                      child: MiniPlayer(
+                        playback: widget.playback,
+                        userState: _libraryUserState,
+                        compact: false,
+                        docked: true,
+                        onOpen: _openNowPlaying,
+                        onOpenQueue: _openQueue,
+                      ),
                     )
                   : _CompactPlaybackDock(
                       playback: widget.playback,
@@ -1122,6 +1142,7 @@ class _AppShellState extends State<AppShell>
                         playback: widget.playback,
                         userState: _libraryUserState,
                         style: widget.nowPlayingStyle,
+                        openLyricsByDefault: widget.openLyricsByDefault,
                         onClose: () => unawaited(_collapseMobileNowPlaying()),
                         onVerticalDragStart: _handleNowPlayingDragStart,
                         onVerticalDragUpdate: _handleNowPlayingDragUpdate,
@@ -1170,6 +1191,7 @@ class _MobileNowPlayingOverlay extends StatefulWidget {
     required this.playback,
     required this.userState,
     required this.style,
+    this.openLyricsByDefault = false,
     required this.onClose,
     required this.onVerticalDragStart,
     required this.onVerticalDragUpdate,
@@ -1181,6 +1203,7 @@ class _MobileNowPlayingOverlay extends StatefulWidget {
   final SoundPlaybackController playback;
   final LibraryUserStateController userState;
   final NowPlayingStyle style;
+  final bool openLyricsByDefault;
   final VoidCallback onClose;
   final GestureDragStartCallback onVerticalDragStart;
   final GestureDragUpdateCallback onVerticalDragUpdate;
@@ -1242,6 +1265,7 @@ class _MobileNowPlayingOverlayState extends State<_MobileNowPlayingOverlay> {
         playback: widget.playback,
         userState: widget.userState,
         style: widget.style,
+        openLyricsByDefault: widget.openLyricsByDefault,
         isActive: _contentActive,
         onClose: widget.onClose,
         onVerticalDragStart: widget.onVerticalDragStart,
@@ -1713,7 +1737,10 @@ class _Sidebar extends StatelessWidget {
                 ),
                 Expanded(
                   child: ListView(
-                    padding: EdgeInsets.zero,
+                    // Clear the docked mini player when body extends under it.
+                    padding: EdgeInsets.only(
+                      bottom: context.soundContentBottomPadding,
+                    ),
                     children: [
                       const _SidebarHeading('资料库'),
                       for (final mode in LibraryBrowseMode.values)

@@ -57,6 +57,8 @@ class SettingsScreen extends StatefulWidget {
     required this.onSkinChanged,
     this.nowPlayingStyle = NowPlayingStyle.classic,
     this.onNowPlayingStyleChanged,
+    this.openLyricsByDefault = false,
+    this.onOpenLyricsByDefaultChanged,
     super.key,
   });
 
@@ -75,6 +77,8 @@ class SettingsScreen extends StatefulWidget {
   final ValueChanged<SoundSkinPreset> onSkinChanged;
   final NowPlayingStyle nowPlayingStyle;
   final ValueChanged<NowPlayingStyle>? onNowPlayingStyleChanged;
+  final bool openLyricsByDefault;
+  final ValueChanged<bool>? onOpenLyricsByDefaultChanged;
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -370,7 +374,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               icon: Icons.now_wallpaper_outlined,
                               iconColor: SoundColors.accent,
                               title: '播放器样式',
-                              subtitle: '调整正在播放页在不同设备上的构图',
+                              subtitle: '经典布局或黑胶唱片外观',
                               value: widget.nowPlayingStyle.label,
                               expanded: _nowPlayingStyleExpanded,
                               onTap: () => setState(
@@ -386,6 +390,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
                                       widget.onNowPlayingStyleChanged ?? (_) {},
                                 ),
                               ),
+                            _SettingsToggleRow(
+                              key: const ValueKey(
+                                'settings-open-lyrics-default-row',
+                              ),
+                              icon: Icons.lyrics_outlined,
+                              iconColor: SoundColors.accent,
+                              title: '默认打开歌词',
+                              subtitle: '手机端进入正在播放时直接显示歌词',
+                              value: widget.openLyricsByDefault,
+                              onChanged:
+                                  widget.onOpenLyricsByDefaultChanged ??
+                                  (_) {},
+                            ),
                             _SettingsRow(
                               key: const ValueKey('settings-accent-row'),
                               icon: Icons.palette_outlined,
@@ -582,7 +599,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       icon: Icons.now_wallpaper_outlined,
                       iconColor: SoundColors.accent,
                       title: '播放器样式',
-                      subtitle: '调整正在播放页在不同设备上的构图',
+                      subtitle: '经典布局或黑胶唱片外观',
                       value: widget.nowPlayingStyle.label,
                       expanded: _nowPlayingStyleExpanded,
                       onTap: () => setState(
@@ -597,6 +614,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                           onSelected: widget.onNowPlayingStyleChanged ?? (_) {},
                         ),
                       ),
+                    _SettingsToggleRow(
+                      key: const ValueKey('settings-open-lyrics-default-row'),
+                      icon: Icons.lyrics_outlined,
+                      iconColor: SoundColors.accent,
+                      title: '默认打开歌词',
+                      subtitle: '手机端进入正在播放时直接显示歌词',
+                      value: widget.openLyricsByDefault,
+                      onChanged: widget.onOpenLyricsByDefaultChanged ?? (_) {},
+                    ),
                     _SettingsRow(
                       key: const ValueKey('settings-accent-row'),
                       icon: Icons.palette_outlined,
@@ -2148,7 +2174,7 @@ class _NowPlayingStyleSelector extends StatelessWidget {
       child: LayoutBuilder(
         builder: (context, constraints) {
           const spacing = 10.0;
-          final columns = constraints.maxWidth < 460 ? 2 : 3;
+          final columns = 2;
           final width =
               (constraints.maxWidth - spacing * (columns - 1)) / columns;
           return Wrap(
@@ -2172,6 +2198,81 @@ class _NowPlayingStyleSelector extends StatelessWidget {
   }
 }
 
+class _SettingsToggleRow extends StatelessWidget {
+  const _SettingsToggleRow({
+    required IconData icon,
+    required Color iconColor,
+    required this.title,
+    required this.subtitle,
+    required this.value,
+    required this.onChanged,
+    super.key,
+  });
+
+  final String title;
+  final String subtitle;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final compact = context.soundIsCompact;
+    return Semantics(
+      toggled: value,
+      child: InkWell(
+        onTap: () => onChanged(!value),
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            minHeight: compact
+                ? SoundSettingsMetrics.compactRowMinHeight
+                : SoundSettingsMetrics.rowMinHeight,
+          ),
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: 4,
+              vertical: compact ? 10 : 12,
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        title,
+                        style: TextStyle(
+                          color: _settingsPrimaryText(context),
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        subtitle,
+                        style: TextStyle(
+                          color: context.soundMutedText,
+                          fontSize: 12,
+                          height: 1.35,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                Switch.adaptive(
+                  value: value,
+                  onChanged: onChanged,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _NowPlayingStyleCard extends StatelessWidget {
   const _NowPlayingStyleCard({
     required this.style,
@@ -2185,12 +2286,6 @@ class _NowPlayingStyleCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final (playerFlex, lyricsFlex) = switch (style) {
-      NowPlayingStyle.classic => (1, 1),
-      NowPlayingStyle.coverFocus => (6, 4),
-      NowPlayingStyle.immersiveLyrics => (4, 6),
-      NowPlayingStyle.vinyl => (1, 1),
-    };
     return Semantics(
       button: true,
       selected: selected,
@@ -2231,12 +2326,9 @@ class _NowPlayingStyleCard extends StatelessWidget {
                       child: Row(
                         children: [
                           Expanded(
-                            flex: playerFlex,
                             child: Center(
                               child: FractionallySizedBox(
-                                widthFactor: style == NowPlayingStyle.coverFocus
-                                    ? 0.78
-                                    : 0.64,
+                                widthFactor: 0.64,
                                 child: AspectRatio(
                                   aspectRatio: 1,
                                   child: style == NowPlayingStyle.vinyl
@@ -2284,7 +2376,6 @@ class _NowPlayingStyleCard extends StatelessWidget {
                           ),
                           const SizedBox(width: 7),
                           Expanded(
-                            flex: lyricsFlex,
                             child: Column(
                               mainAxisAlignment: MainAxisAlignment.center,
                               children: [

@@ -93,6 +93,42 @@ void main() {
     expect(restored.selectedSkinPreset, same(SoundSkins.standard));
   });
 
+  test('maps retired now-playing styles onto classic', () async {
+    await File('${supportDirectory.path}/theme.json').writeAsString(
+      '{"nowPlayingStyle":"cover-focus"}',
+    );
+    final cover = await ThemePreferences.load(
+      supportDirectory: supportDirectory,
+    );
+    expect(cover.selectedNowPlayingStyle, NowPlayingStyle.classic);
+    expect(cover.openLyricsByDefault, isFalse);
+
+    await File('${supportDirectory.path}/theme.json').writeAsString(
+      '{"nowPlayingStyle":"immersive-lyrics"}',
+    );
+    final immersive = await ThemePreferences.load(
+      supportDirectory: supportDirectory,
+    );
+    expect(immersive.selectedNowPlayingStyle, NowPlayingStyle.classic);
+    expect(immersive.openLyricsByDefault, isTrue);
+  });
+
+  test('persists open-lyrics-by-default independently of style', () async {
+    final preferences = await ThemePreferences.load(
+      supportDirectory: supportDirectory,
+    );
+    await preferences.save(
+      nowPlayingStyle: NowPlayingStyle.vinyl,
+      openLyricsByDefault: true,
+    );
+
+    final restored = await ThemePreferences.load(
+      supportDirectory: supportDirectory,
+    );
+    expect(restored.selectedNowPlayingStyle, NowPlayingStyle.vinyl);
+    expect(restored.openLyricsByDefault, isTrue);
+  });
+
   test('persists and restores a custom accent color', () async {
     final preferences = await ThemePreferences.load(
       supportDirectory: supportDirectory,
