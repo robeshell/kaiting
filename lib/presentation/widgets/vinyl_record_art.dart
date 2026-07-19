@@ -7,10 +7,10 @@ import 'album_art.dart';
 
 /// A skeuomorphic vinyl record used by the vinyl now-playing style.
 ///
-/// Layout matches common vinyl UIs (pivot on top, arm on the **right** half
-/// only). Rest: cartridge just outside the upper-right rim. Play: a small
-/// clockwise drop so the head sits on the mid-line of the black groove ring,
-/// still upper-right — never swinging across the label to the left.
+/// - **Rest:** cartridge fully clear of the platter (outside the outer rim).
+/// - **Play:** small clockwise drop; head on the mid-line of the black groove
+///   ring, upper-right only (never across the label).
+/// - Pivot sits well above the disc so the base is not glued to the rim.
 class VinylRecordArt extends StatefulWidget {
   const VinylRecordArt({
     required this.album,
@@ -34,26 +34,34 @@ class VinylRecordArtState extends State<VinylRecordArt>
   static const _revolutionDuration = Duration(seconds: 14);
   static const _armSwingDuration = Duration(milliseconds: 700);
 
-  static const _discFraction = 0.88;
-  static const _labelFraction = _VinylDiscPainter.labelFrameRadius;
-  static const _discCenterFraction = Offset(0.5, 0.55);
-  static const _armPivotFraction = Offset(0.5, 0.04);
-  static const _armBoxFraction = 0.78;
+  /// Record diameter / composition side. Slightly under full width so the
+  /// raised pivot still has clear air above the rim.
+  static const _discFraction = 0.86;
 
-  /// Mid-line of black ring: (0.66 + 0.94) / 2 of record radius.
+  static const _labelFraction = _VinylDiscPainter.labelFrameRadius;
+
+  /// Disc sits lower so the pivot (near the top) reads farther from the rim.
+  static const _discCenterFraction = Offset(0.5, 0.58);
+
+  /// Tonearm base — high in the composition, away from the platter.
+  static const _armPivotFraction = Offset(0.5, 0.02);
+
+  static const _armBoxFraction = 0.84;
+
   static const _grooveMidRadiusFraction =
       (_VinylDiscPainter.labelFrameRadius +
           _VinylDiscPainter.outerSurfaceRadius) /
       2;
 
-  /// Small clockwise drop from rest onto the upper-right mid-groove.
-  /// Solved from painter rest offsets + platter geometry; right-side only.
+  /// Solved so rest is outside the rim and play lands mid-groove upper-right.
   static final double _armPlayTurns = _solveArmPlayTurns();
 
   static double _solveArmPlayTurns() {
     const side = 1.0;
     final discRadius = side * _discFraction / 2;
     final targetRadius = discRadius * _grooveMidRadiusFraction;
+    final outerRadius =
+        discRadius * _VinylDiscPainter.outerSurfaceRadius;
     final discCenter = Offset(
       side * _discCenterFraction.dx,
       side * _discCenterFraction.dy,
@@ -66,11 +74,17 @@ class VinylRecordArtState extends State<VinylRecordArt>
       side * _armBoxFraction,
     );
 
-    var bestTurns = 0.03;
+    // Sanity: rest pose must sit outside the platter.
+    final restWorld = pivot + cartLocal;
+    assert(
+      (restWorld - discCenter).distance > outerRadius * 1.02,
+      'Vinyl rest pose must clear the outer rim.',
+    );
+
+    var bestTurns = 0.04;
     var bestError = double.infinity;
-    // Only a modest clockwise arc — never enough to cross the spindle.
-    for (var i = 0; i <= 500; i++) {
-      final turns = i / 500 * 0.08;
+    for (var i = 0; i <= 600; i++) {
+      final turns = i / 600 * 0.10;
       final theta = turns * 2 * math.pi;
       final cosT = math.cos(theta);
       final sinT = math.sin(theta);
@@ -80,11 +94,10 @@ class VinylRecordArtState extends State<VinylRecordArt>
             cartLocal.dx * cosT - cartLocal.dy * sinT,
             cartLocal.dx * sinT + cartLocal.dy * cosT,
           );
-      // Stay on the right of the label and above disc midline (higher head).
-      if (world.dx < discCenter.dx + discRadius * 0.12) continue;
-      if (world.dy > discCenter.dy - discRadius * 0.05) continue;
-      final radial = (world - discCenter).distance;
-      final error = (radial - targetRadius).abs();
+      // Right side + upper half of the black ring only.
+      if (world.dx < discCenter.dx + discRadius * 0.15) continue;
+      if (world.dy > discCenter.dy - discRadius * 0.08) continue;
+      final error = ((world - discCenter).distance - targetRadius).abs();
       if (error < bestError) {
         bestError = error;
         bestTurns = turns;
@@ -284,17 +297,17 @@ class _VinylDiscPainter extends CustomPainter {
   bool shouldRepaint(_VinylDiscPainter oldPainter) => false;
 }
 
-/// Rest pose: pivot on top, arm hanging into the **upper-right** quadrant
-/// (same family as common vinyl player UIs). Not a long horizontal boom.
+/// Rest: upper-right of pivot, head **clear of the platter**.
+/// Play rotation lowers it onto the black ring (still upper-right).
 class _TonearmPainter extends CustomPainter {
   const _TonearmPainter();
 
   static const _armColor = Color(0xFFF2F2F4);
 
   /// Rest offsets from pivot in [unit] multiples (+x right, +y down).
-  /// Long enough to clear the outer rim on the upper-right.
-  static const elbowFromPivot = Offset(0.14, 0.15);
-  static const tipFromPivot = Offset(0.30, 0.22);
+  /// Long enough that the cartridge sits outside the outer rim.
+  static const elbowFromPivot = Offset(0.18, 0.12);
+  static const tipFromPivot = Offset(0.38, 0.20);
   static const cartridgePastTip = 0.05;
 
   static Offset cartridgeCenterFromPivot(double unit) {

@@ -347,7 +347,9 @@ class _WideNowPlayingState extends State<_WideNowPlaying> {
     return LayoutBuilder(
       builder: (context, constraints) {
         const verticalPadding = 50.0;
-        const playerChromeHeight = 230.0;
+        // Vinyl needs more chrome clearance (title gap + controls) than a flat cover.
+        final playerChromeHeight =
+            widget.style == NowPlayingStyle.vinyl ? 250.0 : 230.0;
         final foldableWidth = constraints.maxWidth < 780;
         final horizontalPadding = foldableWidth ? 24.0 : 44.0;
         final paneGap = math.max(
@@ -367,13 +369,15 @@ class _WideNowPlayingState extends State<_WideNowPlaying> {
           0.0,
           constraints.maxHeight - verticalPadding,
         );
+        // Foldables (~700px) keep a smaller vinyl so the arm pivot still reads
+        // with air above the rim; wide desktops can go larger.
         final artLimit = switch (widget.style) {
           NowPlayingStyle.classic => 340.0,
-          NowPlayingStyle.vinyl => 440.0,
+          NowPlayingStyle.vinyl => foldableWidth ? 360.0 : 440.0,
         };
         final playerWidthLimit = switch (widget.style) {
           NowPlayingStyle.classic => 390.0,
-          NowPlayingStyle.vinyl => 480.0,
+          NowPlayingStyle.vinyl => foldableWidth ? 400.0 : 480.0,
         };
         final artSize = math.min(
           math.min(artLimit, paneWidth),
@@ -583,6 +587,21 @@ class _WidePaneIconSwitch extends StatelessWidget {
   }
 }
 
+/// Phone / narrow compact vinyl size: large enough to read, small enough that
+/// title + transport still fit without crushing the pivot air above the rim.
+double _compactVinylArtSize(BuildContext context) {
+  final size = MediaQuery.sizeOf(context);
+  final shortest = size.shortestSide;
+  final byWidth = (size.width - 56).clamp(220.0, 360.0);
+  // Leave ~48% of height for title, scrubber, transport, and bottom chrome.
+  final byHeight = (size.height * 0.42).clamp(220.0, 360.0);
+  final side = math.min(byWidth, byHeight);
+  // Extra-narrow phones stay slightly smaller so the arm base still has air.
+  if (shortest < 360) return math.min(side, 280.0);
+  if (shortest < 400) return math.min(side, 320.0);
+  return side;
+}
+
 double _centerDisplayFeatureGap(
   BuildContext context,
   BoxConstraints constraints,
@@ -772,12 +791,17 @@ class _CompactNowPlayingState extends State<_CompactNowPlaying> {
                   key: const ValueKey('compact-player'),
                   controller: _coverScrollController,
                   physics: const AlwaysScrollableScrollPhysics(),
-                  padding: const EdgeInsets.fromLTRB(28, 8, 28, 40),
+                  padding: EdgeInsets.fromLTRB(
+                    28,
+                    8,
+                    28,
+                    widget.style == NowPlayingStyle.vinyl ? 32 : 40,
+                  ),
                   child: Center(
                     child: ConstrainedBox(
                       constraints: BoxConstraints(
                         maxWidth: widget.style == NowPlayingStyle.vinyl
-                            ? 480
+                            ? 400
                             : 430,
                       ),
                       child: _PlayerColumn(
@@ -790,6 +814,9 @@ class _CompactNowPlayingState extends State<_CompactNowPlaying> {
                         userState: widget.userState,
                         isActive: widget.isActive,
                         compactLayout: true,
+                        artSize: widget.style == NowPlayingStyle.vinyl
+                            ? _compactVinylArtSize(context)
+                            : null,
                         onToggleLyrics: () =>
                             setState(() => _showLyrics = true),
                       ),
