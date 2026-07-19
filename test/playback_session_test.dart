@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:sound_player/domain/library_models.dart';
 import 'package:sound_player/playback/playback_controller.dart';
 import 'package:sound_player/playback/playback_engine.dart';
+import 'package:sound_player/playback/playback_lyrics_source.dart';
 import 'package:sound_player/playback/playback_mode.dart';
 import 'package:sound_player/playback/playback_session.dart';
 
@@ -464,6 +465,54 @@ void main() {
       expect(controller.displayTrack, same(_trackC));
     });
 
+    test('hydrates lyrics for restored queue entries that lost them', () async {
+      final engine = ManualPlaybackEngine();
+      const lyrics = [LyricLine(Duration(seconds: 1), 'Recovered')];
+      final controller = SoundPlaybackController(
+        engine: engine,
+        lyricsSource: _MapLyricsSource({
+          _trackA.id: lyrics,
+          _trackB.id: lyrics,
+        }),
+        initialSession: PlaybackSession(
+          // Mimic session JSON: only current track kept lyrics.
+          queue: [
+            _trackA,
+            _trackB.copyWith(
+              lyrics: const [LyricLine(Duration(seconds: 2), 'Current')],
+            ),
+          ],
+          queueIndex: 1,
+          positionMs: 0,
+        ),
+      );
+      addTearDown(controller.dispose);
+      addTearDown(engine.dispose);
+
+      await controller.hydrateQueueLyrics();
+
+      expect(controller.queue[0].lyrics.single.text, 'Recovered');
+      expect(controller.queue[1].lyrics.single.text, 'Current');
+    });
+
+    test('playTrack hydrates lyrics before loading the engine', () async {
+      final engine = ManualPlaybackEngine();
+      const lyrics = [LyricLine(Duration(seconds: 3), 'From catalog')];
+      final controller = SoundPlaybackController(
+        engine: engine,
+        lyricsSource: _MapLyricsSource({_trackA.id: lyrics, _trackB.id: lyrics}),
+      );
+      addTearDown(controller.dispose);
+      addTearDown(engine.dispose);
+
+      // Session-style tracks with empty lyrics (as after cold start).
+      await controller.playTrack(_trackB, queue: [_trackA, _trackB]);
+
+      expect(controller.displayTrack?.lyrics.single.text, 'From catalog');
+      expect(controller.queue[0].lyrics.single.text, 'From catalog');
+      expect(controller.queue[1].lyrics.single.text, 'From catalog');
+    });
+
     test('restores the persisted playback mode', () {
       final engine = ManualPlaybackEngine();
       final controller = SoundPlaybackController(
@@ -730,6 +779,27 @@ const _trackC = Track(
   source: SourceKind.local,
   mediaUri: 'file:///c.flac',
 );
+
+class _MapLyricsSource implements PlaybackLyricsSource {
+  _MapLyricsSource(this.lyricsById);
+
+  final Map<String, List<LyricLine>> lyricsById;
+
+  @override
+  Future<List<LyricLine>> lyricsForTrack(String trackId) async {
+    return lyricsById[trackId] ?? const [];
+  }
+
+  @override
+  Future<Map<String, List<LyricLine>>> lyricsForTracks(
+    Iterable<String> trackIds,
+  ) async {
+    return {
+      for (final id in trackIds)
+        if (lyricsById[id] case final lyrics? when lyrics.isNotEmpty) id: lyrics,
+    };
+  }
+}
 
 /// Minimal manual engine for session persistence tests.
 class ManualPlaybackEngine implements PlaybackEngine {

@@ -70,6 +70,38 @@ class Track {
   final String? genre;
 
   bool get isPlayable => mediaUri != null && mediaUri!.trim().isNotEmpty;
+
+  Track copyWith({
+    String? id,
+    String? title,
+    String? artist,
+    String? albumTitle,
+    Duration? duration,
+    SourceKind? source,
+    int? trackNumber,
+    int? discNumber,
+    List<LyricLine>? lyrics,
+    String? mediaUri,
+    String? artworkUri,
+    int? year,
+    String? genre,
+  }) {
+    return Track(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      artist: artist ?? this.artist,
+      albumTitle: albumTitle ?? this.albumTitle,
+      duration: duration ?? this.duration,
+      source: source ?? this.source,
+      trackNumber: trackNumber ?? this.trackNumber,
+      discNumber: discNumber ?? this.discNumber,
+      lyrics: lyrics ?? this.lyrics,
+      mediaUri: mediaUri ?? this.mediaUri,
+      artworkUri: artworkUri ?? this.artworkUri,
+      year: year ?? this.year,
+      genre: genre ?? this.genre,
+    );
+  }
 }
 
 class LyricLine {

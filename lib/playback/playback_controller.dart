@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import '../domain/library_models.dart';
 import 'playback_engine.dart';
+import 'playback_lyrics_source.dart';
 import 'playback_media_provider.dart';
 import 'playback_mode.dart';
 import 'playback_session.dart';
@@ -14,6 +15,7 @@ class SoundPlaybackController extends ChangeNotifier {
     required PlaybackEngine engine,
     List<Track> initialQueue = const [],
     PlaybackSession? initialSession,
+    this._lyricsSource,
     Random? random,
   }) : _engine = engine,
        _queue = List.of(initialQueue),
@@ -21,9 +23,13 @@ class SoundPlaybackController extends ChangeNotifier {
        _random = random ?? Random() {
     if (initialSession != null) _restoreSession(initialSession);
     _subscription = _engine.snapshots.listen(_acceptEngineSnapshot);
+    if (_lyricsSource != null && _queue.isNotEmpty) {
+      unawaited(hydrateQueueLyrics());
+    }
   }
 
   final PlaybackEngine _engine;
+  final PlaybackLyricsSource? _lyricsSource;
   final Random _random;
   final StreamController<Track> _trackStartedController =
       StreamController<Track>.broadcast(sync: true);
@@ -31,6 +37,7 @@ class SoundPlaybackController extends ChangeNotifier {
   List<Track> _queue;
   PlaybackSnapshot _snapshot;
   int _sessionGeneration = 0;
+  int _lyricsHydrationGeneration = 0;
   int _queueIndex = 0;
   int _queueRevision = 0;
   PlaybackMode _playbackMode = PlaybackMode.repeatAll;
@@ -97,30 +104,60 @@ class SoundPlaybackController extends ChangeNotifier {
     _positionDiscontinuityRevision++;
     _pendingSeekPosition = null;
     _pendingSeekTrackId = null;
-    _fallbackTrack = track;
+    final hydrateToken = ++_lyricsHydrationGeneration;
+
+    late final Track selected;
     if (queue != null && queue.isNotEmpty) {
-      _queue = List.of(queue);
+      final hydratedQueue = await _hydrateTracks(queue);
+      if (_disposed || hydrateToken != _lyricsHydrationGeneration) return;
+      final index = hydratedQueue.indexWhere(
+        (candidate) => candidate.id == track.id,
+      );
+      selected = index >= 0
+          ? _preferRicherLyrics(hydratedQueue[index], track)
+          : await _hydrateTrack(track);
+      if (_disposed || hydrateToken != _lyricsHydrationGeneration) return;
+      _queue = index >= 0
+          ? [
+              for (final candidate in hydratedQueue)
+                if (candidate.id == selected.id) selected else candidate,
+            ]
+          : [selected];
       _queueRevision++;
-      _queueIndex = _queue.indexWhere((candidate) => candidate.id == track.id);
+      _queueIndex = _queue.indexWhere((candidate) => candidate.id == selected.id);
       if (_queueIndex < 0) {
-        _queue = [track];
+        _queue = [selected];
         _queueIndex = 0;
       }
       if (_playbackMode == PlaybackMode.shuffle && _queue.length > 1) {
-        _shuffleQueueKeepingCurrent(track.id);
+        _shuffleQueueKeepingCurrent(selected.id);
       }
     } else {
-      if (!_queue.any((candidate) => candidate.id == track.id)) {
-        _queue = [track];
+      selected = await _hydrateTrack(track);
+      if (_disposed || hydrateToken != _lyricsHydrationGeneration) return;
+      if (!_queue.any((candidate) => candidate.id == selected.id)) {
+        _queue = [selected];
         _queueRevision++;
+      } else {
+        final index = _queue.indexWhere(
+          (candidate) => candidate.id == selected.id,
+        );
+        if (index >= 0 &&
+            _queue[index].lyrics.isEmpty &&
+            selected.lyrics.isNotEmpty) {
+          _queue[index] = selected;
+        }
       }
-      _queueIndex = _queue.indexWhere((candidate) => candidate.id == track.id);
+      _queueIndex = _queue.indexWhere((candidate) => candidate.id == selected.id);
       if (_queueIndex < 0) _queueIndex = 0;
     }
-    if (_resumeTrackId != null && _resumeTrackId != track.id) {
+
+    final active = _queue[_queueIndex];
+    _fallbackTrack = active;
+    if (_resumeTrackId != null && _resumeTrackId != active.id) {
       _clearResumePosition();
     }
-    final pendingSeek = _resumeTrackId == track.id ? _resumePosition : null;
+    final pendingSeek = _resumeTrackId == active.id ? _resumePosition : null;
     final sessionId = ++_sessionGeneration;
     _completionHandledSession = null;
     if (_engine case PlaylistPlaybackEngine engine) {
@@ -131,16 +168,43 @@ class SoundPlaybackController extends ChangeNotifier {
         loopMode: _queueLoopMode,
       );
     } else {
-      await _engine.load(track, sessionId: sessionId);
+      await _engine.load(active, sessionId: sessionId);
     }
     if (_disposed || sessionId != _sessionGeneration) return;
     if (pendingSeek != null && pendingSeek > Duration.zero) {
       await _engine.seek(pendingSeek);
       if (_disposed || sessionId != _sessionGeneration) return;
-      if (_resumeTrackId == track.id) _clearResumePosition();
+      if (_resumeTrackId == active.id) _clearResumePosition();
     }
     await _engine.play();
     if (_disposed || sessionId != _sessionGeneration) return;
+    notifyListeners();
+  }
+
+  /// Re-attaches catalog lyrics to queue entries that restored without them.
+  ///
+  /// Safe to call after session restore or whenever the library finishes loading.
+  Future<void> hydrateQueueLyrics() async {
+    final source = _lyricsSource;
+    if (source == null || _disposed || _queue.isEmpty) return;
+    final token = ++_lyricsHydrationGeneration;
+    final hydrated = await _hydrateTracks(_queue);
+    if (_disposed || token != _lyricsHydrationGeneration) return;
+    if (!_queueLyricsChanged(_queue, hydrated)) return;
+    final currentId = displayTrack?.id ?? _queue[_queueIndex].id;
+    _queue = hydrated;
+    final index = _queue.indexWhere((track) => track.id == currentId);
+    if (index >= 0) {
+      _queueIndex = index;
+      _fallbackTrack = _queue[index];
+      final snapshotTrack = _snapshot.track;
+      if (snapshotTrack != null &&
+          snapshotTrack.id == currentId &&
+          snapshotTrack.lyrics.isEmpty &&
+          _queue[index].lyrics.isNotEmpty) {
+        _snapshot = _snapshot.copyWith(track: _queue[index]);
+      }
+    }
     notifyListeners();
   }
 
@@ -392,6 +456,83 @@ class SoundPlaybackController extends ChangeNotifier {
   void _clearResumePosition() {
     _resumePosition = null;
     _resumeTrackId = null;
+  }
+
+  Future<Track> _hydrateTrack(Track track) async {
+    if (track.lyrics.isNotEmpty) return track;
+    final source = _lyricsSource;
+    if (source == null) return track;
+    try {
+      final lyrics = await source.lyricsForTrack(track.id);
+      if (lyrics.isEmpty) return track;
+      return track.copyWith(lyrics: lyrics);
+    } catch (error, stackTrace) {
+      FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: error,
+          stack: stackTrace,
+          library: 'sound playback lyrics',
+          context: ErrorDescription(
+            'while hydrating lyrics for track ${track.id}',
+          ),
+        ),
+      );
+      return track;
+    }
+  }
+
+  Future<List<Track>> _hydrateTracks(List<Track> tracks) async {
+    final source = _lyricsSource;
+    if (source == null || tracks.isEmpty) return List.of(tracks);
+    final missingIds = [
+      for (final track in tracks)
+        if (track.lyrics.isEmpty) track.id,
+    ];
+    if (missingIds.isEmpty) return List.of(tracks);
+    try {
+      final lyricsById = await source.lyricsForTracks(missingIds);
+      if (lyricsById.isEmpty) return List.of(tracks);
+      return [
+        for (final track in tracks)
+          if (track.lyrics.isEmpty)
+            if (lyricsById[track.id] case final List<LyricLine> lyrics
+                when lyrics.isNotEmpty)
+              track.copyWith(lyrics: lyrics)
+            else
+              track
+          else
+            track,
+      ];
+    } catch (error, stackTrace) {
+      FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: error,
+          stack: stackTrace,
+          library: 'sound playback lyrics',
+          context: ErrorDescription('while hydrating queue lyrics'),
+        ),
+      );
+      return List.of(tracks);
+    }
+  }
+
+  Track _preferRicherLyrics(Track primary, Track fallback) {
+    if (primary.lyrics.isNotEmpty || fallback.lyrics.isEmpty) return primary;
+    return fallback;
+  }
+
+  bool _queueLyricsChanged(List<Track> before, List<Track> after) {
+    if (before.length != after.length) return true;
+    for (var index = 0; index < before.length; index++) {
+      if (before[index].id != after[index].id) return true;
+      if (before[index].lyrics.length != after[index].lyrics.length) {
+        return true;
+      }
+      if (before[index].lyrics.isEmpty && after[index].lyrics.isNotEmpty) {
+        return true;
+      }
+    }
+    return false;
   }
 
   void _acceptEngineSnapshot(PlaybackSnapshot next) {

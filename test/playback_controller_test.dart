@@ -619,11 +619,13 @@ void main() {
 
       final firstPlay = controller.playTrack(_firstTrack);
       final secondPlay = controller.playTrack(_secondTrack);
-      expect(engine.loadCount, 2);
+      // A newer playTrack invalidates in-flight hydration before load/play.
+      // Only the latest call should reach the engine.
+      await Future<void>.delayed(Duration.zero);
+      expect(engine.loadCount, 1);
 
-      engine.completeLoad(1);
-      await secondPlay;
       engine.completeLoad(0);
+      await secondPlay;
       await firstPlay;
 
       expect(controller.currentTrack, same(_secondTrack));
