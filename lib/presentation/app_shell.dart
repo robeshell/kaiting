@@ -747,7 +747,12 @@ class _AppShellState extends State<AppShell>
 
   void _openQueue() {
     if (widget.playback.queue.isEmpty) return;
-    showPlaybackQueueSheet(context, widget.playback);
+    showPlaybackQueueSheet(
+      context,
+      widget.playback,
+      onOpenAlbum: _openAlbumFromPlayer,
+      onOpenArtist: _openArtistFromPlayer,
+    );
   }
 
   KeyEventResult _handleKeyboardEvent(FocusNode node, KeyEvent event) {
@@ -920,6 +925,7 @@ class _AppShellState extends State<AppShell>
                     userState: _libraryUserState,
                     onBack: () => setState(() => _selectedCollection = null),
                     onOpenAlbum: _openAlbum,
+                    onOpenArtist: _openArtistByName,
                   )
                 : switch (_section) {
                     AppSection.library =>
@@ -946,6 +952,7 @@ class _AppShellState extends State<AppShell>
                               onBack: () =>
                                   _selectLibraryMode(_libraryBrowseMode),
                               onOpenAlbum: _openAlbum,
+                              onOpenArtist: _openArtistByName,
                               selectedPlaylistId: _selectedPlaylistId,
                               onSelectedPlaylistChanged: (playlistId) =>
                                   setState(

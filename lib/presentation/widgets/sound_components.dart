@@ -211,6 +211,7 @@ class SoundCompactMediaRow extends StatelessWidget {
     required this.leading,
     required this.title,
     this.subtitle,
+    this.subtitleWidget,
     this.trailing,
     this.titleColor,
     this.subtitleColor,
@@ -221,6 +222,7 @@ class SoundCompactMediaRow extends StatelessWidget {
   final Widget leading;
   final String title;
   final String? subtitle;
+  final Widget? subtitleWidget;
   final Widget? trailing;
   final Color? titleColor;
   final Color? subtitleColor;
@@ -228,6 +230,20 @@ class SoundCompactMediaRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final mutedStyle = TextStyle(
+      color: subtitleColor ?? context.soundMutedText,
+      fontSize: 12,
+    );
+    final subtitleChild =
+        subtitleWidget ??
+        (subtitle != null && subtitle!.isNotEmpty
+            ? Text(
+                subtitle!,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: mutedStyle,
+              )
+            : null);
     return SizedBox(
       height: height,
       child: Row(
@@ -249,17 +265,9 @@ class SoundCompactMediaRow extends StatelessWidget {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                if (subtitle != null && subtitle!.isNotEmpty) ...[
+                if (subtitleChild != null) ...[
                   const SizedBox(height: 3),
-                  Text(
-                    subtitle!,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: subtitleColor ?? context.soundMutedText,
-                      fontSize: 12,
-                    ),
-                  ),
+                  subtitleChild,
                 ],
               ],
             ),

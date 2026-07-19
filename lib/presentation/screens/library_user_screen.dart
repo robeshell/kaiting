@@ -12,6 +12,7 @@ import '../models/library_source_filter.dart';
 import '../widgets/add_to_playlist_sheet.dart';
 import '../widgets/album_art.dart';
 import '../widgets/sound_components.dart';
+import '../widgets/sound_metadata_line.dart';
 
 enum LibraryUserBrowseMode { favorites, recent, playlists }
 
@@ -48,6 +49,7 @@ class LibraryUserScreen extends StatefulWidget {
     required this.onModeChanged,
     required this.onBack,
     required this.onOpenAlbum,
+    this.onOpenArtist,
     required this.selectedPlaylistId,
     required this.onSelectedPlaylistChanged,
     super.key,
@@ -60,6 +62,7 @@ class LibraryUserScreen extends StatefulWidget {
   final ValueChanged<LibraryUserBrowseMode> onModeChanged;
   final VoidCallback onBack;
   final ValueChanged<Album> onOpenAlbum;
+  final ValueChanged<String>? onOpenArtist;
   final int? selectedPlaylistId;
   final ValueChanged<int?> onSelectedPlaylistChanged;
 
@@ -332,6 +335,9 @@ class _LibraryUserScreenState extends State<LibraryUserScreen> {
                     ),
                   ),
                   onOpenAlbum: () => widget.onOpenAlbum(album),
+                  onOpenArtist: widget.onOpenArtist == null
+                      ? null
+                      : () => widget.onOpenArtist!(track.artist),
                 );
               },
             ),
@@ -436,6 +442,7 @@ class _LibraryUserScreenState extends State<LibraryUserScreen> {
           onToggleFavorite: () {},
           onAddToPlaylist: () {},
           onOpenAlbum: () {},
+          onOpenArtist: () {},
         ),
         itemBuilder: (context, index) {
           final track = tracks[index];
@@ -454,6 +461,9 @@ class _LibraryUserScreenState extends State<LibraryUserScreen> {
               track: track,
             ),
             onOpenAlbum: () => widget.onOpenAlbum(album),
+            onOpenArtist: widget.onOpenArtist == null
+                ? null
+                : () => widget.onOpenArtist!(track.artist),
           );
         },
       ),
@@ -759,6 +769,7 @@ class _PlaylistTrackRow extends StatelessWidget {
     required this.onAddToPlaylist,
     required this.onRemove,
     required this.onOpenAlbum,
+    this.onOpenArtist,
     super.key,
   });
 
@@ -772,6 +783,7 @@ class _PlaylistTrackRow extends StatelessWidget {
   final VoidCallback onAddToPlaylist;
   final VoidCallback onRemove;
   final VoidCallback onOpenAlbum;
+  final VoidCallback? onOpenArtist;
 
   @override
   Widget build(BuildContext context) {
@@ -813,6 +825,8 @@ class _PlaylistTrackRow extends StatelessWidget {
                           child: _PlaylistTrackLabels(
                             track: track,
                             album: album,
+                            onOpenAlbum: onOpenAlbum,
+                            onOpenArtist: onOpenArtist,
                           ),
                         ),
                         _playlistActions(),
@@ -890,10 +904,17 @@ class _PlaylistTrackRow extends StatelessWidget {
 }
 
 class _PlaylistTrackLabels extends StatelessWidget {
-  const _PlaylistTrackLabels({required this.track, required this.album});
+  const _PlaylistTrackLabels({
+    required this.track,
+    required this.album,
+    this.onOpenAlbum,
+    this.onOpenArtist,
+  });
 
   final Track track;
   final Album album;
+  final VoidCallback? onOpenAlbum;
+  final VoidCallback? onOpenArtist;
 
   @override
   Widget build(BuildContext context) {
@@ -914,16 +935,11 @@ class _PlaylistTrackLabels extends StatelessWidget {
           ),
         ),
         const SizedBox(height: 3),
-        Text(
-          '${track.artist} · ${album.title}',
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(
-            fontSize: 11.5,
-            color: context.soundMutedText.withValues(
-              alpha: context.soundMutedText.a * 0.82,
-            ),
-          ),
+        SoundMetadataLine(
+          artist: track.artist,
+          album: album.title,
+          onOpenArtist: onOpenArtist,
+          onOpenAlbum: onOpenAlbum,
         ),
       ],
     );
@@ -1007,6 +1023,7 @@ class _UserTrackRow extends StatelessWidget {
     required this.onToggleFavorite,
     required this.onAddToPlaylist,
     required this.onOpenAlbum,
+    this.onOpenArtist,
     super.key,
   });
 
@@ -1017,6 +1034,7 @@ class _UserTrackRow extends StatelessWidget {
   final VoidCallback onToggleFavorite;
   final VoidCallback onAddToPlaylist;
   final VoidCallback onOpenAlbum;
+  final VoidCallback? onOpenArtist;
 
   @override
   Widget build(BuildContext context) {
@@ -1027,7 +1045,12 @@ class _UserTrackRow extends StatelessWidget {
         borderRadius: context.soundIsCompact ? 8 : 6,
       ),
       title: track.title,
-      subtitle: '${track.artist} · ${album.title}',
+      subtitleWidget: SoundMetadataLine(
+        artist: track.artist,
+        album: album.title,
+        onOpenArtist: onOpenArtist,
+        onOpenAlbum: onOpenAlbum,
+      ),
       onActivate: onTap,
       trailing: Row(
         mainAxisSize: MainAxisSize.min,

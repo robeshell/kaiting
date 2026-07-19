@@ -1,25 +1,40 @@
 import 'package:flutter/material.dart';
 
 import '../../core/sound_theme.dart';
+import '../../domain/library_models.dart';
 import '../../playback/playback_controller.dart';
 import '../../playback/playback_mode.dart';
 import 'sound_components.dart';
+import 'sound_metadata_line.dart';
 
 Future<void> showPlaybackQueueSheet(
   BuildContext context,
-  SoundPlaybackController playback,
-) {
+  SoundPlaybackController playback, {
+  ValueChanged<Album>? onOpenAlbum,
+  ValueChanged<String>? onOpenArtist,
+}) {
   return showSoundBottomSheet<void>(
     context,
     showHandle: false,
-    builder: (_) => PlaybackQueueSheet(playback: playback),
+    builder: (_) => PlaybackQueueSheet(
+      playback: playback,
+      onOpenAlbum: onOpenAlbum,
+      onOpenArtist: onOpenArtist,
+    ),
   );
 }
 
 class PlaybackQueueSheet extends StatelessWidget {
-  const PlaybackQueueSheet({required this.playback, super.key});
+  const PlaybackQueueSheet({
+    required this.playback,
+    this.onOpenAlbum,
+    this.onOpenArtist,
+    super.key,
+  });
 
   final SoundPlaybackController playback;
+  final ValueChanged<Album>? onOpenAlbum;
+  final ValueChanged<String>? onOpenArtist;
 
   @override
   Widget build(BuildContext context) {
@@ -28,6 +43,8 @@ class PlaybackQueueSheet extends StatelessWidget {
       child: PlaybackQueuePanel(
         playback: playback,
         onClose: () => Navigator.of(context).pop(),
+        onOpenAlbum: onOpenAlbum,
+        onOpenArtist: onOpenArtist,
       ),
     );
   }
@@ -40,12 +57,16 @@ class PlaybackQueuePanel extends StatelessWidget {
     required this.playback,
     this.embedded = false,
     this.onClose,
+    this.onOpenAlbum,
+    this.onOpenArtist,
     super.key,
   });
 
   final SoundPlaybackController playback;
   final bool embedded;
   final VoidCallback? onClose;
+  final ValueChanged<Album>? onOpenAlbum;
+  final ValueChanged<String>? onOpenArtist;
 
   @override
   Widget build(BuildContext context) {
@@ -153,6 +174,19 @@ class PlaybackQueuePanel extends StatelessWidget {
                       itemBuilder: (context, index) {
                         final track = queue[index];
                         final active = track.id == activeId;
+                        final album = albumForTrack(track);
+                        final openAlbum = onOpenAlbum == null
+                            ? null
+                            : () {
+                                onClose?.call();
+                                onOpenAlbum!(album);
+                              };
+                        final openArtist = onOpenArtist == null
+                            ? null
+                            : () {
+                                onClose?.call();
+                                onOpenArtist!(track.artist);
+                              };
                         if (compact) {
                           return SoundTrackActivation(
                             key: ValueKey(track.id),
@@ -196,8 +230,17 @@ class PlaybackQueuePanel extends StatelessWidget {
                                 titleColor: active
                                     ? SoundColors.accent.withValues(alpha: 0.9)
                                     : null,
-                                subtitle:
-                                    '${track.artist} — ${track.albumTitle}',
+                                subtitleWidget: SoundMetadataLine(
+                                  artist: track.artist,
+                                  album: track.albumTitle,
+                                  separator: ' — ',
+                                  onOpenArtist: openArtist,
+                                  onOpenAlbum: openAlbum,
+                                  style: TextStyle(
+                                    color: context.soundMutedText,
+                                    fontSize: 12,
+                                  ),
+                                ),
                                 trailing: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
@@ -274,10 +317,11 @@ class PlaybackQueuePanel extends StatelessWidget {
                                   : FontWeight.w600,
                             ),
                           ),
-                          subtitle: Text(
-                            '${track.artist} · ${track.albumTitle}',
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
+                          subtitle: SoundMetadataLine(
+                            artist: track.artist,
+                            album: track.albumTitle,
+                            onOpenArtist: openArtist,
+                            onOpenAlbum: openAlbum,
                             style: TextStyle(color: context.soundSecondaryText),
                           ),
                           trailing: Row(

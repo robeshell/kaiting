@@ -14,6 +14,7 @@ import '../models/library_source_filter.dart';
 import '../widgets/add_to_playlist_sheet.dart';
 import '../widgets/album_art.dart';
 import '../widgets/sound_components.dart';
+import '../widgets/sound_metadata_line.dart';
 import 'library_user_screen.dart';
 
 enum LibraryBrowseMode { albums, artists, songs }
@@ -603,6 +604,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
             onToggleFavorite: null,
             onAddToPlaylist: null,
             onOpenAlbum: () {},
+            onOpenArtist: () {},
           ),
           itemBuilder: (context, index) {
             final track = tracks[index];
@@ -623,6 +625,15 @@ class _LibraryScreenState extends State<LibraryScreen> {
                       track: track,
                     ),
               onOpenAlbum: () => widget.onOpenAlbum(album),
+              onOpenArtist: () {
+                final collection = findArtistCollection(
+                  widget.catalog.albums,
+                  track.artist,
+                );
+                if (collection != null) {
+                  widget.onOpenCollection(collection);
+                }
+              },
             );
           },
         ),
@@ -897,6 +908,7 @@ class _LibraryTrackRow extends StatelessWidget {
     required this.onToggleFavorite,
     required this.onAddToPlaylist,
     required this.onOpenAlbum,
+    this.onOpenArtist,
   });
 
   final Track track;
@@ -906,6 +918,7 @@ class _LibraryTrackRow extends StatelessWidget {
   final VoidCallback? onToggleFavorite;
   final VoidCallback? onAddToPlaylist;
   final VoidCallback onOpenAlbum;
+  final VoidCallback? onOpenArtist;
 
   @override
   Widget build(BuildContext context) {
@@ -914,7 +927,12 @@ class _LibraryTrackRow extends StatelessWidget {
       key: ValueKey('library-track-row-${track.id}'),
       leading: AlbumArt(album: album, borderRadius: compact ? 8 : 6),
       title: track.title,
-      subtitle: '${track.artist} · ${track.albumTitle}',
+      subtitleWidget: SoundMetadataLine(
+        artist: track.artist,
+        album: track.albumTitle,
+        onOpenArtist: onOpenArtist,
+        onOpenAlbum: onOpenAlbum,
+      ),
       onActivate: onTap,
       compactTrailing: SoundMenuButton<String>(
         key: ValueKey('library-track-actions-${track.id}'),

@@ -164,8 +164,12 @@ class NowPlayingScreen extends StatelessWidget {
                         ),
                         if (!wideIntegratedQueue)
                           IconButton.filledTonal(
-                            onPressed: () =>
-                                showPlaybackQueueSheet(context, playback),
+                            onPressed: () => showPlaybackQueueSheet(
+                              context,
+                              playback,
+                              onOpenAlbum: onOpenAlbum,
+                              onOpenArtist: onOpenArtist,
+                            ),
                             tooltip: '播放队列',
                             icon: const Icon(Icons.queue_music_rounded),
                           ),
@@ -430,6 +434,8 @@ class _WideNowPlayingState extends State<_WideNowPlaying> {
                     track: widget.track,
                     playback: widget.playback,
                     onViewChanged: (view) => setState(() => _view = view),
+                    onOpenAlbum: widget.onOpenAlbum,
+                    onOpenArtist: widget.onOpenArtist,
                   ),
                 ),
               ),
@@ -447,12 +453,16 @@ class _WideNowPlayingPane extends StatelessWidget {
     required this.track,
     required this.playback,
     required this.onViewChanged,
+    this.onOpenAlbum,
+    this.onOpenArtist,
   });
 
   final _WideNowPlayingView view;
   final Track track;
   final SoundPlaybackController playback;
   final ValueChanged<_WideNowPlayingView> onViewChanged;
+  final ValueChanged<Album>? onOpenAlbum;
+  final ValueChanged<String>? onOpenArtist;
 
   @override
   Widget build(BuildContext context) {
@@ -476,6 +486,8 @@ class _WideNowPlayingPane extends StatelessWidget {
                 key: const ValueKey('wide-playback-queue'),
                 playback: playback,
                 embedded: true,
+                onOpenAlbum: onOpenAlbum,
+                onOpenArtist: onOpenArtist,
               ),
             ],
           ),

@@ -14,6 +14,7 @@ import '../widgets/album_art.dart';
 import '../widgets/animated_artwork_background.dart';
 import '../widgets/progress_scrubber.dart';
 import '../widgets/sound_components.dart';
+import '../widgets/sound_metadata_line.dart';
 
 enum LibraryCollectionTrackSort { libraryOrder, title, artist, album }
 
@@ -33,6 +34,7 @@ class LibraryCollectionScreen extends StatefulWidget {
     this.userState,
     required this.onBack,
     required this.onOpenAlbum,
+    this.onOpenArtist,
     super.key,
   });
 
@@ -41,6 +43,7 @@ class LibraryCollectionScreen extends StatefulWidget {
   final LibraryUserStateController? userState;
   final VoidCallback onBack;
   final ValueChanged<Album> onOpenAlbum;
+  final ValueChanged<String>? onOpenArtist;
 
   @override
   State<LibraryCollectionScreen> createState() =>
@@ -287,6 +290,7 @@ class _LibraryCollectionScreenState extends State<LibraryCollectionScreen> {
                     onToggleFavorite: null,
                     onAddToPlaylist: null,
                     onOpenAlbum: () {},
+                    onOpenArtist: () {},
                     pagePalette: pagePalette,
                   ),
                   itemBuilder: (context, index) {
@@ -312,6 +316,9 @@ class _LibraryCollectionScreenState extends State<LibraryCollectionScreen> {
                               track: track,
                             ),
                       onOpenAlbum: () => widget.onOpenAlbum(album),
+                      onOpenArtist: widget.onOpenArtist == null
+                          ? null
+                          : () => widget.onOpenArtist!(track.artist),
                       pagePalette: pagePalette,
                     );
                   },
@@ -1041,6 +1048,7 @@ class _CollectionTrackRow extends StatelessWidget {
     required this.onToggleFavorite,
     required this.onAddToPlaylist,
     required this.onOpenAlbum,
+    this.onOpenArtist,
     required this.pagePalette,
   });
 
@@ -1052,11 +1060,24 @@ class _CollectionTrackRow extends StatelessWidget {
   final VoidCallback? onToggleFavorite;
   final VoidCallback? onAddToPlaylist;
   final VoidCallback onOpenAlbum;
+  final VoidCallback? onOpenArtist;
   final ArtworkPagePalette? pagePalette;
 
   @override
   Widget build(BuildContext context) {
     final compact = context.soundIsCompact;
+    final metaStyle = TextStyle(
+      fontSize: compact ? 12 : 12,
+      color: pagePalette?.mutedText ?? context.soundSecondaryText,
+    );
+    final metadata = SoundMetadataLine(
+      artist: track.artist,
+      album: album.title,
+      separator: compact ? ' — ' : ' · ',
+      onOpenArtist: onOpenArtist,
+      onOpenAlbum: onOpenAlbum,
+      style: metaStyle,
+    );
     return SoundTrackActivation(
       onActivate: onTap,
       semanticLabel: track.title,
@@ -1076,7 +1097,7 @@ class _CollectionTrackRow extends StatelessWidget {
                   leading: AlbumArt(album: album, borderRadius: 8),
                   title: track.title,
                   titleColor: pagePalette?.primaryText,
-                  subtitle: '${track.artist} — ${album.title}',
+                  subtitleWidget: metadata,
                   subtitleColor: pagePalette?.mutedText,
                   trailing: _actions(compact: true),
                 )
@@ -1095,15 +1116,7 @@ class _CollectionTrackRow extends StatelessWidget {
                       fontWeight: FontWeight.w700,
                     ),
                   ),
-                  subtitle: Text(
-                    '${track.artist} · ${album.title}',
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: context.soundSecondaryText,
-                    ),
-                  ),
+                  subtitle: metadata,
                   trailing: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
