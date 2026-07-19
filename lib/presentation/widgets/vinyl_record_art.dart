@@ -297,18 +297,20 @@ class _VinylDiscPainter extends CustomPainter {
   bool shouldRepaint(_VinylDiscPainter oldPainter) => false;
 }
 
-/// Rest: upper-right of pivot, head **clear of the platter**.
-/// Play rotation lowers it onto the black ring (still upper-right).
+/// Bent-tube tonearm (original proportions): long steep run out of the pivot,
+/// soft elbow, short near-level run into the headshell — same family as the
+/// reference white S-curve arm. Rest pose still clears the platter because
+/// the composition pivot sits high above a slightly lower disc.
 class _TonearmPainter extends CustomPainter {
   const _TonearmPainter();
 
   static const _armColor = Color(0xFFF2F2F4);
 
   /// Rest offsets from pivot in [unit] multiples (+x right, +y down).
-  /// Long enough that the cartridge sits outside the outer rim.
-  static const elbowFromPivot = Offset(0.18, 0.12);
-  static const tipFromPivot = Offset(0.38, 0.20);
-  static const cartridgePastTip = 0.05;
+  /// These ratios match the first vinyl implementation (elbow + long boom).
+  static const elbowFromPivot = Offset(0.205, 0.163);
+  static const tipFromPivot = Offset(0.413, 0.18);
+  static const cartridgePastTip = 0.055;
 
   static Offset cartridgeCenterFromPivot(double unit) {
     final tip = Offset(tipFromPivot.dx * unit, tipFromPivot.dy * unit);
@@ -322,12 +324,15 @@ class _TonearmPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final pivot = size.center(Offset.zero);
     final unit = size.shortestSide;
+    // Rest: headshell clear of the upper-right rim (composition places the
+    // pivot high enough that this boom does not sit on the black ring).
     final tip = pivot + Offset(tipFromPivot.dx * unit, tipFromPivot.dy * unit);
     final elbow =
         pivot + Offset(elbowFromPivot.dx * unit, elbowFromPivot.dy * unit);
     final seg1 = elbow - pivot;
     final seg2 = tip - elbow;
-    final trim = unit * 0.03;
+    // Rounded elbow: trim both segments and bridge with a quadratic.
+    final trim = unit * 0.035;
     final before = elbow - seg1 / seg1.distance * trim;
     final after = elbow + seg2 / seg2.distance * trim;
     final armPath = Path()
@@ -340,11 +345,13 @@ class _TonearmPainter extends CustomPainter {
       Paint()
         ..color = _armColor
         ..style = PaintingStyle.stroke
-        ..strokeWidth = unit * 0.026
+        ..strokeWidth = unit * 0.028
         ..strokeCap = StrokeCap.round
         ..strokeJoin = StrokeJoin.round,
     );
 
+    // Cartridge: clean headshell aligned with the last segment (reference
+    // white block with a thin face groove).
     final tangentAngle = math.atan2(tip.dy - elbow.dy, tip.dx - elbow.dx);
     canvas.save();
     canvas.translate(tip.dx, tip.dy);
@@ -353,35 +360,45 @@ class _TonearmPainter extends CustomPainter {
       RRect.fromRectAndRadius(
         Rect.fromCenter(
           center: Offset(unit * cartridgePastTip, 0),
-          width: unit * 0.10,
-          height: unit * 0.042,
+          width: unit * 0.11,
+          height: unit * 0.046,
         ),
-        Radius.circular(unit * 0.009),
+        Radius.circular(unit * 0.010),
       ),
       Paint()..color = _armColor,
     );
+    // Face vent / stylus block detail on the headshell.
     canvas.drawLine(
-      Offset(unit * 0.005, -unit * 0.018),
-      Offset(unit * 0.005, unit * 0.018),
+      Offset(unit * 0.006, -unit * 0.020),
+      Offset(unit * 0.006, unit * 0.020),
       Paint()
         ..color = Colors.black.withValues(alpha: 0.35)
-        ..strokeWidth = unit * 0.007
+        ..strokeWidth = unit * 0.008
+        ..strokeCap = StrokeCap.round,
+    );
+    canvas.drawLine(
+      Offset(unit * 0.028, -unit * 0.014),
+      Offset(unit * 0.028, unit * 0.014),
+      Paint()
+        ..color = Colors.black.withValues(alpha: 0.22)
+        ..strokeWidth = unit * 0.006
         ..strokeCap = StrokeCap.round,
     );
     canvas.restore();
 
-    canvas.drawCircle(pivot, unit * 0.038, Paint()..color = _armColor);
+    // Pivot cap.
+    canvas.drawCircle(pivot, unit * 0.040, Paint()..color = _armColor);
     canvas.drawCircle(
       pivot,
-      unit * 0.038,
+      unit * 0.040,
       Paint()
         ..style = PaintingStyle.stroke
-        ..strokeWidth = unit * 0.006
+        ..strokeWidth = unit * 0.007
         ..color = Colors.black.withValues(alpha: 0.18),
     );
     canvas.drawCircle(
       pivot,
-      unit * 0.012,
+      unit * 0.013,
       Paint()..color = Colors.white.withValues(alpha: 0.85),
     );
   }
