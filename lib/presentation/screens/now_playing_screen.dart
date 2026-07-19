@@ -587,19 +587,15 @@ class _WidePaneIconSwitch extends StatelessWidget {
   }
 }
 
-/// Phone / narrow compact vinyl size: large enough to read, small enough that
-/// title + transport still fit without crushing the pivot air above the rim.
+/// Phone / narrow compact vinyl size — prefer a large platter; title and
+/// transport scroll below if needed.
 double _compactVinylArtSize(BuildContext context) {
   final size = MediaQuery.sizeOf(context);
-  final shortest = size.shortestSide;
-  final byWidth = (size.width - 56).clamp(220.0, 360.0);
-  // Leave ~48% of height for title, scrubber, transport, and bottom chrome.
-  final byHeight = (size.height * 0.42).clamp(220.0, 360.0);
-  final side = math.min(byWidth, byHeight);
-  // Extra-narrow phones stay slightly smaller so the arm base still has air.
-  if (shortest < 360) return math.min(side, 280.0);
-  if (shortest < 400) return math.min(side, 320.0);
-  return side;
+  // Use nearly full width (side gutters already on the scroll padding).
+  final byWidth = (size.width - 32).clamp(260.0, 420.0);
+  // Give the disc a larger share of the viewport height.
+  final byHeight = (size.height * 0.52).clamp(260.0, 420.0);
+  return math.min(byWidth, byHeight);
 }
 
 double _centerDisplayFeatureGap(
@@ -792,16 +788,16 @@ class _CompactNowPlayingState extends State<_CompactNowPlaying> {
                   controller: _coverScrollController,
                   physics: const AlwaysScrollableScrollPhysics(),
                   padding: EdgeInsets.fromLTRB(
-                    28,
+                    widget.style == NowPlayingStyle.vinyl ? 16 : 28,
                     8,
-                    28,
-                    widget.style == NowPlayingStyle.vinyl ? 32 : 40,
+                    widget.style == NowPlayingStyle.vinyl ? 16 : 28,
+                    widget.style == NowPlayingStyle.vinyl ? 28 : 40,
                   ),
                   child: Center(
                     child: ConstrainedBox(
                       constraints: BoxConstraints(
                         maxWidth: widget.style == NowPlayingStyle.vinyl
-                            ? 400
+                            ? 440
                             : 430,
                       ),
                       child: _PlayerColumn(
