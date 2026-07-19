@@ -904,10 +904,6 @@ class _PlayerColumn extends StatelessWidget {
               color: context.soundSecondaryText,
               fontSize: 13,
               fontWeight: FontWeight.w700,
-              decoration: TextDecoration.underline,
-              decorationColor: context.soundSecondaryText.withValues(
-                alpha: 0.32,
-              ),
             ),
           ),
         ),
@@ -1144,9 +1140,6 @@ class _CompactLyricsPlayer extends StatelessWidget {
                             color: context.soundSecondaryText,
                             fontSize: 12,
                             fontWeight: FontWeight.w700,
-                            decoration: TextDecoration.underline,
-                            decorationColor: context.soundSecondaryText
-                                .withValues(alpha: 0.32),
                           ),
                         ),
                       ),

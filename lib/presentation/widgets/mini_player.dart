@@ -669,10 +669,6 @@ class _TrackIdentity extends StatelessWidget {
               color: context.soundSecondaryText,
               fontSize: metaSize,
               fontWeight: FontWeight.w700,
-              decoration: TextDecoration.underline,
-              decorationColor: context.soundSecondaryText.withValues(
-                alpha: 0.28,
-              ),
             ),
           ),
           if (showBadges) ...[

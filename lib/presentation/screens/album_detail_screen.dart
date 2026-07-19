@@ -408,12 +408,6 @@ class _Hero extends StatelessWidget {
                       fontSize: 15,
                       height: 1.22,
                       fontWeight: FontWeight.w600,
-                      decoration: onOpenArtist == null
-                          ? TextDecoration.none
-                          : TextDecoration.underline,
-                      decorationColor: palette.secondaryText.withValues(
-                        alpha: 0.35,
-                      ),
                     ),
                   ),
                 ),
@@ -612,12 +606,6 @@ class _Hero extends StatelessWidget {
                                 height: 1.08,
                                 fontWeight: FontWeight.w800,
                                 letterSpacing: -0.45,
-                                decoration: onOpenArtist == null
-                                    ? TextDecoration.none
-                                    : TextDecoration.underline,
-                                decorationColor: SoundColors.accent.withValues(
-                                  alpha: 0.35,
-                                ),
                               ),
                             ),
                           ),
