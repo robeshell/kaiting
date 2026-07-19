@@ -6,6 +6,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:sound_player/app/sound_app.dart';
 import 'package:sound_player/app/reverie_launch_screen.dart';
 import 'package:sound_player/core/sound_theme.dart';
+import 'package:sound_player/core/now_playing_style.dart';
 import 'package:sound_player/domain/library_models.dart';
 import 'package:sound_player/library/library_records.dart';
 import 'package:sound_player/library/persistence/drift_library_repository.dart';
@@ -1640,6 +1641,46 @@ void main() {
     expect(tester.takeException(), isNull);
 
     await _unmountAndFlush(tester);
+  });
+
+  testWidgets('vinyl style renders the record art on phone and desktop', (
+    tester,
+  ) async {
+    _simulatePlatform(TargetPlatform.iOS);
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final engine = SimulatedPlaybackEngine();
+    final playback = SoundPlaybackController(engine: engine);
+    await playback.playTrack(_testTrack, queue: const [_testTrack]);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: NowPlayingScreen(
+          playback: playback,
+          style: NowPlayingStyle.vinyl,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('vinyl-record-art')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    tester.view.physicalSize = const Size(1100, 800);
+    await tester.pump();
+
+    expect(find.byKey(const ValueKey('vinyl-record-art')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('wide-now-playing-lyrics')),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
+
+    await _unmountAndFlush(tester);
+    playback.dispose();
+    engine.dispose();
   });
 
   testWidgets('tapping a synchronized lyric seeks immediately', (tester) async {

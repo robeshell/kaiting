@@ -2186,6 +2186,7 @@ class _NowPlayingStyleCard extends StatelessWidget {
       NowPlayingStyle.classic => (1, 1),
       NowPlayingStyle.coverFocus => (6, 4),
       NowPlayingStyle.immersiveLyrics => (4, 6),
+      NowPlayingStyle.vinyl => (1, 1),
     };
     return Semantics(
       button: true,
@@ -2235,14 +2236,45 @@ class _NowPlayingStyleCard extends StatelessWidget {
                                     : 0.64,
                                 child: AspectRatio(
                                   aspectRatio: 1,
-                                  child: DecoratedBox(
-                                    decoration: BoxDecoration(
-                                      color: SoundColors.accent.withValues(
-                                        alpha: selected ? 0.72 : 0.42,
-                                      ),
-                                      borderRadius: BorderRadius.circular(4),
-                                    ),
-                                  ),
+                                  child: style == NowPlayingStyle.vinyl
+                                      ? DecoratedBox(
+                                          decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            color: _settingsPrimaryText(
+                                              context,
+                                            ).withValues(alpha: 0.82),
+                                          ),
+                                          child: Center(
+                                            child: FractionallySizedBox(
+                                              widthFactor: 0.42,
+                                              heightFactor: 0.42,
+                                              child: DecoratedBox(
+                                                decoration: BoxDecoration(
+                                                  shape: BoxShape.circle,
+                                                  color: SoundColors.accent
+                                                      .withValues(
+                                                        alpha: selected
+                                                            ? 0.72
+                                                            : 0.42,
+                                                      ),
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        )
+                                      : DecoratedBox(
+                                          decoration: BoxDecoration(
+                                            color: SoundColors.accent
+                                                .withValues(
+                                                  alpha: selected
+                                                      ? 0.72
+                                                      : 0.42,
+                                                ),
+                                            borderRadius: BorderRadius.circular(
+                                              4,
+                                            ),
+                                          ),
+                                        ),
                                 ),
                               ),
                             ),

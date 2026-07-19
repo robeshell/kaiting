@@ -1,22 +1,25 @@
-enum NowPlayingStyle { classic, coverFocus, immersiveLyrics }
+enum NowPlayingStyle { classic, coverFocus, immersiveLyrics, vinyl }
 
 extension NowPlayingStyleMetadata on NowPlayingStyle {
   String get id => switch (this) {
     NowPlayingStyle.classic => 'classic',
     NowPlayingStyle.coverFocus => 'cover-focus',
     NowPlayingStyle.immersiveLyrics => 'immersive-lyrics',
+    NowPlayingStyle.vinyl => 'vinyl',
   };
 
   String get label => switch (this) {
     NowPlayingStyle.classic => '经典双栏',
     NowPlayingStyle.coverFocus => '封面主导',
     NowPlayingStyle.immersiveLyrics => '沉浸歌词',
+    NowPlayingStyle.vinyl => '黑胶唱片',
   };
 
   String get description => switch (this) {
     NowPlayingStyle.classic => '均衡呈现封面、控制与歌词',
     NowPlayingStyle.coverFocus => '放大唱片封面，保留精简歌词',
     NowPlayingStyle.immersiveLyrics => '为歌词留出更多空间，移动端默认打开歌词',
+    NowPlayingStyle.vinyl => '旋转的黑胶碟片与唱臂，落针即播放',
   };
 }
 

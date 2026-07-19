@@ -20,6 +20,7 @@ import '../widgets/playback_status_badge.dart';
 import '../widgets/playback_queue_sheet.dart';
 import '../widgets/progress_scrubber.dart';
 import '../widgets/sound_components.dart';
+import '../widgets/vinyl_record_art.dart';
 
 class NowPlayingScreen extends StatelessWidget {
   const NowPlayingScreen({
@@ -276,6 +277,7 @@ class _WideNowPlayingState extends State<_WideNowPlaying> {
                 NowPlayingStyle.classic => (1, 1),
                 NowPlayingStyle.coverFocus => (6, 4),
                 NowPlayingStyle.immersiveLyrics => (4, 6),
+                NowPlayingStyle.vinyl => (1, 1),
               };
         final availableWidth = math.max(
           320.0,
@@ -291,11 +293,13 @@ class _WideNowPlayingState extends State<_WideNowPlaying> {
           NowPlayingStyle.classic => 340.0,
           NowPlayingStyle.coverFocus => 420.0,
           NowPlayingStyle.immersiveLyrics => 280.0,
+          NowPlayingStyle.vinyl => 360.0,
         };
         final playerWidthLimit = switch (widget.style) {
           NowPlayingStyle.classic => 390.0,
           NowPlayingStyle.coverFocus => 470.0,
           NowPlayingStyle.immersiveLyrics => 330.0,
+          NowPlayingStyle.vinyl => 400.0,
         };
         final artSize = math.min(
           math.min(artLimit, paneWidth),
@@ -328,6 +332,7 @@ class _WideNowPlayingState extends State<_WideNowPlaying> {
                           album: widget.album,
                           track: widget.track,
                           playback: widget.playback,
+                          style: widget.style,
                           userState: widget.userState,
                           artSize: artSize,
                         ),
@@ -676,6 +681,7 @@ class _CompactNowPlayingState extends State<_CompactNowPlaying> {
                         album: widget.album,
                         track: widget.track,
                         playback: widget.playback,
+                        style: widget.style,
                         userState: widget.userState,
                         compactLayout: true,
                         onToggleLyrics: () =>
@@ -695,6 +701,7 @@ class _PlayerColumn extends StatelessWidget {
     required this.album,
     required this.track,
     required this.playback,
+    required this.style,
     this.userState,
     this.artSize,
     this.compactLayout = false,
@@ -704,6 +711,7 @@ class _PlayerColumn extends StatelessWidget {
   final Album album;
   final Track track;
   final SoundPlaybackController playback;
+  final NowPlayingStyle style;
   final LibraryUserStateController? userState;
   final double? artSize;
   final bool compactLayout;
@@ -711,19 +719,29 @@ class _PlayerColumn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final artwork = style == NowPlayingStyle.vinyl
+        ? VinylRecordArt(
+            key: compactLayout
+                ? const ValueKey('compact-now-playing-artwork')
+                : null,
+            album: album,
+            size: artSize,
+            isPlaying: playback.snapshot.isPlaying,
+          )
+        : _PlaybackResponsiveAlbumArt(
+            key: compactLayout
+                ? const ValueKey('compact-now-playing-artwork')
+                : null,
+            album: album,
+            size: artSize,
+            isPlaying: playback.snapshot.isPlaying,
+          );
     return Column(
       mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        _PlaybackResponsiveAlbumArt(
-          key: compactLayout
-              ? const ValueKey('compact-now-playing-artwork')
-              : null,
-          album: album,
-          size: artSize,
-          isPlaying: playback.snapshot.isPlaying,
-        ),
+        artwork,
         SizedBox(height: compactLayout ? 26 : 24),
         if (compactLayout)
           _TrackChangeTransition(

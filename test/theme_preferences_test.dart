@@ -35,7 +35,7 @@ void main() {
       await preferences.save(
         accentPreset: violet,
         skinPreset: SoundSkins.deepNight,
-        nowPlayingStyle: NowPlayingStyle.immersiveLyrics,
+        nowPlayingStyle: NowPlayingStyle.vinyl,
       );
 
       SoundColors.defaultAccentPreset.apply();
@@ -45,7 +45,7 @@ void main() {
 
       expect(restored.selectedAccentPreset, same(violet));
       expect(restored.selectedSkinPreset, same(SoundSkins.deepNight));
-      expect(restored.selectedNowPlayingStyle, NowPlayingStyle.immersiveLyrics);
+      expect(restored.selectedNowPlayingStyle, NowPlayingStyle.vinyl);
       expect(SoundColors.accent, SoundColors.defaultAccentPreset.accent);
     },
   );
