@@ -108,6 +108,190 @@ void main() {
     expect(duration, isNotNull);
     expect(duration!.inMilliseconds, 26122);
   });
+
+  test(
+    'keeps FLAC tags when a large truncated picture block would break image reads',
+    () async {
+      // Mimics WebDAV Range headers that capture Vorbis comments but not a
+      // multi-hundred-KB PICTURE payload (e.g. a 911 KB album cover).
+      final directory = await Directory.systemTemp.createTemp(
+        'sound-flac-trunc-art-',
+      );
+      addTearDown(() => directory.delete(recursive: true));
+      final file = File('${directory.path}/large-art.flac');
+      await file.writeAsBytes(
+        _withIncompleteTrailingPicture(
+          base64Decode(_flacFixture),
+          declaredImageBytes: 911 * 1024,
+        ),
+      );
+
+      final metadata = await const PackageAudioMetadataExtractor().extract(
+        file,
+      );
+
+      expect(metadata.title, 'Fixture FLAC');
+      expect(metadata.artist, 'Fixture Artist');
+      expect(metadata.album, 'Fixture Album');
+      expect(metadata.artwork, isNull);
+    },
+  );
+
+  test(
+    'shared extractAudioFileMetadata prefers tags when artwork pass fails',
+    () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'sound-flac-shared-',
+      );
+      addTearDown(() => directory.delete(recursive: true));
+      final file = File('${directory.path}/shared.flac');
+      await file.writeAsBytes(
+        _withIncompleteTrailingPicture(
+          base64Decode(_flacFixture),
+          declaredImageBytes: 2 * 1024 * 1024,
+        ),
+      );
+
+      final metadata = extractAudioFileMetadata(file.path);
+
+      expect(metadata.title, 'Fixture FLAC');
+      expect(metadata.artist, 'Fixture Artist');
+      expect(metadata.album, 'Fixture Album');
+      expect(metadata.artwork, isNull);
+    },
+  );
+
+  test(
+    'reads FLAC tags from a 512 KiB prefix of a file with a 911 KiB picture',
+    () async {
+      final directory = await Directory.systemTemp.createTemp(
+        'sound-flac-range-',
+      );
+      addTearDown(() => directory.delete(recursive: true));
+      final full = _withFullTrailingPicture(
+        base64Decode(_flacFixture),
+        imageBytes: 911 * 1024,
+      );
+      final prefix = File('${directory.path}/prefix.flac');
+      await prefix.writeAsBytes(full.sublist(0, 512 * 1024));
+
+      final metadata = extractAudioFileMetadata(prefix.path);
+
+      expect(metadata.title, 'Fixture FLAC');
+      expect(metadata.artist, 'Fixture Artist');
+      expect(metadata.album, 'Fixture Album');
+      expect(metadata.artwork, isNull);
+    },
+  );
+}
+
+/// Appends a last PICTURE block that *claims* [declaredImageBytes] of image
+/// data but only carries a few dozen bytes — enough to break `getImage: true`
+/// while leaving Vorbis comments intact for a tags-only retry.
+Uint8List _withIncompleteTrailingPicture(
+  Uint8List flac, {
+  required int declaredImageBytes,
+}) {
+  var offset = 4;
+  var lastBlockOffset = -1;
+  while (offset + 4 <= flac.length) {
+    final header = flac[offset];
+    final isLast = header >> 7 == 1;
+    final length =
+        (flac[offset + 1] << 16) |
+        (flac[offset + 2] << 8) |
+        flac[offset + 3];
+    lastBlockOffset = offset;
+    offset = offset + 4 + length;
+    if (isLast) break;
+  }
+  if (lastBlockOffset < 0) {
+    throw StateError('Fixture has no FLAC metadata blocks.');
+  }
+
+  final cleared = Uint8List.fromList(flac);
+  cleared[lastBlockOffset] = cleared[lastBlockOffset] & 0x7f;
+
+  final mime = ascii.encode('image/jpeg');
+  final pictureBody = <int>[
+    0x00, 0x00, 0x00, 0x03, // cover front
+    (mime.length >> 24) & 0xff,
+    (mime.length >> 16) & 0xff,
+    (mime.length >> 8) & 0xff,
+    mime.length & 0xff,
+    ...mime,
+    0x00, 0x00, 0x00, 0x00, // empty description
+    0x00, 0x00, 0x00, 0x01, // width
+    0x00, 0x00, 0x00, 0x01, // height
+    0x00, 0x00, 0x00, 0x18, // depth
+    0x00, 0x00, 0x00, 0x00, // colors
+    (declaredImageBytes >> 24) & 0xff,
+    (declaredImageBytes >> 16) & 0xff,
+    (declaredImageBytes >> 8) & 0xff,
+    declaredImageBytes & 0xff,
+    ...List<int>.filled(48, 0xff), // far smaller than declared
+  ];
+  final pictureHeader = <int>[
+    0x80 | 6, // last block + PICTURE
+    (pictureBody.length >> 16) & 0xff,
+    (pictureBody.length >> 8) & 0xff,
+    pictureBody.length & 0xff,
+  ];
+
+  return Uint8List.fromList([
+    ...cleared,
+    ...pictureHeader,
+    ...pictureBody,
+  ]);
+}
+
+/// Full trailing PICTURE with real image payload (for Range-prefix tests).
+Uint8List _withFullTrailingPicture(
+  Uint8List flac, {
+  required int imageBytes,
+}) {
+  var offset = 4;
+  var lastBlockOffset = -1;
+  while (offset + 4 <= flac.length) {
+    final header = flac[offset];
+    final isLast = header >> 7 == 1;
+    final length =
+        (flac[offset + 1] << 16) |
+        (flac[offset + 2] << 8) |
+        flac[offset + 3];
+    lastBlockOffset = offset;
+    offset = offset + 4 + length;
+    if (isLast) break;
+  }
+  final cleared = Uint8List.fromList(flac);
+  cleared[lastBlockOffset] = cleared[lastBlockOffset] & 0x7f;
+
+  final mime = ascii.encode('image/jpeg');
+  final pictureBody = <int>[
+    0x00, 0x00, 0x00, 0x03,
+    (mime.length >> 24) & 0xff,
+    (mime.length >> 16) & 0xff,
+    (mime.length >> 8) & 0xff,
+    mime.length & 0xff,
+    ...mime,
+    0x00, 0x00, 0x00, 0x00,
+    0x00, 0x00, 0x03, 0xe8,
+    0x00, 0x00, 0x03, 0xe8,
+    0x00, 0x00, 0x00, 0x18,
+    0x00, 0x00, 0x00, 0x00,
+    (imageBytes >> 24) & 0xff,
+    (imageBytes >> 16) & 0xff,
+    (imageBytes >> 8) & 0xff,
+    imageBytes & 0xff,
+    ...List<int>.filled(imageBytes, 0xab),
+  ];
+  final pictureHeader = <int>[
+    0x80 | 6,
+    (pictureBody.length >> 16) & 0xff,
+    (pictureBody.length >> 8) & 0xff,
+    pictureBody.length & 0xff,
+  ];
+  return Uint8List.fromList([...cleared, ...pictureHeader, ...pictureBody]);
 }
 
 Uint8List _withId3TextFrame(Uint8List bytes, String frameId, String value) {

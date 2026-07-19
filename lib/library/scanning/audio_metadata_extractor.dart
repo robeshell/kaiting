@@ -5,6 +5,9 @@ import 'dart:convert';
 
 import 'package:audio_metadata_reader/audio_metadata_reader.dart';
 
+import 'flac_tags_reader.dart';
+import 'image_bytes.dart';
+
 class ExtractedArtwork {
   const ExtractedArtwork({required this.bytes, required this.mimeType});
 
@@ -40,9 +43,54 @@ class ExtractedAudioMetadata {
   final String? genre;
   final String? lyrics;
   final ExtractedArtwork? artwork;
+
+  ExtractedAudioMetadata copyWith({
+    String? title,
+    String? artist,
+    String? album,
+    String? albumArtist,
+    bool? isCompilation,
+    Duration? duration,
+    int? trackNumber,
+    int? discNumber,
+    int? year,
+    String? genre,
+    String? lyrics,
+    ExtractedArtwork? artwork,
+    bool clearArtwork = false,
+  }) {
+    return ExtractedAudioMetadata(
+      title: title ?? this.title,
+      artist: artist ?? this.artist,
+      album: album ?? this.album,
+      albumArtist: albumArtist ?? this.albumArtist,
+      isCompilation: isCompilation ?? this.isCompilation,
+      duration: duration ?? this.duration,
+      trackNumber: trackNumber ?? this.trackNumber,
+      discNumber: discNumber ?? this.discNumber,
+      year: year ?? this.year,
+      genre: genre ?? this.genre,
+      lyrics: lyrics ?? this.lyrics,
+      artwork: clearArtwork ? null : (artwork ?? this.artwork),
+    );
+  }
 }
 
+/// Contract for local, WebDAV, and future scan providers.
+///
+/// **Tags outrank artwork.** Identity fields (title / artist / album) must be
+/// recoverable even when embedded cover art is missing, truncated (partial
+/// HTTP Range), corrupt, or multi‑megabyte. Artwork is always best-effort:
+/// `null` means "no cover", never "unknown track".
+///
+/// Prefer implementing via [PackageAudioMetadataExtractor] or the shared
+/// [extractAudioFileMetadata] helper so every provider inherits the same
+/// tags-first behavior.
 abstract interface class AudioMetadataExtractor {
+  /// Extract scan metadata for [file].
+  ///
+  /// Implementations must not require a successful artwork decode to return
+  /// title / artist / album when those tags are present in the container.
   Future<ExtractedAudioMetadata> extract(File file);
 }
 
@@ -51,18 +99,69 @@ class PackageAudioMetadataExtractor implements AudioMetadataExtractor {
 
   @override
   Future<ExtractedAudioMetadata> extract(File file) {
-    return Isolate.run(() => _extractMetadata(file.path));
+    return Isolate.run(() => extractAudioFileMetadata(file.path));
   }
 }
 
-ExtractedAudioMetadata _extractMetadata(String path) {
+/// Shared package-backed extract used by [PackageAudioMetadataExtractor].
+///
+/// Order:
+/// 1. Full parse with images (local files, small covers).
+/// 2. Tags-only package parse if (1) fails (truncated Range + large art).
+/// 3. Dedicated FLAC Vorbis walker that never loads `PICTURE` payloads —
+///    shared by every provider so multi‑MB covers cannot erase identity.
+ExtractedAudioMetadata extractAudioFileMetadata(String path) {
+  try {
+    final withArt = _extractMetadata(path, getImage: true);
+    // Truncated FLAC/WebDAV reads can return a zero-padded picture buffer
+    // that still has a PNG/JPEG header. Drop invalid art so callers retry
+    // with a larger range or keep tags-only without poisoning the cache.
+    final art = withArt.artwork;
+    if (art == null || looksLikeCompleteImageBytes(art.bytes)) {
+      return withArt;
+    }
+    return withArt.copyWith(clearArtwork: true);
+  } catch (_) {
+    // Fall through to tags-only paths.
+  }
+  try {
+    return _extractMetadata(path, getImage: false);
+  } catch (error) {
+    final flac = _extractFlacTagsOnly(path);
+    if (flac != null) return flac;
+    Error.throwWithStackTrace(error, StackTrace.current);
+  }
+}
+
+ExtractedAudioMetadata? _extractFlacTagsOnly(String path) {
+  if (!path.toLowerCase().endsWith('.flac')) return null;
+  final tags = readFlacTags(File(path));
+  if (tags == null) return null;
+  return ExtractedAudioMetadata(
+    title: tags.title,
+    artist: tags.artist,
+    album: tags.album,
+    albumArtist: tags.albumArtist,
+    isCompilation: tags.isCompilation,
+    duration: tags.duration,
+    trackNumber: tags.trackNumber,
+    discNumber: tags.discNumber,
+    year: tags.year,
+    genre: tags.genre,
+    lyrics: tags.lyrics,
+  );
+}
+
+ExtractedAudioMetadata _extractMetadata(String path, {required bool getImage}) {
   final file = File(path);
-  final metadata = readMetadata(file, getImage: true);
+  final metadata = readMetadata(file, getImage: getImage);
   final identity = _extractAlbumIdentity(file);
-  final picture = metadata.pictures
-      .where((picture) => picture.pictureType == PictureType.coverFront)
-      .firstOrNull;
-  final fallbackPicture = metadata.pictures.firstOrNull;
+  final picture = getImage
+      ? metadata.pictures
+            .where((picture) => picture.pictureType == PictureType.coverFront)
+            .firstOrNull
+      : null;
+  final fallbackPicture = getImage ? metadata.pictures.firstOrNull : null;
   final selectedPicture = picture ?? fallbackPicture;
   final year = metadata.year?.year;
   final duration = readMp3SeekHeaderDuration(file) ?? metadata.duration;

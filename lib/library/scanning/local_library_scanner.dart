@@ -12,6 +12,7 @@ import 'audio_metadata_fallback.dart';
 import 'audio_metadata_extractor.dart';
 import 'audio_format_registry.dart';
 import 'embedded_lyrics_parser.dart';
+import 'image_bytes.dart';
 import 'local_media_catalog.dart';
 import 'scan_cancellation.dart';
 import 'scan_task_pool.dart';
@@ -135,7 +136,7 @@ class LocalLibraryScanner {
           .where((audioFile) {
             final existing = existingTracksByPath[audioFile.relativePath];
             return existing == null ||
-                !_sameFileFingerprint(existing, audioFile);
+                !_shouldReuseLocalTrack(existing, audioFile);
           })
           .toList(growable: false);
       final metadataReads =
@@ -152,7 +153,7 @@ class LocalLibraryScanner {
       for (final audioFile in files) {
         token.throwIfCancelled();
         final existing = existingTracksByPath[audioFile.relativePath];
-        if (existing != null && _sameFileFingerprint(existing, audioFile)) {
+        if (existing != null && _shouldReuseLocalTrack(existing, audioFile)) {
           final reused = _reuseTrack(existing, audioFile);
           tracks.add(reused);
           lyrics.addAll(allLyrics[existing.id] ?? const []);
@@ -225,7 +226,12 @@ class LocalLibraryScanner {
           );
 
           final existingAlbum = albums[albumId];
+          // Drop keys that point at missing/truncated cache files so a fresh
+          // extract can rewrite the same album art path.
           var artworkKey = existingAlbum?.artworkKey;
+          if (artworkKey != null && !artworkFileLooksValid(artworkKey)) {
+            artworkKey = null;
+          }
           final artwork = metadata.artwork;
           if (artworkKey == null && artwork != null) {
             try {
@@ -399,6 +405,9 @@ class LocalLibraryScanner {
     try {
       token.throwIfCancelled();
       prepared = await catalog.prepareForMetadata(audioFile);
+      // Extractor contract: tags outrank artwork (see AudioMetadataExtractor).
+      // Local paths open the full file, so large covers usually succeed; when
+      // art is corrupt the package extractor still returns tags without art.
       try {
         metadata = await metadataExtractor.extract(prepared.file);
       } catch (_) {
@@ -490,6 +499,26 @@ Map<String, LibraryTrackRecord> _matchMovedTracks(
 bool _sameFileFingerprint(LibraryTrackRecord track, LocalAudioFile audioFile) {
   return track.fileSize == audioFile.fileSize &&
       track.modifiedAt.toUtc() == audioFile.modifiedAt.toUtc();
+}
+
+/// Reuse only when the bytes look unchanged *and* the previous pass looks
+/// complete. Re-read when identity fell back to 未知* or when artwork is still
+/// missing so a later extractor / larger WebDAV Range can fill covers without
+/// requiring the user to touch every file.
+bool _shouldReuseLocalTrack(
+  LibraryTrackRecord track,
+  LocalAudioFile audioFile,
+) {
+  if (!_sameFileFingerprint(track, audioFile)) return false;
+  if (_looksLikeFailedIdentityExtract(track)) return false;
+  if (track.artworkKey == null) return false;
+  // Re-extract when a previous truncated WebDAV/FLAC pass cached broken art.
+  if (!artworkFileLooksValid(track.artworkKey)) return false;
+  return true;
+}
+
+bool _looksLikeFailedIdentityExtract(LibraryTrackRecord track) {
+  return track.artistName == '未知艺人' && track.albumTitle == '未知专辑';
 }
 
 LibraryTrackRecord _reuseTrack(

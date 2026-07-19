@@ -14,6 +14,7 @@ import '../../library/scanning/album_grouping.dart';
 import '../../library/scanning/artwork_store.dart';
 import '../../library/scanning/audio_format_registry.dart';
 import '../../library/scanning/audio_metadata_extractor.dart';
+import '../../library/scanning/image_bytes.dart';
 import '../../library/scanning/scan_task_pool.dart';
 import 'webdav_connection_service.dart';
 import 'webdav_credentials.dart';
@@ -358,7 +359,7 @@ class WebDavFolderScanner {
     final filesNeedingMetadata = files
         .where((file) {
           final existing = existingTracksByUrl[file.url];
-          return existing == null || !_sameRemoteFingerprint(existing, file);
+          return existing == null || !_shouldReuseRemoteTrack(existing, file);
         })
         .toList(growable: false);
     final httpClient = HttpClient()
@@ -399,7 +400,7 @@ class WebDavFolderScanner {
       for (final file in files) {
         cancellationToken.throwIfCancelled();
         final existing = existingTracksByUrl[file.url];
-        if (existing != null && _sameRemoteFingerprint(existing, file)) {
+        if (existing != null && _shouldReuseRemoteTrack(existing, file)) {
           final reused = _reuseRemoteTrack(existing, file);
           tracks.add(reused);
           lyrics.addAll(allLyrics[existing.id] ?? const []);
@@ -466,6 +467,9 @@ class WebDavFolderScanner {
 
           final existingAlbum = albums[albumId];
           var artworkKey = existingAlbum?.artworkKey;
+          if (artworkKey != null && !artworkFileLooksValid(artworkKey)) {
+            artworkKey = null;
+          }
           if (artworkKey == null && metadata.artworkBytes != null) {
             artworkKey = await _storeArtwork(
               albumId,
@@ -616,27 +620,42 @@ class WebDavFolderScanner {
       '${DateTime.now().microsecondsSinceEpoch}_${file.url.hashCode}.tmp',
     );
     try {
-      // Try 256 KiB first; retry with 512 KiB if FLAC blocks extend further.
-      var parsed = await _tryParseHeader(
-        httpClient,
-        uri,
-        credentials,
-        256 * 1024,
-        tempFile,
-      );
-      if (parsed == null && file.extension == '.flac') {
-        parsed = await _tryParseHeader(
+      // Progressive header sizes. Tags often fit in 256 KiB, but FLAC covers
+      // around 1–2 MB (e.g. 1280² PNG) sit in a trailing PICTURE block and
+      // need a larger prefix. Keep expanding while tags are usable but art is
+      // still missing so we do not stop at the first successful tag-only pass.
+      final headerSizes = file.extension == '.flac'
+          ? const <int>[256 * 1024, 512 * 1024, 1536 * 1024, 3 * 1024 * 1024]
+          : const <int>[256 * 1024, 512 * 1024, 1536 * 1024];
+      _RemoteMetadata? parsed;
+      for (final headerSize in headerSizes) {
+        final attempt = await _tryParseHeader(
           httpClient,
           uri,
           credentials,
-          512 * 1024,
+          headerSize,
           tempFile,
         );
+        if (attempt == null) continue;
+        parsed = attempt;
+        final hasTags = _hasUsableRemoteTags(attempt);
+        // Extractor already drops zero-padded/truncated art; treat null as
+        // "need a larger prefix" rather than "file has no cover".
+        final hasArt = attempt.artworkBytes != null &&
+            attempt.artworkBytes!.isNotEmpty;
+        if (hasTags && hasArt) break;
+        if (hasTags && headerSize == headerSizes.last) break;
+        if (hasTags && !hasArt) continue;
       }
       // Discovery already established that this is a supported audio path.
       // Metadata is optional: truncated range reads, large embedded artwork,
       // or tail-positioned MP4 atoms must not make an otherwise playable
       // track disappear from the library.
+      //
+      // Tag/artwork separation lives in [AudioMetadataExtractor] /
+      // [extractAudioFileMetadata]: a partial Range that still holds Vorbis
+      // (or ID3) comments should yield title/artist/album even when a large
+      // PICTURE block cannot be loaded. Filename-only is the last resort.
       return parsed ?? _filenameOnlyRemoteMetadata;
     } finally {
       try {
@@ -787,6 +806,21 @@ bool _sameRemoteFingerprint(LibraryTrackRecord track, _RemoteAudioFile file) {
   final oldFingerprint = _trackFingerprint(track);
   final currentFingerprint = _remoteFingerprint(file);
   return oldFingerprint != null && oldFingerprint == currentFingerprint;
+}
+
+/// Same recovery rule as local scans: re-read 未知 identity rows, missing art,
+/// and cached art files that fail a lightweight completeness check.
+bool _shouldReuseRemoteTrack(
+  LibraryTrackRecord track,
+  _RemoteAudioFile file,
+) {
+  if (!_sameRemoteFingerprint(track, file)) return false;
+  if (track.artistName == '未知艺人' && track.albumTitle == '未知专辑') {
+    return false;
+  }
+  if (track.artworkKey == null) return false;
+  if (!artworkFileLooksValid(track.artworkKey)) return false;
+  return true;
 }
 
 LibraryTrackRecord _reuseRemoteTrack(
@@ -994,6 +1028,12 @@ const _filenameOnlyRemoteMetadata = _RemoteMetadata(
   artworkBytes: null,
   artworkMimeType: null,
 );
+
+bool _hasUsableRemoteTags(_RemoteMetadata metadata) {
+  return metadata.title.isNotEmpty ||
+      metadata.artist.isNotEmpty ||
+      metadata.album.isNotEmpty;
+}
 
 String _stableId(String seed) {
   return sha256.convert(seed.codeUnits).toString();

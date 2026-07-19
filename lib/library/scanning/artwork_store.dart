@@ -4,6 +4,8 @@ import 'package:crypto/crypto.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 
+import 'image_bytes.dart';
+
 abstract interface class ArtworkStore {
   Future<String?> store({
     required String albumId,
@@ -25,6 +27,9 @@ class FileArtworkStore implements ArtworkStore {
     required String mimeType,
   }) async {
     if (bytes.isEmpty) return null;
+    // Reject truncated WebDAV/FLAC picture buffers (header present, body
+    // zero-padded) before they land in the cache and crash precacheImage.
+    if (!looksLikeCompleteImageBytes(bytes)) return null;
     final root = await _rootDirectory();
     await root.create(recursive: true);
     final digest = sha1.convert(albumId.codeUnits).toString();
