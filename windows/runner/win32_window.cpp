@@ -2,6 +2,7 @@
 
 #include <dwmapi.h>
 #include <flutter_windows.h>
+#include <windowsx.h>
 
 #include "resource.h"
 
@@ -51,6 +52,30 @@ void EnableFullDpiSupportIfAvailable(HWND hwnd) {
     enable_non_client_dpi_scaling(hwnd);
   }
   FreeLibrary(user32_module);
+}
+
+/// Title bar height in logical pixels for custom-drawn Windows title bar.
+/// Matches the Flutter-side `soundWindowsTitlebarHeight` constant.
+constexpr int kCustomTitleBarHeight = 44;
+
+/// Right-side strip reserved for Flutter-rendered window controls (min /
+/// max / close) plus desktop app actions. Logical pixels — scaled by DPI
+/// in WM_NCHITTEST before comparing with physical client coordinates.
+constexpr int kCustomTitleBarControlStripWidth = 140;
+
+UINT WindowDpi(HWND hwnd) {
+  const HMONITOR monitor =
+      MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+  return FlutterDesktopGetDpiForMonitor(monitor);
+}
+
+/// Invisible resize-border thickness (physical pixels) for a framed window.
+/// Used when carving client space out of WS_OVERLAPPEDWINDOW without a
+/// standard caption.
+int ResizeBorderThickness(HWND hwnd) {
+  const UINT dpi = WindowDpi(hwnd);
+  return GetSystemMetricsForDpi(SM_CXFRAME, dpi) +
+         GetSystemMetricsForDpi(SM_CXPADDEDBORDER, dpi);
 }
 
 }  // namespace
@@ -146,6 +171,15 @@ bool Win32Window::Create(const std::wstring& title,
 
   UpdateTheme(window);
 
+  // Extend the DWM frame into the client area so the window shadow and
+  // border are drawn by DWM while the Flutter content renders where the
+  // standard title bar would be.
+  MARGINS margins = {0, 0, 0, 1};
+  DwmExtendFrameIntoClientArea(window, &margins);
+  SetWindowPos(window, nullptr, 0, 0, 0, 0,
+               SWP_NOZORDER | SWP_NOOWNERZORDER | SWP_NOMOVE | SWP_NOSIZE |
+                   SWP_FRAMECHANGED);
+
   return OnCreate();
 }
 
@@ -216,6 +250,71 @@ Win32Window::MessageHandler(HWND hwnd,
     case WM_DWMCOLORIZATIONCOLORCHANGED:
       UpdateTheme(hwnd);
       return 0;
+
+    case WM_NCCALCSIZE: {
+      if (wparam == TRUE) {
+        // Custom client-area title bar: do not call DefWindowProc and then
+        // stomp rgrc[1].top (that value is the *previous* client rect and
+        // causes a clipped top after restore). Size the client rect
+        // ourselves instead.
+        auto* params = reinterpret_cast<NCCALCSIZE_PARAMS*>(lparam);
+
+        if (IsZoomed(hwnd)) {
+          // Maximized WS_OVERLAPPEDWINDOW windows overshoot the monitor by
+          // the resize border. Clamp the client to the monitor work area
+          // so content is not pushed down by a large blank band and does
+          // not sit under the taskbar.
+          HMONITOR monitor =
+              MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
+          MONITORINFO monitor_info = {};
+          monitor_info.cbSize = sizeof(MONITORINFO);
+          if (GetMonitorInfo(monitor, &monitor_info)) {
+            params->rgrc[0] = monitor_info.rcWork;
+          }
+          return 0;
+        }
+
+        // Restored: keep left / right / bottom resize borders, drop the
+        // standard caption so Flutter paints the full top edge.
+        const int border = ResizeBorderThickness(hwnd);
+        params->rgrc[0].left += border;
+        params->rgrc[0].right -= border;
+        params->rgrc[0].bottom -= border;
+        // top stays at the window top — custom title bar lives in client.
+        return 0;
+      }
+      return DefWindowProc(hwnd, message, wparam, lparam);
+    }
+
+    case WM_NCHITTEST: {
+      // Allow the Flutter content area to be used for window dragging
+      // through the custom title bar region.  Resize handles and other
+      // non-client hit tests are still provided by the default handler.
+      LRESULT hit = DefWindowProc(hwnd, message, wparam, lparam);
+      if (hit == HTCLIENT) {
+        POINT pt = {GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam)};
+        ScreenToClient(hwnd, &pt);
+        RECT rc;
+        GetClientRect(hwnd, &rc);
+        // Logical title-bar metrics are scaled to physical pixels so the
+        // caption band matches Flutter's soundWindowsTitlebarHeight on
+        // high-DPI displays (150% / 200% / etc.).
+        const UINT dpi = WindowDpi(hwnd);
+        const int title_bar_height =
+            MulDiv(kCustomTitleBarHeight, dpi, USER_DEFAULT_SCREEN_DPI);
+        // Right-side strip reserved for Flutter window controls + app
+        // actions (search / settings). Keep a little slack beyond the
+        // painted button widths.
+        const int control_strip_width =
+            MulDiv(kCustomTitleBarControlStripWidth, dpi,
+                   USER_DEFAULT_SCREEN_DPI);
+        if (pt.y < title_bar_height &&
+            pt.x < rc.right - control_strip_width) {
+          return HTCAPTION;
+        }
+      }
+      return hit;
+    }
   }
 
   return DefWindowProc(window_handle_, message, wparam, lparam);

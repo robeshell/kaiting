@@ -1,12 +1,14 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/app_failure.dart';
 import '../../core/now_playing_style.dart';
+import '../../core/platform_window.dart';
 import '../../core/sound_theme.dart';
 import '../../domain/library_models.dart';
 import '../../playback/playback_controller.dart';
@@ -21,6 +23,14 @@ import '../widgets/playback_queue_sheet.dart';
 import '../widgets/progress_scrubber.dart';
 import '../widgets/sound_components.dart';
 import '../widgets/vinyl_record_art.dart';
+
+/// Whether now-playing should paint custom window drag chrome.
+///
+/// Uses [defaultTargetPlatform] (not `dart:io` Platform) so widget tests that
+/// override the target platform keep mobile layout free of desktop drag bands.
+/// Windows-only until a Linux native window channel exists.
+bool get _nowPlayingUsesWindowChrome =>
+    !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
 
 class NowPlayingScreen extends StatelessWidget {
   const NowPlayingScreen({
@@ -129,7 +139,20 @@ class NowPlayingScreen extends StatelessWidget {
                           onPressed: () => _close(context),
                           icon: const Icon(Icons.keyboard_arrow_down_rounded),
                         ),
-                        const Spacer(),
+                        // Empty mid-chrome: drag the window on Windows/Linux
+                        // where this route covers the shell title bar.
+                        Expanded(
+                          child: _nowPlayingUsesWindowChrome
+                              ? const _WindowDragSurface(
+                                  key: ValueKey(
+                                    'now-playing-chrome-window-drag',
+                                  ),
+                                  // Row/Column leaves height unbounded; match
+                                  // the shell title bar's fixed-height hit box.
+                                  height: 40,
+                                )
+                              : const SizedBox.shrink(),
+                        ),
                         if (!wideIntegratedQueue)
                           IconButton.filledTonal(
                             onPressed: () =>
@@ -137,6 +160,10 @@ class NowPlayingScreen extends StatelessWidget {
                             tooltip: '播放队列',
                             icon: const Icon(Icons.queue_music_rounded),
                           ),
+                        if (_nowPlayingUsesWindowChrome) ...[
+                          const SizedBox(width: 8),
+                          const _DesktopWindowControls(),
+                        ],
                       ],
                     ),
                   ),
@@ -180,6 +207,20 @@ class NowPlayingScreen extends StatelessWidget {
               ],
             ),
           ),
+          // The shell title bar is covered by this full-screen route. Mirror
+          // its drag band so the reserved title-bar inset stays movable on
+          // Windows / Linux (native HTCAPTION alone is unreliable under the
+          // Flutter child HWND).
+          if (_nowPlayingUsesWindowChrome)
+            Positioned(
+              top: 0,
+              left: 0,
+              right: 0,
+              height: platformTitleBarHeight,
+              child: const _WindowDragSurface(
+                key: ValueKey('now-playing-titlebar-window-drag'),
+              ),
+            ),
         ],
       ),
     );
@@ -208,26 +249,42 @@ class _NoTrackPlaying extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        minimum: EdgeInsets.only(top: context.soundTitlebarInset),
-        child: Stack(
-          children: [
+      body: Stack(
+        fit: StackFit.expand,
+        children: [
+          SafeArea(
+            minimum: EdgeInsets.only(top: context.soundTitlebarInset),
+            child: Stack(
+              children: [
+                Positioned(
+                  left: 20,
+                  top: 10,
+                  child: IconButton.filledTonal(
+                    onPressed:
+                        onClose ?? () => Navigator.of(context).maybePop(),
+                    icon: const Icon(Icons.keyboard_arrow_down_rounded),
+                  ),
+                ),
+                Center(
+                  child: Text(
+                    '当前没有正在播放的歌曲',
+                    style: TextStyle(color: context.soundSecondaryText),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          if (_nowPlayingUsesWindowChrome)
             Positioned(
-              left: 20,
-              top: 10,
-              child: IconButton.filledTonal(
-                onPressed: onClose ?? () => Navigator.of(context).maybePop(),
-                icon: const Icon(Icons.keyboard_arrow_down_rounded),
+              top: 0,
+              left: 0,
+              right: 0,
+              height: platformTitleBarHeight,
+              child: const _WindowDragSurface(
+                key: ValueKey('now-playing-empty-titlebar-window-drag'),
               ),
             ),
-            Center(
-              child: Text(
-                '当前没有正在播放的歌曲',
-                style: TextStyle(color: context.soundSecondaryText),
-              ),
-            ),
-          ],
-        ),
+        ],
       ),
     );
   }
@@ -1861,6 +1918,145 @@ class _LyricsOffsetButton extends StatelessWidget {
                 fontSize: 11,
                 fontWeight: FontWeight.w700,
               ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Transparent hit target that moves the desktop window, matching the shell
+/// title bar. Double-tap toggles maximize like a standard caption.
+class _WindowDragSurface extends StatelessWidget {
+  const _WindowDragSurface({super.key, this.height});
+
+  /// When null, fills the parent (must provide bounded constraints).
+  /// When set, used as a fixed-height strip inside unbounded flex layouts.
+  final double? height;
+
+  Future<void> _toggleMaximize() async {
+    if (await isWindowMaximized()) {
+      await restoreWindow();
+    } else {
+      await maximizeWindow();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      behavior: HitTestBehavior.translucent,
+      onPanStart: (_) => unawaited(startWindowDrag()),
+      onDoubleTap: () => unawaited(_toggleMaximize()),
+      child: height == null
+          ? const SizedBox.expand()
+          : SizedBox(height: height, width: double.infinity),
+    );
+  }
+}
+
+class _DesktopWindowControls extends StatefulWidget {
+  const _DesktopWindowControls();
+
+  @override
+  State<_DesktopWindowControls> createState() => _DesktopWindowControlsState();
+}
+
+class _DesktopWindowControlsState extends State<_DesktopWindowControls> {
+  bool _maximized = false;
+  StreamSubscription<bool>? _maximizedSubscription;
+
+  @override
+  void initState() {
+    super.initState();
+    unawaited(_refresh());
+    _maximizedSubscription = windowMaximizedChanges.listen((maximized) {
+      if (mounted) setState(() => _maximized = maximized);
+    });
+  }
+
+  @override
+  void dispose() {
+    unawaited(_maximizedSubscription?.cancel() ?? Future<void>.value());
+    super.dispose();
+  }
+
+  Future<void> _refresh() async {
+    final maximized = await isWindowMaximized();
+    if (mounted) setState(() => _maximized = maximized);
+  }
+
+  Future<void> _toggleMaximize() async {
+    final next = !_maximized;
+    if (mounted) setState(() => _maximized = next);
+    if (next) {
+      await maximizeWindow();
+    } else {
+      await restoreWindow();
+    }
+    await _refresh();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _WindowDot(
+          icon: Icons.horizontal_rule_rounded,
+          tooltip: '最小化',
+          onTap: () => unawaited(minimizeWindow()),
+        ),
+        const SizedBox(width: 8),
+        _WindowDot(
+          icon: _maximized
+              ? Icons.filter_none_rounded
+              : Icons.crop_square_rounded,
+          tooltip: _maximized ? '向下还原' : '最大化',
+          onTap: () => unawaited(_toggleMaximize()),
+        ),
+        const SizedBox(width: 8),
+        _WindowDot(
+          icon: Icons.close_rounded,
+          tooltip: '关闭',
+          onTap: () => unawaited(closeWindow()),
+        ),
+      ],
+    );
+  }
+}
+
+class _WindowDot extends StatelessWidget {
+  const _WindowDot({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          width: 20,
+          height: 20,
+          decoration: BoxDecoration(
+            color: context.soundTint(0.12),
+            shape: BoxShape.circle,
+          ),
+          child: Center(
+            child: Icon(
+              icon,
+              size: 11,
+              color: context.soundSecondaryText,
             ),
           ),
         ),

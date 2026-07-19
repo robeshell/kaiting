@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 
 import '../core/app_failure.dart';
 import '../core/now_playing_style.dart';
+import '../core/platform_window.dart';
 import '../core/sound_theme.dart';
 import '../domain/library_models.dart';
 import '../library/library_repository.dart';
@@ -982,11 +983,7 @@ class _AppShellState extends State<AppShell>
                                   right: false,
                                   bottom: false,
                                   minimum: EdgeInsets.only(
-                                    top:
-                                        defaultTargetPlatform ==
-                                            TargetPlatform.macOS
-                                        ? context.soundTitlebarInset
-                                        : 50,
+                                    top: context.soundTitlebarInset,
                                   ),
                                   child: content,
                                 ),
@@ -1038,20 +1035,22 @@ class _AppShellState extends State<AppShell>
                           ),
                   ),
                   if (desktop)
-                    // macOS paints this inside the full-size titlebar. Windows
-                    // keeps it in Flutter's client area, below the native
-                    // caption buttons, so Snap Layout and native hit testing
-                    // remain untouched.
+                    // macOS paints the search & settings buttons inside the
+                    // transparent full-size titlebar alongside the native
+                    // traffic-light controls.  Windows renders custom window
+                    // controls (minimize / maximize / close) in the same row
+                    // so the standard caption buttons can be hidden entirely.
                     Positioned(
                       top: 0,
-                      right: 14,
+                      left: 0,
+                      right: 0,
                       child: SafeArea(
                         minimum: EdgeInsets.only(
                           top: defaultTargetPlatform == TargetPlatform.macOS
                               ? 1
-                              : 6,
+                              : 0,
                         ),
-                        child: _DesktopTopActions(
+                        child: _DesktopTitleBar(
                           selection: _section,
                           onSearch: _openSearchFromKeyboard,
                           onSettings: () => _selectSection(AppSection.settings),
@@ -1451,8 +1450,8 @@ bool _isTextEditingFocusActive() {
       focusContext.findAncestorWidgetOfExactType<EditableText>() != null;
 }
 
-class _DesktopTopActions extends StatelessWidget {
-  const _DesktopTopActions({
+class _DesktopTitleBar extends StatefulWidget {
+  const _DesktopTitleBar({
     required this.selection,
     required this.onSearch,
     required this.onSettings,
@@ -1463,35 +1462,168 @@ class _DesktopTopActions extends StatelessWidget {
   final VoidCallback onSettings;
 
   @override
+  State<_DesktopTitleBar> createState() => _DesktopTitleBarState();
+}
+
+class _DesktopTitleBarState extends State<_DesktopTitleBar> {
+  bool _maximized = false;
+  StreamSubscription<bool>? _maximizedSubscription;
+
+  /// Paint custom drag strip + min/max/close only on Windows target platform
+  /// (respects [debugDefaultTargetPlatformOverride] in tests).
+  bool get _usesCustomWindowChrome =>
+      !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
+
+  @override
+  void initState() {
+    super.initState();
+    if (_usesCustomWindowChrome) {
+      unawaited(_refreshMaximized());
+      _maximizedSubscription = windowMaximizedChanges.listen((maximized) {
+        if (mounted) setState(() => _maximized = maximized);
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    unawaited(_maximizedSubscription?.cancel() ?? Future<void>.value());
+    super.dispose();
+  }
+
+  Future<void> _refreshMaximized() async {
+    final maximized = await isWindowMaximized();
+    if (mounted) setState(() => _maximized = maximized);
+  }
+
+  Future<void> _toggleMaximize() async {
+    final next = !_maximized;
+    // Optimistic update so the icon flips immediately.
+    if (mounted) setState(() => _maximized = next);
+    if (next) {
+      await maximizeWindow();
+    } else {
+      await restoreWindow();
+    }
+    await _refreshMaximized();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.transparent,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          _DesktopTopAction(
-            key: const ValueKey('desktop-search-action'),
-            icon: Icons.search_rounded,
-            tooltip: '搜索',
-            active: selection == AppSection.search,
-            onPressed: onSearch,
-          ),
-          const SizedBox(width: 2),
-          _DesktopTopAction(
-            key: const ValueKey('desktop-settings-action'),
-            icon: Icons.settings_outlined,
-            tooltip: '设置',
-            active: selection == AppSection.settings,
-            onPressed: onSettings,
-          ),
-        ],
+    final isMacOS = defaultTargetPlatform == TargetPlatform.macOS;
+    final titleBarHeight = platformTitleBarHeight;
+    final customChrome = _usesCustomWindowChrome;
+
+    return SizedBox(
+      height: titleBarHeight,
+      child: Material(
+        color: Colors.transparent,
+        child: Row(
+          children: [
+            // Left side: draggable title bar area (Windows custom chrome).
+            if (customChrome)
+              Expanded(
+                child: GestureDetector(
+                  behavior: HitTestBehavior.translucent,
+                  onDoubleTap: () => unawaited(_toggleMaximize()),
+                  onPanStart: (_) => unawaited(startWindowDrag()),
+                  child: SizedBox(height: titleBarHeight),
+                ),
+              ),
+            // macOS: spacer to push buttons to the right of the traffic lights.
+            if (isMacOS) const Spacer(),
+            // App action buttons (search + settings).
+            _TitleBarAction(
+              key: const ValueKey('desktop-search-action'),
+              icon: Icons.search_rounded,
+              tooltip: '搜索',
+              active: widget.selection == AppSection.search,
+              onPressed: widget.onSearch,
+            ),
+            const SizedBox(width: 2),
+            _TitleBarAction(
+              key: const ValueKey('desktop-settings-action'),
+              icon: Icons.settings_outlined,
+              tooltip: '设置',
+              active: widget.selection == AppSection.settings,
+              onPressed: widget.onSettings,
+            ),
+            // Window control buttons — Windows custom chrome only.
+            if (customChrome) ...[
+              const SizedBox(width: 10),
+              _WindowControlButton(
+                key: const ValueKey('window-minimize'),
+                icon: Icons.horizontal_rule_rounded,
+                tooltip: '最小化',
+                onPressed: () => unawaited(minimizeWindow()),
+              ),
+              const SizedBox(width: 2),
+              _WindowControlButton(
+                key: const ValueKey('window-maximize'),
+                icon: _maximized
+                    ? Icons.filter_none_rounded
+                    : Icons.crop_square_rounded,
+                tooltip: _maximized ? '向下还原' : '最大化',
+                onPressed: () => unawaited(_toggleMaximize()),
+              ),
+              const SizedBox(width: 2),
+              _WindowControlButton(
+                key: const ValueKey('window-close'),
+                icon: Icons.close_rounded,
+                tooltip: '关闭',
+                closeButton: true,
+                onPressed: () => unawaited(closeWindow()),
+              ),
+            ],
+            SizedBox(width: isMacOS ? 14 : 8),
+          ],
+        ),
       ),
     );
   }
 }
 
-class _DesktopTopAction extends StatelessWidget {
-  const _DesktopTopAction({
+class _WindowControlButton extends StatelessWidget {
+  const _WindowControlButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+    this.closeButton = false,
+    super.key,
+  });
+
+  final IconData icon;
+  final String tooltip;
+  final VoidCallback onPressed;
+  final bool closeButton;
+
+  @override
+  Widget build(BuildContext context) {
+    return Tooltip(
+      message: tooltip,
+      child: InkWell(
+        onTap: onPressed,
+        borderRadius: BorderRadius.circular(6),
+        child: SizedBox(
+          width: 32,
+          height: 28,
+          child: Center(
+            child: Icon(
+              icon,
+              size: 16,
+              color: closeButton
+                  ? context.soundSecondaryText
+                  : context.soundSecondaryText.withValues(alpha: 0.72),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _TitleBarAction extends StatelessWidget {
+  const _TitleBarAction({
     required this.icon,
     required this.tooltip,
     required this.active,

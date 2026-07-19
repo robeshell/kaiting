@@ -7,6 +7,7 @@ bool get soundUsesDesktopPlatform =>
     defaultTargetPlatform == TargetPlatform.linux;
 
 const soundMacOSTitlebarInset = 38.0;
+const soundWindowsTitlebarHeight = 44.0;
 const soundChromeSurfaceTransparency = 0.20;
 const soundChromeSurfaceOpacity = 1 - soundChromeSurfaceTransparency;
 
@@ -59,9 +60,17 @@ extension SoundThemeContext on BuildContext {
     );
   }
 
-  double get soundTitlebarInset => defaultTargetPlatform == TargetPlatform.macOS
-      ? soundMacOSTitlebarInset
-      : 0;
+  double get soundTitlebarInset {
+    if (defaultTargetPlatform == TargetPlatform.macOS) {
+      return soundMacOSTitlebarInset;
+    }
+    // Windows uses a custom client-area title bar; reserve matching space.
+    // Linux keeps native decorations until a window channel is wired there.
+    if (defaultTargetPlatform == TargetPlatform.windows) {
+      return soundWindowsTitlebarHeight;
+    }
+    return 0;
+  }
 
   SoundWindowClass get soundWindowClass {
     final size = MediaQuery.sizeOf(this);
