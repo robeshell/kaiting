@@ -900,11 +900,6 @@ class _PlayerColumn extends StatelessWidget {
                 ? null
                 : () => onOpenAlbum!(album),
             style: TextStyle(color: context.soundSecondaryText, fontSize: 13),
-            linkStyle: TextStyle(
-              color: context.soundSecondaryText,
-              fontSize: 13,
-              fontWeight: FontWeight.w700,
-            ),
           ),
         ),
         SizedBox(height: compactLayout ? 26 : 20),
@@ -1135,11 +1130,6 @@ class _CompactLyricsPlayer extends StatelessWidget {
                           style: TextStyle(
                             color: context.soundSecondaryText,
                             fontSize: 12,
-                          ),
-                          linkStyle: TextStyle(
-                            color: context.soundSecondaryText,
-                            fontSize: 12,
-                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),

@@ -665,11 +665,6 @@ class _TrackIdentity extends StatelessWidget {
               color: context.soundSecondaryText,
               fontSize: metaSize,
             ),
-            linkStyle: TextStyle(
-              color: context.soundSecondaryText,
-              fontSize: metaSize,
-              fontWeight: FontWeight.w700,
-            ),
           ),
           if (showBadges) ...[
             const SizedBox(height: 5),
