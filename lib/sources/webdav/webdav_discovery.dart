@@ -1,14 +1,13 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/io_client.dart';
 import 'package:xml/xml.dart';
 
 import 'webdav_credentials.dart';
+import 'webdav_http.dart';
 
 enum WebDavConnectionError {
   unreachable,
@@ -75,24 +74,11 @@ class WebDavDiscoveryService {
   WebDavDiscoveryService({
     http.Client Function()? clientFactory,
     this.allowBadCertificate = false,
-  }) : _clientFactory = clientFactory ?? _createDefaultClient;
+  }) : _clientFactory = clientFactory ?? createDefaultWebDavClient;
 
   /// When true, self-signed and otherwise untrusted TLS certificates are
   /// accepted. Intended for home NAS servers.
   final bool allowBadCertificate;
-
-  static http.Client _createDefaultClient() {
-    final httpClient = HttpClient()
-      ..connectionTimeout = const Duration(seconds: 10);
-    return IOClient(httpClient);
-  }
-
-  static http.Client _createLenientClient() {
-    final httpClient = HttpClient()
-      ..connectionTimeout = const Duration(seconds: 10)
-      ..badCertificateCallback = (_, _, _) => true;
-    return IOClient(httpClient);
-  }
 
   static const _requestTimeout = Duration(seconds: 10);
   static const _maxDiscoveryBodyBytes = 4 * 1024 * 1024;
@@ -104,7 +90,7 @@ class WebDavDiscoveryService {
     required WebDavCredentials credentials,
   }) async {
     final client = allowBadCertificate
-        ? _createLenientClient()
+        ? createLenientWebDavClient()
         : _clientFactory();
     try {
       final uri = Uri.parse(url);
@@ -135,13 +121,15 @@ class WebDavDiscoveryService {
         WebDavConnectionError.unknown,
         message: '服务器响应格式无法识别',
       );
-    } on TlsException catch (error) {
-      debugPrint('WebDAV discovery TLS error: $url\n${error.toString()}');
-      return WebDavDiscoveryResult.error(
-        WebDavConnectionError.unreachable,
-        message: _tlsFriendlyMessage(error),
-      );
     } catch (error, stackTrace) {
+      final tlsMessage = tryGetTlsFriendlyMessage(error);
+      if (tlsMessage != null) {
+        debugPrint('WebDAV discovery TLS error: $url\n${error.toString()}');
+        return WebDavDiscoveryResult.error(
+          WebDavConnectionError.unreachable,
+          message: tlsMessage,
+        );
+      }
       debugPrint(
         'WebDAV discovery unexpected error: $url\n'
         '${error.toString()}\n$stackTrace',
@@ -351,7 +339,7 @@ class WebDavDiscoveryService {
   DateTime? _parseHttpDate(String? value) {
     if (value == null || value.isEmpty) return null;
     try {
-      return HttpDate.parse(value).toUtc();
+      return parseHttpDate(value);
     } on FormatException {
       return null;
     }
@@ -360,18 +348,6 @@ class WebDavDiscoveryService {
   String? _normalizedOptionalText(String? value) {
     final normalized = value?.trim();
     return normalized == null || normalized.isEmpty ? null : normalized;
-  }
-
-  static String _tlsFriendlyMessage(TlsException error) {
-    final text = error.message.toLowerCase();
-    if (text.contains('certificate') &&
-        (text.contains('verify') || text.contains('unknown'))) {
-      return '服务器使用的是自签名证书，请勾选「允许自签名证书」后重试';
-    }
-    if (text.contains('handshake')) {
-      return '无法建立安全连接，请确认服务器地址以 https 开头，或者服务器可能未启用 SSL';
-    }
-    return 'SSL/TLS 连接失败：${error.message}';
   }
 
   static String _userFriendlyError(Object error) {
