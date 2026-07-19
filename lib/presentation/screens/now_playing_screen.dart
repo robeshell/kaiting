@@ -369,11 +369,11 @@ class _WideNowPlayingState extends State<_WideNowPlaying> {
         );
         final artLimit = switch (widget.style) {
           NowPlayingStyle.classic => 340.0,
-          NowPlayingStyle.vinyl => 360.0,
+          NowPlayingStyle.vinyl => 440.0,
         };
         final playerWidthLimit = switch (widget.style) {
           NowPlayingStyle.classic => 390.0,
-          NowPlayingStyle.vinyl => 400.0,
+          NowPlayingStyle.vinyl => 480.0,
         };
         final artSize = math.min(
           math.min(artLimit, paneWidth),
@@ -775,7 +775,11 @@ class _CompactNowPlayingState extends State<_CompactNowPlaying> {
                   padding: const EdgeInsets.fromLTRB(28, 8, 28, 40),
                   child: Center(
                     child: ConstrainedBox(
-                      constraints: const BoxConstraints(maxWidth: 430),
+                      constraints: BoxConstraints(
+                        maxWidth: widget.style == NowPlayingStyle.vinyl
+                            ? 480
+                            : 430,
+                      ),
                       child: _PlayerColumn(
                         album: widget.album,
                         track: widget.track,

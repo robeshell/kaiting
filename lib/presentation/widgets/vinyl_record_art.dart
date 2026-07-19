@@ -40,9 +40,9 @@ class VinylRecordArt extends StatefulWidget {
 
 class VinylRecordArtState extends State<VinylRecordArt>
     with SingleTickerProviderStateMixin {
-  /// One revolution of the record. Real 33⅓ rpm vinyl spins about four times
-  /// faster; a slower rotation reads better on screen.
-  static const _revolutionDuration = Duration(seconds: 8);
+  /// One revolution of the record. Real 33⅓ rpm is ~1.8s/turn; we keep a
+  /// calmer on-screen pace so the disc reads as continuous motion, not a blur.
+  static const _revolutionDuration = Duration(seconds: 14);
 
   static const _armSwingDuration = Duration(milliseconds: 700);
 
@@ -53,18 +53,19 @@ class VinylRecordArtState extends State<VinylRecordArt>
   /// and the record's surface edge (0.94r).
   static const _armPlayTurns = 0.063;
 
-  /// Diameter of the record relative to the widget side.
-  static const _discFraction = 0.80;
+  /// Diameter of the record relative to the widget side (tonearm needs a
+  /// little headroom above the platter).
+  static const _discFraction = 0.88;
 
   /// Diameter of the center label (the album artwork) relative to the record.
   /// Kept in lockstep with [_VinylDiscPainter.labelFrameRadius].
   static const _labelFraction = _VinylDiscPainter.labelFrameRadius;
 
   /// The record sits low in the composition so the tonearm has room above it.
-  static const _discCenterFraction = Offset(0.5, 0.6);
+  static const _discCenterFraction = Offset(0.5, 0.58);
 
   /// Tonearm pivot relative to the widget side, just above the record.
-  static const _armPivotFraction = Offset(0.47, 0.10);
+  static const _armPivotFraction = Offset(0.47, 0.08);
 
   late final AnimationController _rotation;
   bool _reduceMotion = false;
