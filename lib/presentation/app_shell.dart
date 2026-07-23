@@ -712,10 +712,7 @@ class _AppShellState extends State<AppShell>
   }
 
   void _openArtistByName(String artistName) {
-    final collection = findArtistCollection(
-      _libraryCatalog.albums,
-      artistName,
-    );
+    final collection = findArtistCollection(_libraryCatalog.albums, artistName);
     if (collection == null) return;
     _openCollection(collection);
   }
@@ -732,7 +729,8 @@ class _AppShellState extends State<AppShell>
 
   void _openAlbumFromPlayer(Album album) {
     final track = widget.playback.displayTrack;
-    final resolved = findAlbumById(_libraryCatalog.albums, album.id) ??
+    final resolved =
+        findAlbumById(_libraryCatalog.albums, album.id) ??
         (track == null
             ? album
             : resolveAlbumForTrack(_libraryCatalog.albums, track));
@@ -1769,7 +1767,7 @@ class _Sidebar extends StatelessWidget {
                   child: Row(
                     children: [
                       Image.asset(
-                        'assets/branding/app_icon_master-v6.png',
+                        'assets/branding/app_icon_master-v7.png',
                         width: 28,
                         height: 28,
                         filterQuality: FilterQuality.high,

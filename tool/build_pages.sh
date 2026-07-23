@@ -5,7 +5,7 @@ set -euo pipefail
 root_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 output_dir="${1:-$root_dir/build/pages}"
 web_build_dir="$root_dir/build/web"
-app_icon_source="$root_dir/assets/branding/app_icon_master-v6.png"
+app_icon_source="$root_dir/assets/branding/app_icon_master-v7.png"
 
 if [[ ! -f "$app_icon_source" ]]; then
   app_icon_source="$root_dir/web/icons/Icon-512.png"

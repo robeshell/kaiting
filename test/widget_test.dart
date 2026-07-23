@@ -130,7 +130,7 @@ void main() {
 
     expect(find.text('Reverie'), findsOneWidget);
     expect(
-      find.image(const AssetImage('assets/branding/app_icon_master-v6.png')),
+      find.image(const AssetImage('assets/branding/app_icon_master-v7.png')),
       findsOneWidget,
     );
     expect(find.byKey(const ValueKey('desktop-search-action')), findsOneWidget);
@@ -1700,11 +1700,7 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: Center(
-            child: VinylRecordArt(
-              album: album,
-              isPlaying: true,
-              size: 240,
-            ),
+            child: VinylRecordArt(album: album, isPlaying: true, size: 240),
           ),
         ),
       ),
@@ -1724,11 +1720,7 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: Center(
-            child: VinylRecordArt(
-              album: album,
-              isPlaying: false,
-              size: 240,
-            ),
+            child: VinylRecordArt(album: album, isPlaying: false, size: 240),
           ),
         ),
       ),
@@ -1749,11 +1741,7 @@ void main() {
       MaterialApp(
         home: Scaffold(
           body: Center(
-            child: VinylRecordArt(
-              album: album,
-              isPlaying: true,
-              size: 240,
-            ),
+            child: VinylRecordArt(album: album, isPlaying: true, size: 240),
           ),
         ),
       ),
@@ -1834,11 +1822,7 @@ void main() {
           data: const MediaQueryData(disableAnimations: true),
           child: Scaffold(
             body: Center(
-              child: VinylRecordArt(
-                album: album,
-                isPlaying: true,
-                size: 240,
-              ),
+              child: VinylRecordArt(album: album, isPlaying: true, size: 240),
             ),
           ),
         ),
