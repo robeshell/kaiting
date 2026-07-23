@@ -2,10 +2,10 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sound_player/domain/library_models.dart';
-import 'package:sound_player/playback/playback_controller.dart';
-import 'package:sound_player/playback/playback_engine.dart';
-import 'package:sound_player/playback/playback_mode.dart';
+import 'package:kaiting/domain/library_models.dart';
+import 'package:kaiting/playback/playback_controller.dart';
+import 'package:kaiting/playback/playback_engine.dart';
+import 'package:kaiting/playback/playback_mode.dart';
 
 void main() {
   // ---------------------------------------------------------------------------

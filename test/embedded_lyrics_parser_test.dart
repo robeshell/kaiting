@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sound_player/library/library_records.dart';
-import 'package:sound_player/library/scanning/embedded_lyrics_parser.dart';
+import 'package:kaiting/library/library_records.dart';
+import 'package:kaiting/library/scanning/embedded_lyrics_parser.dart';
 
 void main() {
   test('sorts LRC timestamps and supports multiple timestamps per line', () {

@@ -6,9 +6,9 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <application
-        android:label="Reverie"
+        android:label="开听"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher_reverie"
+        android:icon="@mipmap/ic_launcher_kaiting"
         android:usesCleartextTraffic="true">
         <activity
             android:name=".MainActivity"

@@ -1,23 +1,23 @@
-; Inno Setup 6 script for Reverie (Windows desktop).
+; Inno Setup 6 script for 开听 (Windows desktop).
 ; Compiled by tool/release.dart via ISCC with /DMyAppVersion=x.y.z etc.
 ;
 ; Install Inno Setup 6: https://jrsoftware.org/isinfo.php
 ;   winget install --id JRSoftware.InnoSetup -e
 
 #ifndef MyAppName
-  #define MyAppName "Reverie"
+  #define MyAppName "开听"
 #endif
 #ifndef MyAppVersion
   #define MyAppVersion "1.0.0"
 #endif
 #ifndef MyAppPublisher
-  #define MyAppPublisher "com.soundplayer"
+  #define MyAppPublisher "com.kaiting"
 #endif
 #ifndef MyAppURL
-  #define MyAppURL "https://github.com/robeshell/MusicPlayerNext"
+  #define MyAppURL "https://github.com/robeshell/kaiting"
 #endif
 #ifndef MyAppExeName
-  #define MyAppExeName "reverie.exe"
+  #define MyAppExeName "kaiting.exe"
 #endif
 #ifndef SourceDir
   #define SourceDir "..\..\build\windows\x64\runner\Release"
@@ -26,7 +26,7 @@
   #define OutputDir "..\..\dist"
 #endif
 #ifndef OutputBaseFilename
-  #define OutputBaseFilename "reverie-" + MyAppVersion + "-windows-setup"
+  #define OutputBaseFilename "kaiting-" + MyAppVersion + "-windows-setup"
 #endif
 
 [Setup]

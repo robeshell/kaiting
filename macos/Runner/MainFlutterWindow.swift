@@ -44,7 +44,7 @@ private final class LaunchScreenBridge {
 
   init(messenger: FlutterBinaryMessenger, containerView: NSView) {
     channel = FlutterMethodChannel(
-      name: "com.soundplayer.sound_player/launch_screen",
+      name: "com.kaiting.player/launch_screen",
       binaryMessenger: messenger)
 
     let launchView = LaunchScreenView(frame: containerView.bounds)
@@ -97,7 +97,7 @@ private final class LaunchScreenView: NSView {
     imageView.imageScaling = .scaleProportionallyUpOrDown
     imageView.translatesAutoresizingMaskIntoConstraints = false
 
-    let title = NSTextField(labelWithString: "Reverie")
+    let title = NSTextField(labelWithString: "开听")
     title.font = .systemFont(ofSize: 24, weight: .semibold)
     title.textColor = NSColor(
       srgbRed: 28 / 255,
@@ -144,7 +144,7 @@ private final class LocalDirectoryAccessPlugin {
 
   init(messenger: FlutterBinaryMessenger, window: NSWindow) {
     channel = FlutterMethodChannel(
-      name: "com.soundplayer.sound_player/local_directory_access",
+      name: "com.kaiting.player/local_directory_access",
       binaryMessenger: messenger)
     self.window = window
     channel.setMethodCallHandler { [weak self] call, result in

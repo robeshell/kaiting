@@ -3,13 +3,13 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:sound_player/domain/library_models.dart';
-import 'package:sound_player/library/scanning/audio_format_registry.dart';
-import 'package:sound_player/playback/just_audio_playback_engine.dart';
-import 'package:sound_player/playback/playback_controller.dart';
-import 'package:sound_player/playback/playback_engine.dart';
-import 'package:sound_player/playback/playback_media_provider.dart';
-import 'package:sound_player/sources/webdav/webdav_playback_media_provider.dart';
+import 'package:kaiting/domain/library_models.dart';
+import 'package:kaiting/library/scanning/audio_format_registry.dart';
+import 'package:kaiting/playback/just_audio_playback_engine.dart';
+import 'package:kaiting/playback/playback_controller.dart';
+import 'package:kaiting/playback/playback_engine.dart';
+import 'package:kaiting/playback/playback_media_provider.dart';
+import 'package:kaiting/sources/webdav/webdav_playback_media_provider.dart';
 
 const _validationDirectory = String.fromEnvironment(
   'SOUND_FORMAT_VALIDATION_DIR',

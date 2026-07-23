@@ -4,16 +4,16 @@ import 'dart:io';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sound_player/library/library_records.dart';
-import 'package:sound_player/library/persistence/drift_library_repository.dart';
-import 'package:sound_player/library/persistence/library_database.dart';
-import 'package:sound_player/library/scanning/artwork_store.dart';
-import 'package:sound_player/library/scanning/audio_metadata_extractor.dart';
-import 'package:sound_player/library/scanning/scan_cancellation.dart';
-import 'package:sound_player/sources/webdav/webdav_connection_service.dart';
-import 'package:sound_player/sources/webdav/webdav_credentials.dart';
-import 'package:sound_player/sources/webdav/webdav_discovery.dart';
-import 'package:sound_player/sources/webdav/webdav_folder_scanner.dart';
+import 'package:kaiting/library/library_records.dart';
+import 'package:kaiting/library/persistence/drift_library_repository.dart';
+import 'package:kaiting/library/persistence/library_database.dart';
+import 'package:kaiting/library/scanning/artwork_store.dart';
+import 'package:kaiting/library/scanning/audio_metadata_extractor.dart';
+import 'package:kaiting/library/scanning/scan_cancellation.dart';
+import 'package:kaiting/sources/webdav/webdav_connection_service.dart';
+import 'package:kaiting/sources/webdav/webdav_credentials.dart';
+import 'package:kaiting/sources/webdav/webdav_discovery.dart';
+import 'package:kaiting/sources/webdav/webdav_folder_scanner.dart';
 
 import '../tool/webdav_fixture_server.dart';
 

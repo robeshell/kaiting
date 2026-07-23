@@ -13,7 +13,7 @@ abstract interface class MediaNotificationPermission {
 class PlatformMediaNotificationPermission
     implements MediaNotificationPermission {
   static const _channel = MethodChannel(
-    'com.soundplayer.sound_player/system_media',
+    'com.kaiting.player/system_media',
   );
 
   Future<bool>? _request;

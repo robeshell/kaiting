@@ -3,7 +3,7 @@ flutter_launcher_icons:
 
   # Keep a distinct Android resource name so OEM icon caches do not keep the
   # original Flutter launcher badge after an in-place upgrade.
-  android: ic_launcher_reverie
+  android: ic_launcher_kaiting
   image_path_android: assets/branding/app_icon_windows.png
   adaptive_icon_background: assets/branding/app_icon_layers/background.png
   adaptive_icon_foreground: assets/branding/app_icon_android_foreground.png

@@ -1,5 +1,5 @@
-name: sound_player
-description: "A new Flutter project."
+name: kaiting
+description: "开听 — local & WebDAV music player."
 # The following line prevents the package from being accidentally published to
 # pub.dev using `flutter pub publish`. This is preferred for private packages.
 publish_to: 'none' # Remove this line if you wish to publish to pub.dev
@@ -71,10 +71,10 @@ dev_dependencies:
 # Windows MSIX packaging (used by `dart run tool/release.dart windows`).
 # Version is overridden at release time from the pubspec version field.
 msix_config:
-  display_name: Reverie
-  publisher_display_name: com.soundplayer
-  identity_name: com.soundplayer.reverie
-  publisher: CN=com.soundplayer
+  display_name: 开听
+  publisher_display_name: com.kaiting
+  identity_name: com.kaiting.player
+  publisher: CN=com.kaiting
   msix_version: 1.0.2.0
   logo_path: assets/branding/app_icon_windows.png
   capabilities: internetClient, privateNetworkClientServer

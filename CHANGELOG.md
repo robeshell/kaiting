@@ -1,6 +1,6 @@
 # Changelog
 
-本文档记录 Reverie（原 Sound / MusicPlayerNext）的用户可见变更。  
+本文档记录 开听（原 Sound / kaiting）的用户可见变更。  
 格式大致遵循 [Keep a Changelog](https://keepachangelog.com/)，版本号遵循 [Semantic Versioning](https://semver.org/)。
 
 版本号以 `pubspec.yaml` 为准：`MAJOR.MINOR.PATCH` 为用户可见版本，`+` 后为内部构建号。
@@ -159,6 +159,6 @@
 
 ## 链接
 
-- 仓库：https://github.com/robeshell/MusicPlayerNext
-- Releases：https://github.com/robeshell/MusicPlayerNext/releases
+- 仓库：https://github.com/robeshell/kaiting
+- Releases：https://github.com/robeshell/kaiting/releases
 - 官网（Pages）：以仓库 Pages 配置为准

@@ -1,11 +1,11 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sound_player/domain/library_models.dart';
-import 'package:sound_player/playback/playback_controller.dart';
-import 'package:sound_player/playback/playback_mode.dart';
-import 'package:sound_player/playback/simulated_playback_engine.dart';
-import 'package:sound_player/presentation/screens/library_collection_screen.dart';
+import 'package:kaiting/domain/library_models.dart';
+import 'package:kaiting/playback/playback_controller.dart';
+import 'package:kaiting/playback/playback_mode.dart';
+import 'package:kaiting/playback/simulated_playback_engine.dart';
+import 'package:kaiting/presentation/screens/library_collection_screen.dart';
 
 void main() {
   test('artist browsing keeps an album together and exposes collaborators', () {

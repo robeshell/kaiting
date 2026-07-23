@@ -300,7 +300,7 @@ class SoundChoiceOption<T> {
 ///
 /// The selected state is communicated by a quiet accent tint and accent text;
 /// unselected choices keep a barely visible neutral fill. This avoids mixing
-/// platform chip outlines with Reverie's pill-button language.
+/// platform chip outlines with 开听's pill-button language.
 class SoundChoiceStrip<T> extends StatelessWidget {
   const SoundChoiceStrip({
     required this.options,
@@ -843,7 +843,7 @@ class SoundMenuAction<T> {
   final bool dividerBefore;
 }
 
-/// Reverie's adaptive menu trigger for every supported window class.
+/// 开听's adaptive menu trigger for every supported window class.
 ///
 /// Compact windows open a bottom action sheet. Wider windows use a custom
 /// anchored overlay with the exact same rows, states and semantics.

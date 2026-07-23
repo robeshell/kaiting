@@ -3,9 +3,9 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sound_player/core/sound_theme.dart';
-import 'package:sound_player/domain/library_models.dart';
-import 'package:sound_player/presentation/widgets/animated_artwork_background.dart';
+import 'package:kaiting/core/sound_theme.dart';
+import 'package:kaiting/domain/library_models.dart';
+import 'package:kaiting/presentation/widgets/animated_artwork_background.dart';
 
 void main() {
   late Directory directory;

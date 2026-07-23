@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sound_player/library/scanning/album_grouping.dart';
+import 'package:kaiting/library/scanning/album_grouping.dart';
 
 void main() {
   test('keeps disc folders inside one release identity', () {

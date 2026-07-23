@@ -1,4 +1,4 @@
-package com.soundplayer.sound_player
+package com.kaiting.player
 
 import android.Manifest
 import android.app.Activity
@@ -16,11 +16,11 @@ import com.ryanheise.audioservice.AudioServiceActivity
 class MainActivity : AudioServiceActivity() {
     companion object {
         private const val channelName =
-            "com.soundplayer.sound_player/local_directory_access"
+            "com.kaiting.player/local_directory_access"
         private const val pickDirectoryRequestCode = 9401
         private const val notificationPermissionRequestCode = 9402
         private const val systemMediaChannelName =
-            "com.soundplayer.sound_player/system_media"
+            "com.kaiting.player/system_media"
     }
 
     private var pendingDirectoryResult: MethodChannel.Result? = null

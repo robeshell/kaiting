@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sound_player/library/scanning/album_artist_resolver.dart';
+import 'package:kaiting/library/scanning/album_artist_resolver.dart';
 
 void main() {
   test('uses the majority track artist as the album artist', () {

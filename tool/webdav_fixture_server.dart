@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:sound_player/library/scanning/audio_format_registry.dart';
+import 'package:kaiting/library/scanning/audio_format_registry.dart';
 
 Future<void> main(List<String> arguments) async {
   final options = FixtureServerOptions.parse(arguments);

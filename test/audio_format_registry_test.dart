@@ -1,8 +1,8 @@
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sound_player/library/scanning/audio_format_registry.dart';
-import 'package:sound_player/library/scanning/audio_metadata_fallback.dart';
+import 'package:kaiting/library/scanning/audio_format_registry.dart';
+import 'package:kaiting/library/scanning/audio_metadata_fallback.dart';
 
 void main() {
   test(

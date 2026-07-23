@@ -72,7 +72,7 @@ class ThemePreferences {
         );
       }
     } catch (_) {
-      // Corrupted file — fall back to the original Reverie appearance.
+      // Corrupted file — fall back to the original 开听 appearance.
     }
     return ThemePreferences._(
       file,

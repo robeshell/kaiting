@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sound_player/library/scanning/scan_task_pool.dart';
+import 'package:kaiting/library/scanning/scan_task_pool.dart';
 
 void main() {
   test('bounds concurrent scan work and preserves input order', () async {

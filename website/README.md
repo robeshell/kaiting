@@ -1,4 +1,4 @@
-# Reverie website
+# 开听 website
 
 The static marketing site is published at the GitHub Pages root. The Flutter
 Web build is nested under `app/` so the two experiences can be released as one
@@ -7,7 +7,7 @@ Pages artifact.
 Build the Flutter Web app first, then assemble a local Pages artifact:
 
 ```sh
-flutter build web --release --base-href /MusicPlayerNext/app/
+flutter build web --release --base-href /kaiting/app/
 bash tool/build_pages.sh
 ```
 

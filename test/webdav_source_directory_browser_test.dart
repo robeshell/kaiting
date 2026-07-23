@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sound_player/core/sound_theme.dart';
-import 'package:sound_player/presentation/screens/webdav_folder_picker.dart';
-import 'package:sound_player/presentation/widgets/sound_components.dart';
-import 'package:sound_player/sources/source_provider.dart';
-import 'package:sound_player/sources/webdav/webdav_credentials.dart';
-import 'package:sound_player/sources/webdav/webdav_discovery.dart';
-import 'package:sound_player/sources/webdav/webdav_source_directory_browser.dart';
+import 'package:kaiting/core/sound_theme.dart';
+import 'package:kaiting/presentation/screens/webdav_folder_picker.dart';
+import 'package:kaiting/presentation/widgets/sound_components.dart';
+import 'package:kaiting/sources/source_provider.dart';
+import 'package:kaiting/sources/webdav/webdav_credentials.dart';
+import 'package:kaiting/sources/webdav/webdav_discovery.dart';
+import 'package:kaiting/sources/webdav/webdav_source_directory_browser.dart';
 
 void main() {
   const credentials = WebDavCredentials(username: 'listener', password: 'pw');

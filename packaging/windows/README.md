@@ -4,9 +4,9 @@ Release builds for Windows produce three artifacts in `dist/`:
 
 | Artifact | Format | Notes |
 |----------|--------|--------|
-| `reverie-x.y.z-windows.zip` | Portable | Unzip and run `reverie.exe` |
-| `reverie-x.y.z-windows.msix` | MSIX | Modern installer; self-signed for sideload |
-| `reverie-x.y.z-windows-setup.exe` | Inno Setup | Classic wizard installer |
+| `kaiting-x.y.z-windows.zip` | Portable | Unzip and run `kaiting.exe` |
+| `kaiting-x.y.z-windows.msix` | MSIX | Modern installer; self-signed for sideload |
+| `kaiting-x.y.z-windows-setup.exe` | Inno Setup | Classic wizard installer |
 
 ## Build
 

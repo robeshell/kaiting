@@ -11,7 +11,7 @@
 namespace {
 
 /// Method channel name matching the Dart-side constant.
-constexpr char kWindowChannelName[] = "com.soundplayer.sound_player/window";
+constexpr char kWindowChannelName[] = "com.kaiting.player/window";
 
 }  // namespace
 

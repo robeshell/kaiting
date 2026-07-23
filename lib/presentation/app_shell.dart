@@ -202,7 +202,7 @@ class _AppShellState extends State<AppShell>
     );
     _librarySearch = LibrarySearchController(catalog: _libraryCatalog);
     _keyboardFocusNode = FocusNode(
-      debugLabel: 'Reverie application keyboard shortcuts',
+      debugLabel: '开听 application keyboard shortcuts',
     );
     _searchFocusNode = FocusNode(
       debugLabel: 'Library search',
@@ -1771,11 +1771,11 @@ class _Sidebar extends StatelessWidget {
                         width: 28,
                         height: 28,
                         filterQuality: FilterQuality.high,
-                        semanticLabel: 'Reverie',
+                        semanticLabel: '开听',
                       ),
                       const SizedBox(width: 8),
                       Text(
-                        'Reverie',
+                        '开听',
                         style: TextStyle(
                           color: context.soundPrimaryText,
                           fontSize: 18,

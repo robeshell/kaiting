@@ -1,12 +1,12 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sound_player/domain/library_models.dart';
-import 'package:sound_player/playback/playback_controller.dart';
-import 'package:sound_player/playback/playback_engine.dart';
-import 'package:sound_player/playback/sleep_timer_controller.dart';
-import 'package:sound_player/presentation/controllers/app_diagnostics_controller.dart';
-import 'package:sound_player/presentation/controllers/playback_recovery_controller.dart';
+import 'package:kaiting/domain/library_models.dart';
+import 'package:kaiting/playback/playback_controller.dart';
+import 'package:kaiting/playback/playback_engine.dart';
+import 'package:kaiting/playback/sleep_timer_controller.dart';
+import 'package:kaiting/presentation/controllers/app_diagnostics_controller.dart';
+import 'package:kaiting/presentation/controllers/playback_recovery_controller.dart';
 
 void main() {
   testWidgets('retry keeps queue and resumes the failed playback position', (

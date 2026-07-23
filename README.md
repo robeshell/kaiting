@@ -1,16 +1,16 @@
-# Reverie
+# 开听
 
-**Reverie** is a clean, artwork-first music player for local folders and WebDAV libraries.  
-**Reverie** 是一款简洁、以封面为先的音乐播放器，支持本地文件夹与 WebDAV 曲库。
+**开听** is a clean, artwork-first music player for local folders and WebDAV libraries.  
+**开听** 是一款简洁、以封面为先的音乐播放器，支持本地文件夹与 WebDAV 曲库。
 
 Built with [Flutter](https://flutter.dev). Current version: **1.0.4**.
 
 | | |
 |---|---|
-| **Download · 下载** | [GitHub Releases](https://github.com/robeshell/MusicPlayerNext/releases) |
-| **Website · 官网** | [robeshell.github.io/MusicPlayerNext](https://robeshell.github.io/MusicPlayerNext/) |
+| **Download · 下载** | [GitHub Releases](https://github.com/robeshell/kaiting/releases) |
+| **Website · 官网** | [robeshell.github.io/kaiting](https://robeshell.github.io/kaiting/) |
 | **Changelog · 更新日志** | [CHANGELOG.md](CHANGELOG.md) |
-| **Repository · 仓库** | [github.com/robeshell/MusicPlayerNext](https://github.com/robeshell/MusicPlayerNext) |
+| **Repository · 仓库** | [github.com/robeshell/kaiting](https://github.com/robeshell/kaiting) |
 
 ## Platforms · 平台
 
@@ -44,15 +44,15 @@ Built with [Flutter](https://flutter.dev). Current version: **1.0.4**.
 
 ## Download · 安装
 
-Prebuilt packages are published on [Releases](https://github.com/robeshell/MusicPlayerNext/releases).
+Prebuilt packages are published on [Releases](https://github.com/robeshell/kaiting/releases).
 
 | Asset | Use |
 |-------|-----|
-| `reverie-x.y.z-android.apk` | Android sideload |
-| `reverie-x.y.z-android.aab` | Play Console |
-| `reverie-x.y.z-windows.zip` | Portable Windows |
-| `reverie-x.y.z-windows.msix` | Windows modern install |
-| `reverie-x.y.z-windows-setup.exe` | Windows classic installer |
+| `kaiting-x.y.z-android.apk` | Android sideload |
+| `kaiting-x.y.z-android.aab` | Play Console |
+| `kaiting-x.y.z-windows.zip` | Portable Windows |
+| `kaiting-x.y.z-windows.msix` | Windows modern install |
+| `kaiting-x.y.z-windows-setup.exe` | Windows classic installer |
 
 See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
 
@@ -112,15 +112,15 @@ dart run tool/release.dart windows
 dart run tool/release.dart android --no-bump
 ```
 
-Outputs land in `dist/` (e.g. `reverie-1.0.4-android.apk`). On build failure with bump, `pubspec.yaml` is rolled back.
+Outputs land in `dist/` (e.g. `kaiting-1.0.4-android.apk`). On build failure with bump, `pubspec.yaml` is rolled back.
 
 ### Windows installers
 
 | File | Kind |
 |------|------|
-| `reverie-x.y.z-windows.zip` | Portable |
-| `reverie-x.y.z-windows.msix` | MSIX |
-| `reverie-x.y.z-windows-setup.exe` | Inno Setup |
+| `kaiting-x.y.z-windows.zip` | Portable |
+| `kaiting-x.y.z-windows.msix` | MSIX |
+| `kaiting-x.y.z-windows-setup.exe` | Inno Setup |
 
 Setup.exe needs [Inno Setup 6](https://jrsoftware.org/isinfo.php):
 
@@ -132,11 +132,11 @@ Details: [`packaging/windows/README.md`](packaging/windows/README.md).
 
 ## Website · 网站
 
-GitHub Pages: [robeshell.github.io/MusicPlayerNext](https://robeshell.github.io/MusicPlayerNext/)  
-Flutter Web app path: `/MusicPlayerNext/app/`.
+GitHub Pages: [robeshell.github.io/kaiting](https://robeshell.github.io/kaiting/)  
+Flutter Web app path: `/kaiting/app/`.
 
 ```sh
-flutter build web --release --base-href /MusicPlayerNext/app/
+flutter build web --release --base-href /kaiting/app/
 bash tool/build_pages.sh
 ```
 

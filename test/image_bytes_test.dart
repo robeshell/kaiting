@@ -2,7 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sound_player/library/scanning/image_bytes.dart';
+import 'package:kaiting/library/scanning/image_bytes.dart';
 
 void main() {
   test('accepts a complete PNG and rejects zero-padded truncation', () {

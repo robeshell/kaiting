@@ -31,7 +31,7 @@ static void my_application_activate(GApplication* application) {
   gtk_header_bar_set_show_close_button(header_bar, FALSE);
   gtk_header_bar_set_has_subtitle(header_bar, FALSE);
   // Use an empty title so the header bar is visually minimal.  Flutter
-  // paints "Reverie" in the custom title bar area instead.
+  // paints "开听" in the custom title bar area instead.
   gtk_header_bar_set_title(header_bar, "");
   gtk_window_set_titlebar(window, GTK_WIDGET(header_bar));
 

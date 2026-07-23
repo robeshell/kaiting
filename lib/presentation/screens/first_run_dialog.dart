@@ -11,15 +11,15 @@ class FirstRunDialog extends StatelessWidget {
   Widget build(BuildContext context) {
     return SoundDialog(
       maxWidth: 560,
-      title: const Text('欢迎使用 Reverie'),
+      title: const Text('欢迎使用 开听'),
       content: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             kIsWeb
-                ? '选择音乐来源后，Reverie 会从 WebDAV 目录建立资料库。'
-                : '选择音乐来源后，Reverie 会从本机文件夹或 WebDAV 目录建立资料库。',
+                ? '选择音乐来源后，开听 会从 WebDAV 目录建立资料库。'
+                : '选择音乐来源后，开听 会从本机文件夹或 WebDAV 目录建立资料库。',
             style: TextStyle(color: context.soundSecondaryText, height: 1.55),
           ),
           const SizedBox(height: 14),

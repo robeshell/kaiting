@@ -4,14 +4,14 @@ import 'package:drift/native.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sound_player/library/library_records.dart';
-import 'package:sound_player/library/persistence/drift_library_repository.dart';
-import 'package:sound_player/library/persistence/library_database.dart';
-import 'package:sound_player/playback/playback_controller.dart';
-import 'package:sound_player/playback/simulated_playback_engine.dart';
-import 'package:sound_player/presentation/controllers/library_catalog_controller.dart';
-import 'package:sound_player/presentation/controllers/library_search_controller.dart';
-import 'package:sound_player/presentation/screens/search_screen.dart';
+import 'package:kaiting/library/library_records.dart';
+import 'package:kaiting/library/persistence/drift_library_repository.dart';
+import 'package:kaiting/library/persistence/library_database.dart';
+import 'package:kaiting/playback/playback_controller.dart';
+import 'package:kaiting/playback/simulated_playback_engine.dart';
+import 'package:kaiting/presentation/controllers/library_catalog_controller.dart';
+import 'package:kaiting/presentation/controllers/library_search_controller.dart';
+import 'package:kaiting/presentation/screens/search_screen.dart';
 
 void main() {
   group('searchLibraryDocuments', () {

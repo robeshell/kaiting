@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sound_player/core/sound_theme.dart';
-import 'package:sound_player/domain/library_models.dart';
-import 'package:sound_player/offline/offline_media_provider.dart';
-import 'package:sound_player/presentation/controllers/offline_download_controller.dart';
-import 'package:sound_player/presentation/screens/settings_screen.dart';
+import 'package:kaiting/core/sound_theme.dart';
+import 'package:kaiting/domain/library_models.dart';
+import 'package:kaiting/offline/offline_media_provider.dart';
+import 'package:kaiting/presentation/controllers/offline_download_controller.dart';
+import 'package:kaiting/presentation/screens/settings_screen.dart';
 
 void main() {
   testWidgets(

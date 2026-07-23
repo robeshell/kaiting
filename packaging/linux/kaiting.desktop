@@ -1,9 +1,9 @@
 [Desktop Entry]
 Type=Application
-Name=Reverie
+Name=开听
 Comment=Play local and remote music libraries
-Exec=sound_player
-Icon=reverie
+Exec=kaiting
+Icon=kaiting
 Terminal=false
 Categories=AudioVideo;Audio;Player;
 Keywords=music;audio;player;library;

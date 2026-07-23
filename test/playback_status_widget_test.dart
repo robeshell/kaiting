@@ -3,14 +3,14 @@ import 'dart:async';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sound_player/core/sound_theme.dart';
-import 'package:sound_player/domain/library_models.dart';
-import 'package:sound_player/playback/playback_controller.dart';
-import 'package:sound_player/playback/playback_engine.dart';
-import 'package:sound_player/presentation/screens/now_playing_screen.dart';
-import 'package:sound_player/presentation/widgets/mini_player.dart';
-import 'package:sound_player/presentation/widgets/playback_status_badge.dart';
-import 'package:sound_player/presentation/widgets/sound_components.dart';
+import 'package:kaiting/core/sound_theme.dart';
+import 'package:kaiting/domain/library_models.dart';
+import 'package:kaiting/playback/playback_controller.dart';
+import 'package:kaiting/playback/playback_engine.dart';
+import 'package:kaiting/presentation/screens/now_playing_screen.dart';
+import 'package:kaiting/presentation/widgets/mini_player.dart';
+import 'package:kaiting/presentation/widgets/playback_status_badge.dart';
+import 'package:kaiting/presentation/widgets/sound_components.dart';
 
 void main() {
   test('maps every engine phase to a distinct visual state', () {

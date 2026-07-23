@@ -3,11 +3,11 @@ import 'dart:typed_data';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sound_player/library/library_records.dart';
-import 'package:sound_player/library/persistence/drift_library_repository.dart';
-import 'package:sound_player/library/persistence/library_database.dart';
-import 'package:sound_player/sources/local/local_directory_access.dart';
-import 'package:sound_player/sources/local/local_source_service.dart';
+import 'package:kaiting/library/library_records.dart';
+import 'package:kaiting/library/persistence/drift_library_repository.dart';
+import 'package:kaiting/library/persistence/library_database.dart';
+import 'package:kaiting/sources/local/local_directory_access.dart';
+import 'package:kaiting/sources/local/local_source_service.dart';
 
 void main() {
   test(

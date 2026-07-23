@@ -6,7 +6,7 @@ Future<void> main(List<String> arguments) async {
   final options = _ReleaseOptions.parse(arguments);
   final pubspec = File('pubspec.yaml');
   if (!pubspec.existsSync()) {
-    stderr.writeln('Run this command from the Reverie repository root.');
+    stderr.writeln('Run this command from the 开听 repository root.');
     exitCode = 64;
     return;
   }
@@ -20,7 +20,7 @@ Future<void> main(List<String> arguments) async {
   _validatePlatforms(platforms);
 
   stdout.writeln(
-    'Reverie ${current.name} → ${release.name} '
+    '开听 ${current.name} → ${release.name} '
     '(internal build ${release.buildNumber})',
   );
   stdout.writeln('Platforms: ${platforms.join(', ')}');
@@ -83,9 +83,9 @@ class _ReleaseOptions {
             '  --skip-setup  Windows: skip the Inno Setup .exe installer.\n'
             '\n'
             'Windows artifacts (when tools are available):\n'
-            '  dist/reverie-x.y.z-windows.zip         portable\n'
-            '  dist/reverie-x.y.z-windows.msix        MSIX installer\n'
-            '  dist/reverie-x.y.z-windows-setup.exe   classic Setup.exe\n',
+            '  dist/kaiting-x.y.z-windows.zip         portable\n'
+            '  dist/kaiting-x.y.z-windows.msix        MSIX installer\n'
+            '  dist/kaiting-x.y.z-windows-setup.exe   classic Setup.exe\n',
           );
           exit(0);
         case 'all':
@@ -198,11 +198,11 @@ Future<void> _buildPlatform(
       await _flutterBuild('apk', version);
       await _copyArtifact(
         'build/app/outputs/bundle/release/app-release.aab',
-        '${dist.path}/reverie-${version.name}-android.aab',
+        '${dist.path}/kaiting-${version.name}-android.aab',
       );
       await _copyArtifact(
         'build/app/outputs/flutter-apk/app-release.apk',
-        '${dist.path}/reverie-${version.name}-android.apk',
+        '${dist.path}/kaiting-${version.name}-android.apk',
       );
     case 'ios':
       await _flutterBuild('ios', version, extra: ['--no-codesign']);
@@ -222,7 +222,7 @@ Future<void> _buildPlatform(
         '--keepParent',
         'Payload',
         File(
-          '${dist.path}/reverie-${version.name}-ios-unsigned.zip',
+          '${dist.path}/kaiting-${version.name}-ios-unsigned.zip',
         ).absolute.path,
       ], workingDirectory: packageRoot.path);
     case 'macos':
@@ -232,8 +232,8 @@ Future<void> _buildPlatform(
         '-k',
         '--sequesterRsrc',
         '--keepParent',
-        'build/macos/Build/Products/Release/Reverie.app',
-        '${dist.path}/reverie-${version.name}-macos.zip',
+        'build/macos/Build/Products/Release/开听.app',
+        '${dist.path}/kaiting-${version.name}-macos.zip',
       ]);
     case 'windows':
       await _buildWindows(version, dist, options);
@@ -241,10 +241,10 @@ Future<void> _buildPlatform(
       await _flutterBuild(
         'web',
         version,
-        extra: ['--base-href', '/MusicPlayerNext/'],
+        extra: ['--base-href', '/kaiting/'],
       );
       final output = File(
-        '${dist.path}/reverie-${version.name}-web.zip',
+        '${dist.path}/kaiting-${version.name}-web.zip',
       ).absolute.path;
       if (Platform.isWindows) {
         // Prefer tar — Compress-Archive module can fail to load.
@@ -284,7 +284,7 @@ Future<void> _buildWindows(
 
   // 1) Portable zip
   final zipPath = File(
-    '${dist.path}/reverie-${version.name}-windows.zip',
+    '${dist.path}/kaiting-${version.name}-windows.zip',
   ).absolute.path;
   if (File(zipPath).existsSync()) await File(zipPath).delete();
   await _run('tar', [
@@ -315,7 +315,7 @@ Future<void> _buildWindows(
 
 Future<void> _buildWindowsMsix(_ReleaseVersion version, Directory dist) async {
   stdout.writeln('Building MSIX ${version.msixVersion}...');
-  final outputName = 'reverie-${version.name}-windows';
+  final outputName = 'kaiting-${version.name}-windows';
   // Reuse the Release tree we just built; do not rebuild windows.
   await _run('dart', [
     'run',
@@ -381,15 +381,15 @@ Install Inno Setup 6, then re-run:
   winget install --id JRSoftware.InnoSetup -e --accept-package-agreements
   dart run tool/release.dart windows --no-bump --skip-msix
 
-Script: packaging/windows/reverie.iss
+Script: packaging/windows/kaiting.iss
 See:    packaging/windows/README.md
 ''');
     return;
   }
 
   stdout.writeln('Building Setup.exe with $iscc ...');
-  final script = File('packaging/windows/reverie.iss').absolute.path;
-  final outputBase = 'reverie-${version.name}-windows-setup';
+  final script = File('packaging/windows/kaiting.iss').absolute.path;
+  final outputBase = 'kaiting-${version.name}-windows-setup';
   final sourceDir = Directory(
     'build/windows/x64/runner/Release',
   ).absolute.path;
@@ -398,7 +398,7 @@ See:    packaging/windows/README.md
   await _run(iscc, [
     script,
     '/DMyAppVersion=${version.name}',
-    '/DMyAppPublisher=com.soundplayer',
+    '/DMyAppPublisher=com.kaiting',
     '/DSourceDir=$sourceDir',
     '/DOutputDir=$outputDir',
     '/DOutputBaseFilename=$outputBase',

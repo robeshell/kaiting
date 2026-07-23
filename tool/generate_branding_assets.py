@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate every platform icon and launch mark from the Reverie v7 master.
+"""Generate every platform icon and launch mark from the 开听 v7 master.
 
 The supplied artwork is full-bleed. System-masked platforms consume that
 composition directly, while adaptive and unmasked platforms use extracted
@@ -24,7 +24,7 @@ MASTER = BRANDING / "app_icon_master-v7.png"
 
 CANVAS = 1024
 BRAND_RED = (255, 82, 67)
-LAUNCH_TITLE = "Reverie"
+LAUNCH_TITLE = "开听"
 LAUNCH_TAGLINE = "听自己的音乐"
 LAUNCH_TITLE_COLOR = (28, 28, 34, 255)
 LAUNCH_SUBTITLE_COLOR = (112, 112, 122, 255)
@@ -52,7 +52,7 @@ def extract_mark() -> Image.Image:
 
     ys, xs = np.where(alpha > 0.04)
     if not len(xs):
-        raise RuntimeError("Could not isolate the Reverie mark from the master")
+        raise RuntimeError("Could not isolate the 开听 mark from the master")
 
     pad = 3
     left = max(0, int(xs.min()) - pad)
@@ -250,25 +250,25 @@ def write_linux_svg(full_color: Image.Image, symbolic_mask: Image.Image) -> None
     symbolic_apps.mkdir(parents=True, exist_ok=True)
 
     full_svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 1024 1024">
-  <title>Reverie</title>
+  <title>开听</title>
   <image width="1024" height="1024" href="{png_data_uri(full_color)}"/>
 </svg>
 '''
-    (linux_dir / "reverie.svg").write_text(full_svg, encoding="utf-8")
-    (scalable_apps / "reverie.svg").write_text(full_svg, encoding="utf-8")
+    (linux_dir / "kaiting.svg").write_text(full_svg, encoding="utf-8")
+    (scalable_apps / "kaiting.svg").write_text(full_svg, encoding="utf-8")
 
     symbolic_svg = f'''<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 1024 1024">
-  <title>Reverie symbolic icon</title>
+  <title>开听 symbolic icon</title>
   <defs>
-    <mask id="reverie-mark">
+    <mask id="kaiting-mark">
       <image width="1024" height="1024" href="{png_data_uri(symbolic_mask)}"/>
     </mask>
   </defs>
-  <rect width="1024" height="1024" fill="currentColor" mask="url(#reverie-mark)"/>
+  <rect width="1024" height="1024" fill="currentColor" mask="url(#kaiting-mark)"/>
 </svg>
 '''
-    (linux_dir / "reverie-symbolic.svg").write_text(symbolic_svg, encoding="utf-8")
-    (symbolic_apps / "reverie-symbolic.svg").write_text(
+    (linux_dir / "kaiting-symbolic.svg").write_text(symbolic_svg, encoding="utf-8")
+    (symbolic_apps / "kaiting-symbolic.svg").write_text(
         symbolic_svg, encoding="utf-8"
     )
 
@@ -372,7 +372,7 @@ def main() -> None:
     write_apple_catalog(ios_catalog, ios)
 
     # Icon Composer applies the current macOS/iOS mask to this full-bleed layer.
-    composer_assets = LAYERS / "Reverie.icon" / "Assets"
+    composer_assets = LAYERS / "Kaiting.icon" / "Assets"
     composer_assets.mkdir(parents=True, exist_ok=True)
     ios.save(composer_assets / "foreground.png", optimize=True)
 
@@ -416,7 +416,7 @@ def main() -> None:
             (legacy_size, legacy_size), Image.Resampling.LANCZOS
         )
         rendered.save(mipmap / "ic_launcher.png", optimize=True)
-        rendered.save(mipmap / "ic_launcher_reverie.png", optimize=True)
+        rendered.save(mipmap / "ic_launcher_kaiting.png", optimize=True)
 
     web_standard = source_icon(512)
     web_maskable = gradient_background(512)
@@ -485,10 +485,10 @@ def main() -> None:
     for size in (16, 24, 32, 48, 64, 128, 256, 512):
         source = linux_small if size <= 48 else linux
         rendered = source.resize((size, size), Image.Resampling.LANCZOS)
-        rendered.save(linux_dir / f"reverie-{size}.png", optimize=True)
+        rendered.save(linux_dir / f"kaiting-{size}.png", optimize=True)
         hicolor_apps = linux_dir / "hicolor" / f"{size}x{size}" / "apps"
         hicolor_apps.mkdir(parents=True, exist_ok=True)
-        rendered.save(hicolor_apps / "reverie.png", optimize=True)
+        rendered.save(hicolor_apps / "kaiting.png", optimize=True)
     linux_symbolic = contain(mark, (700, 700), (CANVAS, CANVAS))
     write_linux_svg(linux, monochrome(linux_symbolic, (255, 255, 255)))
 

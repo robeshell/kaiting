@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sound_player/core/sound_theme.dart';
+import 'package:kaiting/core/sound_theme.dart';
 
 void main() {
   tearDown(SoundColors.defaultAccentPreset.apply);

@@ -2,17 +2,17 @@ import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sound_player/app/sound_app.dart';
-import 'package:sound_player/core/sound_theme.dart';
-import 'package:sound_player/domain/library_models.dart';
-import 'package:sound_player/library/library_records.dart';
-import 'package:sound_player/library/persistence/drift_library_repository.dart';
-import 'package:sound_player/library/persistence/library_database.dart';
-import 'package:sound_player/playback/playback_session.dart';
-import 'package:sound_player/playback/simulated_playback_engine.dart';
-import 'package:sound_player/presentation/app_shell.dart';
-import 'package:sound_player/presentation/screens/album_detail_screen.dart';
-import 'package:sound_player/presentation/screens/now_playing_screen.dart';
+import 'package:kaiting/app/sound_app.dart';
+import 'package:kaiting/core/sound_theme.dart';
+import 'package:kaiting/domain/library_models.dart';
+import 'package:kaiting/library/library_records.dart';
+import 'package:kaiting/library/persistence/drift_library_repository.dart';
+import 'package:kaiting/library/persistence/library_database.dart';
+import 'package:kaiting/playback/playback_session.dart';
+import 'package:kaiting/playback/simulated_playback_engine.dart';
+import 'package:kaiting/presentation/app_shell.dart';
+import 'package:kaiting/presentation/screens/album_detail_screen.dart';
+import 'package:kaiting/presentation/screens/now_playing_screen.dart';
 
 void main() {
   testWidgets('global shortcuts control playback and switch primary pages', (

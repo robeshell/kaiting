@@ -2,9 +2,9 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:path/path.dart' as path;
-import 'package:sound_player/library/scanning/audio_format_registry.dart';
-import 'package:sound_player/library/scanning/audio_metadata_fallback.dart';
-import 'package:sound_player/library/scanning/audio_metadata_extractor.dart';
+import 'package:kaiting/library/scanning/audio_format_registry.dart';
+import 'package:kaiting/library/scanning/audio_metadata_fallback.dart';
+import 'package:kaiting/library/scanning/audio_metadata_extractor.dart';
 
 Future<void> main(List<String> arguments) async {
   if (arguments.isEmpty) {

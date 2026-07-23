@@ -4,13 +4,13 @@ import 'package:audio_service/audio_service.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sound_player/domain/library_models.dart';
-import 'package:sound_player/playback/media_favorite_controller.dart';
-import 'package:sound_player/playback/media_notification_permission.dart';
-import 'package:sound_player/playback/playback_controller.dart';
-import 'package:sound_player/playback/playback_engine.dart';
-import 'package:sound_player/playback/playback_mode.dart';
-import 'package:sound_player/playback/sound_audio_handler.dart';
+import 'package:kaiting/domain/library_models.dart';
+import 'package:kaiting/playback/media_favorite_controller.dart';
+import 'package:kaiting/playback/media_notification_permission.dart';
+import 'package:kaiting/playback/playback_controller.dart';
+import 'package:kaiting/playback/playback_engine.dart';
+import 'package:kaiting/playback/playback_mode.dart';
+import 'package:kaiting/playback/sound_audio_handler.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -20,7 +20,7 @@ void main() {
     () async {
       debugDefaultTargetPlatformOverride = TargetPlatform.android;
       const channel = MethodChannel(
-        'com.soundplayer.sound_player/system_media',
+        'com.kaiting.player/system_media',
       );
       var calls = 0;
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger

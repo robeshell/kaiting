@@ -12,7 +12,7 @@ class PlatformChannelLocalMediaCatalog implements LocalMediaCatalog {
     : _invoker = invoker ?? _invokePlatformMethod;
 
   static const _channel = MethodChannel(
-    'com.soundplayer.sound_player/local_directory_access',
+    'com.kaiting.player/local_directory_access',
   );
 
   final LocalMediaMethodInvoker _invoker;

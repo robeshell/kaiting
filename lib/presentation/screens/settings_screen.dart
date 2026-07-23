@@ -469,7 +469,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                               flat: true,
                               icon: Icons.graphic_eq_rounded,
                               iconColor: SoundColors.webDav,
-                              title: 'Reverie',
+                              title: '开听',
                               subtitle: kIsWeb ? '跨平台远程音乐播放器' : '跨平台本地与远程音乐播放器',
                               value: _appVersion,
                             ),
@@ -675,7 +675,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       key: const ValueKey('settings-about-row'),
                       icon: Icons.graphic_eq_rounded,
                       iconColor: SoundColors.webDav,
-                      title: 'Reverie',
+                      title: '开听',
                       subtitle: kIsWeb ? '远程音乐播放器' : '本地与远程音乐播放器',
                       value: _appVersion,
                     ),
@@ -1273,7 +1273,7 @@ class OfflineSettingsView extends StatelessWidget {
                   ),
                   const SizedBox(height: 5),
                   Text(
-                    'Reverie 当前使用的音频存储',
+                    '开听 当前使用的音频存储',
                     style: TextStyle(
                       color: _settingsSecondaryText(context),
                       fontSize: 11.5,

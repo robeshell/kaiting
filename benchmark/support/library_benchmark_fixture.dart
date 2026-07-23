@@ -1,7 +1,7 @@
 import 'package:drift/native.dart';
-import 'package:sound_player/library/library_records.dart';
-import 'package:sound_player/library/persistence/drift_library_repository.dart';
-import 'package:sound_player/library/persistence/library_database.dart';
+import 'package:kaiting/library/library_records.dart';
+import 'package:kaiting/library/persistence/drift_library_repository.dart';
+import 'package:kaiting/library/persistence/library_database.dart';
 
 class LibraryBenchmarkFixture {
   const LibraryBenchmarkFixture({

@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 
-const _channel = MethodChannel('com.soundplayer.sound_player/window');
+const _channel = MethodChannel('com.kaiting.player/window');
 
 StreamController<bool>? _maximizedController;
 bool _windowEventHandlerInstalled = false;

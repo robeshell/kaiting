@@ -1,24 +1,24 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-const reverieLaunchBackground = Color(0xFFF7F7F8);
-const reverieLaunchTitleColor = Color(0xFF1C1C22);
-const reverieLaunchSubtitleColor = Color(0xFF70707A);
+const kaitingLaunchBackground = Color(0xFFF7F7F8);
+const kaitingLaunchTitleColor = Color(0xFF1C1C22);
+const kaitingLaunchSubtitleColor = Color(0xFF70707A);
 
-class ReverieLaunchApp extends StatelessWidget {
-  const ReverieLaunchApp({super.key});
+class KaitingLaunchApp extends StatelessWidget {
+  const KaitingLaunchApp({super.key});
 
   @override
   Widget build(BuildContext context) {
     return const MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: ReverieLaunchScreen(),
+      home: KaitingLaunchScreen(),
     );
   }
 }
 
-class ReverieLaunchScreen extends StatelessWidget {
-  const ReverieLaunchScreen({super.key});
+class KaitingLaunchScreen extends StatelessWidget {
+  const KaitingLaunchScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -27,24 +27,24 @@ class ReverieLaunchScreen extends StatelessWidget {
         statusBarColor: Colors.transparent,
         statusBarIconBrightness: Brightness.dark,
         statusBarBrightness: Brightness.light,
-        systemNavigationBarColor: reverieLaunchBackground,
+        systemNavigationBarColor: kaitingLaunchBackground,
         systemNavigationBarIconBrightness: Brightness.dark,
       ),
       child: Scaffold(
-        backgroundColor: reverieLaunchBackground,
-        body: Center(child: _ReverieLaunchLockup()),
+        backgroundColor: kaitingLaunchBackground,
+        body: Center(child: _KaitingLaunchLockup()),
       ),
     );
   }
 }
 
-class _ReverieLaunchLockup extends StatelessWidget {
-  const _ReverieLaunchLockup();
+class _KaitingLaunchLockup extends StatelessWidget {
+  const _KaitingLaunchLockup();
 
   @override
   Widget build(BuildContext context) {
     return Semantics(
-      label: 'Reverie 正在启动',
+      label: '开听 正在启动',
       child: SizedBox(
         width: 280,
         height: 260,
@@ -64,9 +64,9 @@ class _ReverieLaunchLockup extends StatelessWidget {
             Transform.translate(
               offset: const Offset(0, 28),
               child: const Text(
-                'Reverie',
+                '开听',
                 style: TextStyle(
-                  color: reverieLaunchTitleColor,
+                  color: kaitingLaunchTitleColor,
                   fontSize: 24,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.2,
@@ -78,7 +78,7 @@ class _ReverieLaunchLockup extends StatelessWidget {
               child: const Text(
                 '听自己的音乐',
                 style: TextStyle(
-                  color: reverieLaunchSubtitleColor,
+                  color: kaitingLaunchSubtitleColor,
                   fontSize: 13,
                   fontWeight: FontWeight.w400,
                   letterSpacing: 0.1,

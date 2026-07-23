@@ -2,9 +2,9 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sound_player/sources/local/file_system_local_directory_access.dart';
-import 'package:sound_player/sources/local/local_directory_access.dart';
-import 'package:sound_player/sources/local/platform_channel_local_directory_access.dart';
+import 'package:kaiting/sources/local/file_system_local_directory_access.dart';
+import 'package:kaiting/sources/local/local_directory_access.dart';
+import 'package:kaiting/sources/local/platform_channel_local_directory_access.dart';
 
 void main() {
   test('platform grant preserves a refreshed security bookmark', () async {

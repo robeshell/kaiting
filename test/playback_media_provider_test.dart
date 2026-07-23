@@ -1,12 +1,12 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sound_player/domain/library_models.dart';
-import 'package:sound_player/playback/playback_controller.dart';
-import 'package:sound_player/playback/playback_engine.dart';
-import 'package:sound_player/playback/playback_media_provider.dart';
-import 'package:sound_player/sources/webdav/webdav_cache.dart';
-import 'package:sound_player/sources/webdav/webdav_playback_media_provider.dart';
+import 'package:kaiting/domain/library_models.dart';
+import 'package:kaiting/playback/playback_controller.dart';
+import 'package:kaiting/playback/playback_engine.dart';
+import 'package:kaiting/playback/playback_media_provider.dart';
+import 'package:kaiting/sources/webdav/webdav_cache.dart';
+import 'package:kaiting/sources/webdav/webdav_playback_media_provider.dart';
 
 void main() {
   group('PlaybackMediaProviderRegistry', () {

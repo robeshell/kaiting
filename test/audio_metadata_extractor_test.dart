@@ -3,7 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sound_player/library/scanning/audio_metadata_extractor.dart';
+import 'package:kaiting/library/scanning/audio_metadata_extractor.dart';
 
 void main() {
   test('extracts MP3 tags, duration, artwork, and embedded lyrics', () async {

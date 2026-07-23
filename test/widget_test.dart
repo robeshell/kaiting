@@ -3,49 +3,49 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import 'package:sound_player/app/sound_app.dart';
-import 'package:sound_player/app/reverie_launch_screen.dart';
-import 'package:sound_player/core/sound_theme.dart';
-import 'package:sound_player/core/now_playing_style.dart';
-import 'package:sound_player/domain/library_models.dart';
-import 'package:sound_player/library/library_records.dart';
-import 'package:sound_player/library/persistence/drift_library_repository.dart';
-import 'package:sound_player/library/persistence/library_database.dart';
-import 'package:sound_player/playback/playback_controller.dart';
-import 'package:sound_player/playback/playback_session.dart';
-import 'package:sound_player/playback/simulated_playback_engine.dart';
-import 'package:sound_player/presentation/app_shell.dart';
-import 'package:sound_player/presentation/controllers/library_catalog_controller.dart';
-import 'package:sound_player/presentation/screens/now_playing_screen.dart';
-import 'package:sound_player/presentation/widgets/animated_artwork_background.dart';
-import 'package:sound_player/presentation/widgets/mini_player.dart';
-import 'package:sound_player/presentation/widgets/progress_scrubber.dart';
-import 'package:sound_player/presentation/widgets/sound_components.dart';
-import 'package:sound_player/presentation/widgets/vinyl_record_art.dart';
+import 'package:kaiting/app/sound_app.dart';
+import 'package:kaiting/app/kaiting_launch_screen.dart';
+import 'package:kaiting/core/sound_theme.dart';
+import 'package:kaiting/core/now_playing_style.dart';
+import 'package:kaiting/domain/library_models.dart';
+import 'package:kaiting/library/library_records.dart';
+import 'package:kaiting/library/persistence/drift_library_repository.dart';
+import 'package:kaiting/library/persistence/library_database.dart';
+import 'package:kaiting/playback/playback_controller.dart';
+import 'package:kaiting/playback/playback_session.dart';
+import 'package:kaiting/playback/simulated_playback_engine.dart';
+import 'package:kaiting/presentation/app_shell.dart';
+import 'package:kaiting/presentation/controllers/library_catalog_controller.dart';
+import 'package:kaiting/presentation/screens/now_playing_screen.dart';
+import 'package:kaiting/presentation/widgets/animated_artwork_background.dart';
+import 'package:kaiting/presentation/widgets/mini_player.dart';
+import 'package:kaiting/presentation/widgets/progress_scrubber.dart';
+import 'package:kaiting/presentation/widgets/sound_components.dart';
+import 'package:kaiting/presentation/widgets/vinyl_record_art.dart';
 
 void main() {
   PackageInfo.setMockInitialValues(
-    appName: 'Reverie',
-    packageName: 'com.soundplayer.sound_player',
+    appName: '开听',
+    packageName: 'com.kaiting.player',
     version: '1.0.1',
     buildNumber: '4',
     buildSignature: '',
   );
 
-  testWidgets('shared launch surface shows the complete Reverie lockup', (
+  testWidgets('shared launch surface shows the complete 开听 lockup', (
     tester,
   ) async {
-    await tester.pumpWidget(const ReverieLaunchApp());
+    await tester.pumpWidget(const KaitingLaunchApp());
 
     expect(
       find.image(const AssetImage('assets/branding/launch_mark.png')),
       findsOneWidget,
     );
-    expect(find.text('Reverie'), findsOneWidget);
+    expect(find.text('开听'), findsOneWidget);
     expect(find.text('听自己的音乐'), findsOneWidget);
 
     final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
-    expect(scaffold.backgroundColor, reverieLaunchBackground);
+    expect(scaffold.backgroundColor, kaitingLaunchBackground);
   });
 
   testWidgets('preloaded playback session skips the Flutter launch screen', (
@@ -128,7 +128,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Reverie'), findsOneWidget);
+    expect(find.text('开听'), findsOneWidget);
     expect(
       find.image(const AssetImage('assets/branding/app_icon_master-v7.png')),
       findsOneWidget,
@@ -1306,9 +1306,9 @@ void main() {
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Reverie'), findsOneWidget);
+      expect(find.text('开听'), findsOneWidget);
       expect(
-        tester.getTopLeft(find.text('Reverie')).dy,
+        tester.getTopLeft(find.text('开听')).dy,
         greaterThan(soundMacOSTitlebarInset),
       );
       expect(find.byType(SoundNavigationBar), findsNothing);
@@ -1345,14 +1345,14 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Reverie'), findsOneWidget);
+    expect(find.text('开听'), findsOneWidget);
     expect(find.byType(SoundNavigationBar), findsNothing);
     expect(tester.takeException(), isNull);
 
     tester.view.physicalSize = const Size(600, 1024);
     await tester.pumpAndSettle();
 
-    expect(find.text('Reverie'), findsNothing);
+    expect(find.text('开听'), findsNothing);
     expect(find.byType(SoundNavigationBar), findsOneWidget);
     expect(tester.takeException(), isNull);
 

@@ -37,7 +37,7 @@ private final class IOSLocalDirectoryAccessPlugin: NSObject, UIDocumentPickerDel
     viewControllerProvider: @escaping () -> UIViewController?
   ) {
     channel = FlutterMethodChannel(
-      name: "com.soundplayer.sound_player/local_directory_access",
+      name: "com.kaiting.player/local_directory_access",
       binaryMessenger: messenger)
     self.viewControllerProvider = viewControllerProvider
     super.init()

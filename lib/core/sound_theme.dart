@@ -465,12 +465,12 @@ class SoundSkinPreset {
 }
 
 abstract final class SoundSkins {
-  /// The original Reverie appearance. Keep these tokens stable so adding new
+  /// The original 开听 appearance. Keep these tokens stable so adding new
   /// skins never changes the visual baseline existing users already know.
   static const standard = SoundSkinPreset(
     id: 'default',
     name: '默认',
-    description: 'Reverie 的中性浅色玻璃界面',
+    description: '开听 的中性浅色玻璃界面',
     brightness: Brightness.light,
     canvas: SoundColors.lightCanvas,
     surface: SoundColors.lightSurface,

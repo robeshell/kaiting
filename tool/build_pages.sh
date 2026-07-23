@@ -13,7 +13,7 @@ fi
 
 if [[ ! -f "$web_build_dir/index.html" ]]; then
   echo "Flutter Web build not found at $web_build_dir" >&2
-  echo "Run: flutter build web --release --base-href /MusicPlayerNext/app/" >&2
+  echo "Run: flutter build web --release --base-href /kaiting/app/" >&2
   exit 1
 fi
 

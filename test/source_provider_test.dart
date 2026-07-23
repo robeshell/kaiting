@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sound_player/domain/library_models.dart';
-import 'package:sound_player/library/library_records.dart';
-import 'package:sound_player/presentation/models/library_source_filter.dart';
-import 'package:sound_player/sources/source_provider.dart';
+import 'package:kaiting/domain/library_models.dart';
+import 'package:kaiting/library/library_records.dart';
+import 'package:kaiting/presentation/models/library_source_filter.dart';
+import 'package:kaiting/sources/source_provider.dart';
 
 void main() {
   test('source identifiers preserve unknown future providers', () {

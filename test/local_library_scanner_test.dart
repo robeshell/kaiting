@@ -5,14 +5,14 @@ import 'dart:typed_data';
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:path/path.dart' as path;
-import 'package:sound_player/library/library_records.dart';
-import 'package:sound_player/library/persistence/drift_library_repository.dart';
-import 'package:sound_player/library/persistence/library_database.dart';
-import 'package:sound_player/library/scanning/artwork_store.dart';
-import 'package:sound_player/library/scanning/audio_metadata_extractor.dart';
-import 'package:sound_player/library/scanning/file_system_local_media_catalog.dart';
-import 'package:sound_player/library/scanning/local_library_scanner.dart';
-import 'package:sound_player/library/scanning/scan_cancellation.dart';
+import 'package:kaiting/library/library_records.dart';
+import 'package:kaiting/library/persistence/drift_library_repository.dart';
+import 'package:kaiting/library/persistence/library_database.dart';
+import 'package:kaiting/library/scanning/artwork_store.dart';
+import 'package:kaiting/library/scanning/audio_metadata_extractor.dart';
+import 'package:kaiting/library/scanning/file_system_local_media_catalog.dart';
+import 'package:kaiting/library/scanning/local_library_scanner.dart';
+import 'package:kaiting/library/scanning/scan_cancellation.dart';
 
 void main() {
   test(

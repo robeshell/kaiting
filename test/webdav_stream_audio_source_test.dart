@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sound_player/playback/http_stream_audio_source.dart';
+import 'package:kaiting/playback/http_stream_audio_source.dart';
 
 void main() {
   late HttpServer server;

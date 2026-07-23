@@ -50,7 +50,7 @@ if (prefersReducedMotion || !('IntersectionObserver' in window)) {
   revealNodes.forEach((node) => revealObserver.observe(node));
 }
 
-const repository = 'robeshell/MusicPlayerNext';
+const repository = 'robeshell/kaiting';
 const releasePage = `https://github.com/${repository}/releases`;
 const statusNode = document.querySelector('#release-status');
 

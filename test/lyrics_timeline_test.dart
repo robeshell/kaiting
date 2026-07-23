@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sound_player/domain/library_models.dart';
-import 'package:sound_player/playback/lyrics_timeline.dart';
+import 'package:kaiting/domain/library_models.dart';
+import 'package:kaiting/playback/lyrics_timeline.dart';
 
 void main() {
   test('timestamped source text participates without semantic guessing', () {

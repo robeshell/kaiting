@@ -1,18 +1,18 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sound_player/core/sound_theme.dart';
-import 'package:sound_player/core/now_playing_style.dart';
-import 'package:sound_player/domain/library_models.dart';
-import 'package:sound_player/playback/playback_controller.dart';
-import 'package:sound_player/playback/playback_mode.dart';
-import 'package:sound_player/playback/simulated_playback_engine.dart';
-import 'package:sound_player/presentation/screens/album_detail_screen.dart';
-import 'package:sound_player/presentation/screens/now_playing_screen.dart';
-import 'package:sound_player/presentation/controllers/offline_download_controller.dart';
-import 'package:sound_player/presentation/widgets/playback_queue_sheet.dart';
-import 'package:sound_player/presentation/widgets/album_art.dart';
-import 'package:sound_player/presentation/widgets/sound_components.dart';
+import 'package:kaiting/core/sound_theme.dart';
+import 'package:kaiting/core/now_playing_style.dart';
+import 'package:kaiting/domain/library_models.dart';
+import 'package:kaiting/playback/playback_controller.dart';
+import 'package:kaiting/playback/playback_mode.dart';
+import 'package:kaiting/playback/simulated_playback_engine.dart';
+import 'package:kaiting/presentation/screens/album_detail_screen.dart';
+import 'package:kaiting/presentation/screens/now_playing_screen.dart';
+import 'package:kaiting/presentation/controllers/offline_download_controller.dart';
+import 'package:kaiting/presentation/widgets/playback_queue_sheet.dart';
+import 'package:kaiting/presentation/widgets/album_art.dart';
+import 'package:kaiting/presentation/widgets/sound_components.dart';
 
 void main() {
   testWidgets('queue sheet changes mode, removes tracks, and clears queue', (

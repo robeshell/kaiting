@@ -3,10 +3,10 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sound_player/core/sound_theme.dart';
-import 'package:sound_player/presentation/controllers/library_catalog_controller.dart';
-import 'package:sound_player/presentation/screens/library_screen.dart';
-import 'package:sound_player/presentation/widgets/album_art.dart';
+import 'package:kaiting/core/sound_theme.dart';
+import 'package:kaiting/presentation/controllers/library_catalog_controller.dart';
+import 'package:kaiting/presentation/screens/library_screen.dart';
+import 'package:kaiting/presentation/widgets/album_art.dart';
 
 import 'support/library_benchmark_fixture.dart';
 

@@ -1,6 +1,6 @@
-# Reverie design foundation
+# 开听 design foundation
 
-This document defines Reverie's current visual and interaction direction. The
+This document defines 开听's current visual and interaction direction. The
 light glass redesign approved in July 2026 replaces the earlier dark-first
 foundation; implementation details may evolve, but deviations from these
 principles require a deliberate design review.
@@ -20,7 +20,7 @@ platform-default Material list styling.
 
 ## Product character
 
-Reverie is an artwork-first personal music player for local and remote libraries.
+开听 is an artwork-first personal music player for local and remote libraries.
 It should feel calm, neutral and native rather than technical: strong cover art,
 quiet metadata, restrained glass surfaces, and one vivid coral-red playback
 accent.
@@ -44,7 +44,7 @@ accent.
 
 ## Appearance layers
 
-Reverie's appearance is composed from independent layers rather than one
+开听's appearance is composed from independent layers rather than one
 monolithic theme:
 
 - **Skin** controls canvas, surfaces, text hierarchy, glass strength and overall
@@ -102,7 +102,7 @@ without collapsing the selector.
 - Startup uses a native launch surface so audio, cache and library
   initialization never exposes an empty white or black window.
 - The launch surface uses a quiet, consistent brand lockup: a `#F7F7F8`
-  canvas, the transparent coral Reverie music mark, a semibold `Reverie`
+  canvas, the transparent coral 开听 music mark, a semibold `开听`
   wordmark and the supporting line `听自己的音乐`. It contains no app-icon
   plate, artwork card, progress percentage or decorative gradient. Android 12+
   keeps the mark inside the system splash icon area and places the wordmark and
@@ -115,7 +115,7 @@ without collapsing the selector.
   surface to the shared branded Flutter surface while initialization continues.
   No fixed-duration delay or progress percentage is allowed.
 - The launch screen follows the light-first product identity even when the
-  operating system is in dark mode, avoiding a dark flash before Reverie's
+  operating system is in dark mode, avoiding a dark flash before 开听's
   light canvas appears.
 
 ## Design tokens
@@ -173,7 +173,7 @@ without collapsing the selector.
 
 ## Shared component grammar
 
-Browsing and utility screens must use the shared Reverie components rather than
+Browsing and utility screens must use the shared 开听 components rather than
 restyling Material controls locally. Search, the song library, favorites,
 recent playback and playlists are the reference implementation.
 
@@ -221,7 +221,7 @@ recent playback and playlists are the reference implementation.
 
 - Do not place a standalone icon inside a softly colored rounded square,
   rounded rectangle, or circle purely for decoration. This pattern is not part
-  of Reverie's visual language and is prohibited in status banners, empty
+  of 开听's visual language and is prohibited in status banners, empty
   states, settings rows, dialog headings, onboarding features, collection
   cards, and page shortcuts.
 - Render informational and semantic icons directly. Establish hierarchy with

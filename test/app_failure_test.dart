@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sound_player/core/app_failure.dart';
-import 'package:sound_player/presentation/controllers/app_diagnostics_controller.dart';
+import 'package:kaiting/core/app_failure.dart';
+import 'package:kaiting/presentation/controllers/app_diagnostics_controller.dart';
 
 void main() {
   test('classifies actionable source and playback failures', () {

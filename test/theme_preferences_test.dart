@@ -2,9 +2,9 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sound_player/app/theme_preferences.dart';
-import 'package:sound_player/core/now_playing_style.dart';
-import 'package:sound_player/core/sound_theme.dart';
+import 'package:kaiting/app/theme_preferences.dart';
+import 'package:kaiting/core/now_playing_style.dart';
+import 'package:kaiting/core/sound_theme.dart';
 
 void main() {
   late Directory supportDirectory;

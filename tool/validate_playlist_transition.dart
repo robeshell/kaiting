@@ -2,10 +2,10 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
-import 'package:sound_player/domain/library_models.dart';
-import 'package:sound_player/playback/just_audio_playback_engine.dart';
-import 'package:sound_player/playback/playback_controller.dart';
-import 'package:sound_player/playback/playback_engine.dart';
+import 'package:kaiting/domain/library_models.dart';
+import 'package:kaiting/playback/just_audio_playback_engine.dart';
+import 'package:kaiting/playback/playback_controller.dart';
+import 'package:kaiting/playback/playback_engine.dart';
 
 const _firstPath = String.fromEnvironment('SOUND_VALIDATION_TRACK_ONE');
 const _secondPath = String.fromEnvironment('SOUND_VALIDATION_TRACK_TWO');

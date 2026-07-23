@@ -8,7 +8,7 @@ import 'package:flutter/widgets.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'app/sound_app.dart';
-import 'app/reverie_launch_screen.dart';
+import 'app/kaiting_launch_screen.dart';
 import 'app/theme_preferences.dart';
 import 'core/sound_theme.dart';
 import 'library/persistence/drift_library_repository.dart';
@@ -29,14 +29,14 @@ Future<void> main() async {
   // API. Keep that one surface visible until initialization completes so the
   // first Flutter frame is the ready app shell, not a second splash screen.
   if (!kIsWeb && Platform.isAndroid) {
-    final result = await _initializeReverie();
-    runApp(_readyReverieApp(result));
+    final result = await _initializeKaiting();
+    runApp(_readyKaitingApp(result));
     return;
   }
 
   // Other targets hand their native window off to the shared Flutter launch
   // surface while slower initialization continues in the background.
-  runApp(const _ReverieBootstrap());
+  runApp(const _KaitingBootstrap());
 
   if (!kIsWeb && Platform.isMacOS) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -45,31 +45,31 @@ Future<void> main() async {
   }
 }
 
-class _ReverieBootstrap extends StatefulWidget {
-  const _ReverieBootstrap();
+class _KaitingBootstrap extends StatefulWidget {
+  const _KaitingBootstrap();
 
   @override
-  State<_ReverieBootstrap> createState() => _ReverieBootstrapState();
+  State<_KaitingBootstrap> createState() => _KaitingBootstrapState();
 }
 
-class _ReverieBootstrapState extends State<_ReverieBootstrap> {
-  late final Future<_ReverieBootstrapResult> _initialization =
-      _initializeReverie();
+class _KaitingBootstrapState extends State<_KaitingBootstrap> {
+  late final Future<_KaitingBootstrapResult> _initialization =
+      _initializeKaiting();
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<_ReverieBootstrapResult>(
+    return FutureBuilder<_KaitingBootstrapResult>(
       future: _initialization,
       builder: (context, snapshot) {
         final result = snapshot.data;
-        if (result == null) return const ReverieLaunchApp();
-        return _readyReverieApp(result);
+        if (result == null) return const KaitingLaunchApp();
+        return _readyKaitingApp(result);
       },
     );
   }
 }
 
-Widget _readyReverieApp(_ReverieBootstrapResult result) {
+Widget _readyKaitingApp(_KaitingBootstrapResult result) {
   return SoundApp(
     engine: JustAudioPlaybackEngine(
       mediaProviders: PlaybackMediaProviderRegistry([
@@ -89,7 +89,7 @@ Widget _readyReverieApp(_ReverieBootstrapResult result) {
   );
 }
 
-Future<_ReverieBootstrapResult> _initializeReverie() async {
+Future<_KaitingBootstrapResult> _initializeKaiting() async {
   ThemePreferences? themePreferences;
   var initialAccent = SoundColors.defaultAccentPreset;
   try {
@@ -125,7 +125,7 @@ Future<_ReverieBootstrapResult> _initializeReverie() async {
   final audioHandler = await AudioService.init(
     builder: SoundAudioHandler.new,
     config: AudioServiceConfig(
-      androidNotificationChannelId: 'com.soundplayer.sound_player.audio',
+      androidNotificationChannelId: 'com.kaiting.player.audio',
       androidNotificationChannelName: '音乐播放',
       androidNotificationChannelDescription: '播放控制和当前歌曲信息',
       androidNotificationIcon: 'drawable/ic_stat_sound',
@@ -157,7 +157,7 @@ Future<_ReverieBootstrapResult> _initializeReverie() async {
   final playbackSessionStore = await _createPlaybackSessionStore();
   final initialPlaybackSession = await playbackSessionStore.load();
 
-  return _ReverieBootstrapResult(
+  return _KaitingBootstrapResult(
     themePreferences: themePreferences,
     libraryRepository: libraryRepository,
     initialCatalog: initialCatalog,
@@ -168,8 +168,8 @@ Future<_ReverieBootstrapResult> _initializeReverie() async {
   );
 }
 
-class _ReverieBootstrapResult {
-  const _ReverieBootstrapResult({
+class _KaitingBootstrapResult {
+  const _KaitingBootstrapResult({
     required this.themePreferences,
     required this.libraryRepository,
     required this.initialCatalog,
@@ -205,7 +205,7 @@ Future<PlaybackSessionStore> _createPlaybackSessionStore() async {
 }
 
 const _macOSLaunchScreenChannel = MethodChannel(
-  'com.soundplayer.sound_player/launch_screen',
+  'com.kaiting.player/launch_screen',
 );
 
 Future<void> _dismissMacOSLaunchScreen() async {

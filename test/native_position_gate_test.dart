@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sound_player/playback/native_position_gate.dart';
+import 'package:kaiting/playback/native_position_gate.dart';
 
 void main() {
   const duration = Duration(minutes: 4);

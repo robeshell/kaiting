@@ -1,14 +1,14 @@
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sound_player/core/sound_theme.dart';
-import 'package:sound_player/library/library_records.dart';
-import 'package:sound_player/library/persistence/drift_library_repository.dart';
-import 'package:sound_player/library/persistence/library_database.dart';
-import 'package:sound_player/playback/playback_controller.dart';
-import 'package:sound_player/playback/simulated_playback_engine.dart';
-import 'package:sound_player/presentation/app_shell.dart';
-import 'package:sound_player/presentation/widgets/sound_components.dart';
+import 'package:kaiting/core/sound_theme.dart';
+import 'package:kaiting/library/library_records.dart';
+import 'package:kaiting/library/persistence/drift_library_repository.dart';
+import 'package:kaiting/library/persistence/library_database.dart';
+import 'package:kaiting/playback/playback_controller.dart';
+import 'package:kaiting/playback/simulated_playback_engine.dart';
+import 'package:kaiting/presentation/app_shell.dart';
+import 'package:kaiting/presentation/widgets/sound_components.dart';
 
 void main() {
   testWidgets('first run guides an empty library into source settings', (
@@ -33,9 +33,9 @@ void main() {
         ),
       ),
     );
-    await _pumpUntilFound(tester, find.text('欢迎使用 Reverie'));
+    await _pumpUntilFound(tester, find.text('欢迎使用 开听'));
 
-    expect(find.text('欢迎使用 Reverie'), findsOneWidget);
+    expect(find.text('欢迎使用 开听'), findsOneWidget);
     expect(find.textContaining('本机文件夹或 WebDAV 目录'), findsOneWidget);
     expect(
       find.descendant(

@@ -1,7 +1,7 @@
 import 'package:drift/drift.dart';
 import 'package:drift_dev/api/migrations_native.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sound_player/library/persistence/library_database.dart';
+import 'package:kaiting/library/persistence/library_database.dart';
 
 import 'generated_migrations/sound_library/schema.dart';
 

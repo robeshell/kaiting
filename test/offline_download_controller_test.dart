@@ -1,7 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sound_player/domain/library_models.dart';
-import 'package:sound_player/offline/offline_media_provider.dart';
-import 'package:sound_player/presentation/controllers/offline_download_controller.dart';
+import 'package:kaiting/domain/library_models.dart';
+import 'package:kaiting/offline/offline_media_provider.dart';
+import 'package:kaiting/presentation/controllers/offline_download_controller.dart';
 
 void main() {
   test(

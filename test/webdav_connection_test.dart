@@ -5,13 +5,13 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:sound_player/library/library_records.dart';
-import 'package:sound_player/library/library_repository.dart';
-import 'package:sound_player/sources/source_provider.dart';
-import 'package:sound_player/sources/webdav/webdav_connection_service.dart';
-import 'package:sound_player/sources/webdav/webdav_credentials.dart';
-import 'package:sound_player/sources/webdav/webdav_discovery.dart';
-import 'package:sound_player/sources/webdav/webdav_source_connection_provider.dart';
+import 'package:kaiting/library/library_records.dart';
+import 'package:kaiting/library/library_repository.dart';
+import 'package:kaiting/sources/source_provider.dart';
+import 'package:kaiting/sources/webdav/webdav_connection_service.dart';
+import 'package:kaiting/sources/webdav/webdav_credentials.dart';
+import 'package:kaiting/sources/webdav/webdav_discovery.dart';
+import 'package:kaiting/sources/webdav/webdav_source_connection_provider.dart';
 
 import '../tool/webdav_fixture_server.dart';
 

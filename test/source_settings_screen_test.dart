@@ -1,16 +1,16 @@
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sound_player/core/sound_theme.dart';
-import 'package:sound_player/library/library_records.dart';
-import 'package:sound_player/library/persistence/drift_library_repository.dart';
-import 'package:sound_player/library/persistence/library_database.dart';
-import 'package:sound_player/library/scanning/local_library_scanner.dart';
-import 'package:sound_player/library/scanning/unsupported_local_media_catalog.dart';
-import 'package:sound_player/presentation/screens/source_settings_screen.dart';
-import 'package:sound_player/sources/local/local_source_service.dart';
-import 'package:sound_player/sources/local/unsupported_local_directory_access.dart';
-import 'package:sound_player/sources/source_provider.dart';
+import 'package:kaiting/core/sound_theme.dart';
+import 'package:kaiting/library/library_records.dart';
+import 'package:kaiting/library/persistence/drift_library_repository.dart';
+import 'package:kaiting/library/persistence/library_database.dart';
+import 'package:kaiting/library/scanning/local_library_scanner.dart';
+import 'package:kaiting/library/scanning/unsupported_local_media_catalog.dart';
+import 'package:kaiting/presentation/screens/source_settings_screen.dart';
+import 'package:kaiting/sources/local/local_source_service.dart';
+import 'package:kaiting/sources/local/unsupported_local_directory_access.dart';
+import 'package:kaiting/sources/source_provider.dart';
 
 void main() {
   test('formats persisted source URIs as readable locations', () {
@@ -98,7 +98,7 @@ void main() {
     expect(find.text('远程连接'), findsOneWidget);
     expect(find.text('添加文件夹'), findsOneWidget);
     expect(find.text('添加连接'), findsOneWidget);
-    expect(find.textContaining('选择 Reverie 要索引'), findsNothing);
+    expect(find.textContaining('选择 开听 要索引'), findsNothing);
 
     final tree = find.byKey(const ValueKey('source-connection-tree-nas'));
     expect(tree, findsOneWidget);

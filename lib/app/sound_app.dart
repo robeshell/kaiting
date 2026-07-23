@@ -20,7 +20,7 @@ import '../playback/sound_audio_handler.dart';
 import '../presentation/app_shell.dart';
 import '../presentation/controllers/library_catalog_controller.dart';
 import '../sources/webdav/webdav_cache.dart';
-import 'reverie_launch_screen.dart';
+import 'kaiting_launch_screen.dart';
 
 class SoundApp extends StatefulWidget {
   const SoundApp({
@@ -466,7 +466,7 @@ class _SoundAppState extends State<SoundApp> with WidgetsBindingObserver {
     final playback = _playback;
     final dark = _skinPreset.brightness == Brightness.dark;
     return MaterialApp(
-      title: 'Reverie',
+      title: '开听',
       debugShowCheckedModeBanner: false,
       theme: SoundTheme.forSkin(_skinPreset),
       themeAnimationDuration: const Duration(milliseconds: 220),
@@ -486,7 +486,7 @@ class _SoundAppState extends State<SoundApp> with WidgetsBindingObserver {
         ),
       ),
       home: playback == null
-          ? const ReverieLaunchScreen()
+          ? const KaitingLaunchScreen()
           : AppShell(
               playback: playback,
               audioHandler: widget.audioHandler,

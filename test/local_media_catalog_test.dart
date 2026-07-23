@@ -1,7 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sound_player/library/scanning/platform_channel_local_media_catalog.dart';
+import 'package:kaiting/library/scanning/platform_channel_local_media_catalog.dart';
 
 void main() {
   test('maps SAF listings and releases prepared metadata files', () async {

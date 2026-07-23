@@ -1,14 +1,14 @@
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sound_player/core/sound_theme.dart';
-import 'package:sound_player/library/persistence/drift_library_repository.dart';
-import 'package:sound_player/library/persistence/library_database.dart';
-import 'package:sound_player/presentation/screens/webdav_add_dialog.dart';
-import 'package:sound_player/presentation/widgets/sound_components.dart';
-import 'package:sound_player/sources/webdav/webdav_connection_service.dart';
-import 'package:sound_player/sources/webdav/webdav_credentials.dart';
-import 'package:sound_player/sources/webdav/webdav_discovery.dart';
+import 'package:kaiting/core/sound_theme.dart';
+import 'package:kaiting/library/persistence/drift_library_repository.dart';
+import 'package:kaiting/library/persistence/library_database.dart';
+import 'package:kaiting/presentation/screens/webdav_add_dialog.dart';
+import 'package:kaiting/presentation/widgets/sound_components.dart';
+import 'package:kaiting/sources/webdav/webdav_connection_service.dart';
+import 'package:kaiting/sources/webdav/webdav_credentials.dart';
+import 'package:kaiting/sources/webdav/webdav_discovery.dart';
 
 void main() {
   late DriftLibraryRepository repository;

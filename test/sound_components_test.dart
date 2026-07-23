@@ -2,8 +2,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:sound_player/core/sound_theme.dart';
-import 'package:sound_player/presentation/widgets/sound_components.dart';
+import 'package:kaiting/core/sound_theme.dart';
+import 'package:kaiting/presentation/widgets/sound_components.dart';
 
 void main() {
   testWidgets('Sound menus use a custom bottom sheet in compact windows', (
@@ -105,7 +105,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('browse choices and song rows share the compact Reverie rhythm', (
+  testWidgets('browse choices and song rows share the compact 开听 rhythm', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(390, 844);
@@ -242,7 +242,7 @@ void main() {
     debugDefaultTargetPlatformOverride = null;
   });
 
-  testWidgets('Reverie dialog and navigation use branded components', (
+  testWidgets('开听 dialog and navigation use branded components', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(900, 700);
@@ -277,7 +277,7 @@ void main() {
                   context: context,
                   builder: (_) => SoundDialog(
                     title: const Text('统一弹窗'),
-                    content: const Text('内容保持 Reverie 的视觉语言。'),
+                    content: const Text('内容保持 开听 的视觉语言。'),
                     actions: [
                       FilledButton(
                         onPressed: () => Navigator.of(context).pop(),
@@ -326,7 +326,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('Reverie dialog clamps and scrolls in a compact window', (
+  testWidgets('开听 dialog clamps and scrolls in a compact window', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(446, 639);
