@@ -1,15 +1,16 @@
 #!/usr/bin/env python3
-"""Generate platform-specific launcher icon sources from the Reverie master.
+"""Generate every platform icon and launch mark from the Reverie v7 master.
 
-The master artwork contains a precomposed rounded plate. Modern platforms apply
-their own masks, so this script extracts the red Reverie mark and rebuilds the
-icon as reusable background, foreground, and monochrome layers.
+The supplied artwork is full-bleed. System-masked platforms consume that
+composition directly, while adaptive and unmasked platforms use extracted
+foreground/background layers with platform-specific optical margins.
 """
 
 from __future__ import annotations
 
 import base64
 import io
+import json
 from pathlib import Path
 
 import numpy as np
@@ -19,13 +20,10 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont
 ROOT = Path(__file__).resolve().parents[1]
 BRANDING = ROOT / "assets" / "branding"
 LAYERS = BRANDING / "app_icon_layers"
-MASTER = BRANDING / "app_icon_master-v6.png"
+MASTER = BRANDING / "app_icon_master-v7.png"
 
 CANVAS = 1024
-OFF_WHITE_TOP = (255, 254, 252, 255)
-OFF_WHITE_BOTTOM = (244, 241, 239, 255)
-RED_TOP = np.array((255, 83, 73), dtype=np.float32)
-RED_BOTTOM = np.array((248, 65, 59), dtype=np.float32)
+BRAND_RED = (255, 82, 67)
 LAUNCH_TITLE = "Reverie"
 LAUNCH_TAGLINE = "听自己的音乐"
 LAUNCH_TITLE_COLOR = (28, 28, 34, 255)
@@ -41,11 +39,16 @@ def extract_mark() -> Image.Image:
     source = np.asarray(Image.open(MASTER).convert("RGBA"), dtype=np.float32)
     red, green, blue, source_alpha = np.moveaxis(source, -1, 0)
 
-    # The plate and its shadow are nearly neutral, while the Reverie mark has
-    # strong red dominance. A soft matte preserves the original antialiasing
-    # without carrying the baked plate or shadow into adaptive icon layers.
-    redness = red - ((green + blue) / 2.0)
-    alpha = smoothstep(8.0, 120.0, redness) * (source_alpha / 255.0)
+    # The v7 artwork has a warm orange background and a neutral white mark.
+    # The minimum RGB component cleanly separates the mark while leaving the
+    # baked red drop shadow behind for platforms that render their own depth.
+    whiteness = np.minimum(np.minimum(red, green), blue)
+    neutrality = 255.0 - (np.maximum(np.maximum(red, green), blue) - whiteness)
+    alpha = (
+        smoothstep(142.0, 220.0, whiteness)
+        * smoothstep(190.0, 244.0, neutrality)
+        * (source_alpha / 255.0)
+    )
 
     ys, xs = np.where(alpha > 0.04)
     if not len(xs):
@@ -58,10 +61,7 @@ def extract_mark() -> Image.Image:
     bottom = min(source.shape[0], int(ys.max()) + pad + 1)
     alpha = alpha[top:bottom, left:right]
 
-    height, width = alpha.shape
-    vertical = np.linspace(0.0, 1.0, height, dtype=np.float32)[:, None, None]
-    color = RED_TOP * (1.0 - vertical) + RED_BOTTOM * vertical
-    color = np.broadcast_to(color, (height, width, 3))
+    color = source[top:bottom, left:right, :3]
     rgba = np.concatenate((color, (alpha * 255.0)[..., None]), axis=2)
     return Image.fromarray(np.clip(rgba, 0, 255).astype(np.uint8), "RGBA")
 
@@ -79,12 +79,57 @@ def contain(image: Image.Image, box: tuple[int, int], canvas: tuple[int, int]) -
 
 
 def gradient_background(size: int) -> Image.Image:
-    top = np.array(OFF_WHITE_TOP, dtype=np.float32)
-    bottom = np.array(OFF_WHITE_BOTTOM, dtype=np.float32)
-    amount = np.linspace(0.0, 1.0, size, dtype=np.float32)[:, None, None]
-    pixels = top * (1.0 - amount) + bottom * amount
-    pixels = np.broadcast_to(pixels, (size, size, 4))
-    return Image.fromarray(np.clip(pixels, 0, 255).astype(np.uint8), "RGBA")
+    """Rebuild the source's smooth background without its baked white mark."""
+    source = np.asarray(Image.open(MASTER).convert("RGB"), dtype=np.float32)
+    height, width, _ = source.shape
+    step = max(1, min(height, width) // 96)
+    ys, xs = np.mgrid[0:height:step, 0:width:step]
+    samples = source[::step, ::step]
+    x = (xs.astype(np.float32) / max(1, width - 1)) * 2.0 - 1.0
+    y = (ys.astype(np.float32) / max(1, height - 1)) * 2.0 - 1.0
+
+    # Fit only the outer frame. It contains uninterrupted background and is
+    # enough to reproduce the gentle two-dimensional coral gradient.
+    frame = (np.abs(x) > 0.72) | (np.abs(y) > 0.72)
+    x_fit = x[frame]
+    y_fit = y[frame]
+    design = np.stack(
+        (
+            np.ones_like(x_fit),
+            x_fit,
+            y_fit,
+            x_fit * y_fit,
+            x_fit**2,
+            y_fit**2,
+            x_fit**3,
+            y_fit**3,
+        ),
+        axis=1,
+    )
+    coefficients = np.linalg.lstsq(design, samples[frame], rcond=None)[0]
+
+    out_y, out_x = np.mgrid[0:size, 0:size]
+    out_x = (out_x.astype(np.float32) / max(1, size - 1)) * 2.0 - 1.0
+    out_y = (out_y.astype(np.float32) / max(1, size - 1)) * 2.0 - 1.0
+    output_design = np.stack(
+        (
+            np.ones_like(out_x),
+            out_x,
+            out_y,
+            out_x * out_y,
+            out_x**2,
+            out_y**2,
+            out_x**3,
+            out_y**3,
+        ),
+        axis=-1,
+    )
+    pixels = output_design @ coefficients
+    alpha = np.full((size, size, 1), 255.0, dtype=np.float32)
+    return Image.fromarray(
+        np.clip(np.concatenate((pixels, alpha), axis=2), 0, 255).astype(np.uint8),
+        "RGBA",
+    )
 
 
 def monochrome(mark_layer: Image.Image, color: tuple[int, int, int]) -> Image.Image:
@@ -228,13 +273,37 @@ def write_linux_svg(full_color: Image.Image, symbolic_mask: Image.Image) -> None
     )
 
 
+def source_icon(size: int = CANVAS) -> Image.Image:
+    return Image.open(MASTER).convert("RGBA").resize(
+        (size, size), Image.Resampling.LANCZOS
+    )
+
+
+def write_apple_catalog(catalog: Path, icon: Image.Image) -> None:
+    contents = json.loads((catalog / "Contents.json").read_text(encoding="utf-8"))
+    written: set[str] = set()
+    for item in contents["images"]:
+        filename = item.get("filename")
+        if not filename or filename in written:
+            continue
+        points = float(item["size"].split("x")[0])
+        scale = float(item["scale"].removesuffix("x"))
+        pixels = round(points * scale)
+        rendered = icon.resize((pixels, pixels), Image.Resampling.LANCZOS)
+        if "ios" in str(catalog).lower():
+            rendered = rendered.convert("RGB")
+        rendered.save(catalog / filename, optimize=True)
+        written.add(filename)
+
+
 def main() -> None:
     LAYERS.mkdir(parents=True, exist_ok=True)
     mark = extract_mark()
+    launch_source = monochrome(mark, BRAND_RED)
 
     # Launch surfaces use the brand mark without an app-icon plate. This keeps
     # the native canvas from showing a second, mismatched rectangle or circle.
-    launch_mark = contain(mark, (176, 176), (256, 256))
+    launch_mark = contain(launch_source, (176, 176), (256, 256))
     launch_mark.save(BRANDING / "launch_mark.png", optimize=True)
     launch_mark.save(ROOT / "web" / "icons" / "LaunchMark.png", optimize=True)
 
@@ -269,11 +338,11 @@ def main() -> None:
         directory = android_res / f"drawable-{density}"
         # Render at an integer multiple and resize once for half-step hdpi.
         launch_icon = contain(
-            mark,
+            launch_source,
             (112 * render_scale, 112 * render_scale),
             (288 * render_scale, 288 * render_scale),
         )
-        lockup = launch_lockup(mark, render_scale)
+        lockup = launch_lockup(launch_source, render_scale)
         branding = launch_branding(render_scale)
         target_scale = scale / render_scale
         for image, filename in (
@@ -296,19 +365,80 @@ def main() -> None:
     apple_mark.save(LAYERS / "foreground.png", optimize=True)
     apple_monochrome.save(LAYERS / "monochrome.png", optimize=True)
 
-    ios = apple_background.copy()
-    ios.alpha_composite(apple_mark)
+    # Preserve the supplied artwork exactly on system-masked Apple surfaces.
+    ios = source_icon()
     ios.convert("RGB").save(BRANDING / "app_icon_ios.png", optimize=True)
+    ios_catalog = ROOT / "ios" / "Runner" / "Assets.xcassets" / "AppIcon.appiconset"
+    write_apple_catalog(ios_catalog, ios)
 
-    # Keep the mark at roughly 52/108 dp. This sits comfortably inside the
-    # 66 dp guaranteed safe zone and avoids looking crowded under launcher masks.
-    android_mark = contain(mark, (208, 208), (432, 432))
+    # Icon Composer applies the current macOS/iOS mask to this full-bleed layer.
+    composer_assets = LAYERS / "Reverie.icon" / "Assets"
+    composer_assets.mkdir(parents=True, exist_ok=True)
+    ios.save(composer_assets / "foreground.png", optimize=True)
+
+    # Keep all distinctive parts inside Android's 66/108 dp guaranteed safe
+    # zone. The extra breathing room also protects the thin wave tips.
+    android_mark = contain(mark, (236, 236), (432, 432))
+    android_background = gradient_background(432)
     android_mark.save(BRANDING / "app_icon_android_foreground.png", optimize=True)
     monochrome(android_mark, (255, 255, 255)).save(
         BRANDING / "app_icon_android_monochrome.png", optimize=True
     )
 
-    # Windows and Linux don't impose a system mask. Keep a neutral branded
+    density_scales = (
+        ("mdpi", 1.0),
+        ("hdpi", 1.5),
+        ("xhdpi", 2.0),
+        ("xxhdpi", 3.0),
+        ("xxxhdpi", 4.0),
+    )
+    legacy_android = rounded_plate(
+        contain(mark, (548, 548), (CANVAS, CANVAS)),
+        inset=72,
+        radius=220,
+        draw_shadow=False,
+    )
+    for density, scale in density_scales:
+        drawable = android_res / f"drawable-{density}"
+        adaptive_size = round(108 * scale)
+        for image, filename in (
+            (android_background, "ic_launcher_background.png"),
+            (android_mark, "ic_launcher_foreground.png"),
+            (monochrome(android_mark, (255, 255, 255)), "ic_launcher_monochrome.png"),
+        ):
+            image.resize(
+                (adaptive_size, adaptive_size), Image.Resampling.LANCZOS
+            ).save(drawable / filename, optimize=True)
+
+        legacy_size = round(48 * scale)
+        mipmap = android_res / f"mipmap-{density}"
+        rendered = legacy_android.resize(
+            (legacy_size, legacy_size), Image.Resampling.LANCZOS
+        )
+        rendered.save(mipmap / "ic_launcher.png", optimize=True)
+        rendered.save(mipmap / "ic_launcher_reverie.png", optimize=True)
+
+    web_standard = source_icon(512)
+    web_maskable = gradient_background(512)
+    web_maskable.alpha_composite(contain(mark, (286, 286), (512, 512)))
+    web_icons = ROOT / "web" / "icons"
+    for filename, image, size in (
+        ("Icon-192.png", web_standard, 192),
+        ("Icon-512.png", web_standard, 512),
+        ("Icon-maskable-192.png", web_maskable, 192),
+        ("Icon-maskable-512.png", web_maskable, 512),
+    ):
+        image.resize((size, size), Image.Resampling.LANCZOS).save(
+            web_icons / filename, optimize=True
+        )
+    web_standard.resize((64, 64), Image.Resampling.LANCZOS).save(
+        ROOT / "web" / "favicon.png", optimize=True
+    )
+    web_standard.resize((64, 64), Image.Resampling.LANCZOS).save(
+        ROOT / "website" / "assets" / "favicon.png", optimize=True
+    )
+
+    # Windows and Linux don't impose a consistent system mask. Keep a branded
     # plate with enough outer transparency for taskbars, launchers, and docks.
     # The Windows plate occupies about 78% of the canvas. Small taskbar/titlebar
     # frames get a separate optical master so their silhouette stays crisp and
@@ -332,6 +462,14 @@ def main() -> None:
         append_images=windows_frames[:-1],
         bitmap_format="png",
     )
+
+    macos_mark = contain(mark, (520, 520), (CANVAS, CANVAS))
+    macos = rounded_plate(macos_mark, inset=92, radius=210)
+    macos.save(BRANDING / "app_icon_macos.png", optimize=True)
+    macos_catalog = (
+        ROOT / "macos" / "Runner" / "Assets.xcassets" / "AppIcon.appiconset"
+    )
+    write_apple_catalog(macos_catalog, macos)
 
     # GNOME expects app icons to leave space within the 128 px canvas and asks
     # apps not to bake shadows outside the main silhouette. KDE and other XDG
