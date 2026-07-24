@@ -877,7 +877,7 @@ class _PlayerColumn extends StatelessWidget {
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        artwork,
+        Center(child: artwork),
         // Vinyl keeps a larger gap: the platter sits low in its square, so
         // the same 24px feels tighter than a full-bleed cover art.
         SizedBox(

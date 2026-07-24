@@ -1193,6 +1193,8 @@ class SoundListRow extends StatelessWidget {
     this.enabled = true,
     this.minHeight = 54,
     this.padding = const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+    this.selectedColor,
+    this.borderRadius,
     super.key,
   });
 
@@ -1206,6 +1208,12 @@ class SoundListRow extends StatelessWidget {
   final double minHeight;
   final EdgeInsetsGeometry padding;
 
+  /// 选中底色；默认前景 5%  tint，侧栏等场景传 accent 10% 胶囊。
+  final Color? selectedColor;
+
+  /// 行体圆角（选中/hover 一并裁剪）；默认直角整行填充。
+  final BorderRadius? borderRadius;
+
   @override
   Widget build(BuildContext context) {
     final interactive = enabled && onTap != null;
@@ -1214,7 +1222,11 @@ class SoundListRow extends StatelessWidget {
       enabled: enabled,
       selected: selected,
       child: Material(
-        color: selected ? context.soundTint(0.05) : Colors.transparent,
+        color: selected
+            ? selectedColor ?? context.soundTint(0.05)
+            : Colors.transparent,
+        borderRadius: borderRadius,
+        clipBehavior: borderRadius == null ? Clip.none : Clip.antiAlias,
         child: InkWell(
           onTap: interactive ? onTap : null,
           hoverColor: context.soundTint(0.035),

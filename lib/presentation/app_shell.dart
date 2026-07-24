@@ -1865,6 +1865,8 @@ class _SidebarRow extends StatelessWidget {
       minHeight: 38,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
       selected: active,
+      selectedColor: SoundColors.accent.withValues(alpha: 0.10),
+      borderRadius: BorderRadius.circular(SoundRadii.control),
       leading: Icon(
         icon,
         size: 18,
