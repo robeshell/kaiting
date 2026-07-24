@@ -148,7 +148,7 @@ bash tool/build_pages.sh
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | Architecture · 架构 |
 | [docs/DESIGN_FOUNDATION.md](docs/DESIGN_FOUNDATION.md) | Design foundation · 设计基础 |
 
-设计规范已迁至独立仓库 [`kai-brand-design`](../../kai-brand-design)（品牌层 + 产品层 `products/kaiting/`）；本仓库只保留实现侧文档。
+设计规范已迁至独立仓库 [`kai-brand-design`](https://github.com/robeshell/kai-brand-design)（品牌层 + 产品层 `products/kaiting/`）；本仓库只保留实现侧文档。
 | [docs/KANBAN.md](docs/KANBAN.md) | Development kanban · 开发看板 |
 | [docs/PLAYBACK_VALIDATION.md](docs/PLAYBACK_VALIDATION.md) | Playback validation · 播放验证 |
 | [docs/AUDIO_FORMAT_MATRIX.md](docs/AUDIO_FORMAT_MATRIX.md) | Format matrix · 音频格式 |
