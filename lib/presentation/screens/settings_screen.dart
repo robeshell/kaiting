@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
+import '../../core/app_update_service.dart';
+import '../../core/app_update_ui.dart';
 import '../../core/sound_theme.dart';
 import '../../core/now_playing_style.dart';
 import '../../library/scanning/local_library_scanner.dart';
@@ -306,9 +308,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
       const _AboutBrandHeader(),
       _SettingsSection(
         title: '关于',
-        children: [_AboutInfoRow(label: '版本', value: _appVersion)],
+        children: [
+          _AboutInfoRow(label: '版本', value: _appVersion),
+          _SettingsRow(
+            key: const ValueKey('settings-check-update-row'),
+            title: '检查更新',
+            subtitle: '从开听更新通道拉取最新版本',
+            onTap: () => unawaited(_checkForUpdate(context)),
+          ),
+        ],
       ),
     ];
+  }
+
+  Future<void> _checkForUpdate(BuildContext context) async {
+    final result = await AppUpdateService().checkForUpdate();
+    if (!context.mounted) return;
+    await showAppUpdateFlow(context, result: result);
   }
 
 

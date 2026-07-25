@@ -56,6 +56,16 @@ Prebuilt packages are published on [Releases](https://github.com/robeshell/kaiti
 
 See [CHANGELOG.md](CHANGELOG.md) for what changed in each version.
 
+### In-app updates · 应用内更新
+
+The app checks a fixed CDN JSON (not the admin UI):
+
+```text
+https://dl.ainull.tech/kai-update/kaiting/update.json
+```
+
+**Settings → About → 检查更新**; silent check on launch (dialog only when an update is available; `force` cannot be dismissed). Publishing is handled by [kai-update](../kai-update).
+
 ## Development · 开发
 
 ### Requirements · 环境

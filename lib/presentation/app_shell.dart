@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../core/app_failure.dart';
+import '../core/app_update_ui.dart';
 import '../core/now_playing_style.dart';
 import '../core/platform_window.dart';
 import '../core/sound_theme.dart';
@@ -259,6 +260,10 @@ class _AppShellState extends State<AppShell>
     unawaited(_refreshWebDavAuthHeaders());
     // Keep the selected album in sync when the catalog refreshes its objects.
     _libraryCatalog.addListener(_syncLibrarySelection);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(runSilentAppUpdateCheck(context));
+    });
   }
 
   void _syncLibrarySelection() {
