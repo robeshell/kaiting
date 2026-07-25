@@ -5,8 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
-import '../../core/app_update_service.dart';
-import '../../core/app_update_ui.dart';
+import '../../app_update/app_update_service.dart';
+import '../../app_update/app_update_ui.dart';
 import '../../core/sound_theme.dart';
 import '../../core/now_playing_style.dart';
 import '../../library/scanning/local_library_scanner.dart';

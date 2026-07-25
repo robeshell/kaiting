@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../core/app_failure.dart';
-import '../core/app_update_ui.dart';
+import '../app_update/app_update_ui.dart';
 import '../core/now_playing_style.dart';
 import '../core/platform_window.dart';
 import '../core/sound_theme.dart';
