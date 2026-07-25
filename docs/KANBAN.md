@@ -15,7 +15,7 @@
 
 | 能力域 | 已有基础 | 第一版必须补齐 | 后续增强 |
 | --- | --- | --- | --- |
-| 平台适配 | Flutter 多端工程；macOS/Android 实播；Android/iOS 后台媒体适配层。 | iPhone/iPad Files 与分屏；Android/iOS 真机；Windows 本地/WebDAV/SMTC；音频焦点与中断恢复。 | 桌面托盘、系统快捷键、拖放。Kai Update 客户端已接（`https://dl.ainull.tech/kai-update/kaiting/update.json`）。 |
+| 平台适配 | Flutter 多端工程；macOS/Android 实播；Android/iOS 后台媒体适配层。 | iPhone/iPad Files 与分屏；Android/iOS 真机；Windows 本地/WebDAV/SMTC；音频焦点与中断恢复。 | 桌面托盘、系统快捷键、拖放。应用内更新已接。 |
 | 播放器核心 | 播放/暂停/seek/切歌/自动下一首；真实进度源；队列与会话恢复。 | 顺序/单曲循环/列表循环/随机；队列查看、调整、删除、下一首播放；无缝切歌；完整格式矩阵。 | 淡入淡出、ReplayGain/音量标准化、均衡器、倍速和输出设备选择。 |
 | 资料库与组织 | SQLite 资料库；本地与 WebDAV 扫描；专辑/歌曲/歌词/封面；原子重扫。 | 搜索、筛选、排序；艺人/专辑/流派入口；多碟专辑；增量扫描；收藏、历史和播放列表。 | 智能播放列表、元数据编辑、重复项与移动文件识别、统计。 |
 | 网络与离线 | WebDAV 连接、凭据、目录扫描、Range 播放、seek、LRU 缓存。 | 离线下载管理；网络切换与断线重试；缓存状态、用量和清理 UI；来源失效恢复。 | 多来源合并、冲突处理、可选的其他音乐服务器协议。 |
