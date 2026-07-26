@@ -1576,7 +1576,7 @@ void showSoundSnackBar(BuildContext context, String message) {
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),
-        duration: const Duration(milliseconds: 1400),
+        duration: const Duration(milliseconds: 2200),
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         margin: margin,
         dismissDirection: DismissDirection.down,

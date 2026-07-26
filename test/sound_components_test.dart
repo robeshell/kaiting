@@ -211,6 +211,37 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('list rows remain usable at 200 percent text', (tester) async {
+    tester.view.physicalSize = const Size(320, 640);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: SoundTheme.light,
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(
+            context,
+          ).copyWith(textScaler: const TextScaler.linear(2)),
+          child: child!,
+        ),
+        home: Scaffold(
+          body: SoundListRow(
+            title: const Text('一首标题非常长、需要正确截断的测试歌曲'),
+            subtitle: const Text('这里是同样很长的艺人与专辑说明'),
+            leading: const Icon(Icons.music_note_rounded),
+            trailing: const Icon(Icons.more_horiz_rounded),
+            onTap: () {},
+          ),
+        ),
+      ),
+    );
+
+    expect(tester.getSize(find.byType(SoundListRow)).height, greaterThan(54));
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('desktop track rows select on click and activate deliberately', (
     tester,
   ) async {

@@ -118,8 +118,8 @@ class MiniPlayer extends StatelessWidget {
                 borderRadius: docked
                     ? BorderRadius.zero
                     : BorderRadius.circular(compact ? 14 : 18),
-                borderColor: retryBorder ??
-                    (docked ? Colors.transparent : null),
+                borderColor:
+                    retryBorder ?? (docked ? Colors.transparent : null),
                 child: content,
               );
             },
@@ -396,9 +396,7 @@ class _DockedMiniPlayer extends StatelessWidget {
                           color: state.isFavorite(track.id)
                               ? SoundColors.accent
                               : null,
-                          tooltip: state.isFavorite(track.id)
-                              ? '取消收藏'
-                              : '收藏歌曲',
+                          tooltip: state.isFavorite(track.id) ? '取消收藏' : '收藏歌曲',
                           onTap: () => unawaited(state.toggleFavorite(track)),
                         ),
                       ],
@@ -490,56 +488,59 @@ class _CondensedMiniPlayer extends StatelessWidget {
     return Stack(
       children: [
         Positioned.fill(
-          child: GestureDetector(
-            key: const ValueKey('mini-player-open-now-playing'),
-            behavior: HitTestBehavior.opaque,
-            onTap: onOpen,
-            child: Padding(
-              padding: EdgeInsets.all(
-                compact ? 6 : (availableWidth < 800 ? 8 : 14),
-              ),
-              child: Row(
-                children: [
-                  _MiniArtwork(
-                    album: album,
-                    dimension: compact ? 44 : 50,
+          child: Semantics(
+            button: true,
+            label: '打开正在播放',
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                key: const ValueKey('mini-player-open-now-playing'),
+                onTap: onOpen,
+                child: Padding(
+                  padding: EdgeInsets.all(
+                    compact ? 6 : (availableWidth < 800 ? 8 : 14),
                   ),
-                  const SizedBox(width: 11),
-                  Expanded(
-                    child: _TrackIdentity(
-                      track: track,
-                      visual: visual,
-                      prominent: false,
-                    ),
+                  child: Row(
+                    children: [
+                      _MiniArtwork(album: album, dimension: compact ? 44 : 50),
+                      const SizedBox(width: 11),
+                      Expanded(
+                        child: _TrackIdentity(
+                          track: track,
+                          visual: visual,
+                          prominent: false,
+                        ),
+                      ),
+                      if (showPrevious)
+                        _MiniIconButton(
+                          icon: Icons.skip_previous_rounded,
+                          tooltip: '上一首',
+                          onTap: playback.previous,
+                        ),
+                      _MiniIconButton(
+                        key: const ValueKey('mini-player-playback-toggle'),
+                        icon: visual.primaryIcon,
+                        tooltip: visual.primaryTooltip,
+                        onTap: visual.primaryEnabled ? playback.toggle : null,
+                        prominent: !embedded,
+                        color: embedded ? SoundColors.accent : null,
+                        size: compact ? (embedded ? 25 : 22) : 23,
+                      ),
+                      _MiniIconButton(
+                        icon: Icons.skip_next_rounded,
+                        tooltip: '下一首',
+                        onTap: playback.next,
+                        size: 23,
+                      ),
+                      if (showQueue)
+                        _MiniIconButton(
+                          icon: Icons.queue_music_rounded,
+                          tooltip: '打开播放队列',
+                          onTap: onOpenQueue ?? onOpen,
+                        ),
+                    ],
                   ),
-                  if (showPrevious)
-                    _MiniIconButton(
-                      icon: Icons.skip_previous_rounded,
-                      tooltip: '上一首',
-                      onTap: playback.previous,
-                    ),
-                  _MiniIconButton(
-                    key: const ValueKey('mini-player-playback-toggle'),
-                    icon: visual.primaryIcon,
-                    tooltip: visual.primaryTooltip,
-                    onTap: visual.primaryEnabled ? playback.toggle : null,
-                    prominent: !embedded,
-                    color: embedded ? SoundColors.accent : null,
-                    size: compact ? (embedded ? 25 : 22) : 23,
-                  ),
-                  _MiniIconButton(
-                    icon: Icons.skip_next_rounded,
-                    tooltip: '下一首',
-                    onTap: playback.next,
-                    size: 23,
-                  ),
-                  if (showQueue)
-                    _MiniIconButton(
-                      icon: Icons.queue_music_rounded,
-                      tooltip: '打开播放队列',
-                      onTap: onOpenQueue ?? onOpen,
-                    ),
-                ],
+                ),
               ),
             ),
           ),
@@ -568,10 +569,7 @@ class _CondensedMiniPlayer extends StatelessWidget {
 }
 
 class _MiniArtwork extends StatelessWidget {
-  const _MiniArtwork({
-    required this.album,
-    required this.dimension,
-  });
+  const _MiniArtwork({required this.album, required this.dimension});
 
   final Album album;
   final double dimension;
@@ -861,8 +859,7 @@ class _VolumeControlState extends State<_VolumeControl> {
                   boxShadow: [
                     BoxShadow(
                       color: context.soundGlass.shadow,
-                      blurRadius:
-                          24 * context.soundSkinEffects.shadowScale,
+                      blurRadius: 24 * context.soundSkinEffects.shadowScale,
                       offset: Offset(
                         0,
                         10 * context.soundSkinEffects.shadowScale,
