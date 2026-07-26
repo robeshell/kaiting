@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-const kaitingLaunchBackground = Color(0xFFF7F7F8);
+import '../core/brand_tokens.g.dart';
+
+const kaitingLaunchBackground = KaiBrandBasePalette.mainBackground;
 const kaitingLaunchTitleColor = Color(0xFF1C1C22);
 const kaitingLaunchSubtitleColor = Color(0xFF70707A);
 

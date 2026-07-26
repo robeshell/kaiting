@@ -1,13 +1,15 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import 'brand_tokens.g.dart';
+
 bool get soundUsesDesktopPlatform =>
     defaultTargetPlatform == TargetPlatform.macOS ||
     defaultTargetPlatform == TargetPlatform.windows ||
     defaultTargetPlatform == TargetPlatform.linux;
 
-const soundMacOSTitlebarInset = 38.0;
-const soundWindowsTitlebarHeight = 44.0;
+const soundMacOSTitlebarInset = KaiBrandLayout.macOSTitlebarInset;
+const soundWindowsTitlebarHeight = KaiBrandLayout.windowsTitlebarInset;
 const soundChromeSurfaceTransparency = 0.20;
 const soundChromeSurfaceOpacity = 1 - soundChromeSurfaceTransparency;
 
@@ -28,8 +30,11 @@ extension SoundThemeContext on BuildContext {
 
   Color get soundMutedText => soundGlass.mutedText;
 
-  Color get soundChromeSurface =>
-      soundGlass.strongSurface.withValues(alpha: soundChromeSurfaceOpacity);
+  Color get soundChromeSurface {
+    return soundGlass.strongSurface.withValues(
+      alpha: soundChromeSurfaceOpacity,
+    );
+  }
 
   Color get soundDivider => soundColors.outlineVariant;
 
@@ -82,7 +87,7 @@ extension SoundThemeContext on BuildContext {
     // supported size. Width only changes density; it must never reveal the
     // phone navigation simply because the window is temporarily short.
     if (soundUsesDesktopPlatform) {
-      return size.width < 1100
+      return size.width < KaiBrandLayout.desktopBreakpoint
           ? SoundWindowClass.medium
           : SoundWindowClass.wide;
     }
@@ -90,10 +95,13 @@ extension SoundThemeContext on BuildContext {
     // normally lands around 650–800 logical pixels. Keep those as distinct
     // classes so unfolding can use the extra width without opting into the
     // desktop information architecture.
-    if (size.width <= 600 || size.height < 600) {
+    if (size.width <= KaiBrandLayout.compactWidth ||
+        size.height < KaiBrandLayout.compactHeight) {
       return SoundWindowClass.compact;
     }
-    if (size.width < 1000) return SoundWindowClass.medium;
+    if (size.width < KaiBrandLayout.mobileWideBreakpoint) {
+      return SoundWindowClass.medium;
+    }
     return SoundWindowClass.wide;
   }
 
@@ -107,26 +115,31 @@ extension SoundThemeContext on BuildContext {
   bool get soundUsesMobileShell {
     if (soundUsesDesktopPlatform) return false;
     final size = MediaQuery.sizeOf(this);
-    return size.width < 820 || size.height < 600;
+    return size.width < KaiBrandLayout.mobileShellWidth ||
+        size.height < KaiBrandLayout.compactHeight;
   }
 
   double get soundPageGutter => switch (soundWindowClass) {
-    SoundWindowClass.compact => 16,
-    SoundWindowClass.medium => 24,
-    SoundWindowClass.wide => 32,
+    SoundWindowClass.compact => KaiBrandLayout.compactGutter,
+    SoundWindowClass.medium => KaiBrandLayout.mediumGutter,
+    SoundWindowClass.wide => KaiBrandLayout.wideGutter,
   };
 
-  double get soundPageTitleSize => soundIsCompact ? 26 : 28;
+  double get soundPageTitleSize => soundIsCompact
+      ? KaiBrandLayout.compactPageTitle
+      : KaiBrandLayout.regularPageTitle;
 
   /// Scroll padding under list content so the last rows clear the overlaid
   /// mini player / mobile dock (`Scaffold.extendBody` is always on).
   /// Desktop: docked mini player is 76pt tall; keep a little air below.
-  double get soundContentBottomPadding => soundUsesMobileShell ? 140 : 96;
+  double get soundContentBottomPadding => soundUsesMobileShell
+      ? KaiBrandLayout.mobileBottomPadding
+      : KaiBrandLayout.desktopBottomPadding;
 
   double get soundSidebarWidth => switch (soundWindowClass) {
     SoundWindowClass.compact => 0,
-    SoundWindowClass.medium => 216,
-    SoundWindowClass.wide => 236,
+    SoundWindowClass.medium => KaiBrandLayout.mediumSidebarWidth,
+    SoundWindowClass.wide => KaiBrandLayout.wideSidebarWidth,
   };
 }
 
@@ -174,65 +187,65 @@ class AccentPreset {
 
 abstract final class SoundColors {
   static const defaultAccentPreset = AccentPreset(
-    id: 'coral',
-    name: '珊瑚',
-    accent: Color(0xFFFF5A4D),
-    accentHover: Color(0xFFFF7567),
-    accentPressed: Color(0xFFE3483E),
+    id: KaiProductAccents.coralId,
+    name: KaiProductAccents.coralLabel,
+    accent: KaiProductAccents.coral,
+    accentHover: KaiProductAccents.coralHover,
+    accentPressed: KaiProductAccents.coralPressed,
   );
 
   static Color accent = defaultAccentPreset.accent;
   static Color accentHover = defaultAccentPreset.accentHover;
   static Color accentPressed = defaultAccentPreset.accentPressed;
-  static const darkCanvas = Color(0xFF0D0D0F);
-  static const darkSurface = Color(0xFF17171A);
-  static const darkElevated = Color(0xFF202024);
-  static const darkOverlay = Color(0xFF29292E);
-  static const lightCanvas = Color(0xFFF7F7F8);
-  static const lightSurface = Color(0xFFFAFAFB);
-  static const lightElevated = Color(0xFFFFFFFF);
-  static const lightOverlay = Color(0xFFF1F2F4);
-  static const webDav = Color(0xFF5E8BFF);
-  static const local = Color(0xFF55B889);
-  static const warningLight = Color(0xFFB07514);
-  static const warningDark = Color(0xFFE3AC45);
+  static const darkCanvas = KaiBrandDeepNightSkin.canvas;
+  static const darkSurface = KaiBrandDeepNightSkin.surface;
+  static const darkElevated = KaiBrandDeepNightSkin.elevated;
+  static const darkOverlay = KaiBrandDeepNightSkin.overlay;
+  static const lightCanvas = KaiBrandDefaultSkin.canvas;
+  static const lightSurface = KaiBrandDefaultSkin.surface;
+  static const lightElevated = KaiBrandDefaultSkin.elevated;
+  static const lightOverlay = KaiBrandDefaultSkin.overlay;
+  static const webDav = KaiProductTokens.sourceWebDav;
+  static const local = KaiProductTokens.sourceLocal;
+  static const warningLight = KaiBrandStatusColors.warningLight;
+  static const warningDark = KaiBrandStatusColors.warningDark;
 
   static const List<AccentPreset> accentPresets = [
     defaultAccentPreset,
     AccentPreset(
-      id: 'rose',
-      name: '玫瑰',
-      accent: Color(0xFFD95770),
-      accentHover: Color(0xFFE66C82),
-      accentPressed: Color(0xFFBF465D),
+      id: KaiProductAccents.roseId,
+      name: KaiProductAccents.roseLabel,
+      accent: KaiProductAccents.rose,
+      accentHover: KaiProductAccents.roseHover,
+      accentPressed: KaiProductAccents.rosePressed,
     ),
     AccentPreset(
-      id: 'indigo',
-      name: '靛蓝',
-      accent: Color(0xFF6673C7),
-      accentHover: Color(0xFF7884D2),
-      accentPressed: Color(0xFF5360AE),
+      id: KaiProductAccents.indigoId,
+      name: KaiProductAccents.indigoLabel,
+      accent: KaiProductAccents.indigo,
+      accentHover: KaiProductAccents.indigoHover,
+      accentPressed: KaiProductAccents.indigoPressed,
     ),
     AccentPreset(
-      id: 'teal',
-      name: '青绿',
-      accent: Color(0xFF3F9E98),
-      accentHover: Color(0xFF51ADA7),
-      accentPressed: Color(0xFF338781),
+      id: KaiProductAccents.tealId,
+      name: KaiProductAccents.tealLabel,
+      accent: KaiProductAccents.teal,
+      accentHover: KaiProductAccents.tealHover,
+      accentPressed: KaiProductAccents.tealPressed,
     ),
     AccentPreset(
-      id: 'amber',
-      name: '暖金',
-      accent: Color(0xFFC7842F),
-      accentHover: Color(0xFFD4953F),
-      accentPressed: Color(0xFFAB6E24),
+      id: KaiProductAccents.amberId,
+      name: KaiProductAccents.amberLabel,
+      accent: KaiProductAccents.amber,
+      accentHover: KaiProductAccents.amberHover,
+      accentPressed: KaiProductAccents.amberPressed,
     ),
     AccentPreset(
-      id: 'violet',
-      name: '紫罗兰',
-      accent: Color(0xFF8067BC),
-      accentHover: Color(0xFF9279C8),
-      accentPressed: Color(0xFF6D54A5),
+      id: KaiProductAccents.violetId,
+      name: KaiProductAccents.violetLabel,
+      accent: KaiProductAccents.violet,
+      accentHover: KaiProductAccents.violetHover,
+      accentPressed: KaiProductAccents.violetPressed,
     ),
   ];
 }
@@ -254,31 +267,31 @@ class SoundGlassTheme extends ThemeExtension<SoundGlassTheme> {
   });
 
   static const light = SoundGlassTheme(
-    canvasHighlight: Color(0xFFFBFBFC),
-    surface: Color(0xB8FFFFFF),
-    strongSurface: Color(0xDEFFFFFF),
-    border: Color(0x12000000),
-    innerHighlight: Color(0x8CFFFFFF),
-    shadow: Color(0x16000000),
-    primaryText: Color(0xFF1C1C22),
-    secondaryText: Color(0xFF5A5A62),
-    mutedText: Color(0xFF77747D),
-    blur: 20,
-    strongBlur: 28,
+    canvasHighlight: KaiBrandDefaultSkin.glassCanvasHighlight,
+    surface: KaiBrandDefaultSkin.glassSurface,
+    strongSurface: KaiBrandDefaultSkin.glassStrongSurface,
+    border: KaiBrandDefaultSkin.glassBorder,
+    innerHighlight: KaiBrandDefaultSkin.glassInnerHighlight,
+    shadow: KaiBrandDefaultSkin.glassShadow,
+    primaryText: KaiBrandDefaultSkin.glassPrimaryText,
+    secondaryText: KaiBrandDefaultSkin.glassSecondaryText,
+    mutedText: KaiBrandDefaultSkin.glassMutedText,
+    blur: KaiBrandDefaultSkin.glassBlur,
+    strongBlur: KaiBrandDefaultSkin.glassStrongBlur,
   );
 
   static const dark = SoundGlassTheme(
-    canvasHighlight: Color(0xFF17171A),
-    surface: Color(0xB817171A),
-    strongSurface: Color(0xE6202024),
-    border: Color(0x1CFFFFFF),
-    innerHighlight: Color(0x1FFFFFFF),
-    shadow: Color(0x6B000000),
-    primaryText: Color(0xFFF7F3F4),
-    secondaryText: Color(0x99FFFFFF),
-    mutedText: Color(0xB3FFFFFF),
-    blur: 20,
-    strongBlur: 28,
+    canvasHighlight: KaiBrandDeepNightSkin.glassCanvasHighlight,
+    surface: KaiBrandDeepNightSkin.glassSurface,
+    strongSurface: KaiBrandDeepNightSkin.glassStrongSurface,
+    border: KaiBrandDeepNightSkin.glassBorder,
+    innerHighlight: KaiBrandDeepNightSkin.glassInnerHighlight,
+    shadow: KaiBrandDeepNightSkin.glassShadow,
+    primaryText: KaiBrandDeepNightSkin.glassPrimaryText,
+    secondaryText: KaiBrandDeepNightSkin.glassSecondaryText,
+    mutedText: KaiBrandDeepNightSkin.glassMutedText,
+    blur: KaiBrandDeepNightSkin.glassBlur,
+    strongBlur: KaiBrandDeepNightSkin.glassStrongBlur,
   );
 
   final Color canvasHighlight;
@@ -358,14 +371,18 @@ class SoundSkinEffects extends ThemeExtension<SoundSkinEffects> {
   });
 
   static const standard = SoundSkinEffects(
-    motionDuration: Duration(seconds: 14),
-    paletteTransitionDuration: Duration(milliseconds: 420),
-    motionStrength: 1,
-    primaryGlowOpacity: 0.90,
-    secondaryGlowOpacity: 0.72,
-    lightVeilOpacity: 0.04,
-    darkVeilOpacity: 0.12,
-    shadowScale: 1,
+    motionDuration: Duration(
+      seconds: KaiBrandDefaultSkin.effectMotionDurationS,
+    ),
+    paletteTransitionDuration: Duration(
+      milliseconds: KaiBrandDefaultSkin.effectPaletteTransitionMs,
+    ),
+    motionStrength: KaiBrandDefaultSkin.effectMotionStrength,
+    primaryGlowOpacity: KaiBrandDefaultSkin.effectPrimaryGlowOpacity,
+    secondaryGlowOpacity: KaiBrandDefaultSkin.effectSecondaryGlowOpacity,
+    lightVeilOpacity: KaiBrandDefaultSkin.effectLightVeilOpacity,
+    darkVeilOpacity: KaiBrandDefaultSkin.effectDarkVeilOpacity,
+    shadowScale: KaiBrandDefaultSkin.effectShadowScale,
   );
 
   final Duration motionDuration;
@@ -435,12 +452,12 @@ class SoundSkinEffects extends ThemeExtension<SoundSkinEffects> {
 }
 
 abstract final class SoundRadii {
-  static const control = 10.0;
-  static const card = 14.0;
-  static const menu = 12.0;
-  static const sheet = 18.0;
-  static const dialog = 20.0;
-  static const pill = 999.0;
+  static const control = KaiBrandRadii.control;
+  static const card = KaiBrandRadii.card;
+  static const menu = KaiBrandRadii.menu;
+  static const sheet = KaiBrandRadii.sheet;
+  static const dialog = KaiBrandRadii.dialog;
+  static const pill = KaiBrandRadii.pill;
 }
 
 @immutable
@@ -491,32 +508,34 @@ abstract final class SoundSkins {
     name: '纯净',
     description: '冷静通透的实色表面与清晰层次',
     brightness: Brightness.light,
-    canvas: Color(0xFFF1F4F8),
-    surface: Color(0xFFFAFCFF),
-    elevated: Color(0xFFFFFFFF),
-    overlay: Color(0xFFE5EBF2),
+    canvas: KaiBrandPureSkin.canvas,
+    surface: KaiBrandPureSkin.surface,
+    elevated: KaiBrandPureSkin.elevated,
+    overlay: KaiBrandPureSkin.overlay,
     glass: SoundGlassTheme(
-      canvasHighlight: Color(0xFFF8FBFF),
-      surface: Color(0xFFFFFFFF),
-      strongSurface: Color(0xFFFFFFFF),
-      border: Color(0x1F526174),
-      innerHighlight: Color(0xFFFFFFFF),
-      shadow: Color(0x00000000),
-      primaryText: Color(0xFF18202A),
-      secondaryText: Color(0xFF536171),
-      mutedText: Color(0xFF718092),
-      blur: 0,
-      strongBlur: 0,
+      canvasHighlight: KaiBrandPureSkin.glassCanvasHighlight,
+      surface: KaiBrandPureSkin.glassSurface,
+      strongSurface: KaiBrandPureSkin.glassStrongSurface,
+      border: KaiBrandPureSkin.glassBorder,
+      innerHighlight: KaiBrandPureSkin.glassInnerHighlight,
+      shadow: KaiBrandPureSkin.glassShadow,
+      primaryText: KaiBrandPureSkin.glassPrimaryText,
+      secondaryText: KaiBrandPureSkin.glassSecondaryText,
+      mutedText: KaiBrandPureSkin.glassMutedText,
+      blur: KaiBrandPureSkin.glassBlur,
+      strongBlur: KaiBrandPureSkin.glassStrongBlur,
     ),
     effects: SoundSkinEffects(
-      motionDuration: Duration(seconds: 26),
-      paletteTransitionDuration: Duration(milliseconds: 240),
-      motionStrength: 0.22,
-      primaryGlowOpacity: 0.38,
-      secondaryGlowOpacity: 0.24,
-      lightVeilOpacity: 0.015,
-      darkVeilOpacity: 0.08,
-      shadowScale: 0,
+      motionDuration: Duration(seconds: KaiBrandPureSkin.effectMotionDurationS),
+      paletteTransitionDuration: Duration(
+        milliseconds: KaiBrandPureSkin.effectPaletteTransitionMs,
+      ),
+      motionStrength: KaiBrandPureSkin.effectMotionStrength,
+      primaryGlowOpacity: KaiBrandPureSkin.effectPrimaryGlowOpacity,
+      secondaryGlowOpacity: KaiBrandPureSkin.effectSecondaryGlowOpacity,
+      lightVeilOpacity: KaiBrandPureSkin.effectLightVeilOpacity,
+      darkVeilOpacity: KaiBrandPureSkin.effectDarkVeilOpacity,
+      shadowScale: KaiBrandPureSkin.effectShadowScale,
     ),
   );
 
@@ -531,14 +550,18 @@ abstract final class SoundSkins {
     overlay: SoundColors.darkOverlay,
     glass: SoundGlassTheme.dark,
     effects: SoundSkinEffects(
-      motionDuration: Duration(seconds: 18),
-      paletteTransitionDuration: Duration(milliseconds: 520),
-      motionStrength: 0.68,
-      primaryGlowOpacity: 0.76,
-      secondaryGlowOpacity: 0.54,
-      lightVeilOpacity: 0.04,
-      darkVeilOpacity: 0.22,
-      shadowScale: 1.12,
+      motionDuration: Duration(
+        seconds: KaiBrandDeepNightSkin.effectMotionDurationS,
+      ),
+      paletteTransitionDuration: Duration(
+        milliseconds: KaiBrandDeepNightSkin.effectPaletteTransitionMs,
+      ),
+      motionStrength: KaiBrandDeepNightSkin.effectMotionStrength,
+      primaryGlowOpacity: KaiBrandDeepNightSkin.effectPrimaryGlowOpacity,
+      secondaryGlowOpacity: KaiBrandDeepNightSkin.effectSecondaryGlowOpacity,
+      lightVeilOpacity: KaiBrandDeepNightSkin.effectLightVeilOpacity,
+      darkVeilOpacity: KaiBrandDeepNightSkin.effectDarkVeilOpacity,
+      shadowScale: KaiBrandDeepNightSkin.effectShadowScale,
     ),
   );
 

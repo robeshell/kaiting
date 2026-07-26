@@ -113,10 +113,7 @@ class LibrarySearchArtistHit {
 }
 
 class LibrarySearchAlbumHit {
-  const LibrarySearchAlbumHit({
-    required this.album,
-    required this.trackCount,
-  });
+  const LibrarySearchAlbumHit({required this.album, required this.trackCount});
 
   final Album album;
   final int trackCount;
@@ -273,17 +270,12 @@ class LibrarySearchController extends ChangeNotifier {
       );
       if (_disposed || generation != _generation) return;
       final trackHits = <LibrarySearchHit>[
-        for (final id in matchSet.trackIds)
-          if (_hitsByTrackId[id] case final hit?) hit,
+        for (final id in matchSet.trackIds) ?_hitsByTrackId[id],
       ];
       _hits = List.unmodifiable(trackHits);
       _truncated = matchSet.truncated;
-      _artistHits = List.unmodifiable(
-        _buildArtistHits(trackHits, _query),
-      );
-      _albumHits = List.unmodifiable(
-        _buildAlbumHits(trackHits, _query),
-      );
+      _artistHits = List.unmodifiable(_buildArtistHits(trackHits, _query));
+      _albumHits = List.unmodifiable(_buildAlbumHits(trackHits, _query));
       _status = LibrarySearchStatus.ready;
       _errorMessage = null;
       _rememberQuery(_query);
@@ -402,9 +394,7 @@ class LibrarySearchController extends ChangeNotifier {
       if (results.length >= maxEntityHits) break;
       final album = _albumsById[entry.key];
       if (album == null) continue;
-      results.add(
-        LibrarySearchAlbumHit(album: album, trackCount: entry.value),
-      );
+      results.add(LibrarySearchAlbumHit(album: album, trackCount: entry.value));
     }
     return results;
   }
@@ -490,8 +480,12 @@ bool _documentContains(
 ) {
   return switch (field) {
     LibrarySearchField.all =>
-      _fieldMatches(document.normalizedTitle, document.titlePinyin,
-              document.titleInitials, term) ||
+      _fieldMatches(
+            document.normalizedTitle,
+            document.titlePinyin,
+            document.titleInitials,
+            term,
+          ) ||
           _fieldMatches(
             document.normalizedAlbumTitle,
             document.albumTitlePinyin,

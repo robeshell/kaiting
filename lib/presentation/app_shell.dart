@@ -1000,9 +1000,7 @@ class _AppShellState extends State<AppShell>
                   };
 
             // Always extend body under the bottom chrome so the canvas
-            // gradient continues behind the mini player / mobile dock. Without
-            // this, Scaffold carves a hard horizontal seam between body and
-            // bottomNavigationBar (especially visible on desktop).
+            // continues behind the mini player / mobile dock. The default
             final shell = Scaffold(
               extendBody: true,
               body: Stack(
@@ -1016,7 +1014,9 @@ class _AppShellState extends State<AppShell>
                           colors: [
                             Theme.of(context).scaffoldBackgroundColor,
                             context.soundGlass.canvasHighlight,
-                            Theme.of(context).colorScheme.surfaceContainerHigh,
+                            Theme.of(
+                              context,
+                            ).colorScheme.surfaceContainerHigh,
                           ],
                           stops: const [0, 0.46, 1],
                         ),
@@ -1688,11 +1688,7 @@ class _WindowControlButton extends StatelessWidget {
           width: 32,
           height: 28,
           child: Center(
-            child: Icon(
-              icon,
-              size: 16,
-              color: context.soundSecondaryText,
-            ),
+            child: Icon(icon, size: 16, color: context.soundSecondaryText),
           ),
         ),
       ),

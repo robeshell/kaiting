@@ -814,14 +814,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Test Track'), findsOneWidget);
-    final restoredSlider = tester.widget<Slider>(
-      find.descendant(
-        of: find.byKey(const ValueKey('mini-player-progress')),
-        matching: find.byType(Slider),
-      ),
+    final restoredProgress = tester.widget<ProgressScrubber>(
+      find.byKey(const ValueKey('mini-player-progress')),
     );
-    expect(restoredSlider.value, 60000);
-    expect(restoredSlider.max, 180000);
+    expect(restoredProgress.position, const Duration(milliseconds: 60000));
+    expect(restoredProgress.duration, const Duration(milliseconds: 180000));
+    expect(restoredProgress.interactive, isFalse);
     expect(find.byIcon(Icons.play_arrow_rounded), findsOneWidget);
 
     await _unmountAndFlush(tester);
@@ -1386,10 +1384,12 @@ void main() {
       SoundGlassTheme.light.primaryText,
     );
 
-    final settingsScrollable = find.descendant(
-      of: find.byKey(const ValueKey('settings-overview')),
-      matching: find.byType(Scrollable),
-    ).first;
+    final settingsScrollable = find
+        .descendant(
+          of: find.byKey(const ValueKey('settings-overview')),
+          matching: find.byType(Scrollable),
+        )
+        .first;
 
     await tester.scrollUntilVisible(
       find.byKey(const ValueKey('skin-preset-selector')),

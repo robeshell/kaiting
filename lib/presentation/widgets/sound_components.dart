@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/sound_theme.dart';
+import '../../core/brand_tokens.g.dart';
 
 /// Shared translucent surface used by the application shell and overlays.
 ///
@@ -594,8 +595,10 @@ class SoundEmptyState extends StatelessWidget {
             children: [
               if (loading)
                 const SizedBox.square(
-                  dimension: 24,
-                  child: CircularProgressIndicator(strokeWidth: 2),
+                  dimension: KaiProductTokens.playbackBusySpinnerSize,
+                  child: CircularProgressIndicator(
+                    strokeWidth: KaiProductTokens.playbackBusySpinnerStroke,
+                  ),
                 )
               else
                 Icon(
@@ -645,15 +648,17 @@ class SoundEmptyState extends StatelessWidget {
   }
 }
 
-/// 统一加载指示:24px、strokeWidth 2,颜色由 progressIndicatorTheme 供给。
+/// 统一加载指示；尺寸与线宽来自产品 Token，颜色由主题供给。
 class SoundLoadingIndicator extends StatelessWidget {
   const SoundLoadingIndicator({super.key});
 
   @override
   Widget build(BuildContext context) {
     return const SizedBox.square(
-      dimension: 24,
-      child: CircularProgressIndicator(strokeWidth: 2),
+      dimension: KaiProductTokens.playbackBusySpinnerSize,
+      child: CircularProgressIndicator(
+        strokeWidth: KaiProductTokens.playbackBusySpinnerStroke,
+      ),
     );
   }
 }
@@ -1292,7 +1297,9 @@ class SoundListRow extends StatelessWidget {
                           style: TextStyle(
                             color: enabled
                                 ? context.soundPrimaryText
-                                : context.soundSecondaryText.withValues(alpha: 0.38),
+                                : context.soundSecondaryText.withValues(
+                                    alpha: 0.38,
+                                  ),
                             fontSize: 13.5,
                             fontWeight: FontWeight.w600,
                           ),

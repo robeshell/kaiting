@@ -2,6 +2,10 @@ import Cocoa
 import FlutterMacOS
 
 class MainFlutterWindow: NSWindow {
+  /// Brand `layoutMetrics.desktopWindow` — keep side rail (medium min / wide default).
+  private let minContentSize = NSSize(width: 1024, height: 700)
+  private let defaultContentSize = NSSize(width: 1280, height: 800)
+
   private var localDirectoryAccessPlugin: LocalDirectoryAccessPlugin?
   private var launchScreenBridge: LaunchScreenBridge?
 
@@ -9,8 +13,11 @@ class MainFlutterWindow: NSWindow {
     let flutterViewController = FlutterViewController()
     self.contentViewController = flutterViewController
     self.backgroundColor = LaunchScreenView.backgroundColor
-    self.contentMinSize = NSSize(width: 900, height: 600)
-    var initialContentSize = NSSize(width: 1120, height: 780)
+    self.contentMinSize = minContentSize
+    self.minSize = self.frameRect(
+      forContentRect: NSRect(origin: .zero, size: minContentSize)
+    ).size
+    var initialContentSize = defaultContentSize
     if let visibleFrame = (self.screen ?? NSScreen.main)?.visibleFrame {
       initialContentSize.width = min(
         initialContentSize.width,

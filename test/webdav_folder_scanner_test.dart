@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:drift/native.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -631,29 +632,37 @@ void main() {
           updatedAt: now,
         ),
       );
+      final artwork = ExtractedArtwork(
+        bytes: Uint8List.fromList([1, 2, 3]),
+        mimeType: 'image/png',
+      );
       final extractor = _CountingByteMetadataExtractor({
-        1: const ExtractedAudioMetadata(
+        1: ExtractedAudioMetadata(
           title: 'First',
           artist: 'Artist',
           album: 'Album',
           trackNumber: 1,
+          artwork: artwork,
         ),
-        2: const ExtractedAudioMetadata(
+        2: ExtractedAudioMetadata(
           title: 'Second',
           artist: 'Artist',
           album: 'Album',
           trackNumber: 2,
+          artwork: artwork,
         ),
-        3: const ExtractedAudioMetadata(
+        3: ExtractedAudioMetadata(
           title: 'First Updated',
           artist: 'Artist',
           album: 'Album',
           trackNumber: 1,
+          artwork: artwork,
         ),
       });
       final scanner = WebDavFolderScanner(
         repository: repository,
         metadataExtractor: extractor,
+        artworkStore: const _FakeWebDavArtworkStore(),
       );
       const credentials = WebDavCredentials(
         username: 'sound',
@@ -996,6 +1005,19 @@ class _CountingByteMetadataExtractor implements AudioMetadataExtractor {
     final value = bytes.isEmpty ? null : metadata[bytes.first];
     if (value == null) throw const FormatException('Unknown audio fixture.');
     return value;
+  }
+}
+
+class _FakeWebDavArtworkStore implements ArtworkStore {
+  const _FakeWebDavArtworkStore();
+
+  @override
+  Future<String?> store({
+    required String albumId,
+    required List<int> bytes,
+    required String mimeType,
+  }) async {
+    return 'artwork://${Uri.encodeComponent(albumId)}';
   }
 }
 

@@ -133,8 +133,8 @@ FlutterWindow::MessageHandler(HWND hwnd, UINT const message,
       const HMONITOR monitor =
           MonitorFromWindow(hwnd, MONITOR_DEFAULTTONEAREST);
       const UINT dpi = FlutterDesktopGetDpiForMonitor(monitor);
-      min_max_info->ptMinTrackSize.x = MulDiv(900, dpi, USER_DEFAULT_SCREEN_DPI);
-      min_max_info->ptMinTrackSize.y = MulDiv(600, dpi, USER_DEFAULT_SCREEN_DPI);
+      min_max_info->ptMinTrackSize.x = MulDiv(1024, dpi, USER_DEFAULT_SCREEN_DPI);
+      min_max_info->ptMinTrackSize.y = MulDiv(700, dpi, USER_DEFAULT_SCREEN_DPI);
       return 0;
     }
     case WM_SIZE: {

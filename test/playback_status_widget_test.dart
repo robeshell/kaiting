@@ -10,6 +10,7 @@ import 'package:kaiting/playback/playback_engine.dart';
 import 'package:kaiting/presentation/screens/now_playing_screen.dart';
 import 'package:kaiting/presentation/widgets/mini_player.dart';
 import 'package:kaiting/presentation/widgets/playback_visual_state.dart';
+import 'package:kaiting/presentation/widgets/progress_scrubber.dart';
 import 'package:kaiting/presentation/widgets/sound_components.dart';
 
 void main() {
@@ -83,9 +84,7 @@ void main() {
     engine.dispose();
   });
 
-  testWidgets('mini player progress is interactive and seeks playback', (
-    tester,
-  ) async {
+  testWidgets('mini player progress is read-only', (tester) async {
     tester.view.physicalSize = const Size(1200, 120);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -114,17 +113,15 @@ void main() {
 
     final progress = find.byKey(const ValueKey('mini-player-progress'));
     expect(progress, findsOneWidget);
-    final slider = tester.widget<Slider>(
+    final scrubber = tester.widget<ProgressScrubber>(progress);
+    expect(scrubber.interactive, isFalse);
+    expect(scrubber.position, const Duration(seconds: 24));
+    expect(scrubber.duration, const Duration(minutes: 3));
+    expect(
       find.descendant(of: progress, matching: find.byType(Slider)),
+      findsNothing,
     );
-    expect(slider.onChanged, isNotNull);
-    expect(slider.onChangeEnd, isNotNull);
-    slider.onChanged!(slider.max * 0.75);
-    slider.onChangeEnd!(slider.max * 0.75);
-    await tester.pump();
-
-    expect(engine.seekPositions, hasLength(1));
-    expect(engine.seekPositions.single.inSeconds, 135);
+    expect(engine.seekPositions, isEmpty);
 
     await tester.pumpWidget(const SizedBox.shrink());
     playback.dispose();
@@ -282,7 +279,9 @@ void main() {
     expect(failureSurface.borderColor, isNot(Colors.transparent));
     expect(failureSurface.blur, isTrue);
     expect(
-      tester.getSize(find.byKey(const ValueKey('playback-error-banner'))).height,
+      tester
+          .getSize(find.byKey(const ValueKey('playback-error-banner')))
+          .height,
       lessThan(100),
     );
 

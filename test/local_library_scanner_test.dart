@@ -129,30 +129,38 @@ void main() {
         DateTime.utc(2026, 7, 14, 12),
       );
       await repository.upsertSource(source);
+      final artwork = ExtractedArtwork(
+        bytes: Uint8List.fromList([1, 2, 3]),
+        mimeType: 'image/png',
+      );
       final extractor = _CountingMetadataExtractor({
-        'first.mp3': const ExtractedAudioMetadata(
+        'first.mp3': ExtractedAudioMetadata(
           title: 'First',
           artist: 'Artist',
           album: 'Album',
           trackNumber: 1,
+          artwork: artwork,
         ),
-        'second.flac': const ExtractedAudioMetadata(
+        'second.flac': ExtractedAudioMetadata(
           title: 'Second',
           artist: 'Artist',
           album: 'Album',
           trackNumber: 2,
+          artwork: artwork,
         ),
-        'moved.flac': const ExtractedAudioMetadata(
+        'moved.flac': ExtractedAudioMetadata(
           title: 'Second',
           artist: 'Artist',
           album: 'Album',
           trackNumber: 2,
+          artwork: artwork,
         ),
       });
       final scanner = LocalLibraryScanner(
         repository: repository,
         catalog: FileSystemLocalMediaCatalog(),
         metadataExtractor: extractor,
+        artworkStore: const _FakeArtworkStore(),
       );
 
       final initial = await scanner.scan(source);
