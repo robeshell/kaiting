@@ -10,12 +10,12 @@ copy personal audio or real credentials into Git.
 ## Start the fixture
 
 ```sh
-mkdir -p /tmp/sound-webdav-fixtures
-cp /path/to/sample.mp3 /tmp/sound-webdav-fixtures/sample.mp3
-cp /path/to/sample.flac /tmp/sound-webdav-fixtures/sample.flac
+mkdir -p /tmp/kaiting-webdav-fixtures
+cp /path/to/sample.mp3 /tmp/kaiting-webdav-fixtures/sample.mp3
+cp /path/to/sample.flac /tmp/kaiting-webdav-fixtures/sample.flac
 
 dart run tool/webdav_fixture_server.dart \
-  --root /tmp/sound-webdav-fixtures \
+  --root /tmp/kaiting-webdav-fixtures \
   --host 0.0.0.0 \
   --port 8088 \
   --username sound \

@@ -131,5 +131,6 @@ components:
 ## Agent Prompt Guide
 
 - 改 UI 前读本文件 + kai-brand-design `DESIGN.md`；数值以 kai-brand-design `tokens/*.json` 与 `products/kaiting/` 为准。
-- 快速定位：主题 token `lib/core/sound_theme.dart`；组件 kit `lib/presentation/widgets/sound_components.dart`；正在播放 `screens/now_playing_screen.dart` + `widgets/vinyl_record_art.dart`、`mini_player.dart`、`playback_queue_sheet.dart`。
-- 验收：`flutter analyze` 零告警；`flutter test` 全绿（存量失败见仓库文档，不得新增）。
+- 快速定位：主题 `lib/core/sound_theme.dart`；组件 `lib/presentation/widgets/sound_components.dart`；设置 `widgets/settings_components.dart`；正在播放 `screens/now_playing_screen.dart`、`widgets/vinyl_record_art.dart`、`mini_player.dart`。
+- 工程契约见 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)；开放工作见 [docs/ROADMAP.md](docs/ROADMAP.md)。
+- 验收：`flutter analyze`；`flutter test`。

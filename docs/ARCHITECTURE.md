@@ -26,6 +26,8 @@ offline
   protocol-neutral download queue, stored-media identity and storage totals
 sources
   local folders, WebDAV and future protocol adapters
+app_update
+  CDN update.json check, download / handoff to OS installer (not WebDAV)
 platform
   background playback, media controls, file pickers, credentials,
   Apple security-scoped URLs and bookmarks
@@ -33,6 +35,92 @@ platform
 
 Dependencies point inward: platform implementations may depend on domain
 contracts, while domain code never imports Flutter widgets or platform APIs.
+
+## Architecture diagrams
+
+```mermaid
+flowchart TB
+  subgraph UI["Presentation"]
+    Shell["AppShell / Settings"]
+    LibraryUI["Library / Search / Playlists"]
+    PlayerUI["Mini player / Now playing / Queue"]
+    SourceUI["Sources"]
+    OfflineUI["Downloads"]
+  end
+
+  subgraph Product["Controllers"]
+    Catalog["LibraryCatalogController"]
+    Playback["SoundPlaybackController"]
+    Offline["OfflineDownloadController"]
+    UserState["LibraryUserStateController"]
+  end
+
+  subgraph Contracts["Provider registries"]
+    SourceDef["SourceProvider"]
+    Connection["SourceConnection"]
+    Browser["SourceDirectoryBrowser"]
+    Scanner["SourceScan"]
+    Media["PlaybackMedia"]
+    OfflineProvider["OfflineMedia"]
+  end
+
+  subgraph Core["Domain / persistence"]
+    Models["Track / Album / SourceKind"]
+    Repository["LibraryRepository"]
+    SQLite["Drift SQLite"]
+    Session["Playback session v3"]
+  end
+
+  subgraph Adapters["Protocol adapters"]
+    Local["Local"]
+    WebDAV["WebDAV"]
+    Future["Future protocols"]
+  end
+
+  UI --> Product
+  SourceUI --> SourceDef
+  SourceUI --> Connection
+  SourceUI --> Browser
+  SourceUI --> Scanner
+  Playback --> Media
+  Offline --> OfflineProvider
+  Catalog --> Repository
+  UserState --> Repository
+  Playback --> Session
+  Repository --> SQLite
+  Local --> Connection
+  Local --> Scanner
+  Local --> Media
+  WebDAV --> Connection
+  WebDAV --> Browser
+  WebDAV --> Scanner
+  WebDAV --> Media
+  WebDAV --> OfflineProvider
+  Future -. "new adapter only" .-> Contracts
+```
+
+Remote play path: UI → PlaybackController → PlaybackMediaProviderRegistry →
+protocol adapter → just_audio → OS player. Snapshots flow back on one stream.
+
+### Adding a protocol
+
+1. `SourceProviderDefinition`
+2. `SourceConnectionProvider`
+3. `SourceDirectoryBrowser`
+4. `SourceScanProvider`
+5. `PlaybackMediaProvider`
+6. Optional `OfflineMediaProvider`
+7. Register at composition root + protocol-specific connect form
+
+Do not add protocol branches to shared controllers or library screens.
+
+## Appearance (runtime)
+
+Three independent axes: **Skin** (canvas / glass / text), **Accent** (controls),
+**Player style** (classic / vinyl now-playing). Persisted by `ThemePreferences`,
+applied in `SoundApp`. Visual tokens and patterns live in
+[`kai-brand-design`](https://github.com/robeshell/kai-brand-design) and
+[DESIGN.md](../DESIGN.md) — not duplicated here.
 
 ## Playback invariants
 
@@ -158,9 +246,11 @@ The `web/sqlite3.wasm` binary must match the `sqlite3` version resolved in
 
 ## Library scanning
 
-- `LocalMediaCatalog` enumerates MP3 and FLAC without leaking platform storage
-  details into the scanner. Desktop and Apple platforms use restored file
-  URLs; Android walks the persisted SAF tree with `ContentResolver`.
+- `LocalMediaCatalog` enumerates registered audio extensions (see
+  [AUDIO_FORMAT_MATRIX.md](./AUDIO_FORMAT_MATRIX.md): MP3, FLAC, AAC/M4A,
+  ALAC, WAV, OGG, Opus, …) without leaking platform storage details into the
+  scanner. Desktop and Apple platforms use restored file URLs; Android walks
+  the persisted SAF tree with `ContentResolver`.
 - Android copies one SAF document at a time into an app-cache scratch file for
   pure-Dart metadata parsing, then deletes it immediately. The stored playback
   URI remains the original `content://` document URI.
@@ -296,17 +386,22 @@ scanning, playback and offline registries in one test without changing shared
 controllers. Shipping a real second protocol is now feature work rather than a
 prerequisite architecture rewrite.
 
-## Vertical validation before feature development
+## Vertical validation (historical gate)
 
-The architecture is accepted only after the same small scenario works on
-Windows, Android, iPhone, and iPad:
+Early rewrite work required a small cross-platform playback slice before
+expanding features. That slice is largely implemented on macOS/Android
+simulators; remaining gaps are **Windows SMTC** and device-matrix format
+acceptance (see [AUDIO_FORMAT_MATRIX.md](./AUDIO_FORMAT_MATRIX.md) and
+[ROADMAP.md](./ROADMAP.md)).
 
-1. Scan one local MP3 and one local FLAC.
+Historical checklist (kept for regression):
+
+1. Scan local MP3 and FLAC (plus other registered formats where available).
 2. Read title, artist, album, duration, cover, and embedded lyrics.
 3. Play, pause, seek, skip, and resume without progress jumps.
 4. Stream one WebDAV item with authentication and seeking.
 5. Keep playback alive in the Android background.
-6. Publish metadata and transport controls to Android and Windows.
+6. Publish metadata and transport controls to Android; Windows SMTC still open.
 
-Large library, playlist, and visual-polish work starts only after this slice is
-measured and repeatable.
+Large-library, playlist, offline, and visual work has already shipped on top
+of this foundation.
