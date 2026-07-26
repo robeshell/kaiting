@@ -989,8 +989,8 @@ class _SoundAnchoredMenu<T> extends StatelessWidget {
   Widget build(BuildContext context) {
     final viewport = MediaQuery.sizeOf(context);
     final estimatedHeight =
-        actions.length * 48.0 + (title == null ? 12 : 56) + 12;
-    const menuWidth = 252.0;
+        actions.length * 36.0 + (title == null ? 8 : 48) + 8;
+    final menuWidth = _anchoredMenuWidth(actions);
     const edge = 12.0;
     final left = (anchor.right - menuWidth)
         .clamp(edge, math.max(edge, viewport.width - menuWidth - edge))
@@ -1003,6 +1003,15 @@ class _SoundAnchoredMenu<T> extends StatelessWidget {
       color: Colors.transparent,
       child: Stack(
         children: [
+          // Full-screen dismiss layer: the page fills the route, so barrier
+          // taps never reach showGeneralDialog's barrierDismissible handler.
+          Positioned.fill(
+            child: GestureDetector(
+              behavior: HitTestBehavior.opaque,
+              onTap: () => Navigator.of(context).maybePop(),
+              child: const ColoredBox(color: Colors.transparent),
+            ),
+          ),
           Positioned(
             left: left,
             top: top,
@@ -1030,6 +1039,32 @@ class _SoundAnchoredMenu<T> extends StatelessWidget {
   }
 }
 
+/// Content-hugging width for anchored menus (min 160 / max 280).
+double _anchoredMenuWidth<T>(List<SoundMenuAction<T>> actions) {
+  const labelStyle = TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600);
+  const subtitleStyle = TextStyle(fontSize: 11.5);
+  final painter = TextPainter(textDirection: TextDirection.ltr);
+  var maxLabel = 0.0;
+  try {
+    for (final action in actions) {
+      painter.text = TextSpan(text: action.label, style: labelStyle);
+      painter.layout();
+      maxLabel = math.max(maxLabel, painter.width);
+      if (action.subtitle case final value?) {
+        painter.text = TextSpan(text: value, style: subtitleStyle);
+        painter.layout();
+        maxLabel = math.max(maxLabel, painter.width);
+      }
+    }
+  } finally {
+    painter.dispose();
+  }
+  final hasSelected = actions.any((action) => action.selected);
+  // 12h×2 + icon 22 + gap 10 + label + optional check (10+16)
+  final content = 24 + 22 + 10 + maxLabel + (hasSelected ? 26 : 0);
+  return content.clamp(160.0, 280.0);
+}
+
 class _SoundMenuList<T> extends StatelessWidget {
   const _SoundMenuList({
     required this.actions,
@@ -1043,13 +1078,14 @@ class _SoundMenuList<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hPad = compact ? 20.0 : 12.0;
     final list = ListView(
       shrinkWrap: true,
-      padding: EdgeInsets.symmetric(vertical: compact ? 8 : 6),
+      padding: EdgeInsets.symmetric(vertical: compact ? 8 : 4),
       children: [
         for (final action in actions) ...[
           if (action.dividerBefore)
-            Divider(height: 9, indent: 16, endIndent: 16),
+            Divider(height: 9, indent: hPad, endIndent: hPad),
           _SoundMenuActionRow<T>(action: action, compact: compact),
         ],
       ],
@@ -1060,12 +1096,7 @@ class _SoundMenuList<T> extends StatelessWidget {
       children: [
         if (title case final value?) ...[
           Padding(
-            padding: EdgeInsets.fromLTRB(
-              compact ? 20 : 16,
-              compact ? 10 : 12,
-              compact ? 20 : 16,
-              9,
-            ),
+            padding: EdgeInsets.fromLTRB(hPad, 10, hPad, 9),
             child: Text(
               value,
               maxLines: 1,
@@ -1125,16 +1156,20 @@ class _SoundMenuActionRow<T> extends StatelessWidget {
           focusColor: context.soundTint(0.055),
           splashColor: Colors.transparent,
           child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: compact ? 52 : 46),
+            constraints: BoxConstraints(minHeight: compact ? 52 : 36),
             child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: compact ? 20 : 14),
+              padding: EdgeInsets.symmetric(horizontal: compact ? 20 : 12),
               child: Row(
                 children: [
                   SizedBox(
-                    width: 24,
-                    child: Icon(action.icon, size: 19, color: foreground),
+                    width: compact ? 24 : 22,
+                    child: Icon(
+                      action.icon,
+                      size: compact ? 19 : 17,
+                      color: foreground,
+                    ),
                   ),
-                  const SizedBox(width: 12),
+                  SizedBox(width: compact ? 12 : 10),
                   Expanded(
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -1142,9 +1177,11 @@ class _SoundMenuActionRow<T> extends StatelessWidget {
                       children: [
                         Text(
                           action.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             color: foreground,
-                            fontSize: 14,
+                            fontSize: compact ? 14 : 13.5,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -1164,10 +1201,10 @@ class _SoundMenuActionRow<T> extends StatelessWidget {
                     ),
                   ),
                   if (action.selected) ...[
-                    const SizedBox(width: 12),
+                    SizedBox(width: compact ? 12 : 10),
                     Icon(
                       Icons.check_rounded,
-                      size: 18,
+                      size: compact ? 18 : 16,
                       color: SoundColors.accent,
                     ),
                   ],
@@ -1195,6 +1232,7 @@ class SoundListRow extends StatelessWidget {
     this.padding = const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
     this.selectedColor,
     this.borderRadius,
+    this.hoverColor,
     super.key,
   });
 
@@ -1214,6 +1252,9 @@ class SoundListRow extends StatelessWidget {
   /// 行体圆角（选中/hover 一并裁剪）；默认直角整行填充。
   final BorderRadius? borderRadius;
 
+  /// Hover 底色；默认前景 3.5%（list-row）；侧栏传 4.5%。
+  final Color? hoverColor;
+
   @override
   Widget build(BuildContext context) {
     final interactive = enabled && onTap != null;
@@ -1229,7 +1270,7 @@ class SoundListRow extends StatelessWidget {
         clipBehavior: borderRadius == null ? Clip.none : Clip.antiAlias,
         child: InkWell(
           onTap: interactive ? onTap : null,
-          hoverColor: context.soundTint(0.035),
+          hoverColor: hoverColor ?? context.soundTint(0.035),
           focusColor: context.soundTint(0.05),
           splashColor: Colors.transparent,
           child: ConstrainedBox(

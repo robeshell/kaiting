@@ -105,6 +105,55 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('anchored Sound menus dismiss when tapping outside', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(900, 700);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    String? selected;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: SoundTheme.light,
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.topRight,
+            child: SoundMenuButton<String>(
+              key: const ValueKey('wide-sound-menu-dismiss'),
+              tooltip: '排序方式',
+              onSelected: (value) => selected = value,
+              actions: const [
+                SoundMenuAction(
+                  value: 'title',
+                  label: '按标题',
+                  icon: Icons.sort_by_alpha_rounded,
+                  selected: true,
+                ),
+                SoundMenuAction(
+                  value: 'artist',
+                  label: '按艺人',
+                  icon: Icons.person_outline_rounded,
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('wide-sound-menu-dismiss')));
+    await tester.pumpAndSettle();
+    expect(find.text('按标题'), findsOneWidget);
+
+    await tester.tapAt(const Offset(40, 350));
+    await tester.pumpAndSettle();
+    expect(find.text('按标题'), findsNothing);
+    expect(selected, isNull);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('browse choices and song rows share the compact 开听 rhythm', (
     tester,
   ) async {

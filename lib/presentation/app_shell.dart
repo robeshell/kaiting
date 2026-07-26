@@ -1781,7 +1781,7 @@ class _Sidebar extends StatelessWidget {
                         '开听',
                         style: TextStyle(
                           color: context.soundPrimaryText,
-                          fontSize: 18,
+                          fontSize: 17,
                           fontWeight: FontWeight.w800,
                           letterSpacing: -0.35,
                         ),
@@ -1872,6 +1872,7 @@ class _SidebarRow extends StatelessWidget {
       selected: active,
       selectedColor: SoundColors.accent.withValues(alpha: 0.10),
       borderRadius: BorderRadius.circular(SoundRadii.control),
+      hoverColor: context.soundTint(0.045),
       leading: Icon(
         icon,
         size: 18,
