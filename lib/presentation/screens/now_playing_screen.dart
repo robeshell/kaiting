@@ -347,9 +347,14 @@ class _WideNowPlayingState extends State<_WideNowPlaying> {
     return LayoutBuilder(
       builder: (context, constraints) {
         const verticalPadding = 50.0;
+        const maxStageWidth = 1600.0;
+        const maxStageHeight = 1080.0;
+        final stageWidth = math.min(maxStageWidth, constraints.maxWidth);
+        final stageHeight = math.min(maxStageHeight, constraints.maxHeight);
         // Vinyl needs more chrome clearance (title gap + controls) than a flat cover.
-        final playerChromeHeight =
-            widget.style == NowPlayingStyle.vinyl ? 250.0 : 230.0;
+        final playerChromeHeight = widget.style == NowPlayingStyle.vinyl
+            ? 250.0
+            : 230.0;
         final foldableWidth = constraints.maxWidth < 780;
         final horizontalPadding = foldableWidth ? 24.0 : 44.0;
         final paneGap = math.max(
@@ -361,14 +366,11 @@ class _WideNowPlayingState extends State<_WideNowPlaying> {
         const contentFlex = 1;
         final availableWidth = math.max(
           320.0,
-          constraints.maxWidth - horizontalPadding * 2 - paneGap,
+          stageWidth - horizontalPadding * 2 - paneGap,
         );
         final paneWidth =
             availableWidth * playerFlex / (playerFlex + contentFlex);
-        final playerHeight = math.max(
-          0.0,
-          constraints.maxHeight - verticalPadding,
-        );
+        final playerHeight = math.max(0.0, stageHeight - verticalPadding);
         // Foldables (~700px) keep a smaller vinyl so the arm pivot still reads
         // with air above the rim; wide desktops can go larger.
         final artLimit = switch (widget.style) {
@@ -383,67 +385,77 @@ class _WideNowPlayingState extends State<_WideNowPlaying> {
           math.min(artLimit, paneWidth),
           math.max(160.0, playerHeight - playerChromeHeight),
         );
-        return Padding(
-          key: const ValueKey('wide-now-playing-content'),
-          padding: EdgeInsets.fromLTRB(
-            horizontalPadding,
-            0,
-            horizontalPadding,
-            24,
-          ),
-          child: Row(
-            crossAxisAlignment: foldableWidth
-                ? CrossAxisAlignment.start
-                : CrossAxisAlignment.stretch,
-            children: [
-              Expanded(
-                flex: playerFlex,
-                child: Padding(
-                  padding: EdgeInsets.only(top: foldableWidth ? 18 : 0),
-                  child: Align(
-                    key: const ValueKey('wide-now-playing-player'),
-                    alignment: Alignment.topCenter,
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(maxWidth: playerWidthLimit),
-                      child: SingleChildScrollView(
-                        child: _PlayerColumn(
-                          album: widget.album,
-                          track: widget.track,
-                          playback: widget.playback,
-                          style: widget.style,
-                          userState: widget.userState,
-                          isActive: widget.isActive,
-                          onOpenAlbum: widget.onOpenAlbum,
-                          onOpenArtist: widget.onOpenArtist,
-                          artSize: artSize,
+        return Align(
+          alignment: Alignment.center,
+          child: SizedBox(
+            key: const ValueKey('wide-now-playing-stage'),
+            width: stageWidth,
+            height: stageHeight,
+            child: Padding(
+              key: const ValueKey('wide-now-playing-content'),
+              padding: EdgeInsets.fromLTRB(
+                horizontalPadding,
+                0,
+                horizontalPadding,
+                24,
+              ),
+              child: Row(
+                crossAxisAlignment: foldableWidth
+                    ? CrossAxisAlignment.start
+                    : CrossAxisAlignment.stretch,
+                children: [
+                  Expanded(
+                    flex: playerFlex,
+                    child: Padding(
+                      padding: EdgeInsets.only(top: foldableWidth ? 18 : 0),
+                      child: Align(
+                        key: const ValueKey('wide-now-playing-player'),
+                        alignment: Alignment.topCenter,
+                        child: ConstrainedBox(
+                          constraints: BoxConstraints(
+                            maxWidth: playerWidthLimit,
+                          ),
+                          child: SingleChildScrollView(
+                            child: _PlayerColumn(
+                              album: widget.album,
+                              track: widget.track,
+                              playback: widget.playback,
+                              style: widget.style,
+                              userState: widget.userState,
+                              isActive: widget.isActive,
+                              onOpenAlbum: widget.onOpenAlbum,
+                              onOpenArtist: widget.onOpenArtist,
+                              artSize: artSize,
+                            ),
+                          ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ),
-              SizedBox(width: paneGap),
-              Expanded(
-                flex: contentFlex,
-                child: Padding(
-                  key: const ValueKey('wide-now-playing-lyrics'),
-                  padding: EdgeInsets.fromLTRB(
-                    8,
-                    6,
-                    0,
-                    foldableWidth ? 24 : 32,
+                  SizedBox(width: paneGap),
+                  Expanded(
+                    flex: contentFlex,
+                    child: Padding(
+                      key: const ValueKey('wide-now-playing-lyrics'),
+                      padding: EdgeInsets.fromLTRB(
+                        8,
+                        6,
+                        0,
+                        foldableWidth ? 24 : 32,
+                      ),
+                      child: _WideNowPlayingPane(
+                        view: _view,
+                        track: widget.track,
+                        playback: widget.playback,
+                        onViewChanged: (view) => setState(() => _view = view),
+                        onOpenAlbum: widget.onOpenAlbum,
+                        onOpenArtist: widget.onOpenArtist,
+                      ),
+                    ),
                   ),
-                  child: _WideNowPlayingPane(
-                    view: _view,
-                    track: widget.track,
-                    playback: widget.playback,
-                    onViewChanged: (view) => setState(() => _view = view),
-                    onOpenAlbum: widget.onOpenAlbum,
-                    onOpenArtist: widget.onOpenArtist,
-                  ),
-                ),
+                ],
               ),
-            ],
+            ),
           ),
         );
       },
@@ -941,9 +953,7 @@ class _PlayerColumn extends StatelessWidget {
             onOpenArtist: onOpenArtist == null
                 ? null
                 : () => onOpenArtist!(track.artist),
-            onOpenAlbum: onOpenAlbum == null
-                ? null
-                : () => onOpenAlbum!(album),
+            onOpenAlbum: onOpenAlbum == null ? null : () => onOpenAlbum!(album),
             style: TextStyle(color: context.soundSecondaryText, fontSize: 13),
           ),
         ),
@@ -2150,11 +2160,7 @@ class _WindowDot extends StatelessWidget {
             shape: BoxShape.circle,
           ),
           child: Center(
-            child: Icon(
-              icon,
-              size: 11,
-              color: context.soundSecondaryText,
-            ),
+            child: Icon(icon, size: 11, color: context.soundSecondaryText),
           ),
         ),
       ),

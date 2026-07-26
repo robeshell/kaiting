@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kaiting/core/now_playing_style.dart';
 import 'package:kaiting/core/sound_theme.dart';
 import 'package:kaiting/domain/library_models.dart';
 import 'package:kaiting/playback/playback_controller.dart';
@@ -233,6 +234,47 @@ void main() {
       lessThan(430),
       reason: 'Desktop content should not be vertically centered downward.',
     );
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    playback.dispose();
+    engine.dispose();
+  });
+
+  testWidgets('wide now-playing stays grouped on an ultra-wide display', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(2560, 1440);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final engine = StaticPlaybackEngine(
+      _snapshot(PlaybackPhase.paused, track: _longTrack),
+    );
+    final playback = SoundPlaybackController(engine: engine);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: SoundTheme.light,
+        home: NowPlayingScreen(
+          playback: playback,
+          style: NowPlayingStyle.vinyl,
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(tester.takeException(), isNull);
+    final stage = tester.getRect(
+      find.byKey(const ValueKey('wide-now-playing-stage')),
+    );
+    final lyrics = tester.getRect(
+      find.byKey(const ValueKey('wide-now-playing-lyrics')),
+    );
+    expect(stage.size, const Size(1600, 1080));
+    expect(stage.center.dx, closeTo(1280, 0.1));
+    expect(stage.top, greaterThan(0));
+    expect(stage.bottom, lessThan(1440));
+    expect(lyrics.right, lessThanOrEqualTo(stage.right - 44));
 
     await tester.pumpWidget(const SizedBox.shrink());
     playback.dispose();
