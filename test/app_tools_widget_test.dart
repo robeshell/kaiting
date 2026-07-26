@@ -1,4 +1,5 @@
 import 'package:drift/native.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kaiting/core/sound_theme.dart';
@@ -58,6 +59,8 @@ void main() {
   });
 
   testWidgets('settings exposes sleep timer and diagnostics', (tester) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.macOS;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
     tester.view.physicalSize = const Size(1200, 800);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -109,6 +112,7 @@ void main() {
     expect(find.byKey(const ValueKey('diagnostics-settings')), findsOneWidget);
     expect(find.text('当前没有已记录的问题'), findsOneWidget);
 
+    debugDefaultTargetPlatformOverride = null;
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 1));
     playback.dispose();
