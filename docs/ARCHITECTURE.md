@@ -192,9 +192,11 @@ retry that reloads the current track.
   Failed constraints roll back metadata, lyrics, deletions, and the source scan
   revision together.
 - All persisted timestamps cross the repository boundary as UTC values.
-- Native databases live in the application documents directory and can be
-  shared across Flutter isolates. The development Web build uses the matching
-  SQLite WASM module and Drift worker committed under `web/`.
+- Native library databases live under Application Support
+  (`sound_library.sqlite` via `getApplicationSupportDirectory`, with a one-shot
+  migration from the older Documents location). They can be shared across
+  Flutter isolates. The development Web build uses the matching SQLite WASM
+  module and Drift worker committed under `web/`.
 - `drift_schemas/sound_library/` stores the versioned schema baseline. After
   every schema change, increment `schemaVersion` and run
   `dart run drift_dev make-migrations` before editing the generated migration.

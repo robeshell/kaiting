@@ -228,7 +228,8 @@ Future<void> _buildPlatform(
     case 'macos':
       await _flutterBuild('macos', version);
       final app = _findMacOsApp();
-      await _removeDeviceRestrictedMacOsSignature(app);
+      // Portable package: ad-hoc sign, no Apple certificate required to open.
+      await _signMacOsAppAdHocForDistribution(app);
       final zip = File(
         '${dist.path}/kaiting-${version.name}-macos.zip',
       ).absolute;
@@ -284,22 +285,45 @@ Directory _findMacOsApp() {
   return apps.single;
 }
 
-Future<void> _removeDeviceRestrictedMacOsSignature(Directory app) async {
+/// Certificate-free macOS distribution signature (ad-hoc, no Apple cert).
+///
+/// Important: do **not** re-embed `keychain-access-groups` or app-sandbox under
+/// ad-hoc identity. On current macOS that combination fails to launch
+/// (`RBSRequestErrorDomain` / POSIX 163). WebDAV passwords still work because
+/// [SecureWebDavCredentialStore] disables Data Protection Keychain on macOS.
+Future<void> _signMacOsAppAdHocForDistribution(Directory app) async {
   final profile = File('${app.path}/Contents/embedded.provisionprofile');
-  if (!profile.existsSync()) return;
+  if (profile.existsSync()) {
+    stdout.writeln(
+      'Removing embedded.provisionprofile for portable packaging...',
+    );
+    await profile.delete();
+  }
 
   stdout.writeln(
-    'Replacing the device-restricted development signature with an '
-    'ad-hoc signature...',
+    'Ad-hoc signing macOS app without entitlement blob '
+    '(certificate-free; avoids launchd 163)...',
   );
-  await profile.delete();
   await _run('codesign', [
     '--force',
     '--deep',
     '--sign',
     '-',
-    app.path,
+    app.absolute.path,
   ]);
+
+  final verify = await Process.run('codesign', [
+    '--verify',
+    '--deep',
+    '--strict',
+    app.absolute.path,
+  ]);
+  if (verify.exitCode != 0) {
+    throw StateError(
+      'Ad-hoc macOS signature failed verification:\n'
+      '${verify.stdout}${verify.stderr}',
+    );
+  }
 }
 
 Future<void> _buildMacOsDmg(

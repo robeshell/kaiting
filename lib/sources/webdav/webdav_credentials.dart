@@ -39,7 +39,18 @@ abstract interface class WebDavCredentialStore {
 
 class SecureWebDavCredentialStore implements WebDavCredentialStore {
   SecureWebDavCredentialStore({FlutterSecureStorage? storage})
-    : _storage = storage ?? const FlutterSecureStorage();
+    : _storage = storage ?? _defaultSecureStorage;
+
+  /// File-based macOS keychain (not Data Protection).
+  ///
+  /// Default `usesDataProtectionKeychain: true` needs the
+  /// `keychain-access-groups` entitlement. Ad-hoc (certificate-free) signed
+  /// apps that embed that entitlement fail to launch (launchd error 163).
+  /// Disabling Data Protection keeps WebDAV passwords working under plain
+  /// ad-hoc signatures used for portable macOS packages.
+  static const FlutterSecureStorage _defaultSecureStorage = FlutterSecureStorage(
+    mOptions: MacOsOptions(usesDataProtectionKeychain: false),
+  );
 
   final FlutterSecureStorage _storage;
 

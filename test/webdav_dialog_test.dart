@@ -116,6 +116,57 @@ void main() {
     expect(find.text('添加 WebDAV 连接'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
+  testWidgets('compact connection form stays above simulated keyboard', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    // Tall software keyboard covering the lower half of a phone.
+    tester.view.viewInsets = const FakeViewPadding(bottom: 360);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    addTearDown(tester.view.resetViewInsets);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: SoundTheme.light,
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: FilledButton(
+              onPressed: () => showSoundBottomSheet<WebDavDiscoveryResult>(
+                context,
+                builder: (_) =>
+                    WebDavAddDialog(service: service, bottomSheet: true),
+              ),
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(SoundBottomSheet), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    // SoundBottomSheet pads viewInsets; the glass surface (visual sheet) sits
+    // above the keyboard band.
+    final surface = find.descendant(
+      of: find.byType(SoundBottomSheet),
+      matching: find.byType(SoundGlassSurface),
+    );
+    expect(surface, findsOneWidget);
+    final surfaceBottom = tester.getBottomLeft(surface).dy;
+    expect(surfaceBottom, lessThanOrEqualTo(844 - 360 + 0.5));
+    expect(tester.getTopLeft(surface).dy, greaterThanOrEqualTo(0));
+
+    // Title stays reachable above the keyboard.
+    final titleBottom = tester.getBottomLeft(find.text('添加 WebDAV 连接')).dy;
+    expect(titleBottom, lessThanOrEqualTo(844 - 360 + 0.5));
+  });
 }
 
 class _DialogHost extends StatelessWidget {

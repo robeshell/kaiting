@@ -804,44 +804,49 @@ class SoundBottomSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    return SoundGlassSurface(
-      strong: true,
-      shadowOffset: const Offset(0, -8),
-      shadowBlur: 28,
-      borderRadius: const BorderRadius.vertical(
-        top: Radius.circular(SoundRadii.sheet),
-      ),
-      child: Material(
-        color: Colors.transparent,
-        child: ClipRRect(
-          borderRadius: const BorderRadius.vertical(
-            top: Radius.circular(SoundRadii.sheet),
-          ),
-          child: Stack(
-            children: [
-              Padding(
-                padding: EdgeInsets.only(top: showHandle ? 14 : 0),
-                child: child,
-              ),
-              if (showHandle)
-                Positioned(
-                  top: 7,
-                  left: 0,
-                  right: 0,
-                  child: Center(
-                    child: Container(
-                      width: 38,
-                      height: 4,
-                      decoration: BoxDecoration(
-                        color: theme.colorScheme.onSurfaceVariant.withValues(
-                          alpha: 0.38,
+    // Lift the sheet above the software keyboard so form fields stay reachable.
+    final keyboardInset = MediaQuery.viewInsetsOf(context).bottom;
+    return Padding(
+      padding: EdgeInsets.only(bottom: keyboardInset),
+      child: SoundGlassSurface(
+        strong: true,
+        shadowOffset: const Offset(0, -8),
+        shadowBlur: 28,
+        borderRadius: const BorderRadius.vertical(
+          top: Radius.circular(SoundRadii.sheet),
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: ClipRRect(
+            borderRadius: const BorderRadius.vertical(
+              top: Radius.circular(SoundRadii.sheet),
+            ),
+            child: Stack(
+              children: [
+                Padding(
+                  padding: EdgeInsets.only(top: showHandle ? 14 : 0),
+                  child: child,
+                ),
+                if (showHandle)
+                  Positioned(
+                    top: 7,
+                    left: 0,
+                    right: 0,
+                    child: Center(
+                      child: Container(
+                        width: 38,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: theme.colorScheme.onSurfaceVariant.withValues(
+                            alpha: 0.38,
+                          ),
+                          borderRadius: BorderRadius.circular(SoundRadii.pill),
                         ),
-                        borderRadius: BorderRadius.circular(SoundRadii.pill),
                       ),
                     ),
                   ),
-                ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
