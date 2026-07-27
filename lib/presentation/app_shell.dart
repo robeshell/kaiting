@@ -1766,7 +1766,7 @@ class _Sidebar extends StatelessWidget {
                   child: Row(
                     children: [
                       Image.asset(
-                        'assets/branding/app_icon_master-v7.png',
+                        'assets/branding/app_icon_master-v8.png',
                         width: 28,
                         height: 28,
                         filterQuality: FilterQuality.high,

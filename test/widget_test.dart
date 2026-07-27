@@ -130,7 +130,7 @@ void main() {
 
     expect(find.text('开听'), findsOneWidget);
     expect(
-      find.image(const AssetImage('assets/branding/app_icon_master-v7.png')),
+      find.image(const AssetImage('assets/branding/app_icon_master-v8.png')),
       findsOneWidget,
     );
     expect(find.byKey(const ValueKey('desktop-search-action')), findsOneWidget);

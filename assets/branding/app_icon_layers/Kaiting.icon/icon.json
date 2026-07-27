@@ -1,27 +1,29 @@
 {
-  "fill" : "system-light",
-  "groups" : [
+  "fill": {
+    "solid": "extended-srgb:1.00000,0.35294,0.30196,1.00000"
+  },
+  "groups": [
     {
-      "layers" : [
+      "layers": [
         {
-          "image-name" : "foreground.png",
-          "name" : "foreground"
+          "image-name": "foreground.png",
+          "name": "foreground"
         }
       ],
-      "shadow" : {
-        "kind" : "neutral",
-        "opacity" : 0.5
+      "shadow": {
+        "kind": "neutral",
+        "opacity": 0.35
       },
-      "translucency" : {
-        "enabled" : true,
-        "value" : 0.5
+      "translucency": {
+        "enabled": false,
+        "value": 0.5
       }
     }
   ],
-  "supported-platforms" : {
-    "circles" : [
+  "supported-platforms": {
+    "circles": [
       "watchOS"
     ],
-    "squares" : "shared"
+    "squares": "shared"
   }
 }

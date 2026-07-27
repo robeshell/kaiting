@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
-"""Generate every platform icon and launch mark from the 开听 v7 master.
+"""Generate every platform icon and launch mark from the 开听 v8 master.
 
-The supplied artwork is full-bleed. System-masked platforms consume that
-composition directly, while adaptive and unmasked platforms use extracted
-foreground/background layers with platform-specific optical margins.
+v8 is a flat “listening pulse” mark (center disc + open ripple arcs) on a
+coral field — no emboss, no letter monogram. The supplied artwork is
+full-bleed. System-masked platforms consume that composition directly, while
+adaptive and unmasked platforms use extracted foreground/background layers
+with platform-specific optical margins.
 """
 
 from __future__ import annotations
@@ -20,10 +22,11 @@ from PIL import Image, ImageDraw, ImageFilter, ImageFont
 ROOT = Path(__file__).resolve().parents[1]
 BRANDING = ROOT / "assets" / "branding"
 LAYERS = BRANDING / "app_icon_layers"
-MASTER = BRANDING / "app_icon_master-v7.png"
+MASTER = BRANDING / "app_icon_master-v8.png"
 
 CANVAS = 1024
-BRAND_RED = (255, 82, 67)
+# Coral accent — matches kai-brand-design / products/kaiting default #FF5A4D
+BRAND_RED = (255, 90, 77)
 LAUNCH_TITLE = "开听"
 LAUNCH_TAGLINE = "听自己的音乐"
 LAUNCH_TITLE_COLOR = (28, 28, 34, 255)
@@ -39,9 +42,8 @@ def extract_mark() -> Image.Image:
     source = np.asarray(Image.open(MASTER).convert("RGBA"), dtype=np.float32)
     red, green, blue, source_alpha = np.moveaxis(source, -1, 0)
 
-    # The v7 artwork has a warm orange background and a neutral white mark.
-    # The minimum RGB component cleanly separates the mark while leaving the
-    # baked red drop shadow behind for platforms that render their own depth.
+    # Flat v8 artwork: warm cream mark on a coral field. Minimum RGB separates
+    # the neutral cream pulse from the saturated coral background.
     whiteness = np.minimum(np.minimum(red, green), blue)
     neutrality = 255.0 - (np.maximum(np.maximum(red, green), blue) - whiteness)
     alpha = (
@@ -49,8 +51,24 @@ def extract_mark() -> Image.Image:
         * smoothstep(190.0, 244.0, neutrality)
         * (source_alpha / 255.0)
     )
+    # Drop faint anti-alias fringe and import artifacts (hairline edges).
+    alpha = np.where(alpha < 0.12, 0.0, alpha)
 
-    ys, xs = np.where(alpha > 0.04)
+    # Brand marks are centered. Reject cream-like pixels far from the strong
+    # mark centroid so export hairlines at the canvas edge cannot leak in.
+    strong = alpha > 0.5
+    if strong.any():
+        ys_s, xs_s = np.where(strong)
+        cy = float(ys_s.mean())
+        cx = float(xs_s.mean())
+    else:
+        cy = source.shape[0] / 2.0
+        cx = source.shape[1] / 2.0
+    yy, xx = np.ogrid[0 : source.shape[0], 0 : source.shape[1]]
+    radius = max(source.shape[0], source.shape[1]) * 0.48
+    alpha = np.where((yy - cy) ** 2 + (xx - cx) ** 2 <= radius**2, alpha, 0.0)
+
+    ys, xs = np.where(alpha > 0.12)
     if not len(xs):
         raise RuntimeError("Could not isolate the 开听 mark from the master")
 
@@ -163,48 +181,110 @@ def rounded_plate(
     return output
 
 
-def launch_font(size: int, *, bold: bool = False, cjk: bool = False) -> ImageFont.FreeTypeFont:
-    if cjk:
-        candidates = (
-            "/System/Library/Fonts/Supplemental/Arial Unicode.ttf",
-            "/System/Library/Fonts/STHeiti Medium.ttc",
-            "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
-            "C:/Windows/Fonts/msyh.ttc",
+# Preferred (path, ttc_index) faces. PingFang SC: 0 Regular · 4 Medium · 8 Semibold.
+# Hiragino Sans GB: 0 light/reg · 2–3 heavier. Avoid STHeiti Light (thin/dated).
+_LAUNCH_TITLE_FACES: tuple[tuple[str, int], ...] = (
+    (
+        "/System/Library/AssetsV2/com_apple_MobileAsset_Font8/"
+        "86ba2c91f017a3749571a82f2c6d890ac7ffb2fb.asset/AssetData/PingFang.ttc",
+        8,
+    ),
+    (
+        "/System/Library/AssetsV2/com_apple_MobileAsset_Font8/"
+        "86ba2c91f017a3749571a82f2c6d890ac7ffb2fb.asset/AssetData/PingFang.ttc",
+        4,
+    ),
+    ("/System/Library/Fonts/Hiragino Sans GB.ttc", 2),
+    ("/System/Library/Fonts/STHeiti Medium.ttc", 0),
+    ("/System/Library/Fonts/ヒラギノ角ゴシック W6.ttc", 0),
+    ("/usr/share/fonts/opentype/noto/NotoSansCJK-Medium.ttc", 0),
+    ("/usr/share/fonts/opentype/noto/NotoSansCJK-Bold.ttc", 0),
+    ("/usr/share/fonts/truetype/noto/NotoSansSC-Bold.otf", 0),
+    ("C:/Windows/Fonts/msyhbd.ttc", 0),
+    ("C:/Windows/Fonts/msyh.ttc", 0),
+    ("/System/Library/Fonts/Supplemental/Arial Unicode.ttf", 0),
+)
+
+_LAUNCH_BODY_FACES: tuple[tuple[str, int], ...] = (
+    (
+        "/System/Library/AssetsV2/com_apple_MobileAsset_Font8/"
+        "86ba2c91f017a3749571a82f2c6d890ac7ffb2fb.asset/AssetData/PingFang.ttc",
+        0,
+    ),
+    ("/System/Library/Fonts/Hiragino Sans GB.ttc", 0),
+    ("/System/Library/Fonts/ヒラギノ角ゴシック W3.ttc", 0),
+    ("/System/Library/Fonts/STHeiti Medium.ttc", 0),
+    ("/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc", 0),
+    ("/usr/share/fonts/truetype/noto/NotoSansSC-Regular.otf", 0),
+    ("C:/Windows/Fonts/msyh.ttc", 0),
+    ("/System/Library/Fonts/Supplemental/Arial Unicode.ttf", 0),
+)
+
+
+def launch_font(size: int, *, weight: str = "regular") -> ImageFont.ImageFont:
+    """Pick a modern CJK face for baked launch text.
+
+    Title/tagline are Chinese. Latin-only fonts (Arial Bold) produce □ boxes;
+    STHeiti Light looks thin and dated at small sizes.
+    """
+    faces = _LAUNCH_TITLE_FACES if weight == "semibold" else _LAUNCH_BODY_FACES
+    last_error: Exception | None = None
+    for path, index in faces:
+        if not Path(path).exists():
+            continue
+        try:
+            font = ImageFont.truetype(path, size=size, index=index)
+        except Exception as exc:  # noqa: BLE001
+            last_error = exc
+            continue
+        if _cjk_renderable(font):
+            return font
+        last_error = RuntimeError(f"{path}[{index}] missing CJK glyphs")
+    raise RuntimeError(
+        "A CJK-capable system font is required to generate launch branding"
+        + (f" (last error: {last_error})" if last_error else "")
+    )
+
+
+def _cjk_renderable(font: ImageFont.ImageFont, sample: str = "开") -> bool:
+    """True when the face can draw a Chinese sample glyph (not an empty box)."""
+    try:
+        mask = font.getmask(sample)
+    except Exception:  # noqa: BLE001
+        return False
+    width, height = getattr(mask, "size", (0, 0))
+    if width == 0 or height == 0:
+        return False
+    return sum(mask) > 0
+
+
+def _assert_cjk_renderable(font: ImageFont.ImageFont, sample: str = "开") -> None:
+    if not _cjk_renderable(font, sample):
+        raise RuntimeError(
+            f"Font {getattr(font, 'path', font)} cannot render CJK sample {sample!r}"
         )
-    elif bold:
-        candidates = (
-            "/System/Library/Fonts/Supplemental/Arial Bold.ttf",
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf",
-            "C:/Windows/Fonts/segoeuib.ttf",
-        )
-    else:
-        candidates = (
-            "/System/Library/Fonts/Supplemental/Arial.ttf",
-            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
-            "C:/Windows/Fonts/segoeui.ttf",
-        )
-    for candidate in candidates:
-        if Path(candidate).exists():
-            return ImageFont.truetype(candidate, size=size)
-    raise RuntimeError("A system font is required to generate launch branding")
 
 
 def launch_branding(scale: int) -> Image.Image:
     image = Image.new("RGBA", (200 * scale, 80 * scale), (0, 0, 0, 0))
     draw = ImageDraw.Draw(image)
+    title_font = launch_font(22 * scale, weight="semibold")
+    body_font = launch_font(13 * scale, weight="regular")
+    _assert_cjk_renderable(title_font)
+    _assert_cjk_renderable(body_font)
     draw.text(
         (100 * scale, 24 * scale),
         LAUNCH_TITLE,
         anchor="mm",
         fill=LAUNCH_TITLE_COLOR,
-        font=launch_font(22 * scale, bold=True),
+        font=title_font,
     )
     draw.text(
         (100 * scale, 54 * scale),
         LAUNCH_TAGLINE,
         anchor="mm",
         fill=LAUNCH_SUBTITLE_COLOR,
-        font=launch_font(12 * scale, cjk=True),
+        font=body_font,
     )
     return image
 
@@ -218,19 +298,23 @@ def launch_lockup(mark: Image.Image, scale: int) -> Image.Image:
     )
     image.alpha_composite(mark_layer, (72 * scale, 28 * scale))
     draw = ImageDraw.Draw(image)
+    title_font = launch_font(24 * scale, weight="semibold")
+    body_font = launch_font(14 * scale, weight="regular")
+    _assert_cjk_renderable(title_font)
+    _assert_cjk_renderable(body_font)
     draw.text(
         (144 * scale, 177 * scale),
         LAUNCH_TITLE,
         anchor="mm",
         fill=LAUNCH_TITLE_COLOR,
-        font=launch_font(24 * scale, bold=True),
+        font=title_font,
     )
     draw.text(
         (144 * scale, 210 * scale),
         LAUNCH_TAGLINE,
         anchor="mm",
         fill=LAUNCH_SUBTITLE_COLOR,
-        font=launch_font(13 * scale, cjk=True),
+        font=body_font,
     )
     return image
 
@@ -372,9 +456,40 @@ def main() -> None:
     write_apple_catalog(ios_catalog, ios)
 
     # Icon Composer applies the current macOS/iOS mask to this full-bleed layer.
-    composer_assets = LAYERS / "Kaiting.icon" / "Assets"
+    composer_dir = LAYERS / "Kaiting.icon"
+    composer_assets = composer_dir / "Assets"
     composer_assets.mkdir(parents=True, exist_ok=True)
     ios.save(composer_assets / "foreground.png", optimize=True)
+    # Coral fill matches brand accent; full-bleed foreground already carries
+    # the same field, so fill is a fallback for layered previews.
+    (composer_dir / "icon.json").write_text(
+        json.dumps(
+            {
+                "fill": {
+                    "solid": "extended-srgb:1.00000,0.35294,0.30196,1.00000"
+                },
+                "groups": [
+                    {
+                        "layers": [
+                            {
+                                "image-name": "foreground.png",
+                                "name": "foreground",
+                            }
+                        ],
+                        "shadow": {"kind": "neutral", "opacity": 0.35},
+                        "translucency": {"enabled": False, "value": 0.5},
+                    }
+                ],
+                "supported-platforms": {
+                    "circles": ["watchOS"],
+                    "squares": "shared",
+                },
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
 
     # Keep all distinctive parts inside Android's 66/108 dp guaranteed safe
     # zone. The extra breathing room also protects the thin wave tips.

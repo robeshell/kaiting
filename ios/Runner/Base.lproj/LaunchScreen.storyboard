@@ -23,7 +23,7 @@
                                 <color key="textColor" red="0.1098039216" green="0.1098039216" blue="0.1333333333" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                             </label>
                             <label opaque="NO" userInteractionEnabled="NO" contentMode="left" horizontalHuggingPriority="251" verticalHuggingPriority="251" text="听自己的音乐" textAlignment="center" lineBreakMode="tailTruncation" baselineAdjustment="alignBaselines" translatesAutoresizingMaskIntoConstraints="NO" id="SPH-tg-Ln1">
-                                <fontDescription key="fontDescription" type="system" pointSize="13"/>
+                                <fontDescription key="fontDescription" type="system" weight="regular" pointSize="13.5"/>
                                 <color key="textColor" red="0.4392156863" green="0.4392156863" blue="0.4784313725" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                             </label>
                         </subviews>

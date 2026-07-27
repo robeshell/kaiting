@@ -1,5 +1,5 @@
 flutter_launcher_icons:
-  image_path: assets/branding/app_icon_master-v7.png
+  image_path: assets/branding/app_icon_master-v8.png
 
   # Keep a distinct Android resource name so OEM icon caches do not keep the
   # original Flutter launcher badge after an in-place upgrade.
@@ -13,12 +13,12 @@ flutter_launcher_icons:
   ios: true
   image_path_ios: assets/branding/app_icon_ios.png
   remove_alpha_ios: true
-  background_color_ios: "#FF5A49"
+  background_color_ios: "#FF5A4D"
 
   web:
     generate: true
-    image_path: assets/branding/app_icon_master-v7.png
-    background_color: "#FF5A49"
+    image_path: assets/branding/app_icon_master-v8.png
+    background_color: "#FF5A4D"
     theme_color: "#FF5A4D"
 
   windows:

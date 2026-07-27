@@ -97,7 +97,7 @@ flutter:
 
   assets:
     - assets/branding/launch_mark.png
-    - assets/branding/app_icon_master-v7.png
+    - assets/branding/app_icon_master-v8.png
 
   # To add assets to your application, add an assets section, like this:
   # assets:
