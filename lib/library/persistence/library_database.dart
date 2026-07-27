@@ -1,6 +1,8 @@
 import 'package:drift/drift.dart';
 import 'package:drift_flutter/drift_flutter.dart';
 
+import 'library_database_location.dart';
+
 part 'library_database.g.dart';
 
 class LibrarySources extends Table {
@@ -183,7 +185,13 @@ class LibraryDatabase extends _$LibraryDatabase {
             sqlite3Wasm: Uri.parse('sqlite3.wasm'),
             driftWorker: Uri.parse('drift_worker.dart.js'),
           ),
-          native: const DriftNativeOptions(shareAcrossIsolates: true),
+          // Prefer Application Support over Documents so macOS/Windows users
+          // do not see `sound_library.sqlite` in 文稿 / Documents.
+          // See [resolveLibraryDatabaseFilePath] for path + one-shot migration.
+          native: DriftNativeOptions(
+            shareAcrossIsolates: true,
+            databasePath: resolveLibraryDatabaseFilePath,
+          ),
         ),
       );
 

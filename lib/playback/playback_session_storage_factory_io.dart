@@ -5,9 +5,50 @@ import 'package:path_provider/path_provider.dart';
 
 import 'playback_session_storage_contract.dart';
 
+const _sessionFileName = 'playback_session.json';
+const _checkpointFileName = 'playback_session_checkpoint.json';
+
 Future<PlaybackSessionStorage> createDefaultPlaybackSessionStorage() async {
-  final directory = await getApplicationDocumentsDirectory();
-  return FilePlaybackSessionStorage(directory.path);
+  final support = await getApplicationSupportDirectory();
+  final documents = await getApplicationDocumentsDirectory();
+  await _migrateLegacySessionFiles(
+    documentsDir: documents,
+    supportDir: support,
+  );
+  await support.create(recursive: true);
+  return FilePlaybackSessionStorage(support.path);
+}
+
+/// Moves session JSON from Documents → Application Support (macOS/Windows).
+Future<void> _migrateLegacySessionFiles({
+  required Directory documentsDir,
+  required Directory supportDir,
+}) async {
+  if (p.equals(documentsDir.path, supportDir.path)) return;
+  await supportDir.create(recursive: true);
+  for (final name in [_sessionFileName, _checkpointFileName]) {
+    final source = File(p.join(documentsDir.path, name));
+    final destination = File(p.join(supportDir.path, name));
+    if (!await source.exists()) continue;
+    if (await destination.exists()) {
+      try {
+        await source.delete();
+      } on FileSystemException {
+        // ignore
+      }
+      continue;
+    }
+    try {
+      await source.rename(destination.path);
+    } on FileSystemException {
+      await source.copy(destination.path);
+      try {
+        await source.delete();
+      } on FileSystemException {
+        // ignore
+      }
+    }
+  }
 }
 
 PlaybackSessionStorage createPlaybackSessionStorageAt(String directory) {
@@ -19,9 +60,8 @@ class FilePlaybackSessionStorage implements PlaybackSessionStorage {
 
   final String directory;
 
-  File get _file => File(p.join(directory, 'playback_session.json'));
-  File get _checkpointFile =>
-      File(p.join(directory, 'playback_session_checkpoint.json'));
+  File get _file => File(p.join(directory, _sessionFileName));
+  File get _checkpointFile => File(p.join(directory, _checkpointFileName));
 
   @override
   Future<String?> read() async {

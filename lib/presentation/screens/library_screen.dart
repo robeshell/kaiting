@@ -1198,10 +1198,11 @@ class _LibraryToolbar extends StatelessWidget {
       runSpacing: 10,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        Text(
-          _resultLabel,
-          style: TextStyle(color: context.soundMutedText, fontSize: 12),
-        ),
+        if (mode != LibraryBrowseMode.songs)
+          Text(
+            _resultLabel,
+            style: TextStyle(color: context.soundMutedText, fontSize: 12),
+          ),
         _sortMenu(
           child: _ToolbarIconButton(
             icon: Icons.sort_rounded,

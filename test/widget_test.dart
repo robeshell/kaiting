@@ -441,6 +441,7 @@ void main() {
 
     await tester.tap(find.text('歌曲').first);
     await tester.pumpAndSettle();
+    expect(find.text('1 首歌曲'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('library-sort-menu')));
     await tester.pumpAndSettle();
     expect(find.text('专辑 A–Z'), findsOneWidget);

@@ -74,10 +74,13 @@ class _WebDavAddDialogState extends State<WebDavAddDialog> {
     final actions = _buildActions(context);
 
     if (widget.bottomSheet) {
+      final media = MediaQuery.of(context);
+      // Stay within the space above the keyboard (sheet also pads viewInsets).
+      final maxHeight =
+          (media.size.height - media.viewInsets.bottom - media.padding.top) *
+          0.92;
       return ConstrainedBox(
-        constraints: BoxConstraints(
-          maxHeight: MediaQuery.sizeOf(context).height * 0.88,
-        ),
+        constraints: BoxConstraints(maxHeight: maxHeight.clamp(240.0, 1200.0)),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(22, 18, 22, 18),
           child: Column(
@@ -89,7 +92,14 @@ class _WebDavAddDialogState extends State<WebDavAddDialog> {
                 child: title,
               ),
               const SizedBox(height: 20),
-              Flexible(child: SingleChildScrollView(child: form)),
+              Flexible(
+                child: SingleChildScrollView(
+                  // Keep focused password/url fields visible while typing.
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.onDrag,
+                  child: form,
+                ),
+              ),
               const SizedBox(height: 16),
               OverflowBar(
                 alignment: MainAxisAlignment.end,

@@ -112,11 +112,21 @@ void main() {
     );
     expect(theme.floatingActionButtonTheme.shape, isA<CircleBorder>());
     expect(theme.listTileTheme.shape, const RoundedRectangleBorder());
+    expect(theme.listTileTheme.minTileHeight, 54);
+    expect(theme.listTileTheme.minLeadingWidth, 32);
+    expect(theme.listTileTheme.horizontalTitleGap, 10);
+    expect(theme.listTileTheme.titleTextStyle?.fontSize, 13.5);
+    expect(theme.listTileTheme.subtitleTextStyle?.fontSize, 11.5);
     expect(
       theme.listTileTheme.selectedTileColor,
       SoundColors.accent.withValues(alpha: 0.035),
     );
     expect(theme.focusColor, primaryText.withValues(alpha: 0.065));
+  });
+
+  test('dialog barriers follow the light and dark overlay tokens', () {
+    expect(SoundTheme.light.dialogTheme.barrierColor?.a, closeTo(0.38, 0.001));
+    expect(SoundTheme.dark.dialogTheme.barrierColor?.a, closeTo(0.62, 0.001));
   });
 
   test(

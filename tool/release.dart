@@ -227,37 +227,34 @@ Future<void> _buildPlatform(
       ], workingDirectory: packageRoot.path);
     case 'macos':
       await _flutterBuild('macos', version);
+      final app = _findMacOsApp();
+      // Portable package: ad-hoc sign, no Apple certificate required to open.
+      await _signMacOsAppAdHocForDistribution(app);
+      final zip = File(
+        '${dist.path}/kaiting-${version.name}-macos.zip',
+      ).absolute;
+      if (zip.existsSync()) await zip.delete();
       await _run('ditto', [
         '-c',
         '-k',
         '--sequesterRsrc',
         '--keepParent',
-        'build/macos/Build/Products/Release/开听.app',
-        '${dist.path}/kaiting-${version.name}-macos.zip',
+        app.path,
+        zip.path,
       ]);
+      stdout.writeln('Created ${zip.path}');
+      await _buildMacOsDmg(app, version, dist);
     case 'windows':
       await _buildWindows(version, dist, options);
     case 'web':
-      await _flutterBuild(
-        'web',
-        version,
-        extra: ['--base-href', '/kaiting/'],
-      );
+      await _flutterBuild('web', version, extra: ['--base-href', '/kaiting/']);
       final output = File(
         '${dist.path}/kaiting-${version.name}-web.zip',
       ).absolute.path;
       if (Platform.isWindows) {
         // Prefer tar — Compress-Archive module can fail to load.
         if (File(output).existsSync()) await File(output).delete();
-        await _run('tar', [
-          '-a',
-          '-c',
-          '-f',
-          output,
-          '-C',
-          'build/web',
-          '.',
-        ]);
+        await _run('tar', ['-a', '-c', '-f', output, '-C', 'build/web', '.']);
         stdout.writeln('Created $output');
       } else {
         await _run('zip', [
@@ -268,6 +265,94 @@ Future<void> _buildPlatform(
         ], workingDirectory: 'build');
       }
   }
+}
+
+Directory _findMacOsApp() {
+  final releaseDir = Directory('build/macos/Build/Products/Release');
+  if (!releaseDir.existsSync()) {
+    throw StateError('Missing macOS Release output: ${releaseDir.path}');
+  }
+  final apps = releaseDir
+      .listSync(followLinks: false)
+      .whereType<Directory>()
+      .where((entry) => entry.path.endsWith('.app'))
+      .toList();
+  if (apps.length != 1) {
+    throw StateError(
+      'Expected one macOS app in ${releaseDir.path}, found ${apps.length}.',
+    );
+  }
+  return apps.single;
+}
+
+/// Certificate-free macOS distribution signature (ad-hoc, no Apple cert).
+///
+/// Important: do **not** re-embed `keychain-access-groups` or app-sandbox under
+/// ad-hoc identity. On current macOS that combination fails to launch
+/// (`RBSRequestErrorDomain` / POSIX 163). WebDAV passwords still work because
+/// [SecureWebDavCredentialStore] disables Data Protection Keychain on macOS.
+Future<void> _signMacOsAppAdHocForDistribution(Directory app) async {
+  final profile = File('${app.path}/Contents/embedded.provisionprofile');
+  if (profile.existsSync()) {
+    stdout.writeln(
+      'Removing embedded.provisionprofile for portable packaging...',
+    );
+    await profile.delete();
+  }
+
+  stdout.writeln(
+    'Ad-hoc signing macOS app without entitlement blob '
+    '(certificate-free; avoids launchd 163)...',
+  );
+  await _run('codesign', [
+    '--force',
+    '--deep',
+    '--sign',
+    '-',
+    app.absolute.path,
+  ]);
+
+  final verify = await Process.run('codesign', [
+    '--verify',
+    '--deep',
+    '--strict',
+    app.absolute.path,
+  ]);
+  if (verify.exitCode != 0) {
+    throw StateError(
+      'Ad-hoc macOS signature failed verification:\n'
+      '${verify.stdout}${verify.stderr}',
+    );
+  }
+}
+
+Future<void> _buildMacOsDmg(
+  Directory app,
+  _ReleaseVersion version,
+  Directory dist,
+) async {
+  final packageRoot = Directory('build/release_package/macos-${version.name}');
+  if (packageRoot.existsSync()) await packageRoot.delete(recursive: true);
+  await packageRoot.create(recursive: true);
+
+  final appName = app.path.split(Platform.pathSeparator).last;
+  final packagedApp = '${packageRoot.path}/$appName';
+  await _run('ditto', [app.path, packagedApp]);
+  await Link('${packageRoot.path}/Applications').create('/Applications');
+
+  final dmg = File('${dist.path}/kaiting-${version.name}-macos.dmg').absolute;
+  if (dmg.existsSync()) await dmg.delete();
+  await _run('hdiutil', [
+    'create',
+    '-volname',
+    '开听',
+    '-srcfolder',
+    packageRoot.absolute.path,
+    '-format',
+    'UDZO',
+    dmg.path,
+  ]);
+  stdout.writeln('Created ${dmg.path}');
 }
 
 Future<void> _buildWindows(
@@ -287,15 +372,7 @@ Future<void> _buildWindows(
     '${dist.path}/kaiting-${version.name}-windows.zip',
   ).absolute.path;
   if (File(zipPath).existsSync()) await File(zipPath).delete();
-  await _run('tar', [
-    '-a',
-    '-c',
-    '-f',
-    zipPath,
-    '-C',
-    releaseDir.path,
-    '.',
-  ]);
+  await _run('tar', ['-a', '-c', '-f', zipPath, '-C', releaseDir.path, '.']);
   stdout.writeln('Created $zipPath');
 
   // 2) MSIX modern installer
@@ -345,11 +422,7 @@ Future<void> _buildWindowsMsix(_ReleaseVersion version, Directory dist) async {
 }
 
 Future<File?> _findNewestMsix() async {
-  final roots = [
-    Directory('dist'),
-    Directory('build/windows'),
-    Directory('.'),
-  ];
+  final roots = [Directory('dist'), Directory('build/windows'), Directory('.')];
   File? newest;
   DateTime? newestTime;
   for (final root in roots) {
@@ -368,10 +441,7 @@ Future<File?> _findNewestMsix() async {
   return newest;
 }
 
-Future<void> _buildWindowsSetup(
-  _ReleaseVersion version,
-  Directory dist,
-) async {
+Future<void> _buildWindowsSetup(_ReleaseVersion version, Directory dist) async {
   final iscc = _findInnoSetupCompiler();
   if (iscc == null) {
     stderr.writeln('''
@@ -390,9 +460,7 @@ See:    packaging/windows/README.md
   stdout.writeln('Building Setup.exe with $iscc ...');
   final script = File('packaging/windows/kaiting.iss').absolute.path;
   final outputBase = 'kaiting-${version.name}-windows-setup';
-  final sourceDir = Directory(
-    'build/windows/x64/runner/Release',
-  ).absolute.path;
+  final sourceDir = Directory('build/windows/x64/runner/Release').absolute.path;
   final outputDir = dist.absolute.path;
 
   await _run(iscc, [
@@ -435,11 +503,9 @@ String? _findInnoSetupCompiler() {
 
 String? _which(String command) {
   try {
-    final result = Process.runSync(
-      Platform.isWindows ? 'where.exe' : 'which',
-      [command],
-      runInShell: Platform.isWindows,
-    );
+    final result = Process.runSync(Platform.isWindows ? 'where.exe' : 'which', [
+      command,
+    ], runInShell: Platform.isWindows);
     if (result.exitCode != 0) return null;
     final line = (result.stdout as String)
         .split(RegExp(r'\r?\n'))
@@ -490,12 +556,7 @@ Future<void> _run(
   );
   final code = await process.exitCode;
   if (code != 0) {
-    throw ProcessException(
-      resolved,
-      arguments,
-      'Exited with code $code',
-      code,
-    );
+    throw ProcessException(resolved, arguments, 'Exited with code $code', code);
   }
 }
 
