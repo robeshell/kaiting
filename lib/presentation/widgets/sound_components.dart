@@ -622,18 +622,20 @@ class SoundEmptyState extends StatelessWidget {
                   fontWeight: FontWeight.w600,
                 ),
               ),
-              const SizedBox(height: 6),
-              Text(
-                message,
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: context.soundMutedText.withValues(
-                    alpha: context.soundMutedText.a * 0.76,
+              if (message.trim().isNotEmpty) ...[
+                const SizedBox(height: 6),
+                Text(
+                  message,
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: context.soundMutedText.withValues(
+                      alpha: context.soundMutedText.a * 0.76,
+                    ),
+                    fontSize: 12,
+                    height: 1.45,
                   ),
-                  fontSize: 12,
-                  height: 1.45,
                 ),
-              ),
+              ],
               if (actionLabel != null && onAction != null) ...[
                 const SizedBox(height: 20),
                 FilledButton.tonalIcon(

@@ -446,7 +446,7 @@ class _EmptySearchBody extends StatelessWidget {
           const _SearchMessage(
             icon: Icons.search_rounded,
             title: '搜索你的音乐',
-            message: '支持歌名、专辑、艺人与流派；中文可用拼音或首字母。',
+            message: '',
           ),
           if (recentQueries.isNotEmpty) ...[
             const SizedBox(height: 28),
