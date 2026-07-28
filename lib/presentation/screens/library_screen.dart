@@ -718,45 +718,34 @@ class _LibraryScreenState extends State<LibraryScreen> {
         ),
       ];
     }
+    // Artists: compact horizontal rows (small circle + name), not a cover grid.
+    final avatarSize = compact ? 44.0 : 48.0;
+    final rowMinHeight = compact ? 60.0 : 64.0;
     return [
       SliverPadding(
-        padding: EdgeInsets.fromLTRB(
-          gutter,
-          compact ? 4 : 6,
-          gutter,
-          bottomPadding,
-        ),
-        sliver: SliverLayoutBuilder(
-          builder: (context, constraints) {
-            final spacing = compact ? 12.0 : 16.0;
-            final maxCardWidth = compact ? 180.0 : 220.0;
-            final columnCount =
-                ((constraints.crossAxisExtent + spacing) /
-                        (maxCardWidth + spacing))
-                    .ceil()
-                    .clamp(1, 12);
-            final cardWidth =
-                (constraints.crossAxisExtent - spacing * (columnCount - 1)) /
-                columnCount;
-            return SliverGrid.builder(
-              itemCount: collections.length,
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: columnCount,
-                mainAxisExtent: cardWidth + 46,
-                crossAxisSpacing: spacing,
-                mainAxisSpacing: spacing,
-              ),
-              itemBuilder: (context, index) {
-                final collection = collections[index];
-                return _CollectionCard(
-                  collection: collection,
-                  onTap: () => widget.onOpenCollection(collection),
-                );
-              },
+        padding: EdgeInsets.fromLTRB(gutter, compact ? 2 : 4, gutter, 0),
+        sliver: SliverPrototypeExtentList.builder(
+          itemCount: collections.length,
+          prototypeItem: _ArtistListRow(
+            collection: collections.first,
+            avatarSize: avatarSize,
+            minHeight: rowMinHeight,
+            showDivider: true,
+            onTap: () {},
+          ),
+          itemBuilder: (context, index) {
+            final collection = collections[index];
+            return _ArtistListRow(
+              collection: collection,
+              avatarSize: avatarSize,
+              minHeight: rowMinHeight,
+              showDivider: index < collections.length - 1,
+              onTap: () => widget.onOpenCollection(collection),
             );
           },
         ),
       ),
+      SliverToBoxAdapter(child: SizedBox(height: bottomPadding)),
     ];
   }
 
@@ -1540,77 +1529,78 @@ class _AlbumCard extends StatelessWidget {
   }
 }
 
-class _CollectionCard extends StatelessWidget {
-  const _CollectionCard({required this.collection, required this.onTap});
+/// Horizontal artist row: small circular avatar + name (Apple Music-style list).
+class _ArtistListRow extends StatelessWidget {
+  const _ArtistListRow({
+    required this.collection,
+    required this.avatarSize,
+    required this.minHeight,
+    required this.showDivider,
+    required this.onTap,
+  });
 
   final LibraryCollection collection;
+  final double avatarSize;
+  final double minHeight;
+  final bool showDivider;
   final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
-    final isArtist = collection.kind == LibraryCollectionKind.artist;
-    final coverAlbum =
-        collection.representativeAlbum ??
-        (collection.albums.isEmpty ? null : collection.albums.first);
-    return InkWell(
+    final titleStyle = TextStyle(
+      fontSize: context.soundIsCompact ? 16 : 17,
+      fontWeight: FontWeight.w600,
+      letterSpacing: -0.2,
+      height: 1.2,
+    );
+    return Material(
       key: ValueKey('library-collection-${collection.id}'),
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (isArtist)
-            ArtistAvatar(
-              key: ValueKey('library-collection-art-${collection.id}'),
-              collection: collection,
-              showShadow: false,
-            )
-          else if (coverAlbum != null)
-            AlbumArt(
-              key: ValueKey('library-collection-art-${collection.id}'),
-              album: coverAlbum,
-              showShadow: false,
-            )
-          else
-            AspectRatio(
-              aspectRatio: 1,
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: context.soundTint(0.06),
-                  borderRadius: BorderRadius.circular(14),
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            SizedBox(
+              height: minHeight,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                child: Row(
+                  children: [
+                    ArtistAvatar(
+                      key: ValueKey(
+                        'library-collection-art-${collection.id}',
+                      ),
+                      collection: collection,
+                      size: avatarSize,
+                      showShadow: false,
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Text(
+                        collection.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: titleStyle,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
-          const SizedBox(height: 7),
-          Text(
-            collection.title,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w800),
-          ),
-          const SizedBox(height: 2),
-          Text(
-            _collectionCardSubtitle(collection),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: 12, color: context.soundSecondaryText),
-          ),
-        ],
+            // Always reserve 1px so list rows share one extent (prototype list).
+            Divider(
+              height: 1,
+              thickness: 1,
+              // Align with the name column (avatar + gap).
+              indent: avatarSize + 14,
+              color: showDivider
+                  ? context.soundDivider
+                  : Colors.transparent,
+            ),
+          ],
+        ),
       ),
     );
   }
-}
-
-String _collectionCardSubtitle(LibraryCollection collection) {
-  if (collection.kind == LibraryCollectionKind.artist) {
-    final featured = collection.featuredTracks.length;
-    if (featured > 0 && collection.primaryTracks.isEmpty) {
-      return '$featured 首参与';
-    }
-    if (featured > 0) {
-      return '${collection.ownedAlbums.length} 张专辑 · '
-          '${collection.primaryTracks.length} 首 · $featured 参与';
-    }
-  }
-  return '${collection.albums.length} 张专辑 · ${collection.tracks.length} 首歌';
 }
