@@ -254,11 +254,11 @@ void main() {
 
       await tester.tap(find.byKey(const ValueKey('library-mode-artists')));
       await tester.pumpAndSettle();
-      final artistGrid = tester.widget<SliverGrid>(find.byType(SliverGrid));
-      final artistDelegate =
-          artistGrid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
-      expect(artistDelegate.mainAxisExtent, lessThan(220));
-      expect(artistDelegate.mainAxisSpacing, 12);
+      expect(find.byType(SliverGrid), findsNothing);
+      expect(
+        find.byKey(const ValueKey('library-collection-artist:test artist')),
+        findsOneWidget,
+      );
 
       await tester.tap(find.byKey(const ValueKey('library-mode-songs')));
       await tester.pumpAndSettle();
@@ -323,24 +323,19 @@ void main() {
       tester
           .getSize(find.byKey(const ValueKey('collection-detail-artwork')))
           .width,
-      inInclusiveRange(280, 420),
+      inInclusiveRange(152, 200),
     );
     await tester.drag(
       find.byKey(const ValueKey('collection-detail-hero')),
       const Offset(0, -420),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Test Track'), findsOneWidget);
+    expect(find.text('Test Album'), findsWidgets);
+    expect(find.text('Test Track'), findsNothing);
     expect(
       find.byKey(const ValueKey('library-collection-track-sort-menu')),
-      findsOneWidget,
+      findsNothing,
     );
-    await tester.tap(
-      find.byKey(const ValueKey('library-collection-track-sort-menu')),
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('专辑与曲序'));
-    await tester.pumpAndSettle();
     await tester.ensureVisible(
       find.byKey(const ValueKey('desktop-artist-play')),
     );
@@ -361,7 +356,7 @@ void main() {
       tester
           .getSize(find.byKey(const ValueKey('collection-detail-artwork')))
           .width,
-      inInclusiveRange(204, 244),
+      inInclusiveRange(112, 136),
     );
     expect(
       tester
@@ -379,16 +374,12 @@ void main() {
     expect(compactCollectionDelegate.mainAxisExtent, lessThan(220));
     expect(compactCollectionDelegate.mainAxisSpacing, 12);
     expect(
-      tester
-          .getSize(
-            find.byKey(const ValueKey('collection-track-row-track:test')),
-          )
-          .height,
-      64,
+      find.byKey(const ValueKey('collection-track-row-track:test')),
+      findsNothing,
     );
     expect(
       find.byKey(const ValueKey('collection-track-actions-track:test')),
-      findsOneWidget,
+      findsNothing,
     );
     expect(tester.takeException(), isNull);
 
@@ -823,7 +814,7 @@ void main() {
     expect(restoredProgress.position, const Duration(milliseconds: 60000));
     expect(restoredProgress.duration, const Duration(milliseconds: 180000));
     expect(restoredProgress.interactive, isFalse);
-    expect(find.byIcon(KaitingIcons.play), findsOneWidget);
+    expect(find.byIcon(KaitingIcons.playMini), findsOneWidget);
 
     await _unmountAndFlush(tester);
   });
@@ -930,6 +921,9 @@ void main() {
       tester.widget<NowPlayingScreen>(find.byType(NowPlayingScreen)).isActive,
       isFalse,
     );
+    // First frame mounts the compact player; its post-frame callback starts
+    // the expansion animation.
+    await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.byType(NowPlayingScreen), findsOneWidget);
     expect(
