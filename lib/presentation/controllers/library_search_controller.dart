@@ -135,7 +135,9 @@ typedef LibrarySearchRunner =
 class LibrarySearchController extends ChangeNotifier {
   LibrarySearchController({
     required this.catalog,
-    this.debounce = const Duration(milliseconds: 180),
+    // Longer than a single keystroke so pinyin/IME can finish a syllable
+    // before results thrash (e.g. typing "yanzi" letter by letter).
+    this.debounce = const Duration(milliseconds: 420),
     LibrarySearchRunner? runner,
   }) : _runner = runner ?? _runSearchOffMainIsolate {
     _refreshDocuments();
@@ -278,7 +280,10 @@ class LibrarySearchController extends ChangeNotifier {
   void _scheduleSearch() {
     _timer?.cancel();
     final generation = ++_generation;
-    if (_query.trim().isEmpty) {
+    final trimmed = _query.trim();
+    if (trimmed.isEmpty || !_queryIsSearchable(trimmed)) {
+      // Empty or still typing a latin syllable (single letter) — show idle
+      // rather than matching everything that contains "y" / "a".
       _status = LibrarySearchStatus.idle;
       _hits = const [];
       _artistHits = const [];
@@ -293,6 +298,15 @@ class LibrarySearchController extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
     _timer = Timer(debounce, () => unawaited(_search(generation)));
+  }
+
+  /// Single ASCII letter is too noisy while composing pinyin; two+ chars or
+  /// a single non-ASCII token (e.g. 中文) is enough to search.
+  static bool _queryIsSearchable(String trimmed) {
+    if (trimmed.isEmpty) return false;
+    final runes = trimmed.runes.toList(growable: false);
+    if (runes.length >= 2) return true;
+    return runes.first > 0x7f;
   }
 
   Future<void> _search(int generation) async {

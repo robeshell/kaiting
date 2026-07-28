@@ -178,6 +178,31 @@ void main() {
       await repository.close();
     });
 
+    test('does not search on a single latin letter while typing pinyin', () async {
+      var ran = 0;
+      final search = LibrarySearchController(
+        catalog: catalog,
+        debounce: Duration.zero,
+        runner: (request) async {
+          ran += 1;
+          return searchLibraryDocuments(request);
+        },
+      );
+      addTearDown(search.dispose);
+
+      search.setQuery('y');
+      await Future<void>.delayed(Duration.zero);
+      expect(search.status, LibrarySearchStatus.idle);
+      expect(ran, 0);
+
+      search.setQuery('ya');
+      await Future<void>.delayed(Duration.zero);
+      expect(search.status, isNot(LibrarySearchStatus.idle));
+      // Zero debounce fires the timer immediately; allow microtask drain.
+      await Future<void>.delayed(Duration.zero);
+      expect(ran, 1);
+    });
+
     test('debounces work and ignores a stale result', () async {
       final requests = <LibrarySearchRequest>[];
       final pending = <Completer<LibrarySearchMatchSet>>[];

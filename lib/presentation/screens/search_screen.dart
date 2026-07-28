@@ -177,8 +177,7 @@ class _SearchScreenState extends State<SearchScreen> {
                     icon: Icons.search_off_rounded,
                     title: '没有找到结果',
                     message:
-                        '没有与“${widget.search.query.trim()}”匹配的艺人、专辑或歌曲。'
-                        '可试拼音或首字母（如 yanzi、syz）。',
+                        '没有与“${widget.search.query.trim()}”匹配的艺人、专辑或歌曲。',
                   ),
                 )
               else ...[
@@ -375,7 +374,7 @@ class _SearchScreenState extends State<SearchScreen> {
               textInputAction: TextInputAction.search,
               onChanged: widget.search.setQuery,
               decoration: InputDecoration(
-                hintText: compact ? '搜索歌名、艺人、专辑或拼音' : '歌名、艺人、专辑、流派，支持拼音与首字母',
+                hintText: compact ? '搜索歌名、艺人、专辑' : '搜索歌名、艺人、专辑、流派',
                 prefixIcon: const Icon(Icons.search_rounded, size: 20),
                 prefixIconConstraints: const BoxConstraints(minWidth: 42),
                 suffixIcon: widget.search.query.isEmpty
