@@ -1511,13 +1511,16 @@ class _PlaybackTimelineAndControls extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Non-null padding (even horizontal 0) makes Material draw the
-            // track edge-to-edge; null padding insets by overlay radius (~14).
+            // Horizontal 0 keeps track edges aligned with title; vertical hit
+            // is expanded inside ProgressScrubber (minInteractiveHeight).
             ProgressScrubber(
               position: position,
               duration: duration,
               onSeek: playback.seek,
-              padding: const EdgeInsets.symmetric(vertical: 8),
+              padding: EdgeInsets.zero,
+              thumbRadius: 7,
+              overlayRadius: 22,
+              minInteractiveHeight: 44,
             ),
             Row(
               children: [

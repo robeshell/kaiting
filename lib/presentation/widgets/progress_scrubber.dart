@@ -23,9 +23,10 @@ class ProgressScrubber extends StatefulWidget {
     this.activeColor,
     this.inactiveColor,
     this.trackHeight = 3,
-    this.thumbRadius = 5,
-    this.overlayRadius = 14,
+    this.thumbRadius = 6,
+    this.overlayRadius = 20,
     this.padding,
+    this.minInteractiveHeight = 40,
     this.interactive = true,
     super.key,
   });
@@ -39,6 +40,11 @@ class ProgressScrubber extends StatefulWidget {
   final double thumbRadius;
   final double overlayRadius;
   final EdgeInsetsGeometry? padding;
+
+  /// Minimum vertical hit target for interactive scrubbing. The painted track
+  /// stays [trackHeight]; extra space is transparent padding so a finger can
+  /// grab the bar without pixel-perfect aim.
+  final double minInteractiveHeight;
 
   /// When false, the scrubber is read-only: no thumb, no overlay, and no
   /// pointer interaction. Useful for mini-players where precise scrubbing
@@ -140,14 +146,30 @@ class _ProgressScrubberState extends State<ProgressScrubber> {
 
     // Material insets the painted track by overlay/thumb radius when
     // [SliderThemeData.padding] is null. Always supply a padding (callers
-    // may pass [EdgeInsets.zero]) so the track spans the parent width and
-    // lines up with title / time labels on the same column.
+    // may pass [EdgeInsets.zero] for horizontal edge alignment) so the track
+    // spans the parent width and lines up with title / time labels.
     final resolvedPadding = widget.padding ?? EdgeInsets.zero;
+    // Expand vertical hit beyond a hairline track. Prefer explicit vertical
+    // padding from the caller; otherwise derive from [minInteractiveHeight].
+    final EdgeInsetsGeometry hitPadding;
+    if (resolvedPadding.vertical > 0) {
+      hitPadding = resolvedPadding;
+    } else {
+      final vertical = ((widget.minInteractiveHeight - widget.trackHeight) / 2)
+          .clamp(12.0, 20.0);
+      hitPadding = resolvedPadding.add(
+        EdgeInsets.symmetric(vertical: vertical),
+      );
+    }
     final slider = Slider(
       value: displayValue,
       max: _durationMs,
-      padding: resolvedPadding,
+      padding: hitPadding,
+      allowedInteraction: SliderInteraction.tapAndSlide,
       activeColor: widget.activeColor ?? context.soundPrimaryText,
+      onChangeStart: enabled
+          ? (value) => setState(() => _previewMilliseconds = value)
+          : null,
       onChanged: enabled
           ? (value) => setState(() => _previewMilliseconds = value)
           : null,
@@ -160,20 +182,28 @@ class _ProgressScrubberState extends State<ProgressScrubber> {
         trackHeight: widget.trackHeight,
         thumbShape: RoundSliderThumbShape(
           enabledThumbRadius: widget.thumbRadius,
+          elevation: 0,
+          pressedElevation: 0,
         ),
         overlayShape: RoundSliderOverlayShape(
           overlayRadius: widget.overlayRadius,
         ),
+        // Soft press ring — overlay radius mainly expands the hit target.
+        overlayColor: (widget.activeColor ?? context.soundPrimaryText)
+            .withValues(alpha: 0.10),
         inactiveTrackColor: widget.inactiveColor ?? context.soundTint(0.14),
         // Keep padding non-null so BaseSliderTrackShape uses full width.
-        padding: resolvedPadding,
+        padding: hitPadding,
       ),
-      child: Listener(
-        behavior: HitTestBehavior.translucent,
-        onPointerDown: _handlePointerDown,
-        onPointerUp: (event) => _finishPointer(event.pointer),
-        onPointerCancel: (event) => _finishPointer(event.pointer),
-        child: slider,
+      child: SizedBox(
+        height: widget.minInteractiveHeight,
+        child: Listener(
+          behavior: HitTestBehavior.opaque,
+          onPointerDown: _handlePointerDown,
+          onPointerUp: (event) => _finishPointer(event.pointer),
+          onPointerCancel: (event) => _finishPointer(event.pointer),
+          child: Center(child: slider),
+        ),
       ),
     );
   }
