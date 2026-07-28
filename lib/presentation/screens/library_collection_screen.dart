@@ -153,8 +153,15 @@ class _LibraryCollectionScreenState extends State<LibraryCollectionScreen> {
     final gutter = context.soundPageGutter;
     final bottomPadding = context.soundContentBottomPadding;
     final playQueue = _sortTracks(collection.tracks);
-    final primaryTracks = _sortTracks(collection.primaryTracks);
-    final featuredTracks = _sortTracks(collection.featuredTracks);
+    // Artist pages are album-first: hide the song list when albums exist.
+    // Keep tracks only for genres, or featured-only artists with no albums.
+    final showTrackList = collection.kind != LibraryCollectionKind.artist ||
+        collection.albums.isEmpty;
+    final primaryTracks =
+        showTrackList ? _sortTracks(collection.primaryTracks) : const <Track>[];
+    final featuredTracks = showTrackList
+        ? _sortTracks(collection.featuredTracks)
+        : const <Track>[];
     final albumByTrackId = {
       for (final album in collection.albums)
         for (final track in album.tracks) track.id: album,
@@ -173,6 +180,8 @@ class _LibraryCollectionScreenState extends State<LibraryCollectionScreen> {
         final pagePalette = immersiveArtist
             ? ArtworkPagePalette.fromBackground(_backgroundColors)
             : null;
+        final albumGridBottom =
+            showTrackList ? (compact ? 20.0 : 28.0) : bottomPadding;
         final scrollView = CustomScrollView(
           key: PageStorageKey<String>(
             'library-collection-${collection.kind.name}-${collection.id}',
@@ -227,7 +236,7 @@ class _LibraryCollectionScreenState extends State<LibraryCollectionScreen> {
                   gutter,
                   0,
                   gutter,
-                  compact ? 20 : 28,
+                  albumGridBottom,
                 ),
                 sliver: SliverLayoutBuilder(
                   builder: (context, constraints) {
@@ -263,7 +272,8 @@ class _LibraryCollectionScreenState extends State<LibraryCollectionScreen> {
                 ),
               ),
             ],
-            if (primaryTracks.isNotEmpty || featuredTracks.isEmpty) ...[
+            if (showTrackList &&
+                (primaryTracks.isNotEmpty || featuredTracks.isEmpty)) ...[
               SliverPadding(
                 padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 12),
                 sliver: SliverToBoxAdapter(
@@ -289,7 +299,7 @@ class _LibraryCollectionScreenState extends State<LibraryCollectionScreen> {
                   resolveAlbum: resolveAlbum,
                 ),
             ],
-            if (featuredTracks.isNotEmpty) ...[
+            if (showTrackList && featuredTracks.isNotEmpty) ...[
               SliverPadding(
                 padding: EdgeInsets.fromLTRB(
                   gutter,
@@ -299,7 +309,9 @@ class _LibraryCollectionScreenState extends State<LibraryCollectionScreen> {
                 ),
                 sliver: SliverToBoxAdapter(
                   child: _CollectionTrackHeader(
-                    title: '参与的歌曲',
+                    title: collection.kind == LibraryCollectionKind.artist
+                        ? '参与的歌曲'
+                        : '歌曲',
                     trackCount: featuredTracks.length,
                     sort: _trackSort,
                     pagePalette: pagePalette,

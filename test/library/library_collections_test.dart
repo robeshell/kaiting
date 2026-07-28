@@ -211,7 +211,7 @@ void main() {
     );
   });
 
-  testWidgets('collection play all follows the visible track sorting', (
+  testWidgets('genre play all follows the visible track sorting', (
     tester,
   ) async {
     tester.view.physicalSize = const Size(1000, 800);
@@ -242,10 +242,11 @@ void main() {
       palette: [Colors.indigo, Colors.black],
       tracks: [zulu, alpha],
     );
+    // Genres still show a song list; artists are album-first without tracks.
     const collection = LibraryCollection(
-      id: 'artist:artist',
-      kind: LibraryCollectionKind.artist,
-      title: 'Artist',
+      id: 'genre:rock',
+      kind: LibraryCollectionKind.genre,
+      title: 'Rock',
       albums: [album],
       tracks: [zulu, alpha],
     );
