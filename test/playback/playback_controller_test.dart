@@ -858,6 +858,28 @@ void main() {
       expect(controller.snapshot.position, const Duration(seconds: 45));
     });
 
+    test('position-only ticks do not notify structural listeners', () async {
+      final engine = ManualPlaybackEngine();
+      final controller = SoundPlaybackController(engine: engine);
+      addTearDown(controller.dispose);
+      addTearDown(engine.dispose);
+
+      await controller.playTrack(_firstTrack);
+      var structural = 0;
+      var position = 0;
+      controller.addListener(() => structural += 1);
+      controller.positionListenable.addListener(() => position += 1);
+
+      engine.emitPosition(const Duration(seconds: 5));
+      engine.emitPosition(const Duration(seconds: 6));
+      expect(controller.displayPosition, const Duration(seconds: 6));
+      expect(structural, 0);
+      expect(position, 2);
+
+      await controller.pause();
+      expect(structural, greaterThan(0));
+    });
+
     test('duration is exposed from the engine snapshot', () async {
       final engine = ManualPlaybackEngine();
       final controller = SoundPlaybackController(engine: engine);

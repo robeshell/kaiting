@@ -33,6 +33,11 @@ class SoundPlaybackController extends ChangeNotifier {
   final Random _random;
   final StreamController<Track> _trackStartedController =
       StreamController<Track>.broadcast(sync: true);
+
+  /// High-frequency scrubber / lyrics ticks only. Position updates must not
+  /// [notifyListeners] on the controller or full-screen surfaces (now playing)
+  /// rebuild ~20×/s and fight continuous animations on ProMotion displays.
+  final ChangeNotifier _positionTick = ChangeNotifier();
   late final StreamSubscription<PlaybackSnapshot> _subscription;
   List<Track> _queue;
   PlaybackSnapshot _snapshot;
@@ -109,6 +114,10 @@ class SoundPlaybackController extends ChangeNotifier {
   bool get isPlaying => _snapshot.isPlaying;
   bool get hasActiveTrack => _snapshot.hasTrack;
   int get positionDiscontinuityRevision => _positionDiscontinuityRevision;
+
+  /// Listen for [displayPosition] / [displayDuration] changes without
+  /// subscribing to track / phase / queue rebuilds.
+  Listenable get positionListenable => _positionTick;
 
   void updatePlaybackMediaAccess(List<PlaybackMediaAccessRule> rules) {
     if (_engine case PlaybackMediaAccessSink sink) {
@@ -679,6 +688,7 @@ class SoundPlaybackController extends ChangeNotifier {
       _pendingSeekPosition = null;
       _pendingSeekTrackId = null;
     }
+    final previous = _snapshot;
     _snapshot = acceptedSnapshot;
     if (nextTrack != null &&
         next.isPlaying &&
@@ -688,7 +698,11 @@ class SoundPlaybackController extends ChangeNotifier {
       _lastStartedTrackId = nextTrack.id;
       _trackStartedController.add(nextTrack);
     }
-    notifyListeners();
+    if (_snapshotIsStructuralChange(previous, acceptedSnapshot)) {
+      notifyListeners();
+    } else if (previous.position != acceptedSnapshot.position) {
+      _positionTick.notifyListeners();
+    }
 
     if (next.phase == PlaybackPhase.completed &&
         _queue.isNotEmpty &&
@@ -698,6 +712,20 @@ class SoundPlaybackController extends ChangeNotifier {
       _completionHandledSession = next.sessionId;
       unawaited(_advanceAfterCompletion(next.sessionId, nextTrack!.id));
     }
+  }
+
+  /// Track / phase / duration identity — not the scrubbing clock.
+  static bool _snapshotIsStructuralChange(
+    PlaybackSnapshot previous,
+    PlaybackSnapshot next,
+  ) {
+    return previous.sessionId != next.sessionId ||
+        previous.phase != next.phase ||
+        previous.duration != next.duration ||
+        previous.track?.id != next.track?.id ||
+        previous.errorMessage != next.errorMessage ||
+        previous.playWhenReady != next.playWhenReady ||
+        previous.isPlaying != next.isPlaying;
   }
 
   Future<void> _advanceAfterCompletion(
@@ -879,6 +907,7 @@ class SoundPlaybackController extends ChangeNotifier {
     _sessionGeneration++;
     unawaited(_subscription.cancel());
     unawaited(_trackStartedController.close());
+    _positionTick.dispose();
     super.dispose();
   }
 }

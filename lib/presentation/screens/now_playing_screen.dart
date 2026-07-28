@@ -122,6 +122,8 @@ class NowPlayingScreen extends StatelessWidget {
         children: [
           AnimatedArtworkBackground(
             album: album,
+            // Phase seed only — continuous motion uses its own ticker so this
+            // must not force full-screen rebuilds on every position tick.
             position: playback.displayPosition,
             isPlaying: snapshot.isPlaying && isActive,
           ),
@@ -498,13 +500,17 @@ class _WideNowPlayingPane extends StatelessWidget {
           child: IndexedStack(
             index: view.index,
             children: [
-              _LyricsPanel(
+              AnimatedBuilder(
                 key: const ValueKey('wide-lyrics-panel'),
-                track: track,
-                position: playback.displayPosition,
-                discontinuityRevision: playback.positionDiscontinuityRevision,
-                onSeek: playback.seek,
-                verticalControls: true,
+                animation: playback.positionListenable,
+                builder: (context, _) => _LyricsPanel(
+                  track: track,
+                  position: playback.displayPosition,
+                  discontinuityRevision:
+                      playback.positionDiscontinuityRevision,
+                  onSeek: playback.seek,
+                  verticalControls: true,
+                ),
               ),
               PlaybackQueuePanel(
                 key: const ValueKey('wide-playback-queue'),
@@ -1217,12 +1223,16 @@ class _CompactLyricsPlayer extends StatelessWidget {
             child: ConstrainedBox(
               key: const ValueKey('compact-lyrics-region'),
               constraints: const BoxConstraints(maxHeight: 392),
-              child: _LyricsPanel(
-                track: track,
-                position: playback.displayPosition,
-                discontinuityRevision: playback.positionDiscontinuityRevision,
-                onSeek: playback.seek,
-                compact: true,
+              child: AnimatedBuilder(
+                animation: playback.positionListenable,
+                builder: (context, _) => _LyricsPanel(
+                  track: track,
+                  position: playback.displayPosition,
+                  discontinuityRevision:
+                      playback.positionDiscontinuityRevision,
+                  onSeek: playback.seek,
+                  compact: true,
+                ),
               ),
             ),
           ),
@@ -1355,88 +1365,95 @@ class _PlaybackTimelineAndControls extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final position = playback.displayPosition;
-    final duration = playback.displayDuration;
-    final visual = PlaybackVisualState.fromSnapshot(
-      playback.snapshot,
-      hasDisplayTrack: true,
-    );
-    final remaining = duration - position;
-    final remainingLabel = duration > Duration.zero
-        ? '-${formatDuration(remaining.isNegative ? Duration.zero : remaining)}'
-        : '0:00';
-    final mode = playback.playbackMode;
-    final modeActive = mode != PlaybackMode.sequential;
-    final timerActive = sleepTimer?.isActive ?? false;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        ProgressScrubber(
-          position: position,
-          duration: duration,
-          onSeek: playback.seek,
-        ),
-        Row(
+    // Position ticks use [positionListenable] so the rest of now-playing
+    // (artwork gradient, vinyl, chrome) is not rebuilt ~20× per second.
+    return AnimatedBuilder(
+      animation: Listenable.merge([playback, playback.positionListenable]),
+      builder: (context, _) {
+        final position = playback.displayPosition;
+        final duration = playback.displayDuration;
+        final visual = PlaybackVisualState.fromSnapshot(
+          playback.snapshot,
+          hasDisplayTrack: true,
+        );
+        final remaining = duration - position;
+        final remainingLabel = duration > Duration.zero
+            ? '-${formatDuration(remaining.isNegative ? Duration.zero : remaining)}'
+            : '0:00';
+        final mode = playback.playbackMode;
+        final modeActive = mode != PlaybackMode.sequential;
+        final timerActive = sleepTimer?.isActive ?? false;
+        return Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            Text(formatDuration(position), style: _timeStyle(context)),
-            const Spacer(),
-            Text(remainingLabel, style: _timeStyle(context)),
+            ProgressScrubber(
+              position: position,
+              duration: duration,
+              onSeek: playback.seek,
+            ),
+            Row(
+              children: [
+                Text(formatDuration(position), style: _timeStyle(context)),
+                const Spacer(),
+                Text(remainingLabel, style: _timeStyle(context)),
+              ],
+            ),
+            const SizedBox(height: 18),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                IconButton(
+                  key: const ValueKey('now-playing-mode-cycle'),
+                  onPressed: () => _cycleMode(context),
+                  tooltip: mode.label,
+                  icon: Icon(mode.icon),
+                  color: modeActive ? SoundColors.accent : null,
+                ),
+                IconButton(
+                  onPressed: playback.previous,
+                  icon: const Icon(Icons.skip_previous_rounded),
+                  iconSize: 34,
+                ),
+                IconButton.filled(
+                  onPressed: visual.primaryEnabled ? playback.toggle : null,
+                  tooltip: visual.primaryTooltip,
+                  icon: visual.busy && !visual.primaryEnabled
+                      ? SizedBox.square(
+                          dimension: 24,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: context.soundColors.onPrimary,
+                          ),
+                        )
+                      : Icon(visual.primaryIcon),
+                  iconSize: 34,
+                  style: IconButton.styleFrom(
+                    backgroundColor: context.soundPrimaryText,
+                    foregroundColor: context.soundGlass.canvasHighlight,
+                    fixedSize: const Size.square(52),
+                  ),
+                ),
+                IconButton(
+                  onPressed: playback.next,
+                  icon: const Icon(Icons.skip_next_rounded),
+                  iconSize: 34,
+                ),
+                IconButton(
+                  key: const ValueKey('now-playing-sleep-timer'),
+                  onPressed: () => unawaited(_openSleepTimer(context)),
+                  tooltip: timerActive
+                      ? '睡眠定时：${_sleepTimerStatusLabel(sleepTimer!)}'
+                      : '睡眠定时',
+                  icon: Icon(
+                    timerActive ? Icons.timer_rounded : Icons.timer_outlined,
+                  ),
+                  color: timerActive ? SoundColors.accent : null,
+                ),
+              ],
+            ),
           ],
-        ),
-        const SizedBox(height: 18),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-          children: [
-            IconButton(
-              key: const ValueKey('now-playing-mode-cycle'),
-              onPressed: () => _cycleMode(context),
-              tooltip: mode.label,
-              icon: Icon(mode.icon),
-              color: modeActive ? SoundColors.accent : null,
-            ),
-            IconButton(
-              onPressed: playback.previous,
-              icon: const Icon(Icons.skip_previous_rounded),
-              iconSize: 34,
-            ),
-            IconButton.filled(
-              onPressed: visual.primaryEnabled ? playback.toggle : null,
-              tooltip: visual.primaryTooltip,
-              icon: visual.busy && !visual.primaryEnabled
-                  ? SizedBox.square(
-                      dimension: 24,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: context.soundColors.onPrimary,
-                      ),
-                    )
-                  : Icon(visual.primaryIcon),
-              iconSize: 34,
-              style: IconButton.styleFrom(
-                backgroundColor: context.soundPrimaryText,
-                foregroundColor: context.soundGlass.canvasHighlight,
-                fixedSize: const Size.square(52),
-              ),
-            ),
-            IconButton(
-              onPressed: playback.next,
-              icon: const Icon(Icons.skip_next_rounded),
-              iconSize: 34,
-            ),
-            IconButton(
-              key: const ValueKey('now-playing-sleep-timer'),
-              onPressed: () => unawaited(_openSleepTimer(context)),
-              tooltip: timerActive
-                  ? '睡眠定时：${_sleepTimerStatusLabel(sleepTimer!)}'
-                  : '睡眠定时',
-              icon: Icon(
-                timerActive ? Icons.timer_rounded : Icons.timer_outlined,
-              ),
-              color: timerActive ? SoundColors.accent : null,
-            ),
-          ],
-        ),
-      ],
+        );
+      },
     );
   }
 }
