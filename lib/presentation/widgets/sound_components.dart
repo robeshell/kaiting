@@ -72,15 +72,17 @@ class SoundGlassSurface extends StatelessWidget {
     );
     final clipped = ClipRRect(
       borderRadius: borderRadius,
-      child: useBackdropBlur
-          ? BackdropFilter(
-              filter: ImageFilter.blur(
-                sigmaX: strong ? glass.strongBlur : glass.blur,
-                sigmaY: strong ? glass.strongBlur : glass.blur,
-              ),
-              child: surface,
-            )
-          : surface,
+      // Keep this node in the tree when keyboard insets change. Swapping the
+      // wrapper out remounts any descendant TextField, drops its focus, and
+      // makes Android immediately hide the keyboard it just opened.
+      child: BackdropFilter(
+        enabled: useBackdropBlur,
+        filter: ImageFilter.blur(
+          sigmaX: strong ? glass.strongBlur : glass.blur,
+          sigmaY: strong ? glass.strongBlur : glass.blur,
+        ),
+        child: surface,
+      ),
     );
     if (!showShadow) return clipped;
     return DecoratedBox(

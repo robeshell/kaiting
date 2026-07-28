@@ -33,6 +33,76 @@ void main() {
     );
   });
 
+  testWidgets('keyboard inset changes preserve glass text-field focus', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    debugDefaultTargetPlatformOverride = TargetPlatform.android;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+    final focusNode = FocusNode();
+    addTearDown(focusNode.dispose);
+
+    Future<void> pumpGlass(double keyboardInset) {
+      return tester.pumpWidget(
+        MaterialApp(
+          theme: SoundTheme.light,
+          home: MediaQuery(
+            data: MediaQueryData(
+              size: const Size(390, 844),
+              viewInsets: EdgeInsets.only(bottom: keyboardInset),
+            ),
+            child: Material(
+              child: SoundGlassSurface(
+                child: TextField(
+                  key: const ValueKey('glass-text-field'),
+                  focusNode: focusNode,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    await pumpGlass(0);
+    await tester.tap(find.byKey(const ValueKey('glass-text-field')));
+    await tester.pump();
+    final editableBefore = tester.state<EditableTextState>(
+      find.byType(EditableText),
+    );
+    expect(focusNode.hasFocus, isTrue);
+    expect(
+      tester.widget<BackdropFilter>(find.byType(BackdropFilter)).enabled,
+      isTrue,
+    );
+
+    await pumpGlass(320);
+    expect(
+      tester.state<EditableTextState>(find.byType(EditableText)),
+      same(editableBefore),
+    );
+    expect(focusNode.hasFocus, isTrue);
+    expect(
+      tester.widget<BackdropFilter>(find.byType(BackdropFilter)).enabled,
+      isFalse,
+    );
+
+    await pumpGlass(0);
+    expect(
+      tester.state<EditableTextState>(find.byType(EditableText)),
+      same(editableBefore),
+    );
+    expect(focusNode.hasFocus, isTrue);
+    expect(
+      tester.widget<BackdropFilter>(find.byType(BackdropFilter)).enabled,
+      isTrue,
+    );
+    debugDefaultTargetPlatformOverride = null;
+  });
+
   testWidgets('Sound menus use a custom bottom sheet in compact windows', (
     tester,
   ) async {
