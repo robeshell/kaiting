@@ -2187,18 +2187,27 @@ class _LyricsPanelState extends State<_LyricsPanel> {
                   colors: [Colors.black, Colors.black],
                 ).createShader(bounds);
               }
-              // Top: wider dissolve (compact includes space under the ⋯ bar).
-              // Bottom: shorter so chrome under the list stays clean.
-              final topPx = widget.compact
-                  ? math.min(h * 0.28, 128.0).clamp(64.0, 140.0)
-                  : math.min(h * 0.22, 110.0).clamp(48.0, 120.0);
-              final bottomPx = math.min(h * 0.12, 64.0).clamp(28.0, 72.0);
-              final t1 = (topPx * 0.35 / h).clamp(0.02, 0.12);
-              final t2 = (topPx * 0.70 / h).clamp(0.06, 0.20);
-              final t3 = (topPx / h).clamp(0.10, 0.28);
-              final b3 = (1.0 - bottomPx / h).clamp(0.72, 0.92);
-              final b2 = (1.0 - bottomPx * 0.55 / h).clamp(0.82, 0.96);
-              final b1 = (1.0 - bottomPx * 0.22 / h).clamp(0.90, 0.985);
+              // Layout-specific bands:
+              // - compact (phone): long top under ⋯ bar, modest bottom
+              // - desktop / foldable dual-pane: short top, longer bottom
+              final double topPx;
+              final double bottomPx;
+              if (widget.compact) {
+                topPx = math.min(h * 0.28, 128.0).clamp(64.0, 140.0);
+                bottomPx = math.min(h * 0.14, 72.0).clamp(32.0, 80.0);
+              } else if (widget.verticalControls) {
+                topPx = math.min(h * 0.10, 56.0).clamp(28.0, 64.0);
+                bottomPx = math.min(h * 0.22, 120.0).clamp(56.0, 132.0);
+              } else {
+                topPx = math.min(h * 0.14, 72.0).clamp(36.0, 80.0);
+                bottomPx = math.min(h * 0.16, 88.0).clamp(40.0, 96.0);
+              }
+              final t1 = (topPx * 0.30 / h).clamp(0.015, 0.10);
+              final t2 = (topPx * 0.65 / h).clamp(0.04, 0.16);
+              final t3 = (topPx / h).clamp(0.06, 0.28);
+              final b3 = (1.0 - bottomPx / h).clamp(0.62, 0.92);
+              final b2 = (1.0 - bottomPx * 0.55 / h).clamp(0.74, 0.96);
+              final b1 = (1.0 - bottomPx * 0.22 / h).clamp(0.86, 0.985);
               return LinearGradient(
                 begin: Alignment.topCenter,
                 end: Alignment.bottomCenter,
