@@ -87,6 +87,8 @@ void main() {
       ),
     );
 
+    // Motion starts on a post-frame callback so the first open layout can settle.
+    await tester.pump();
     final initial = _backgroundPainter(tester);
     final initialPhase = initial.phase;
     expect(initial.colors, hasLength(3));

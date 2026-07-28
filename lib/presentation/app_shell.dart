@@ -38,6 +38,9 @@ import 'screens/library_user_screen.dart';
 import 'screens/now_playing_screen.dart';
 import 'screens/search_screen.dart';
 import 'screens/settings_screen.dart';
+import 'widgets/album_art.dart';
+import 'widgets/animated_artwork_background.dart';
+import 'widgets/artwork_image_provider.dart';
 import 'widgets/mini_player.dart';
 import 'widgets/playback_queue_sheet.dart';
 import 'widgets/sound_components.dart';
@@ -214,9 +217,11 @@ class _AppShellState extends State<AppShell>
       catalog: _libraryCatalog,
     );
     widget.audioHandler?.attachFavoriteController(_libraryUserState);
-    _trackStartedSubscription = widget.playback.trackStarted.listen(
-      (track) => unawaited(_libraryUserState.recordTrackStarted(track)),
-    );
+    _trackStartedSubscription = widget.playback.trackStarted.listen((track) {
+      unawaited(_libraryUserState.recordTrackStarted(track));
+      // Warm now-playing palette + cover before the user taps the mini player.
+      if (mounted) unawaited(_prewarmNowPlayingForTrack(track));
+    });
     _webDavService = WebDavConnectionService(repository: _libraryRepository);
     _diagnostics = AppDiagnosticsController();
     _sleepTimer = SleepTimerController(widget.playback);
@@ -597,7 +602,9 @@ class _AppShellState extends State<AppShell>
   }
 
   void _openNowPlaying() {
-    if (widget.playback.displayTrack == null) return;
+    final track = widget.playback.displayTrack;
+    if (track == null) return;
+    unawaited(_prewarmNowPlayingForTrack(track));
     if (context.soundUsesMobileShell) {
       _expandMobileNowPlaying();
       return;
@@ -630,9 +637,58 @@ class _AppShellState extends State<AppShell>
     );
   }
 
+  Future<void> _prewarmNowPlayingForTrack(Track track) async {
+    if (!mounted) return;
+    final album = albumForTrack(track);
+    final brightness = Theme.of(context).brightness;
+    final dpr = MediaQuery.devicePixelRatioOf(context);
+    // Now-playing art is much larger than the mini-player tile; warm both.
+    final extents = <int>{
+      quantizedArtworkCacheExtent(48, dpr),
+      quantizedArtworkCacheExtent(280, dpr),
+      quantizedArtworkCacheExtent(480, dpr),
+    };
+    try {
+      await Future.wait([
+        AnimatedArtworkBackground.prewarm(
+          album: album,
+          brightness: brightness,
+        ),
+        for (final extent in extents)
+          if (artworkImageProvider(
+                album.artworkUri,
+                cacheWidth: extent,
+                cacheHeight: extent,
+              )
+              case final provider?)
+            precacheImage(
+              provider,
+              context,
+              onError: (Object error, StackTrace? stackTrace) {},
+            ),
+      ]);
+    } catch (_) {
+      // Fallbacks already handle missing art; never block open.
+    }
+  }
+
   void _expandMobileNowPlaying() {
-    if (!_mobileNowPlayingPresented) {
+    final firstPresentation = !_mobileNowPlayingPresented;
+    if (firstPresentation) {
+      // Mount the player one frame before sliding so the first layout/build
+      // does not run on the same frames as the expand animation.
       setState(() => _mobileNowPlayingPresented = true);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted || !_mobileNowPlayingPresented) return;
+        unawaited(
+          _nowPlayingExpansion.animateTo(
+            1,
+            duration: const Duration(milliseconds: 320),
+            curve: Curves.easeOutCubic,
+          ),
+        );
+      });
+      return;
     }
     unawaited(
       _nowPlayingExpansion.animateTo(

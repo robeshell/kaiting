@@ -18,12 +18,17 @@ class AnimatedArtworkBackground extends StatefulWidget {
     required this.album,
     required this.position,
     required this.isPlaying,
+    this.isActive = true,
     super.key,
   });
 
   final Album album;
   final Duration position;
   final bool isPlaying;
+
+  /// When false (mobile now-playing still sliding), freeze motion so the open
+  /// transition is not fighting continuous gradient tickers.
+  final bool isActive;
 
   /// Starts the bounded artwork decode and palette extraction before the
   /// now-playing route is opened. The route can still paint its deterministic
@@ -138,7 +143,8 @@ class _AnimatedArtworkBackgroundState extends State<AnimatedArtworkBackground>
         oldWidget.album.id != widget.album.id) {
       _loadArtworkColors();
     }
-    if (oldWidget.isPlaying != widget.isPlaying) {
+    if (oldWidget.isPlaying != widget.isPlaying ||
+        oldWidget.isActive != widget.isActive) {
       _syncMotion();
     }
   }
@@ -150,14 +156,18 @@ class _AnimatedArtworkBackgroundState extends State<AnimatedArtworkBackground>
   }
 
   void _syncMotion() {
-    if (_reduceMotion) {
+    if (_reduceMotion || !widget.isActive) {
       _motionController.stop();
-      _motionController.value = 0;
+      if (_reduceMotion) _motionController.value = 0;
       return;
     }
-    // Ambient pulse continues while paused — quieter energy is applied in
-    // the painter via [isPlaying].
-    if (!_motionController.isAnimating) _motionController.repeat();
+    // Defer the continuous ticker one frame so the first open / expand layout
+    // can settle before we start painting every display refresh.
+    if (_motionController.isAnimating) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _reduceMotion || !widget.isActive) return;
+      if (!_motionController.isAnimating) _motionController.repeat();
+    });
   }
 
   double _positionPhase(Duration position) {
@@ -176,6 +186,18 @@ class _AnimatedArtworkBackgroundState extends State<AnimatedArtworkBackground>
     if (artworkUri == null || artworkUri.isEmpty) {
       if (mounted) _transitionTo(fallback);
       return;
+    }
+
+    // Always paint fallback first; palette extraction is expensive and must
+    // not block the first now-playing frame after a reload.
+    if (!listEquals(_targetColors, fallback) &&
+        !AnimatedArtworkBackground.debugHasPrewarmed(
+          album: widget.album,
+          brightness: brightness,
+        )) {
+      _fromColors = List<Color>.of(fallback);
+      _targetColors = List<Color>.of(fallback);
+      _paletteController.value = 1;
     }
 
     try {

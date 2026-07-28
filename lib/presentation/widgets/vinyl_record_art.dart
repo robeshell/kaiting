@@ -146,7 +146,17 @@ class VinylRecordArtState extends State<VinylRecordArt>
   void _syncRotation() {
     final shouldSpin = widget.isPlaying && widget.isActive && !_reduceMotion;
     if (shouldSpin) {
-      if (!_rotation.isAnimating) _rotation.repeat();
+      if (_rotation.isAnimating) return;
+      // Start after the expand/open frame so rotation does not jank the route.
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        if (widget.isPlaying &&
+            widget.isActive &&
+            !_reduceMotion &&
+            !_rotation.isAnimating) {
+          _rotation.repeat();
+        }
+      });
     } else {
       _rotation.stop();
     }

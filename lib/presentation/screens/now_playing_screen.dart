@@ -125,7 +125,9 @@ class NowPlayingScreen extends StatelessWidget {
             // Phase seed only — continuous motion uses its own ticker so this
             // must not force full-screen rebuilds on every position tick.
             position: playback.displayPosition,
-            isPlaying: snapshot.isPlaying && isActive,
+            isPlaying: snapshot.isPlaying,
+            // Freeze gradient tickers while the mobile sheet is still sliding.
+            isActive: isActive,
           ),
           SafeArea(
             minimum: EdgeInsets.only(top: context.soundTitlebarInset),

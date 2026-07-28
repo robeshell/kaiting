@@ -165,18 +165,23 @@ class _NowPlayingArtworkWarmupState extends State<_NowPlayingArtworkWarmup> {
   void _scheduleWarmup() {
     final media = MediaQuery.of(context);
     final brightness = Theme.of(context).brightness;
-    final logicalExtent = widget.compact
-        ? math.min(430.0, math.max(1.0, media.size.width - 56))
-        : 340.0;
-    final cacheExtent = quantizedArtworkCacheExtent(
-      logicalExtent,
-      media.devicePixelRatio,
-    );
+    final dpr = media.devicePixelRatio;
+    // Mini tile + now-playing hero sizes so the first open does not re-decode.
+    final extents = <int>{
+      quantizedArtworkCacheExtent(
+        widget.compact
+            ? math.min(120.0, math.max(1.0, media.size.width * 0.18))
+            : 56.0,
+        dpr,
+      ),
+      quantizedArtworkCacheExtent(280, dpr),
+      quantizedArtworkCacheExtent(480, dpr),
+    };
     final key = [
       widget.album.id,
       widget.album.artworkUri,
       brightness.name,
-      cacheExtent,
+      ...extents,
     ].join('|');
     if (_warmupKey == key) return;
     _warmupKey = key;
@@ -187,7 +192,7 @@ class _NowPlayingArtworkWarmupState extends State<_NowPlayingArtworkWarmup> {
         _warmArtwork(
           album: widget.album,
           brightness: brightness,
-          cacheExtent: cacheExtent,
+          cacheExtents: extents,
         ),
       );
     });
@@ -196,25 +201,26 @@ class _NowPlayingArtworkWarmupState extends State<_NowPlayingArtworkWarmup> {
   Future<void> _warmArtwork({
     required Album album,
     required Brightness brightness,
-    required int cacheExtent,
+    required Set<int> cacheExtents,
   }) async {
-    final provider = artworkImageProvider(
-      album.artworkUri,
-      cacheWidth: cacheExtent,
-      cacheHeight: cacheExtent,
-    );
     try {
       await Future.wait([
-        if (provider != null)
-          precacheImage(
-            provider,
-            context,
-            // onError swallows PathNotFound / codec errors without the
-            // IMAGE RESOURCE SERVICE red banner; AlbumArt has its own
-            // errorBuilder placeholder.
-            onError: (Object error, StackTrace? stackTrace) {},
-          ),
         AnimatedArtworkBackground.prewarm(album: album, brightness: brightness),
+        for (final extent in cacheExtents)
+          if (artworkImageProvider(
+                album.artworkUri,
+                cacheWidth: extent,
+                cacheHeight: extent,
+              )
+              case final provider?)
+            precacheImage(
+              provider,
+              context,
+              // onError swallows PathNotFound / codec errors without the
+              // IMAGE RESOURCE SERVICE red banner; AlbumArt has its own
+              // errorBuilder placeholder.
+              onError: (Object error, StackTrace? stackTrace) {},
+            ),
       ]);
     } catch (_) {
       // The visible album art and background already have deterministic
