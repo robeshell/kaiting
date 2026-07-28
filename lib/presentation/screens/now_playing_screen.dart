@@ -2264,6 +2264,8 @@ class _LyricsPanelState extends State<_LyricsPanel> {
         // Line-level LRC: fill from this cue to the next (karaoke wipe).
         // Karaoke starts the same frame as the cue; size/opacity ease separately.
         final karaoke = isActive && synchronized;
+        final textAlign =
+            widget.compact ? TextAlign.center : TextAlign.start;
         return GestureDetector(
           key: _lineKeys[index],
           behavior: HitTestBehavior.opaque,
@@ -2274,6 +2276,7 @@ class _LyricsPanelState extends State<_LyricsPanel> {
             duration: synchronized ? _lineStyleDuration : Duration.zero,
             curve: Curves.easeOutCubic,
             style: style,
+            textAlign: textAlign,
             // Read the lerped style so size/opacity actually animate.
             child: Builder(
               builder: (context) {
@@ -2282,6 +2285,7 @@ class _LyricsPanelState extends State<_LyricsPanel> {
                   return KaraokeLyricText(
                     line.text,
                     style: animatedStyle,
+                    textAlign: textAlign,
                     progressListenable: widget.positionListenable,
                     progressOf: () => _timeline.cueProgress(
                       widget.positionOf(),
@@ -2292,7 +2296,11 @@ class _LyricsPanelState extends State<_LyricsPanel> {
                     baseColor: primary.withValues(alpha: 0.34),
                   );
                 }
-                return BalancedLyricText(line.text, style: animatedStyle);
+                return BalancedLyricText(
+                  line.text,
+                  style: animatedStyle,
+                  textAlign: textAlign,
+                );
               },
             ),
           ),

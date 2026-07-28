@@ -9,11 +9,13 @@ class BalancedLyricText extends StatelessWidget {
   const BalancedLyricText(
     this.text, {
     required this.style,
+    this.textAlign = TextAlign.start,
     super.key,
   });
 
   final String text;
   final TextStyle style;
+  final TextAlign textAlign;
 
   @override
   Widget build(BuildContext context) {
@@ -21,7 +23,7 @@ class BalancedLyricText extends StatelessWidget {
       builder: (context, constraints) {
         final maxWidth = constraints.maxWidth;
         if (!maxWidth.isFinite || maxWidth <= 0) {
-          return Text(text, style: style);
+          return Text(text, style: style, textAlign: textAlign);
         }
         final balanced = balanceLyricLineBreaks(
           text,
@@ -29,7 +31,7 @@ class BalancedLyricText extends StatelessWidget {
           maxWidth: maxWidth,
           textScaler: MediaQuery.textScalerOf(context),
         );
-        return Text(balanced, style: style);
+        return Text(balanced, style: style, textAlign: textAlign);
       },
     );
   }

@@ -15,6 +15,7 @@ class KaraokeLyricText extends StatefulWidget {
     required this.progressOf,
     required this.fillColor,
     required this.baseColor,
+    this.textAlign = TextAlign.start,
     super.key,
   });
 
@@ -24,6 +25,7 @@ class KaraokeLyricText extends StatefulWidget {
   final double Function() progressOf;
   final Color fillColor;
   final Color baseColor;
+  final TextAlign textAlign;
 
   @override
   State<KaraokeLyricText> createState() => _KaraokeLyricTextState();
@@ -105,20 +107,23 @@ class _KaraokeLyricTextState extends State<KaraokeLyricText> {
         );
         final baseStyle = widget.style.copyWith(color: widget.baseColor);
         final fillStyle = widget.style.copyWith(color: widget.fillColor);
+        final align = widget.textAlign;
         final p = _progress;
         if (p <= 0.001) {
-          return Text(balanced, style: baseStyle);
+          return Text(balanced, style: baseStyle, textAlign: align);
         }
         if (p >= 0.999) {
-          return Text(balanced, style: fillStyle);
+          return Text(balanced, style: fillStyle, textAlign: align);
         }
         return Stack(
-          alignment: Alignment.topLeft,
+          alignment: align == TextAlign.center
+              ? Alignment.topCenter
+              : Alignment.topLeft,
           children: [
-            Text(balanced, style: baseStyle),
+            Text(balanced, style: baseStyle, textAlign: align),
             ClipRect(
               clipper: _LeadingFractionClipper(p),
-              child: Text(balanced, style: fillStyle),
+              child: Text(balanced, style: fillStyle, textAlign: align),
             ),
           ],
         );
