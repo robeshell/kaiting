@@ -2103,7 +2103,8 @@ class _LyricsPanelState extends State<_LyricsPanel> {
           ),
           fontSize: fontSize,
           height: synchronized ? 2.25 : 1.7,
-          fontWeight: isActive ? FontWeight.w800 : FontWeight.w700,
+          // Soft type: emphasis is color/size, not heavy weight.
+          fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
         );
         return GestureDetector(
           key: _lineKeys[index],
