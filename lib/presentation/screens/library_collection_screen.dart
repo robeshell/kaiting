@@ -226,8 +226,9 @@ class _LibraryCollectionScreenState extends State<LibraryCollectionScreen> {
                     '专辑',
                     style: TextStyle(
                       color: pagePalette?.primaryText,
-                      fontSize: compact ? 17 : 20,
+                      fontSize: compact ? 14 : 15,
                       fontWeight: FontWeight.w700,
+                      letterSpacing: -0.1,
                     ),
                   ),
                 ),
@@ -504,8 +505,9 @@ class _CollectionTrackHeader extends StatelessWidget {
           label,
           style: TextStyle(
             color: pagePalette?.primaryText,
-            fontSize: compact ? 17 : 20,
+            fontSize: compact ? 14 : 15,
             fontWeight: FontWeight.w700,
+            letterSpacing: -0.1,
           ),
         ),
         if (showSort)

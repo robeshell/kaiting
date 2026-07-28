@@ -720,8 +720,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
       ];
     }
     // Artists: compact horizontal rows (small circle + name), not a cover grid.
-    final avatarSize = compact ? 44.0 : 48.0;
-    final rowMinHeight = compact ? 60.0 : 64.0;
+    // Match list-row type scale (13.5) — larger names read as page titles.
+    final avatarSize = compact ? 40.0 : 44.0;
+    final rowMinHeight = compact ? 54.0 : 58.0;
     return [
       SliverPadding(
         padding: EdgeInsets.fromLTRB(gutter, compact ? 2 : 4, gutter, 0),
@@ -1548,11 +1549,15 @@ class _ArtistListRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Same tier as song/album list titles (brand rowTitle 13.5–14).
     final titleStyle = TextStyle(
-      fontSize: context.soundIsCompact ? 16 : 17,
+      fontSize: 13.5,
       fontWeight: FontWeight.w600,
-      letterSpacing: -0.2,
-      height: 1.2,
+      letterSpacing: -0.1,
+      height: 1.25,
+      color: context.soundPrimaryText.withValues(
+        alpha: context.soundPrimaryText.a * 0.92,
+      ),
     );
     return Material(
       key: ValueKey('library-collection-${collection.id}'),
@@ -1576,7 +1581,7 @@ class _ArtistListRow extends StatelessWidget {
                       size: avatarSize,
                       showShadow: false,
                     ),
-                    const SizedBox(width: 14),
+                    const SizedBox(width: 12),
                     Expanded(
                       child: Text(
                         collection.title,
@@ -1594,7 +1599,7 @@ class _ArtistListRow extends StatelessWidget {
               height: 1,
               thickness: 1,
               // Align with the name column (avatar + gap).
-              indent: avatarSize + 14,
+              indent: avatarSize + 12,
               color: showDivider
                   ? context.soundDivider
                   : Colors.transparent,
