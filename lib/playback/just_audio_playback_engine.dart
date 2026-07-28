@@ -395,15 +395,18 @@ class JustAudioPlaybackEngine
       }
       // createPositionStream intentionally stops while paused or stalled.
       // Confirm and publish the native seek here so the scrubber and lyrics
-      // still move immediately in those states.
+      // still move immediately in those states. If native is slow to report
+      // the new position (common while paused), force-publish the clamped
+      // target so the UI does not snap back.
       final confirmed = _positionGate.accept(
         _player.position,
         duration: _duration,
       );
-      if (confirmed != null) {
-        _position = confirmed;
-        _publish(_resolvedPhase);
+      _position = confirmed ?? clamped;
+      if (confirmed == null) {
+        _positionGate.cancelSeek();
       }
+      _publish(_resolvedPhase);
     } catch (error) {
       if (operationSession == _sessionId) {
         _positionGate.cancelSeek();

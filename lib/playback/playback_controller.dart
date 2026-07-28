@@ -334,11 +334,13 @@ class SoundPlaybackController extends ChangeNotifier {
       notifyListeners();
     }
     await _engine.seek(target);
-    // Every in-tree engine publishes its confirmed seek before completing the
-    // Future. If it could not seek (for example while still loading), remove
-    // the provisional display target instead of leaving progress and lyrics
-    // pinned to a position the engine never reached.
-    if (_pendingSeekTrackId == seekTrackId && _pendingSeekPosition == target) {
+    // Keep the provisional display until the engine snapshot matches (or a
+    // later snapshot clears it). Clearing immediately after the Future
+    // completes can snap the bar backward when native is slow while paused.
+    if (_pendingSeekTrackId == seekTrackId &&
+        _pendingSeekPosition == target &&
+        (_snapshot.position - target).abs() <=
+            const Duration(milliseconds: 500)) {
       _pendingSeekPosition = null;
       _pendingSeekTrackId = null;
       notifyListeners();

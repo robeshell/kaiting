@@ -824,10 +824,15 @@ class _CompactNowPlayingState extends State<_CompactNowPlaying> {
   bool _handleScrubInteractionNotification(
     ProgressScrubInteractionNotification notification,
   ) {
+    final wasActive = _scrubInteractionActive;
     _scrubInteractionActive = notification.active;
     _scrubPointer = notification.active ? notification.pointer : null;
     if (notification.active) {
       _abortCoverDismissForScrub();
+    }
+    // Rebuild so cover scroll physics can freeze while scrubbing.
+    if (wasActive != notification.active && mounted) {
+      setState(() {});
     }
     return false;
   }
@@ -876,10 +881,14 @@ class _CompactNowPlayingState extends State<_CompactNowPlaying> {
                 child: SingleChildScrollView(
                   key: const ValueKey('compact-player'),
                   controller: _coverScrollController,
-                  // Clamping avoids iOS rubber-band while scrubbing the bar.
-                  physics: const AlwaysScrollableScrollPhysics(
-                    parent: ClampingScrollPhysics(),
-                  ),
+                  // Freeze scroll while scrubbing so vertical finger noise
+                  // cannot bounce the page. Otherwise use clamping (no iOS
+                  // rubber-band) for a firmer sheet.
+                  physics: _scrubInteractionActive
+                      ? const NeverScrollableScrollPhysics()
+                      : const AlwaysScrollableScrollPhysics(
+                          parent: ClampingScrollPhysics(),
+                        ),
                   padding: EdgeInsets.fromLTRB(
                     widget.style == NowPlayingStyle.vinyl ? 16 : 28,
                     8,

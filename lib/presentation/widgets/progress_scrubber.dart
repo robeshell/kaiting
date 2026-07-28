@@ -1,15 +1,15 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/sound_theme.dart';
 
 /// Bubbles for the full lifetime of a pointer interacting with the scrubber.
 ///
-/// The notification starts on pointer-down, before Flutter resolves the
-/// gesture arena, so ancestors can suppress competing dismiss gestures even
-/// when the user's scrub has a noticeable vertical component.
+/// Dispatched on pointer-down (before the gesture arena settles) so ancestors
+/// can suppress dismiss / scroll while the bar is scrubbed.
 class ProgressScrubInteractionNotification extends Notification {
   const ProgressScrubInteractionNotification({
     required this.active,
@@ -17,15 +17,13 @@ class ProgressScrubInteractionNotification extends Notification {
   });
 
   final bool active;
-
-  /// Pointer that owns the scrub, when [active] is true.
   final int? pointer;
 }
 
-/// Thin progress track with a large, direct pointer hit target.
+/// Thin progress track with a large, exclusive pointer hit target.
 ///
-/// Uses [Listener] (not Material [Slider]) so horizontal drags are not stolen
-/// by scroll/dismiss arenas and the full [minInteractiveHeight] is tappable.
+/// Uses a global pointer route after down so drags keep updating even when the
+/// finger leaves the 44px band (vertical noise must not steal the scrub).
 class ProgressScrubber extends StatefulWidget {
   const ProgressScrubber({
     required this.position,
@@ -49,9 +47,6 @@ class ProgressScrubber extends StatefulWidget {
   final Color? inactiveColor;
   final double trackHeight;
   final double thumbRadius;
-
-  /// Kept for API compatibility with call sites; hit height uses
-  /// [minInteractiveHeight] instead of Material overlay radius.
   final double overlayRadius;
   final EdgeInsetsGeometry? padding;
   final double minInteractiveHeight;
@@ -69,8 +64,10 @@ class _ProgressScrubberState extends State<ProgressScrubber> {
   Timer? _settleTimer;
   bool _dragging = false;
   bool _interactionNotified = false;
+  bool _globalRouteInstalled = false;
   int? _activePointer;
-  double _trackWidth = 0;
+
+  final GlobalKey _hitKey = GlobalKey(debugLabel: 'progress-scrubber-hit');
 
   double get _durationMs =>
       widget.duration.inMilliseconds.toDouble().clamp(1, double.infinity);
@@ -80,24 +77,67 @@ class _ProgressScrubberState extends State<ProgressScrubber> {
     return (_previewMilliseconds ?? engine).clamp(0, _durationMs);
   }
 
-  double get _fraction =>
-      widget.duration > Duration.zero ? (_displayMs / _durationMs).clamp(0.0, 1.0) : 0.0;
+  double get _fraction => widget.duration > Duration.zero
+      ? (_displayMs / _durationMs).clamp(0.0, 1.0)
+      : 0.0;
 
   void _notifyInteraction(bool active, {int? pointer}) {
-    final boundPointer = active ? (pointer ?? _activePointer) : null;
-    if (_interactionNotified == active && !active) return;
+    if (!active && !_interactionNotified) return;
     _interactionNotified = active;
     if (!mounted) return;
     ProgressScrubInteractionNotification(
       active: active,
-      pointer: boundPointer,
+      pointer: active ? (pointer ?? _activePointer) : null,
     ).dispatch(context);
   }
 
+  void _ensureGlobalRoute() {
+    if (_globalRouteInstalled) return;
+    GestureBinding.instance.pointerRouter.addGlobalRoute(_handleGlobalPointer);
+    _globalRouteInstalled = true;
+  }
+
+  void _removeGlobalRoute() {
+    if (!_globalRouteInstalled) return;
+    GestureBinding.instance.pointerRouter.removeGlobalRoute(
+      _handleGlobalPointer,
+    );
+    _globalRouteInstalled = false;
+  }
+
+  void _handleGlobalPointer(PointerEvent event) {
+    if (event.pointer != _activePointer) return;
+    if (event is PointerMoveEvent) {
+      final dx = _localDxFromGlobal(event.position);
+      if (dx != null) _setFractionFromLocalDx(dx);
+      return;
+    }
+    if (event is PointerUpEvent) {
+      _endDrag(event.pointer, commit: true);
+      return;
+    }
+    if (event is PointerCancelEvent) {
+      _endDrag(event.pointer, commit: false);
+    }
+  }
+
+  double? _localDxFromGlobal(Offset global) {
+    final box = _hitKey.currentContext?.findRenderObject() as RenderBox?;
+    if (box == null || !box.hasSize) return null;
+    return box.globalToLocal(global).dx;
+  }
+
   void _setFractionFromLocalDx(double dx) {
-    if (_trackWidth <= 0 || widget.duration <= Duration.zero) return;
-    final fraction = (dx / _trackWidth).clamp(0.0, 1.0);
+    if (widget.duration <= Duration.zero) return;
+    final box = _hitKey.currentContext?.findRenderObject() as RenderBox?;
+    final width = box?.size.width ?? 0;
+    if (width <= 0) return;
+    final fraction = (dx / width).clamp(0.0, 1.0);
     final ms = fraction * _durationMs;
+    if (_previewMilliseconds != null &&
+        (ms - _previewMilliseconds!).abs() < 0.5) {
+      return;
+    }
     setState(() => _previewMilliseconds = ms);
   }
 
@@ -120,18 +160,15 @@ class _ProgressScrubberState extends State<ProgressScrubber> {
     }
   }
 
-  void _beginDrag(int pointer, double localDx) {
+  void _beginDrag(int pointer, Offset globalPosition) {
     _activePointer = pointer;
     _dragging = true;
+    _ensureGlobalRoute();
     // Notify first so ancestor cover-dismiss handlers see the flag on the
     // same pointer-down (child listeners run before parents).
     _notifyInteraction(true, pointer: pointer);
-    _setFractionFromLocalDx(localDx);
-  }
-
-  void _updateDrag(int pointer, double localDx) {
-    if (!_dragging || _activePointer != pointer) return;
-    _setFractionFromLocalDx(localDx);
+    final dx = _localDxFromGlobal(globalPosition);
+    if (dx != null) _setFractionFromLocalDx(dx);
   }
 
   void _endDrag(int pointer, {required bool commit}) {
@@ -139,6 +176,7 @@ class _ProgressScrubberState extends State<ProgressScrubber> {
     final preview = _previewMilliseconds;
     _activePointer = null;
     _dragging = false;
+    _removeGlobalRoute();
     _notifyInteraction(false);
     if (commit && preview != null && widget.duration > Duration.zero) {
       unawaited(_commitSeek(preview));
@@ -160,6 +198,7 @@ class _ProgressScrubberState extends State<ProgressScrubber> {
   @override
   void dispose() {
     _settleTimer?.cancel();
+    _removeGlobalRoute();
     if (_dragging || _interactionNotified) {
       _dragging = false;
       _activePointer = null;
@@ -190,41 +229,29 @@ class _ProgressScrubberState extends State<ProgressScrubber> {
 
     return Padding(
       padding: widget.padding ?? EdgeInsets.zero,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          _trackWidth = constraints.maxWidth;
-          return Listener(
-            behavior: HitTestBehavior.opaque,
-            onPointerDown: enabled
-                ? (event) => _beginDrag(event.pointer, event.localPosition.dx)
-                : null,
-            onPointerMove: enabled
-                ? (event) => _updateDrag(event.pointer, event.localPosition.dx)
-                : null,
-            onPointerUp: enabled
-                ? (event) => _endDrag(event.pointer, commit: true)
-                : null,
-            onPointerCancel: enabled
-                ? (event) => _endDrag(event.pointer, commit: false)
-                : null,
-            child: SizedBox(
-              key: const ValueKey('progress-scrubber-hit-target'),
-              height: height,
-              width: double.infinity,
-              child: CustomPaint(
-                painter: _ScrubberPainter(
-                  fraction: fraction,
-                  trackHeight: widget.trackHeight,
-                  thumbRadius: thumbR,
-                  activeColor: activeColor,
-                  inactiveColor: inactiveColor,
-                  showThumb: enabled,
-                  thumbHighlighted: _dragging,
-                ),
-              ),
+      child: Listener(
+        behavior: HitTestBehavior.opaque,
+        onPointerDown: enabled
+            ? (event) => _beginDrag(event.pointer, event.position)
+            : null,
+        // Move/up handled by the global route so vertical drift off the
+        // 44px band does not kill the scrub.
+        child: SizedBox(
+          key: _hitKey,
+          height: height,
+          width: double.infinity,
+          child: CustomPaint(
+            key: const ValueKey('progress-scrubber-hit-target'),
+            painter: _ScrubberPainter(
+              fraction: fraction,
+              trackHeight: widget.trackHeight,
+              thumbRadius: thumbR,
+              activeColor: activeColor,
+              inactiveColor: inactiveColor,
+              showThumb: enabled,
             ),
-          );
-        },
+          ),
+        ),
       ),
     );
   }
@@ -238,7 +265,6 @@ class _ScrubberPainter extends CustomPainter {
     required this.activeColor,
     required this.inactiveColor,
     required this.showThumb,
-    required this.thumbHighlighted,
   });
 
   final double fraction;
@@ -247,7 +273,6 @@ class _ScrubberPainter extends CustomPainter {
   final Color activeColor;
   final Color inactiveColor;
   final bool showThumb;
-  final bool thumbHighlighted;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -273,7 +298,6 @@ class _ScrubberPainter extends CustomPainter {
 
     if (!showThumb) return;
     final thumbX = activeWidth.clamp(thumbRadius, size.width - thumbRadius);
-    // Keep thumb size stable while dragging — scale pops read as elasticity.
     canvas.drawCircle(
       Offset(thumbX, cy),
       thumbRadius,
@@ -288,8 +312,7 @@ class _ScrubberPainter extends CustomPainter {
         oldDelegate.thumbRadius != thumbRadius ||
         oldDelegate.activeColor != activeColor ||
         oldDelegate.inactiveColor != inactiveColor ||
-        oldDelegate.showThumb != showThumb ||
-        oldDelegate.thumbHighlighted != thumbHighlighted;
+        oldDelegate.showThumb != showThumb;
   }
 }
 
