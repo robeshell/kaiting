@@ -1269,9 +1269,8 @@ class _PlaybackTimelineAndControls extends StatelessWidget {
               onPressed: playback.toggleShuffle,
               tooltip: PlaybackMode.shuffle.label,
               icon: const Icon(Icons.shuffle_rounded),
-              color: playback.playbackMode == PlaybackMode.shuffle
-                  ? SoundColors.accent
-                  : null,
+              // Shuffle is independent of list-loop; light only the shuffle axis.
+              color: playback.isShuffleEnabled ? SoundColors.accent : null,
             ),
             IconButton(
               onPressed: playback.previous,
@@ -1304,15 +1303,14 @@ class _PlaybackTimelineAndControls extends StatelessWidget {
             ),
             IconButton(
               onPressed: playback.cycleRepeatMode,
-              tooltip: playback.playbackMode.label,
+              tooltip: playback.repeatMode.label,
               icon: Icon(
-                playback.playbackMode == PlaybackMode.repeatOne
+                playback.repeatMode == PlaybackRepeatMode.one
                     ? Icons.repeat_one_rounded
                     : Icons.repeat_rounded,
               ),
-              color:
-                  playback.playbackMode == PlaybackMode.repeatAll ||
-                      playback.playbackMode == PlaybackMode.repeatOne
+              // Repeat icon reflects list-loop even while shuffle is on.
+              color: playback.repeatMode != PlaybackRepeatMode.off
                   ? SoundColors.accent
                   : null,
             ),

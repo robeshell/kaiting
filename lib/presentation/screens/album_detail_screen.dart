@@ -8,7 +8,6 @@ import '../../core/sound_theme.dart';
 import '../../domain/library_models.dart';
 import '../../offline/offline_media_provider.dart';
 import '../../playback/playback_controller.dart';
-import '../../playback/playback_mode.dart';
 import '../controllers/library_user_state_controller.dart';
 import '../controllers/offline_download_controller.dart';
 import '../widgets/add_to_playlist_sheet.dart';
@@ -429,15 +428,8 @@ class _Hero extends StatelessWidget {
                       icon: Icons.shuffle_rounded,
                       onPressed: album.tracks.isEmpty
                           ? null
-                          : () {
-                              playback.setPlaybackMode(PlaybackMode.shuffle);
-                              unawaited(
-                                playback.playTrack(
-                                  album.tracks.first,
-                                  queue: album.tracks,
-                                ),
-                              );
-                            },
+                          : () =>
+                                unawaited(playback.playShuffled(album.tracks)),
                       palette: palette,
                     ),
                     const Spacer(),
@@ -529,13 +521,7 @@ class _Hero extends StatelessWidget {
                     icon: const Icon(Icons.more_horiz_rounded),
                     onSelected: (value) {
                       if (value == 'shuffle' && album.tracks.isNotEmpty) {
-                        playback.setPlaybackMode(PlaybackMode.shuffle);
-                        unawaited(
-                          playback.playTrack(
-                            album.tracks.first,
-                            queue: album.tracks,
-                          ),
-                        );
+                        unawaited(playback.playShuffled(album.tracks));
                       }
                       if (value == 'offline' && supportedTracks.isNotEmpty) {
                         unawaited(
@@ -596,7 +582,9 @@ class _Hero extends StatelessWidget {
                                 : () => onOpenArtist!(album.artist),
                             borderRadius: BorderRadius.circular(8),
                             child: Text(
-                              key: const ValueKey('album-detail-artist-desktop'),
+                              key: const ValueKey(
+                                'album-detail-artist-desktop',
+                              ),
                               album.artist,
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -642,17 +630,9 @@ class _Hero extends StatelessWidget {
                                 showIcon: !condensed,
                                 onPressed: album.tracks.isEmpty
                                     ? null
-                                    : () {
-                                        playback.setPlaybackMode(
-                                          PlaybackMode.shuffle,
-                                        );
-                                        unawaited(
-                                          playback.playTrack(
-                                            album.tracks.first,
-                                            queue: album.tracks,
-                                          ),
-                                        );
-                                      },
+                                    : () => unawaited(
+                                        playback.playShuffled(album.tracks),
+                                      ),
                               );
                               return Row(
                                 children: [
@@ -786,8 +766,7 @@ class _DiscHeader extends StatelessWidget {
           Text(
             '第 $number 碟',
             style: TextStyle(
-              color: pagePalette?.secondaryText ??
-                  context.soundSecondaryText,
+              color: pagePalette?.secondaryText ?? context.soundSecondaryText,
               fontSize: 12.5,
               fontWeight: FontWeight.w600,
             ),
@@ -1028,10 +1007,7 @@ class _TrackOfflineIndicator extends StatelessWidget {
       return SizedBox(
         width: 15,
         height: 15,
-        child: CircularProgressIndicator(
-          value: task?.progress,
-          strokeWidth: 2,
-        ),
+        child: CircularProgressIndicator(value: task?.progress, strokeWidth: 2),
       );
     }
     if (task?.state == OfflineDownloadTaskState.failed) {

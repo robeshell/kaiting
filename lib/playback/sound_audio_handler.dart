@@ -201,9 +201,9 @@ class SoundAudioHandler extends BaseAudioHandler {
         }),
       );
     }
-    final playbackMode = controller.playbackMode;
+    final shuffleEnabled = controller.isShuffleEnabled;
     final controls = <MediaControl>[
-      _shuffleControl(playbackMode),
+      _shuffleControl(shuffleEnabled),
       _previousControl,
       snapshot.isPlaying ? _pauseControl : _playControl,
       _nextControl,
@@ -221,8 +221,9 @@ class SoundAudioHandler extends BaseAudioHandler {
         updatePosition: position,
         speed: 1,
         queueIndex: controller.queue.isEmpty ? null : controller.queueIndex,
-        repeatMode: _systemRepeatMode(playbackMode),
-        shuffleMode: playbackMode == PlaybackMode.shuffle
+        // Shuffle and list-loop are independent axes on the controller.
+        repeatMode: _systemRepeatMode(controller.repeatMode),
+        shuffleMode: shuffleEnabled
             ? AudioServiceShuffleMode.all
             : AudioServiceShuffleMode.none,
         errorMessage: snapshot.errorMessage,
@@ -230,8 +231,7 @@ class SoundAudioHandler extends BaseAudioHandler {
     );
   }
 
-  MediaControl _shuffleControl(PlaybackMode mode) {
-    final enabled = mode == PlaybackMode.shuffle;
+  MediaControl _shuffleControl(bool enabled) {
     return MediaControl.custom(
       androidIcon: enabled
           ? 'drawable/ic_notification_shuffle_on'
@@ -251,12 +251,12 @@ class SoundAudioHandler extends BaseAudioHandler {
     );
   }
 
-  AudioServiceRepeatMode _systemRepeatMode(PlaybackMode mode) => switch (mode) {
-    PlaybackMode.repeatOne => AudioServiceRepeatMode.one,
-    PlaybackMode.repeatAll => AudioServiceRepeatMode.all,
-    PlaybackMode.sequential ||
-    PlaybackMode.shuffle => AudioServiceRepeatMode.none,
-  };
+  AudioServiceRepeatMode _systemRepeatMode(PlaybackRepeatMode mode) =>
+      switch (mode) {
+        PlaybackRepeatMode.one => AudioServiceRepeatMode.one,
+        PlaybackRepeatMode.all => AudioServiceRepeatMode.all,
+        PlaybackRepeatMode.off => AudioServiceRepeatMode.none,
+      };
 
   MediaItem _mediaItemForTrack(Track track, {Duration? duration}) {
     return MediaItem(

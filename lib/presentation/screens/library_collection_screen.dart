@@ -7,7 +7,6 @@ import 'package:flutter/services.dart';
 import '../../core/sound_theme.dart';
 import '../../domain/library_models.dart';
 import '../../playback/playback_controller.dart';
-import '../../playback/playback_mode.dart';
 import '../controllers/library_user_state_controller.dart';
 import '../widgets/add_to_playlist_sheet.dart';
 import '../widgets/album_art.dart';
@@ -182,15 +181,8 @@ class _LibraryCollectionScreenState extends State<LibraryCollectionScreen> {
                       ),
                 onShuffle: sortedTracks.isEmpty
                     ? null
-                    : () {
-                        widget.playback.setPlaybackMode(PlaybackMode.shuffle);
-                        unawaited(
-                          widget.playback.playTrack(
-                            sortedTracks.first,
-                            queue: sortedTracks,
-                          ),
-                        );
-                      },
+                    : () =>
+                          unawaited(widget.playback.playShuffled(sortedTracks)),
                 onQueue: sortedTracks.isEmpty
                     ? null
                     : () {
