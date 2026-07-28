@@ -2,18 +2,17 @@ import 'package:flutter/material.dart';
 
 import 'balanced_lyric_text.dart';
 
-/// Lyric line with left-to-right karaoke color fill.
+/// Lyric line with left-to-right karaoke color fill driven by [progressListenable].
 ///
-/// Uses the same break balancing as [BalancedLyricText], then clips a fully
-/// opaque fill over a softer base using the current cue progress (0–1).
-///
-/// With standard line-level LRC this approximates singing progress between
-/// consecutive timestamps; word-level enhanced LRC is not required.
-class KaraokeLyricText extends StatelessWidget {
+/// Layout (break balancing) is cached and only recomputed when text / width /
+/// style change. Position ticks only update the clip fraction so the rest of
+/// the lyrics list does not rebuild.
+class KaraokeLyricText extends StatefulWidget {
   const KaraokeLyricText(
     this.text, {
     required this.style,
-    required this.progress,
+    required this.progressListenable,
+    required this.progressOf,
     required this.fillColor,
     required this.baseColor,
     super.key,
@@ -21,34 +20,96 @@ class KaraokeLyricText extends StatelessWidget {
 
   final String text;
   final TextStyle style;
-
-  /// 0 = not started, 1 = fully filled.
-  final double progress;
+  final Listenable progressListenable;
+  final double Function() progressOf;
   final Color fillColor;
   final Color baseColor;
+
+  @override
+  State<KaraokeLyricText> createState() => _KaraokeLyricTextState();
+}
+
+class _KaraokeLyricTextState extends State<KaraokeLyricText> {
+  String? _balanced;
+  double? _layoutWidth;
+  TextStyle? _layoutStyle;
+  String? _layoutText;
+  double _progress = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _progress = widget.progressOf().clamp(0.0, 1.0);
+    widget.progressListenable.addListener(_onTick);
+  }
+
+  @override
+  void didUpdateWidget(covariant KaraokeLyricText oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.progressListenable != widget.progressListenable) {
+      oldWidget.progressListenable.removeListener(_onTick);
+      widget.progressListenable.addListener(_onTick);
+    }
+    if (oldWidget.text != widget.text ||
+        oldWidget.style != widget.style ||
+        oldWidget.fillColor != widget.fillColor ||
+        oldWidget.baseColor != widget.baseColor) {
+      _balanced = null;
+    }
+    _progress = widget.progressOf().clamp(0.0, 1.0);
+  }
+
+  @override
+  void dispose() {
+    widget.progressListenable.removeListener(_onTick);
+    super.dispose();
+  }
+
+  void _onTick() {
+    if (!mounted) return;
+    final next = widget.progressOf().clamp(0.0, 1.0);
+    // Skip sub-pixel paint storms; ~0.5% steps still look smooth.
+    if ((next - _progress).abs() < 0.005) return;
+    setState(() => _progress = next);
+  }
+
+  String _balancedFor(double maxWidth, TextScaler scaler) {
+    if (_balanced != null &&
+        _layoutWidth == maxWidth &&
+        _layoutStyle == widget.style &&
+        _layoutText == widget.text) {
+      return _balanced!;
+    }
+    final balanced = (!maxWidth.isFinite || maxWidth <= 0)
+        ? widget.text
+        : balanceLyricLineBreaks(
+            widget.text,
+            style: widget.style,
+            maxWidth: maxWidth,
+            textScaler: scaler,
+          );
+    _balanced = balanced;
+    _layoutWidth = maxWidth;
+    _layoutStyle = widget.style;
+    _layoutText = widget.text;
+    return balanced;
+  }
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final maxWidth = constraints.maxWidth;
-        final scaler = MediaQuery.textScalerOf(context);
-        final balanced = (!maxWidth.isFinite || maxWidth <= 0)
-            ? text
-            : balanceLyricLineBreaks(
-                text,
-                style: style,
-                maxWidth: maxWidth,
-                textScaler: scaler,
-              );
-        final clamped = progress.clamp(0.0, 1.0);
-        final baseStyle = style.copyWith(color: baseColor);
-        final fillStyle = style.copyWith(color: fillColor);
-        // When nearly full / empty, skip the stack for cheaper paints.
-        if (clamped <= 0.001) {
+        final balanced = _balancedFor(
+          constraints.maxWidth,
+          MediaQuery.textScalerOf(context),
+        );
+        final baseStyle = widget.style.copyWith(color: widget.baseColor);
+        final fillStyle = widget.style.copyWith(color: widget.fillColor);
+        final p = _progress;
+        if (p <= 0.001) {
           return Text(balanced, style: baseStyle);
         }
-        if (clamped >= 0.999) {
+        if (p >= 0.999) {
           return Text(balanced, style: fillStyle);
         }
         return Stack(
@@ -56,7 +117,7 @@ class KaraokeLyricText extends StatelessWidget {
           children: [
             Text(balanced, style: baseStyle),
             ClipRect(
-              clipper: _LeadingFractionClipper(clamped),
+              clipper: _LeadingFractionClipper(p),
               child: Text(balanced, style: fillStyle),
             ),
           ],

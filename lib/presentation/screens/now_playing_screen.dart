@@ -525,17 +525,15 @@ class _WideNowPlayingPane extends StatelessWidget {
           child: IndexedStack(
             index: view.index,
             children: [
-              AnimatedBuilder(
+              _LyricsPanel(
                 key: const ValueKey('wide-lyrics-panel'),
-                animation: playback.positionListenable,
-                builder: (context, _) => _LyricsPanel(
-                  track: track,
-                  position: playback.displayPosition,
-                  discontinuityRevision:
-                      playback.positionDiscontinuityRevision,
-                  onSeek: playback.seek,
-                  verticalControls: true,
-                ),
+                track: track,
+                positionListenable: playback.positionListenable,
+                positionOf: () => playback.displayPosition,
+                discontinuityRevision:
+                    playback.positionDiscontinuityRevision,
+                onSeek: playback.seek,
+                verticalControls: true,
               ),
               PlaybackQueuePanel(
                 key: const ValueKey('wide-playback-queue'),
@@ -1315,16 +1313,14 @@ class _CompactLyricsPlayer extends StatelessWidget {
             child: ConstrainedBox(
               key: const ValueKey('compact-lyrics-region'),
               constraints: const BoxConstraints(maxHeight: 392),
-              child: AnimatedBuilder(
-                animation: playback.positionListenable,
-                builder: (context, _) => _LyricsPanel(
-                  track: track,
-                  position: playback.displayPosition,
-                  discontinuityRevision:
-                      playback.positionDiscontinuityRevision,
-                  onSeek: playback.seek,
-                  compact: true,
-                ),
+              child: _LyricsPanel(
+                track: track,
+                positionListenable: playback.positionListenable,
+                positionOf: () => playback.displayPosition,
+                discontinuityRevision:
+                    playback.positionDiscontinuityRevision,
+                onSeek: playback.seek,
+                compact: true,
               ),
             ),
           ),
@@ -1745,7 +1741,8 @@ TextStyle _timeStyle(BuildContext context) => TextStyle(
 class _LyricsPanel extends StatefulWidget {
   const _LyricsPanel({
     required this.track,
-    required this.position,
+    required this.positionListenable,
+    required this.positionOf,
     required this.discontinuityRevision,
     required this.onSeek,
     this.compact = false,
@@ -1754,7 +1751,12 @@ class _LyricsPanel extends StatefulWidget {
   });
 
   final Track track;
-  final Duration position;
+
+  /// High-frequency clock ticks. The panel only [setState]s when the active
+  /// **cue** changes; karaoke fill listens separately so 20–60 Hz position
+  /// updates never rebuild the full line list.
+  final Listenable positionListenable;
+  final Duration Function() positionOf;
   final int discontinuityRevision;
   final Future<void> Function(Duration position) onSeek;
   final bool compact;
@@ -1773,55 +1775,99 @@ class _LyricsPanelState extends State<_LyricsPanel> {
   late List<GlobalKey> _lineKeys;
   late LyricsTimeline _timeline;
   Duration _offset = Duration.zero;
-  int? _lastActiveIndex;
+  int? _activeIndex;
+  int? _lastFollowedCue;
   bool _snapNextFollow = false;
   bool _showingPreamble = true;
   bool _autoFollowPaused = false;
   Timer? _manualScrollTimer;
+  Duration _lastPositionSample = Duration.zero;
 
   Track get track => widget.track;
+  Duration get _position => widget.positionOf();
 
   @override
   void initState() {
     super.initState();
     _lineKeys = _keysFor(track.lyrics.length);
     _timeline = LyricsTimeline.forTrack(track);
+    _lastPositionSample = _position;
+    _activeIndex = _timeline.isSynchronized
+        ? _timeline.activeLineIndex(_position, offset: _offset)
+        : null;
+    widget.positionListenable.addListener(_onPositionTick);
   }
 
   @override
   void didUpdateWidget(covariant _LyricsPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (oldWidget.positionListenable != widget.positionListenable) {
+      oldWidget.positionListenable.removeListener(_onPositionTick);
+      widget.positionListenable.addListener(_onPositionTick);
+    }
     if (oldWidget.track.id != track.id) {
       _manualScrollTimer?.cancel();
       _offset = Duration.zero;
-      _lastActiveIndex = null;
+      _activeIndex = null;
+      _lastFollowedCue = null;
       _snapNextFollow = false;
       _showingPreamble = true;
       _autoFollowPaused = false;
       _lineKeys = _keysFor(track.lyrics.length);
       _timeline = LyricsTimeline.forTrack(track);
+      _lastPositionSample = _position;
       if (_scrollController.hasClients) _scrollController.jumpTo(0);
+      _activeIndex = _timeline.isSynchronized
+          ? _timeline.activeLineIndex(_position, offset: _offset)
+          : null;
     } else if (!identical(oldWidget.track.lyrics, track.lyrics)) {
       _lineKeys = _keysFor(track.lyrics.length);
       _timeline = LyricsTimeline.forTrack(track);
-      _lastActiveIndex = null;
+      _lastFollowedCue = null;
+      _activeIndex = _timeline.isSynchronized
+          ? _timeline.activeLineIndex(_position, offset: _offset)
+          : null;
     } else if (widget.discontinuityRevision !=
-            oldWidget.discontinuityRevision ||
-        widget.position + const Duration(milliseconds: 500) <
-            oldWidget.position) {
+        oldWidget.discontinuityRevision) {
       // Seeks and repeat-one wraps cancel any old follow animation.
       _manualScrollTimer?.cancel();
       _autoFollowPaused = false;
       _snapNextFollow = true;
-      _lastActiveIndex = null;
+      _lastFollowedCue = null;
+      _syncActiveFromClock(forceFollow: true);
     }
   }
 
   @override
   void dispose() {
+    widget.positionListenable.removeListener(_onPositionTick);
     _manualScrollTimer?.cancel();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _onPositionTick() {
+    if (!mounted) return;
+    final now = _position;
+    // Large backward jump without discontinuity revision (edge engines).
+    if (now + const Duration(milliseconds: 500) < _lastPositionSample) {
+      _snapNextFollow = true;
+      _lastFollowedCue = null;
+    }
+    _lastPositionSample = now;
+    _syncActiveFromClock();
+  }
+
+  void _syncActiveFromClock({bool forceFollow = false}) {
+    if (!_timeline.isSynchronized) return;
+    final next = _timeline.activeLineIndex(_position, offset: _offset);
+    if (next == _activeIndex && !forceFollow) return;
+    setState(() => _activeIndex = next);
+    if (next != null) {
+      _followActiveLine(next);
+    } else {
+      _followPreamble();
+    }
   }
 
   List<GlobalKey> _keysFor(int length) =>
@@ -1829,11 +1875,11 @@ class _LyricsPanelState extends State<_LyricsPanel> {
 
   void _followActiveLine(int active) {
     final cueStart = _timeline.cueStartIndex(active);
-    if (_autoFollowPaused || _lastActiveIndex == cueStart) return;
+    if (_autoFollowPaused || _lastFollowedCue == cueStart) return;
     _showingPreamble = false;
     final snap = _snapNextFollow;
     _snapNextFollow = false;
-    _lastActiveIndex = cueStart;
+    _lastFollowedCue = cueStart;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || _autoFollowPaused || cueStart >= _lineKeys.length) {
         return;
@@ -1852,7 +1898,7 @@ class _LyricsPanelState extends State<_LyricsPanel> {
   void _followPreamble() {
     if (_autoFollowPaused || _showingPreamble) return;
     _showingPreamble = true;
-    _lastActiveIndex = null;
+    _lastFollowedCue = null;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !_scrollController.hasClients) return;
       _scrollController.jumpTo(0);
@@ -1883,17 +1929,18 @@ class _LyricsPanelState extends State<_LyricsPanel> {
     setState(() {
       _autoFollowPaused = false;
       _snapNextFollow = true;
-      _lastActiveIndex = null;
+      _lastFollowedCue = null;
     });
   }
 
   void _changeOffset(Duration delta) {
     setState(() {
       _offset += delta;
-      _lastActiveIndex = null;
+      _lastFollowedCue = null;
       _showingPreamble = false;
       _snapNextFollow = true;
     });
+    _syncActiveFromClock(forceFollow: true);
   }
 
   String get _offsetLabel {
@@ -1912,7 +1959,7 @@ class _LyricsPanelState extends State<_LyricsPanel> {
       case _LyricsMenuAction.reset:
         setState(() {
           _offset = Duration.zero;
-          _lastActiveIndex = null;
+          _lastFollowedCue = null;
           _snapNextFollow = true;
         });
         return;
@@ -2006,7 +2053,7 @@ class _LyricsPanelState extends State<_LyricsPanel> {
                   ? null
                   : () => setState(() {
                       _offset = Duration.zero;
-                      _lastActiveIndex = null;
+                      _lastFollowedCue = null;
                       _snapNextFollow = true;
                     }),
               child: Text(
@@ -2110,18 +2157,16 @@ class _LyricsPanelState extends State<_LyricsPanel> {
         );
         // Line-level LRC: fill from this cue to the next (karaoke wipe).
         final karaoke = isActive && synchronized;
-        final progress = karaoke
-            ? _timeline.cueProgress(
-                widget.position,
-                lineIndex: index,
-                offset: _offset,
-              )
-            : 0.0;
         final text = karaoke
             ? KaraokeLyricText(
                 line.text,
                 style: style,
-                progress: progress,
+                progressListenable: widget.positionListenable,
+                progressOf: () => _timeline.cueProgress(
+                  widget.positionOf(),
+                  lineIndex: index,
+                  offset: _offset,
+                ),
                 fillColor: primary,
                 baseColor: primary.withValues(alpha: 0.34),
               )
@@ -2171,14 +2216,7 @@ class _LyricsPanelState extends State<_LyricsPanel> {
       );
     }
     final synchronized = _timeline.isSynchronized;
-    final active = synchronized
-        ? _timeline.activeLineIndex(widget.position, offset: _offset)
-        : null;
-    if (active != null) {
-      _followActiveLine(active);
-    } else if (synchronized) {
-      _followPreamble();
-    }
+    final active = _activeIndex;
     if (widget.verticalControls) {
       return Stack(
         fit: StackFit.expand,
@@ -2253,7 +2291,7 @@ class _LyricsPanelState extends State<_LyricsPanel> {
                       ? null
                       : () => setState(() {
                           _offset = Duration.zero;
-                          _lastActiveIndex = null;
+                          _lastFollowedCue = null;
                           _snapNextFollow = true;
                         }),
                   child: Text(
