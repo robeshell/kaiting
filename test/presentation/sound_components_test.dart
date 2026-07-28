@@ -6,6 +6,36 @@ import 'package:kaiting/core/sound_theme.dart';
 import 'package:kaiting/presentation/widgets/sound_components.dart';
 
 void main() {
+  test('iOS mobile surfaces avoid live backdrop filtering', () {
+    expect(
+      soundBackdropBlurEnabled(
+        requested: true,
+        usesMobileShell: true,
+        platform: TargetPlatform.iOS,
+        isWeb: false,
+      ),
+      isFalse,
+    );
+    expect(
+      soundBackdropBlurEnabled(
+        requested: true,
+        usesMobileShell: false,
+        platform: TargetPlatform.iOS,
+        isWeb: false,
+      ),
+      isTrue,
+    );
+    expect(
+      soundBackdropBlurEnabled(
+        requested: true,
+        usesMobileShell: true,
+        platform: TargetPlatform.android,
+        isWeb: false,
+      ),
+      isTrue,
+    );
+  });
+
   testWidgets('Sound menus use a custom bottom sheet in compact windows', (
     tester,
   ) async {

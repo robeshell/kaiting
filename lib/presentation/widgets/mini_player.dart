@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/sound_theme.dart';
@@ -166,6 +167,15 @@ class _NowPlayingArtworkWarmupState extends State<_NowPlayingArtworkWarmup> {
 
   void _scheduleWarmup() {
     final media = MediaQuery.of(context);
+    if (!kIsWeb &&
+        defaultTargetPlatform == TargetPlatform.iOS &&
+        context.soundUsesMobileShell) {
+      // On iPhone, pre-decoding the mini tile, two hero sizes, and the palette
+      // at once competes with taps, keyboard animation, and player expansion.
+      // Visible artwork remains demand-loaded at its exact layout size.
+      _generation++;
+      return;
+    }
     final brightness = Theme.of(context).brightness;
     final dpr = media.devicePixelRatio;
     // Mini tile + now-playing hero sizes so the first open does not re-decode.
@@ -429,10 +439,7 @@ class _DockedMiniPlayer extends StatelessWidget {
             Positioned.fill(
               child: Align(
                 alignment: const Alignment(0, 0.12),
-                child: _TransportControls(
-                  playback: playback,
-                  visual: visual,
-                ),
+                child: _TransportControls(playback: playback, visual: visual),
               ),
             ),
             // Top progress is active-only and flush to the bar edge.
@@ -510,10 +517,7 @@ class _CondensedMiniPlayer extends StatelessWidget {
                   padding: compact
                       ? const EdgeInsets.all(6)
                       : foldableEmbedded
-                      ? const EdgeInsets.symmetric(
-                          horizontal: 8,
-                          vertical: 5,
-                        )
+                      ? const EdgeInsets.symmetric(horizontal: 8, vertical: 5)
                       : EdgeInsets.all(availableWidth < 800 ? 8 : 14),
                   child: Row(
                     children: [
@@ -541,10 +545,7 @@ class _CondensedMiniPlayer extends StatelessWidget {
                         // Match now-playing: loading uses a spinner, not hourglass.
                         busy: visual.busy && !visual.primaryEnabled,
                         prominent: true,
-                        size: _miniPrimaryIconSize(
-                          visual,
-                          compact: compact,
-                        ),
+                        size: _miniPrimaryIconSize(visual, compact: compact),
                         opticalOffset: _miniPrimaryOpticalOffset(visual),
                       ),
                       if (compact) const SizedBox(width: 6),
@@ -654,10 +655,7 @@ class _TrackIdentity extends StatelessWidget {
 }
 
 class _TransportControls extends StatelessWidget {
-  const _TransportControls({
-    required this.playback,
-    required this.visual,
-  });
+  const _TransportControls({required this.playback, required this.visual});
 
   final SoundPlaybackController playback;
   final PlaybackVisualState visual;
@@ -715,8 +713,8 @@ double _miniPrimaryIconSize(
     PlaybackPrimaryVisual.play => compact ? 24 : 28,
     // Two solid pause bars carry more visual mass than the play triangle.
     PlaybackPrimaryVisual.pause => compact ? 20 : 23,
-    PlaybackPrimaryVisual.replay || PlaybackPrimaryVisual.retry =>
-      compact ? 20 : 22,
+    PlaybackPrimaryVisual.replay ||
+    PlaybackPrimaryVisual.retry => compact ? 20 : 22,
     PlaybackPrimaryVisual.none => compact ? 18 : 20,
   };
 }
@@ -811,9 +809,7 @@ class _MiniIconButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final enabled = onTap != null;
     final foreground = prominent
-        ? SoundColors.accent.withValues(
-            alpha: enabled || busy ? 0.96 : 0.38,
-          )
+        ? SoundColors.accent.withValues(alpha: enabled || busy ? 0.96 : 0.38)
         : color ??
               context.soundPrimaryText.withValues(
                 alpha: enabled || busy ? 0.84 : 0.38,

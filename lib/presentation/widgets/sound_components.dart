@@ -8,6 +8,21 @@ import 'package:flutter/services.dart';
 import '../../core/sound_theme.dart';
 import '../../core/brand_tokens.g.dart';
 
+@visibleForTesting
+bool soundBackdropBlurEnabled({
+  required bool requested,
+  required bool usesMobileShell,
+  TargetPlatform? platform,
+  bool isWeb = kIsWeb,
+}) {
+  final target = platform ?? defaultTargetPlatform;
+  // A live backdrop filter is especially costly while iOS animates routes or
+  // resizes the view for the keyboard. The translucent fill remains, so phone
+  // surfaces keep the same hierarchy without repeatedly filtering the scene.
+  return requested &&
+      (isWeb || target != TargetPlatform.iOS || !usesMobileShell);
+}
+
 /// Shared translucent surface used by the application shell and overlays.
 ///
 /// Backdrop blur is intentionally optional: floating surfaces use it, while
@@ -45,6 +60,10 @@ class SoundGlassSurface extends StatelessWidget {
   Widget build(BuildContext context) {
     final glass = context.soundGlass;
     final effects = context.soundSkinEffects;
+    final useBackdropBlur = soundBackdropBlurEnabled(
+      requested: blur,
+      usesMobileShell: context.soundUsesMobileShell,
+    );
     final surface = DecoratedBox(
       decoration: BoxDecoration(
         color: color ?? (strong ? glass.strongSurface : glass.surface),
@@ -55,7 +74,7 @@ class SoundGlassSurface extends StatelessWidget {
     );
     final clipped = ClipRRect(
       borderRadius: borderRadius,
-      child: blur
+      child: useBackdropBlur
           ? BackdropFilter(
               filter: ImageFilter.blur(
                 sigmaX: strong ? glass.strongBlur : glass.blur,
@@ -1371,9 +1390,7 @@ class SoundCheckRow extends StatelessWidget {
         selected: value,
         onTap: enabled ? () => onChanged(!value) : null,
         leading: Icon(
-          value
-              ? KaitingIcons.checkboxChecked
-              : KaitingIcons.checkbox,
+          value ? KaitingIcons.checkboxChecked : KaitingIcons.checkbox,
           size: 20,
           color: value ? SoundColors.accent : context.soundMutedText,
         ),
