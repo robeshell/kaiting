@@ -1267,7 +1267,7 @@ class _AppShellState extends State<AppShell>
           },
         ),
       ),
-    ).withPlaybackShortcuts(widget.playback);
+    );
   }
 
   @override
@@ -1553,39 +1553,6 @@ String _failureActionLabel(AppFailureAction action) => switch (action) {
   AppFailureAction.manageStorage => '管理空间',
   AppFailureAction.none => '知道了',
 };
-
-extension _PlaybackShortcutWrapper on Widget {
-  Widget withPlaybackShortcuts(SoundPlaybackController playback) {
-    return CallbackShortcuts(
-      bindings: {
-        const _PlaybackSpaceActivator(): () => unawaited(playback.toggle()),
-        const SingleActivator(LogicalKeyboardKey.mediaPlayPause): () =>
-            unawaited(playback.toggle()),
-        const SingleActivator(LogicalKeyboardKey.mediaTrackNext): () =>
-            unawaited(playback.next()),
-        const SingleActivator(LogicalKeyboardKey.mediaTrackPrevious): () =>
-            unawaited(playback.previous()),
-      },
-      child: this,
-    );
-  }
-}
-
-class _PlaybackSpaceActivator extends ShortcutActivator {
-  const _PlaybackSpaceActivator();
-
-  static const _space = SingleActivator(LogicalKeyboardKey.space);
-
-  @override
-  Iterable<LogicalKeyboardKey> get triggers => const [LogicalKeyboardKey.space];
-
-  @override
-  bool accepts(KeyEvent event, HardwareKeyboard state) =>
-      _space.accepts(event, state) && !_isTextEditingFocusActive();
-
-  @override
-  String debugDescribeKeys() => 'Space outside text input';
-}
 
 bool _isTextEditingFocusActive() {
   final focusContext = FocusManager.instance.primaryFocus?.context;

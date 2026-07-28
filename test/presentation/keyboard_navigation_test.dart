@@ -100,6 +100,27 @@ void main() {
     await tester.tap(find.text('Second Track').last);
     await tester.pumpAndSettle();
     expect(find.byType(NowPlayingScreen), findsOneWidget);
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    await tester.pump();
+    expect(engine.current.isPlaying, isTrue);
+    await tester.sendKeyEvent(LogicalKeyboardKey.space);
+    await tester.pump();
+    expect(engine.current.isPlaying, isFalse);
+
+    await _sendPrimaryShortcut(tester, LogicalKeyboardKey.arrowLeft);
+    expect(engine.current.track?.id, _firstTrack.id);
+    await _sendPrimaryShortcut(tester, LogicalKeyboardKey.arrowRight);
+    expect(engine.current.track?.id, _secondTrack.id);
+
+    final playingBeforeMediaKey = engine.current.isPlaying;
+    await tester.sendKeyEvent(LogicalKeyboardKey.mediaPlayPause);
+    await tester.pump();
+    expect(engine.current.isPlaying, !playingBeforeMediaKey);
+    await tester.sendKeyEvent(LogicalKeyboardKey.mediaPlayPause);
+    await tester.pump();
+    expect(engine.current.isPlaying, playingBeforeMediaKey);
+
     await tester.sendKeyEvent(LogicalKeyboardKey.escape);
     await tester.pumpAndSettle();
     expect(find.byType(NowPlayingScreen), findsNothing);

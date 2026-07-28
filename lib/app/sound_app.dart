@@ -18,6 +18,7 @@ import '../playback/playback_media_provider.dart';
 import '../playback/playback_session.dart';
 import '../playback/sound_audio_handler.dart';
 import '../presentation/app_shell.dart';
+import '../presentation/widgets/playback_keyboard_shortcuts.dart';
 import '../presentation/controllers/library_catalog_controller.dart';
 import '../sources/webdav/webdav_cache.dart';
 import 'kaiting_launch_screen.dart';
@@ -471,20 +472,28 @@ class _SoundAppState extends State<SoundApp> with WidgetsBindingObserver {
       theme: SoundTheme.forSkin(_skinPreset),
       themeAnimationDuration: const Duration(milliseconds: 220),
       themeAnimationCurve: Curves.easeOutCubic,
-      builder: (context, child) => AnnotatedRegion<SystemUiOverlayStyle>(
-        value: (dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark)
-            .copyWith(
-              statusBarColor: Colors.transparent,
-              systemNavigationBarColor: Colors.transparent,
-              systemNavigationBarDividerColor: Colors.transparent,
-              systemStatusBarContrastEnforced: false,
-              systemNavigationBarContrastEnforced: false,
-            ),
-        child: AppFailureOverlayHost(
+      builder: (context, child) {
+        final appContent = AppFailureOverlayHost(
           controller: _failureOverlayController,
           child: child ?? const SizedBox.shrink(),
-        ),
-      ),
+        );
+        return AnnotatedRegion<SystemUiOverlayStyle>(
+          value: (dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark)
+              .copyWith(
+                statusBarColor: Colors.transparent,
+                systemNavigationBarColor: Colors.transparent,
+                systemNavigationBarDividerColor: Colors.transparent,
+                systemStatusBarContrastEnforced: false,
+                systemNavigationBarContrastEnforced: false,
+              ),
+          child: playback == null
+              ? appContent
+              : PlaybackKeyboardShortcuts(
+                  playback: playback,
+                  child: appContent,
+                ),
+        );
+      },
       home: playback == null
           ? const KaitingLaunchScreen()
           : AppShell(
