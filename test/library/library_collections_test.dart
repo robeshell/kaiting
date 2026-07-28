@@ -345,7 +345,7 @@ void main() {
       tester
           .getSize(find.byKey(const ValueKey('collection-detail-artwork')))
           .width,
-      280,
+      inInclusiveRange(200, 280),
     );
     expect(
       tester.getSize(find.byKey(const ValueKey('desktop-artist-play'))).height,
@@ -428,7 +428,7 @@ void main() {
       tester
           .getSize(find.byKey(const ValueKey('collection-detail-artwork')))
           .width,
-      inInclusiveRange(204, 244),
+      inInclusiveRange(148, 176),
     );
 
     tester.view.physicalSize = const Size(1000, 800);

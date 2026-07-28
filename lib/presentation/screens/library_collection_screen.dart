@@ -646,12 +646,13 @@ class _CollectionHero extends StatelessWidget {
             ),
           ],
         );
+        // Genre / fallback hero; artist immersive layouts size below.
         final artSize = compact ? 156.0 : 220.0;
         final artwork = collection.kind == LibraryCollectionKind.artist
             ? ArtistAvatar(
                 key: const ValueKey('collection-detail-artwork'),
                 collection: collection,
-                size: artSize,
+                size: compact ? 132.0 : 176.0,
               )
             : collection.albums.isEmpty
             ? SizedBox.square(dimension: artSize)
@@ -715,8 +716,9 @@ class _CollectionHero extends StatelessWidget {
 
   Widget _buildCompactArtist(BuildContext context, BoxConstraints constraints) {
     final palette = pagePalette!;
-    final artworkSize = (constraints.maxWidth * 0.59)
-        .clamp(204.0, 244.0)
+    // One step smaller than album heroes — avatar, not full sleeve.
+    final artworkSize = (constraints.maxWidth * 0.42)
+        .clamp(148.0, 176.0)
         .toDouble();
     final artworkCacheExtent = quantizedArtworkCacheExtent(
       (constraints.maxWidth - context.soundPageGutter * 2 - 12) / 2,
@@ -817,8 +819,8 @@ class _CollectionHero extends StatelessWidget {
   }
 
   Widget _buildDesktopArtist(BuildContext context, BoxConstraints constraints) {
-    final artworkSize = (constraints.maxWidth * 0.36)
-        .clamp(280.0, 420.0)
+    final artworkSize = (constraints.maxWidth * 0.26)
+        .clamp(200.0, 280.0)
         .toDouble();
     final buttonWidth = constraints.maxWidth >= 1040 ? 146.0 : 132.0;
     final horizontalGap = constraints.maxWidth >= 1000 ? 48.0 : 32.0;
