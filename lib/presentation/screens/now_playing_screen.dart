@@ -14,6 +14,7 @@ import '../../domain/library_models.dart';
 import '../../playback/playback_controller.dart';
 import '../../playback/playback_mode.dart';
 import '../../playback/lyrics_timeline.dart';
+import '../../playback/sleep_timer_controller.dart';
 import '../controllers/library_user_state_controller.dart';
 import '../widgets/add_to_playlist_sheet.dart';
 import '../widgets/album_art.dart';
@@ -37,6 +38,7 @@ class NowPlayingScreen extends StatelessWidget {
   const NowPlayingScreen({
     required this.playback,
     this.userState,
+    this.sleepTimer,
     this.style = NowPlayingStyle.classic,
     this.openLyricsByDefault = false,
     this.isActive = true,
@@ -52,6 +54,7 @@ class NowPlayingScreen extends StatelessWidget {
 
   final SoundPlaybackController playback;
   final LibraryUserStateController? userState;
+  final SleepTimerController? sleepTimer;
   final NowPlayingStyle style;
 
   /// When true, the compact layout opens on the lyrics pane.
@@ -97,7 +100,7 @@ class NowPlayingScreen extends StatelessWidget {
       // player subtree, which makes artwork and the gradient flash for a frame.
       child: AnimatedBuilder(
         animation: isActive
-            ? Listenable.merge([playback, ?userState])
+            ? Listenable.merge([playback, ?userState, ?sleepTimer])
             : const _SilentListenable(),
         builder: (context, _) => _buildPlayer(context),
       ),
@@ -194,6 +197,7 @@ class NowPlayingScreen extends StatelessWidget {
                           album: album,
                           track: track,
                           playback: playback,
+                          sleepTimer: sleepTimer,
                           userState: userState,
                           style: style,
                           openLyricsByDefault: openLyricsByDefault,
@@ -210,6 +214,7 @@ class NowPlayingScreen extends StatelessWidget {
                         album: album,
                         track: track,
                         playback: playback,
+                        sleepTimer: sleepTimer,
                         userState: userState,
                         style: style,
                         isActive: isActive,
@@ -320,6 +325,7 @@ class _WideNowPlaying extends StatefulWidget {
     required this.track,
     required this.playback,
     required this.style,
+    this.sleepTimer,
     this.userState,
     this.isActive = true,
     this.onOpenAlbum,
@@ -329,6 +335,7 @@ class _WideNowPlaying extends StatefulWidget {
   final Album album;
   final Track track;
   final SoundPlaybackController playback;
+  final SleepTimerController? sleepTimer;
   final NowPlayingStyle style;
   final LibraryUserStateController? userState;
   final bool isActive;
@@ -420,6 +427,7 @@ class _WideNowPlayingState extends State<_WideNowPlaying> {
                               album: widget.album,
                               track: widget.track,
                               playback: widget.playback,
+                              sleepTimer: widget.sleepTimer,
                               style: widget.style,
                               userState: widget.userState,
                               isActive: widget.isActive,
@@ -632,6 +640,7 @@ class _CompactNowPlaying extends StatefulWidget {
     required this.track,
     required this.playback,
     required this.style,
+    this.sleepTimer,
     this.openLyricsByDefault = false,
     this.userState,
     this.isActive = true,
@@ -646,6 +655,7 @@ class _CompactNowPlaying extends StatefulWidget {
   final Album album;
   final Track track;
   final SoundPlaybackController playback;
+  final SleepTimerController? sleepTimer;
   final NowPlayingStyle style;
   final bool openLyricsByDefault;
   final LibraryUserStateController? userState;
@@ -777,6 +787,7 @@ class _CompactNowPlayingState extends State<_CompactNowPlaying> {
               album: widget.album,
               track: widget.track,
               playback: widget.playback,
+              sleepTimer: widget.sleepTimer,
               userState: widget.userState,
               onToggleLyrics: () => setState(() => _showLyrics = false),
               onOpenAlbum: widget.onOpenAlbum,
@@ -816,6 +827,7 @@ class _CompactNowPlayingState extends State<_CompactNowPlaying> {
                         album: widget.album,
                         track: widget.track,
                         playback: widget.playback,
+                        sleepTimer: widget.sleepTimer,
                         style: widget.style,
                         onOpenAlbum: widget.onOpenAlbum,
                         onOpenArtist: widget.onOpenArtist,
@@ -843,6 +855,7 @@ class _PlayerColumn extends StatelessWidget {
     required this.track,
     required this.playback,
     required this.style,
+    this.sleepTimer,
     this.userState,
     this.isActive = true,
     this.artSize,
@@ -855,6 +868,7 @@ class _PlayerColumn extends StatelessWidget {
   final Album album;
   final Track track;
   final SoundPlaybackController playback;
+  final SleepTimerController? sleepTimer;
   final NowPlayingStyle style;
   final LibraryUserStateController? userState;
   final bool isActive;
@@ -963,6 +977,7 @@ class _PlayerColumn extends StatelessWidget {
               ? const ValueKey('compact-cover-playback-controls')
               : null,
           playback: playback,
+          sleepTimer: sleepTimer,
         ),
         if (compactLayout) ...[
           const SizedBox(height: 24),
@@ -1107,6 +1122,7 @@ class _CompactLyricsPlayer extends StatelessWidget {
     required this.playback,
     required this.userState,
     required this.onToggleLyrics,
+    this.sleepTimer,
     this.onOpenAlbum,
     this.onOpenArtist,
     required this.onVerticalDragStart,
@@ -1119,6 +1135,7 @@ class _CompactLyricsPlayer extends StatelessWidget {
   final Album album;
   final Track track;
   final SoundPlaybackController playback;
+  final SleepTimerController? sleepTimer;
   final LibraryUserStateController? userState;
   final VoidCallback onToggleLyrics;
   final ValueChanged<Album>? onOpenAlbum;
@@ -1213,6 +1230,7 @@ class _CompactLyricsPlayer extends StatelessWidget {
           _PlaybackTimelineAndControls(
             key: const ValueKey('compact-lyrics-playback-controls'),
             playback: playback,
+            sleepTimer: sleepTimer,
           ),
           const SizedBox(height: 24),
           _NowPlayingActions(
@@ -1230,9 +1248,110 @@ class _CompactLyricsPlayer extends StatelessWidget {
 }
 
 class _PlaybackTimelineAndControls extends StatelessWidget {
-  const _PlaybackTimelineAndControls({required this.playback, super.key});
+  const _PlaybackTimelineAndControls({
+    required this.playback,
+    this.sleepTimer,
+    super.key,
+  });
 
   final SoundPlaybackController playback;
+  final SleepTimerController? sleepTimer;
+
+  void _cycleMode(BuildContext context) {
+    playback.cycleCombinedPlaybackMode();
+    showSoundSnackBar(context, playback.playbackMode.label);
+  }
+
+  Future<void> _openSleepTimer(BuildContext context) async {
+    final timer = sleepTimer;
+    if (timer == null) {
+      showSoundSnackBar(context, '睡眠定时暂不可用');
+      return;
+    }
+    await showSoundBottomSheet<void>(
+      context,
+      maxWidth: 420,
+      builder: (sheetContext) {
+        return AnimatedBuilder(
+          animation: timer,
+          builder: (context, _) {
+            return SafeArea(
+              top: false,
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      '睡眠定时',
+                      style: TextStyle(
+                        color: context.soundPrimaryText,
+                        fontSize: 18,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: -0.25,
+                      ),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      timer.isActive
+                          ? '当前：${_sleepTimerStatusLabel(timer)}'
+                          : '到时后自动暂停播放',
+                      style: TextStyle(
+                        color: context.soundSecondaryText,
+                        fontSize: 12.5,
+                      ),
+                    ),
+                    const SizedBox(height: 14),
+                    for (final minutes in const [15, 30, 45, 60])
+                      ListTile(
+                        key: ValueKey('now-playing-sleep-timer-$minutes'),
+                        contentPadding: EdgeInsets.zero,
+                        title: Text('$minutes 分钟'),
+                        onTap: () {
+                          timer.start(Duration(minutes: minutes));
+                          Navigator.pop(sheetContext);
+                          showSoundSnackBar(context, '已设置 $minutes 分钟后暂停');
+                        },
+                      ),
+                    ListTile(
+                      key: const ValueKey(
+                        'now-playing-sleep-timer-end-of-track',
+                      ),
+                      contentPadding: EdgeInsets.zero,
+                      enabled: playback.displayTrack != null,
+                      title: const Text('播完当前歌曲'),
+                      onTap: playback.displayTrack == null
+                          ? null
+                          : () {
+                              timer.stopAfterCurrentTrack();
+                              Navigator.pop(sheetContext);
+                              showSoundSnackBar(context, '将在本曲结束后暂停');
+                            },
+                    ),
+                    if (timer.isActive)
+                      ListTile(
+                        key: const ValueKey('now-playing-sleep-timer-cancel'),
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(
+                          '关闭睡眠定时',
+                          style: TextStyle(color: context.soundColors.error),
+                        ),
+                        onTap: () {
+                          timer.cancel();
+                          Navigator.pop(sheetContext);
+                          showSoundSnackBar(context, '已关闭睡眠定时');
+                        },
+                      ),
+                  ],
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1246,6 +1365,9 @@ class _PlaybackTimelineAndControls extends StatelessWidget {
     final remainingLabel = duration > Duration.zero
         ? '-${formatDuration(remaining.isNegative ? Duration.zero : remaining)}'
         : '0:00';
+    final mode = playback.playbackMode;
+    final modeActive = mode != PlaybackMode.sequential;
+    final timerActive = sleepTimer?.isActive ?? false;
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -1266,11 +1388,11 @@ class _PlaybackTimelineAndControls extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
           children: [
             IconButton(
-              onPressed: playback.toggleShuffle,
-              tooltip: PlaybackMode.shuffle.label,
-              icon: const Icon(Icons.shuffle_rounded),
-              // Shuffle is independent of list-loop; light only the shuffle axis.
-              color: playback.isShuffleEnabled ? SoundColors.accent : null,
+              key: const ValueKey('now-playing-mode-cycle'),
+              onPressed: () => _cycleMode(context),
+              tooltip: mode.label,
+              icon: Icon(mode.icon),
+              color: modeActive ? SoundColors.accent : null,
             ),
             IconButton(
               onPressed: playback.previous,
@@ -1302,23 +1424,36 @@ class _PlaybackTimelineAndControls extends StatelessWidget {
               iconSize: 34,
             ),
             IconButton(
-              onPressed: playback.cycleRepeatMode,
-              tooltip: playback.repeatMode.label,
+              key: const ValueKey('now-playing-sleep-timer'),
+              onPressed: () => unawaited(_openSleepTimer(context)),
+              tooltip: timerActive
+                  ? '睡眠定时：${_sleepTimerStatusLabel(sleepTimer!)}'
+                  : '睡眠定时',
               icon: Icon(
-                playback.repeatMode == PlaybackRepeatMode.one
-                    ? Icons.repeat_one_rounded
-                    : Icons.repeat_rounded,
+                timerActive ? Icons.timer_rounded : Icons.timer_outlined,
               ),
-              // Repeat icon reflects list-loop even while shuffle is on.
-              color: playback.repeatMode != PlaybackRepeatMode.off
-                  ? SoundColors.accent
-                  : null,
+              color: timerActive ? SoundColors.accent : null,
             ),
           ],
         ),
       ],
     );
   }
+}
+
+String _sleepTimerStatusLabel(SleepTimerController timer) {
+  return switch (timer.mode) {
+    SleepTimerMode.off => '关闭',
+    SleepTimerMode.endOfTrack => '播完当前歌曲',
+    SleepTimerMode.duration => () {
+      final minutes = timer.remaining.inMinutes;
+      final seconds = timer.remaining.inSeconds
+          .remainder(60)
+          .toString()
+          .padLeft(2, '0');
+      return '$minutes:$seconds';
+    }(),
+  };
 }
 
 class _NowPlayingActions extends StatelessWidget {

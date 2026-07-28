@@ -16,13 +16,12 @@ import '../../playback/playback_mode.dart';
 import '../../playback/sleep_timer_controller.dart';
 import '../../sources/local/local_source_service.dart';
 import '../../sources/webdav/webdav_connection_service.dart';
-import '../controllers/app_diagnostics_controller.dart';
 import '../controllers/offline_download_controller.dart';
 import '../widgets/settings_components.dart';
 import '../widgets/sound_components.dart';
 import 'source_settings_screen.dart';
 
-enum SettingsDestination { overview, sources, offline, diagnostics }
+enum SettingsDestination { overview, sources, offline }
 
 Color _settingsPrimaryText(BuildContext context) => context.settingsPrimary;
 
@@ -37,7 +36,6 @@ class SettingsScreen extends StatefulWidget {
     required this.scanner,
     required this.onShowKeyboardShortcuts,
     required this.sleepTimer,
-    required this.diagnostics,
     this.webDavService,
     this.offline,
     this.initialDestination = SettingsDestination.overview,
@@ -59,7 +57,6 @@ class SettingsScreen extends StatefulWidget {
   final OfflineDownloadController? offline;
   final VoidCallback onShowKeyboardShortcuts;
   final SleepTimerController sleepTimer;
-  final AppDiagnosticsController diagnostics;
   final SettingsDestination initialDestination;
   final AccentPreset accentPreset;
   final ValueChanged<AccentPreset> onAccentChanged;
@@ -129,22 +126,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
       );
     }
-    if (_destination == SettingsDestination.diagnostics) {
-      return _withCompactBackNavigation(
-        context,
-        DiagnosticsSettingsView(
-          diagnostics: widget.diagnostics,
-          onBack: () =>
-              setState(() => _destination = SettingsDestination.overview),
-        ),
-      );
-    }
 
     return AnimatedBuilder(
       animation: Listenable.merge([
         widget.playback,
         widget.sleepTimer,
-        widget.diagnostics,
         ?widget.offline,
       ]),
       builder: (context, _) {
@@ -237,9 +223,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: '音乐来源',
             subtitle: kIsWeb
                 ? (compact ? '远程音乐目录' : '管理 WebDAV 服务器和扫描目录')
-                : (compact
-                      ? '本地文件夹与远程音乐目录'
-                      : '管理本地文件夹、WebDAV 服务器和扫描目录'),
+                : (compact ? '本地文件夹与远程音乐目录' : '管理本地文件夹、WebDAV 服务器和扫描目录'),
             onTap: () =>
                 setState(() => _destination = SettingsDestination.sources),
           ),
@@ -282,28 +266,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ],
       ),
-      gap,
-      _SettingsSection(
-        title: compact ? '支持' : '操作',
-        children: [
-          if (!compact && soundUsesDesktopPlatform)
+      if (!compact && soundUsesDesktopPlatform) ...[
+        gap,
+        _SettingsSection(
+          title: '操作',
+          children: [
             _SettingsRow(
               title: '键盘快捷键',
               subtitle: '查看播放、导航和搜索快捷键',
               onTap: widget.onShowKeyboardShortcuts,
             ),
-          _SettingsRow(
-            key: const ValueKey('settings-diagnostics-row'),
-            title: '问题与诊断',
-            subtitle: compact ? '查看播放、来源和资料库问题' : '查看播放、来源和资料库的最近错误',
-            value: widget.diagnostics.problemCount == 0
-                ? (compact ? '正常' : '没有问题')
-                : '${widget.diagnostics.problemCount} 条',
-            onTap: () =>
-                setState(() => _destination = SettingsDestination.diagnostics),
-          ),
-        ],
-      ),
+          ],
+        ),
+      ],
       gap,
       const _AboutBrandHeader(),
       _SettingsSection(
@@ -326,7 +301,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (!context.mounted) return;
     await showAppUpdateFlow(context, result: result);
   }
-
 
   Future<void> _showCompactPlaybackModeSheet(BuildContext context) {
     return showSoundBottomSheet<void>(
@@ -593,158 +567,6 @@ class _SleepTimerSelector extends StatelessWidget {
   }
 }
 
-class DiagnosticsSettingsView extends StatelessWidget {
-  const DiagnosticsSettingsView({
-    required this.diagnostics,
-    required this.onBack,
-    super.key,
-  });
-
-  final AppDiagnosticsController diagnostics;
-  final VoidCallback onBack;
-
-  @override
-  Widget build(BuildContext context) {
-    return AnimatedBuilder(
-      animation: diagnostics,
-      builder: (context, _) => SoundSettingsScrollView(
-        key: const ValueKey('diagnostics-settings'),
-        padding: EdgeInsets.fromLTRB(
-          context.soundPageGutter,
-          20,
-          context.soundPageGutter,
-          context.soundContentBottomPadding,
-        ),
-        children: [
-          SoundSettingsPageHeader(
-            title: '问题与诊断',
-            subtitle: '仅记录本次运行中的错误类型和技术信息，不记录 WebDAV 密码。',
-            onBack: onBack,
-            backButtonKey: const ValueKey('diagnostics-settings-back'),
-            actions: [
-              TextButton.icon(
-                key: const ValueKey('copy-diagnostics'),
-                onPressed: () async {
-                  await Clipboard.setData(
-                    ClipboardData(text: diagnostics.exportText()),
-                  );
-                  if (context.mounted) {
-                    showSoundSnackBar(context, '诊断信息已复制，不包含密码');
-                  }
-                },
-                icon: const Icon(Icons.copy_all_outlined),
-                label: const Text('复制'),
-              ),
-              if (diagnostics.events.isNotEmpty)
-                TextButton(
-                  key: const ValueKey('clear-diagnostics'),
-                  onPressed: diagnostics.clear,
-                  style: context.soundDestructiveButtonStyle,
-                  child: const Text('清空'),
-                ),
-            ],
-          ),
-          const SizedBox(height: SoundSettingsMetrics.sectionGap),
-          if (diagnostics.events.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 28),
-              child: Center(
-                child: Text(
-                  '当前没有已记录的问题',
-                  style: TextStyle(color: _settingsSecondaryText(context)),
-                ),
-              ),
-            )
-          else
-            for (final event in diagnostics.events.reversed)
-              _DiagnosticEventCard(event: event),
-        ],
-      ),
-    );
-  }
-}
-
-class _DiagnosticEventCard extends StatelessWidget {
-  const _DiagnosticEventCard({required this.event});
-
-  final DiagnosticEvent event;
-
-  @override
-  Widget build(BuildContext context) {
-    final localTime = event.occurredAt.toLocal();
-    final timestamp =
-        '${localTime.hour.toString().padLeft(2, '0')}:'
-        '${localTime.minute.toString().padLeft(2, '0')}:'
-        '${localTime.second.toString().padLeft(2, '0')}';
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 14),
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: _settingsHairline(context))),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Icon(
-            Icons.error_outline_rounded,
-            color: context.soundColors.error,
-            size: 17,
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  event.failure.title,
-                  style: TextStyle(
-                    color: _settingsPrimaryText(context),
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Text(
-                  event.failure.message,
-                  style: TextStyle(
-                    color: _settingsSecondaryText(context),
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(height: 7),
-                SelectableText(
-                  event.failure.rawMessage,
-                  style: TextStyle(
-                    color: _settingsSecondaryText(context),
-                    fontSize: 11.5,
-                  ),
-                ),
-                if (event.context case final value?) ...[
-                  const SizedBox(height: 5),
-                  Text(
-                    value,
-                    style: TextStyle(
-                      color: _settingsSecondaryText(context),
-                      fontSize: 11.5,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(width: 10),
-          Text(
-            timestamp,
-            style: TextStyle(
-              color: _settingsSecondaryText(context),
-              fontSize: 10.5,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class OfflineSettingsView extends StatelessWidget {
   const OfflineSettingsView({
     required this.offline,
@@ -778,87 +600,15 @@ class OfflineSettingsView extends StatelessWidget {
               backButtonKey: const ValueKey('offline-settings-back'),
             ),
             const SizedBox(height: SoundSettingsMetrics.sectionGap),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _formatBytes(stats.totalBytes),
-                    key: const ValueKey('offline-total-size'),
-                    style: TextStyle(
-                      color: _settingsPrimaryText(context),
-                      fontSize: 26,
-                      height: 1,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.55,
-                    ),
-                  ),
-                  const SizedBox(height: 5),
-                  Text(
-                    '开听 当前使用的音频存储',
-                    style: TextStyle(
-                      color: _settingsSecondaryText(context),
-                      fontSize: 11.5,
-                    ),
-                  ),
-                  const SizedBox(height: 14),
-                  Divider(height: 1, color: _settingsHairline(context)),
-                  LayoutBuilder(
-                    builder: (context, constraints) {
-                      final compact = constraints.maxWidth < 520;
-                      final statsRows = [
-                        _OfflineStat(
-                          icon: Icons.cloud_done_rounded,
-                          label: '离线下载',
-                          value: _formatBytes(stats.pinnedBytes),
-                          detail: '${stats.pinnedEntries} 首',
-                          color: SoundColors.webDav,
-                        ),
-                        _OfflineStat(
-                          icon: Icons.bolt_rounded,
-                          label: '临时缓存',
-                          value: _formatBytes(stats.transientBytes),
-                          detail: '${stats.transientEntries} 个文件',
-                          color: SoundColors.accent,
-                        ),
-                      ];
-                      return compact
-                          ? Column(
-                              children: [
-                                statsRows.first,
-                                Divider(
-                                  height: 1,
-                                  indent: 32,
-                                  color: _settingsHairline(context),
-                                ),
-                                statsRows.last,
-                              ],
-                            )
-                          : Row(
-                              children: [
-                                Expanded(child: statsRows.first),
-                                Container(
-                                  width: 1,
-                                  height: 34,
-                                  color: _settingsHairline(context),
-                                ),
-                                Expanded(child: statsRows.last),
-                              ],
-                            );
-                    },
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 22),
+            _OfflineStorageOverview(stats: stats),
+            const SizedBox(height: SoundSettingsMetrics.sectionGap),
             _OfflineDownloadsPanel(
               items: offlineItems,
               onCancel: (item) => _cancelDownload(context, item),
               onRetry: (item) => unawaited(_retryDownload(context, item)),
               onRemove: (item) => unawaited(_removeDownload(context, item)),
             ),
-            const SizedBox(height: 22),
+            const SizedBox(height: SoundSettingsMetrics.sectionGap),
             _SettingsSection(
               title: '存储管理',
               children: [
@@ -952,6 +702,121 @@ class OfflineSettingsView extends StatelessWidget {
   }
 }
 
+class _OfflineStorageOverview extends StatelessWidget {
+  const _OfflineStorageOverview({required this.stats});
+
+  final OfflineStorageStats stats;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(left: 4, bottom: 10),
+          child: Text(
+            '存储占用',
+            style: TextStyle(
+              color: _settingsSecondaryText(context),
+              fontSize: 12.5,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        SoundSettingsGroup(
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(14, 14, 14, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _formatBytes(stats.totalBytes),
+                    key: const ValueKey('offline-total-size'),
+                    style: TextStyle(
+                      color: _settingsPrimaryText(context),
+                      fontSize: 24,
+                      height: 1.1,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.45,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    '音频文件合计 · ${stats.totalEntries} 个',
+                    style: TextStyle(
+                      color: context.settingsMuted,
+                      fontSize: 12,
+                      height: 1.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            _OfflineStatRow(
+              label: '离线下载',
+              value: _formatBytes(stats.pinnedBytes),
+              detail: '${stats.pinnedEntries} 首',
+            ),
+            _OfflineStatRow(
+              label: '临时缓存',
+              value: _formatBytes(stats.transientBytes),
+              detail: '${stats.transientEntries} 个文件',
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+}
+
+class _OfflineStatRow extends StatelessWidget {
+  const _OfflineStatRow({
+    required this.label,
+    required this.value,
+    required this.detail,
+  });
+
+  final String label;
+  final String value;
+  final String detail;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              label,
+              style: TextStyle(
+                color: _settingsPrimaryText(context),
+                fontSize: 14,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Text(
+            detail,
+            style: TextStyle(color: context.settingsMuted, fontSize: 12),
+          ),
+          const SizedBox(width: 12),
+          Text(
+            value,
+            style: TextStyle(
+              color: _settingsSecondaryText(context),
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
 class _OfflineDownloadsPanel extends StatelessWidget {
   const _OfflineDownloadsPanel({
     required this.items,
@@ -978,60 +843,56 @@ class _OfflineDownloadsPanel extends StatelessWidget {
                 '下载与离线内容',
                 style: TextStyle(
                   color: _settingsSecondaryText(context),
-                  fontSize: 11.5,
+                  fontSize: 12.5,
                   fontWeight: FontWeight.w600,
                 ),
               ),
               const Spacer(),
               Text(
                 '${items.length} 项',
-                style: TextStyle(
-                  color: _settingsSecondaryText(context),
-                  fontSize: 11.5,
-                ),
+                style: TextStyle(color: context.settingsMuted, fontSize: 12),
               ),
             ],
           ),
         ),
         if (items.isEmpty)
-          const _OfflineDownloadsEmpty()
+          const SoundSettingsGroup(children: [_OfflineDownloadsEmpty()])
         else if (items.length <= 5)
-          Column(
+          SoundSettingsGroup(
             children: [
-              for (var index = 0; index < items.length; index++) ...[
+              for (final item in items)
                 _OfflineDownloadRow(
-                  item: items[index],
+                  item: item,
                   onCancel: onCancel,
                   onRetry: onRetry,
                   onRemove: onRemove,
                 ),
-                if (index != items.length - 1)
-                  Divider(
-                    height: 1,
-                    indent: 42,
-                    color: _settingsHairline(context),
-                  ),
-              ],
             ],
           )
         else
-          SizedBox(
-            height: 430,
-            child: ListView.separated(
-              primary: false,
-              itemCount: items.length,
-              itemBuilder: (context, index) => _OfflineDownloadRow(
-                item: items[index],
-                onCancel: onCancel,
-                onRetry: onRetry,
-                onRemove: onRemove,
+          SoundSettingsGroup(
+            children: [
+              SizedBox(
+                height: 430,
+                child: ListView.separated(
+                  primary: false,
+                  padding: EdgeInsets.zero,
+                  itemCount: items.length,
+                  itemBuilder: (context, index) => _OfflineDownloadRow(
+                    item: items[index],
+                    onCancel: onCancel,
+                    onRetry: onRetry,
+                    onRemove: onRemove,
+                  ),
+                  separatorBuilder: (_, _) => Divider(
+                    height: 1,
+                    indent: 14,
+                    endIndent: 14,
+                    color: _settingsHairline(context),
+                  ),
+                ),
               ),
-              separatorBuilder: (_, _) => Divider(
-                height: 1,
-                indent: 42,
-                color: _settingsHairline(context),
-              ),
-            ),
+            ],
           ),
       ],
     );
@@ -1044,37 +905,25 @@ class _OfflineDownloadsEmpty extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 20),
-      child: Row(
+      padding: const EdgeInsets.fromLTRB(14, 16, 14, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            Icons.download_for_offline_outlined,
-            size: 18,
-            color: _settingsSecondaryText(context),
+          Text(
+            '还没有离线内容',
+            style: TextStyle(
+              color: _settingsPrimaryText(context),
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  '还没有离线内容',
-                  style: TextStyle(
-                    color: _settingsPrimaryText(context),
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-                const SizedBox(height: 3),
-                Text(
-                  '在支持离线的专辑或歌曲菜单中选择“离线保存”。',
-                  style: TextStyle(
-                    color: _settingsSecondaryText(context),
-                    fontSize: 11.5,
-                  ),
-                ),
-              ],
+          const SizedBox(height: 4),
+          Text(
+            '在专辑或歌曲菜单中选择「离线保存」。',
+            style: TextStyle(
+              color: context.settingsMuted,
+              fontSize: 12,
+              height: 1.35,
             ),
           ),
         ],
@@ -1102,224 +951,160 @@ class _OfflineDownloadRow extends StatelessWidget {
     final downloading = task?.state == OfflineDownloadTaskState.downloading;
     final failed = task?.state == OfflineDownloadTaskState.failed;
     final subtitle = failed
-        ? task?.error ?? '下载失败'
+        ? (task?.error ?? '下载失败')
         : [
-            item.artist,
-            item.albumTitle,
+            if (item.artist.trim().isNotEmpty) item.artist.trim(),
             if (downloading)
               task?.totalBytes == null
                   ? _formatBytes(task?.receivedBytes ?? 0)
                   : '${_formatBytes(task!.receivedBytes)} / ${_formatBytes(task.totalBytes!)}'
             else
               _formatBytes(item.size),
-          ].join(' · ');
-    final statusColor = failed
+          ].where((part) => part.isNotEmpty).join(' · ');
+
+    final titleColor = failed
         ? context.soundColors.error
-        : downloading
-        ? SoundColors.webDav
-        : SoundColors.local;
-    final status = SizedBox(
-      width: 28,
-      height: 28,
-      child: downloading
-          ? Padding(
-              padding: const EdgeInsets.all(5),
-              child: CircularProgressIndicator(
-                value: task?.progress,
-                strokeWidth: 2,
-              ),
-            )
-          : Icon(
-              failed ? Icons.error_outline_rounded : Icons.cloud_done_rounded,
-              size: 18,
-              color: statusColor.withValues(alpha: statusColor.a * 0.82),
-            ),
+        : _settingsPrimaryText(context);
+    final subtitleColor = failed
+        ? context.soundColors.error
+        : context.settingsMuted;
+
+    final menu = SoundMenuButton<String>(
+      key: ValueKey('offline-actions-${item.reference.storageKey}'),
+      tooltip: '更多操作 ${item.title}',
+      menuTitle: item.title,
+      padding: const EdgeInsets.all(8),
+      icon: const Icon(Icons.more_horiz_rounded, size: 20),
+      onSelected: (value) {
+        if (value == 'cancel') onCancel(item);
+        if (value == 'retry') onRetry(item);
+        if (value == 'remove') onRemove(item);
+      },
+      actions: [
+        if (downloading)
+          const SoundMenuAction(
+            value: 'cancel',
+            label: '取消下载',
+            icon: Icons.close_rounded,
+            destructive: true,
+          ),
+        if (failed && item.canRetry)
+          const SoundMenuAction(
+            value: 'retry',
+            label: '重试下载',
+            icon: Icons.refresh_rounded,
+          ),
+        if (failed)
+          const SoundMenuAction(
+            value: 'remove',
+            label: '移除失败记录',
+            icon: Icons.delete_outline_rounded,
+            destructive: true,
+            dividerBefore: true,
+          ),
+        if (!downloading && !failed)
+          const SoundMenuAction(
+            value: 'remove',
+            label: '移除离线下载',
+            icon: Icons.delete_outline_rounded,
+            destructive: true,
+          ),
+      ],
     );
 
-    if (context.soundIsCompact) {
-      return SoundCompactMediaRow(
-        key: ValueKey('offline-item-${item.reference.storageKey}'),
-        leading: status,
-        title: item.title,
-        subtitle: subtitle,
-        titleColor: failed ? context.soundColors.error : null,
-        trailing: SoundMenuButton<String>(
-          key: ValueKey('offline-actions-${item.reference.storageKey}'),
-          tooltip: '更多操作 ${item.title}',
-          menuTitle: item.title,
-          padding: EdgeInsets.zero,
-          icon: const Icon(Icons.more_horiz_rounded, size: 21),
-          onSelected: (value) {
-            if (value == 'cancel') onCancel(item);
-            if (value == 'retry') onRetry(item);
-            if (value == 'remove') onRemove(item);
-          },
-          actions: [
-            if (downloading)
-              const SoundMenuAction(
-                value: 'cancel',
-                label: '取消下载',
-                icon: Icons.close_rounded,
-                destructive: true,
-              ),
-            if (failed && item.canRetry)
-              const SoundMenuAction(
-                value: 'retry',
-                label: '重试下载',
-                icon: Icons.refresh_rounded,
-              ),
-            if (failed)
-              const SoundMenuAction(
-                value: 'remove',
-                label: '移除失败记录',
-                icon: Icons.delete_outline_rounded,
-                destructive: true,
-                dividerBefore: true,
-              ),
-            if (!downloading && !failed)
-              const SoundMenuAction(
-                value: 'remove',
-                label: '移除离线下载',
-                icon: Icons.cloud_off_outlined,
-                destructive: true,
-              ),
-          ],
-        ),
-      );
-    }
-
-    return Padding(
-      key: ValueKey('offline-item-${item.reference.storageKey}'),
-      padding: const EdgeInsets.fromLTRB(4, 10, 0, 10),
-      child: Row(
-        children: [
-          status,
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item.title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: failed
-                        ? SoundColors.accent
-                        : _settingsPrimaryText(context),
-                    fontSize: 13.5,
-                    fontWeight: FontWeight.w600,
-                  ),
+    final compact = context.soundIsCompact;
+    final row = Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                item.title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  color: titleColor,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  height: 1.25,
                 ),
+              ),
+              if (subtitle.isNotEmpty) ...[
                 const SizedBox(height: 3),
                 Text(
                   subtitle,
-                  maxLines: failed ? 2 : 1,
+                  maxLines: failed && !compact ? 2 : 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    color: failed
-                        ? SoundColors.accent
-                        : _settingsSecondaryText(context),
-                    fontSize: 11.5,
+                    color: subtitleColor,
+                    fontSize: 12,
+                    height: 1.3,
+                    fontWeight: FontWeight.w500,
                   ),
                 ),
               ],
+            ],
+          ),
+        ),
+        if (downloading) ...[
+          SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(
+              value: task?.progress,
+              strokeWidth: 2,
             ),
           ),
-          const SizedBox(width: 8),
-          if (downloading)
-            IconButton(
-              key: ValueKey('offline-cancel-${item.reference.storageKey}'),
-              onPressed: () => onCancel(item),
-              tooltip: '取消下载',
-              icon: const Icon(Icons.close_rounded),
-            )
-          else if (failed)
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                IconButton(
-                  key: ValueKey('offline-dismiss-${item.reference.storageKey}'),
-                  onPressed: () => onRemove(item),
-                  tooltip: '移除失败记录',
-                  icon: const Icon(Icons.close_rounded),
-                ),
-                IconButton(
-                  key: ValueKey('offline-retry-${item.reference.storageKey}'),
-                  onPressed: item.canRetry ? () => onRetry(item) : null,
-                  tooltip: item.canRetry ? '重试下载' : '来源已不在资料库',
-                  icon: const Icon(Icons.refresh_rounded),
-                ),
-              ],
-            )
-          else
-            IconButton(
-              key: ValueKey('offline-remove-${item.reference.storageKey}'),
-              onPressed: () => onRemove(item),
-              tooltip: '移除离线下载',
-              icon: const Icon(Icons.delete_outline_rounded),
-            ),
+          const SizedBox(width: 2),
         ],
-      ),
+        if (compact)
+          menu
+        else if (downloading)
+          IconButton(
+            key: ValueKey('offline-cancel-${item.reference.storageKey}'),
+            onPressed: () => onCancel(item),
+            tooltip: '取消下载',
+            icon: const Icon(Icons.close_rounded, size: 20),
+            visualDensity: VisualDensity.compact,
+          )
+        else if (failed) ...[
+          IconButton(
+            key: ValueKey('offline-dismiss-${item.reference.storageKey}'),
+            onPressed: () => onRemove(item),
+            tooltip: '移除失败记录',
+            icon: const Icon(Icons.close_rounded, size: 20),
+            visualDensity: VisualDensity.compact,
+          ),
+          IconButton(
+            key: ValueKey('offline-retry-${item.reference.storageKey}'),
+            onPressed: item.canRetry ? () => onRetry(item) : null,
+            tooltip: item.canRetry ? '重试下载' : '来源已不在资料库',
+            icon: const Icon(Icons.refresh_rounded, size: 20),
+            visualDensity: VisualDensity.compact,
+          ),
+        ] else
+          IconButton(
+            key: ValueKey('offline-remove-${item.reference.storageKey}'),
+            onPressed: () => onRemove(item),
+            tooltip: '移除离线下载',
+            icon: const Icon(Icons.delete_outline_rounded, size: 20),
+            visualDensity: VisualDensity.compact,
+          ),
+      ],
     );
-  }
-}
 
-class _OfflineStat extends StatelessWidget {
-  const _OfflineStat({
-    required this.icon,
-    required this.label,
-    required this.value,
-    required this.detail,
-    required this.color,
-  });
-
-  final IconData icon;
-  final String label;
-  final String value;
-  final String detail;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 11),
-      child: Row(
-        children: [
-          Icon(icon, color: color.withValues(alpha: color.a * 0.78), size: 18),
-          const SizedBox(width: 10),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  label,
-                  style: TextStyle(
-                    color: _settingsSecondaryText(context),
-                    fontSize: 11.5,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  value,
-                  style: TextStyle(
-                    color: _settingsPrimaryText(context),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ],
+      key: ValueKey('offline-item-${item.reference.storageKey}'),
+      padding: const EdgeInsets.fromLTRB(14, 0, 6, 0),
+      child: compact
+          ? SizedBox(height: 64, child: row)
+          : Padding(
+              padding: const EdgeInsets.symmetric(vertical: 12),
+              child: row,
             ),
-          ),
-          Text(
-            detail,
-            style: TextStyle(
-              color: _settingsSecondaryText(context),
-              fontSize: 11.5,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -1630,6 +1415,7 @@ class _PlaybackModeSelector extends StatelessWidget {
     );
   }
 }
+
 class _PlaybackModeChoice extends StatelessWidget {
   const _PlaybackModeChoice({
     required this.mode,
@@ -1888,9 +1674,7 @@ class _NowPlayingStyleCard extends StatelessWidget {
                                           decoration: BoxDecoration(
                                             color: SoundColors.accent
                                                 .withValues(
-                                                  alpha: selected
-                                                      ? 0.72
-                                                      : 0.42,
+                                                  alpha: selected ? 0.72 : 0.42,
                                                 ),
                                             borderRadius: BorderRadius.circular(
                                               4,
@@ -2274,9 +2058,7 @@ class _CustomAccentSwatch extends StatelessWidget {
                   height: 1,
                   shadows: selected
                       ? null
-                      : const [
-                          Shadow(color: Color(0x66000000), blurRadius: 3),
-                        ],
+                      : const [Shadow(color: Color(0x66000000), blurRadius: 3)],
                 ),
               ),
             ),
@@ -2286,6 +2068,7 @@ class _CustomAccentSwatch extends StatelessWidget {
     );
   }
 }
+
 class _CustomAccentDialog extends StatefulWidget {
   const _CustomAccentDialog({required this.initialColor});
 

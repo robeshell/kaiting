@@ -39,6 +39,12 @@ void main() {
     );
   });
 
+  test('preferredSourceTitle keeps a short leaf label', () {
+    expect(preferredSourceTitle('sharetome / 音乐', '/sharetome/音乐'), '音乐');
+    expect(preferredSourceTitle('音乐', '/dav/music'), '音乐');
+    expect(preferredSourceTitle('家庭 NAS', 'nas.local/dav'), '家庭 NAS');
+  });
+
   testWidgets('remote directories render inside their owning connection tree', (
     tester,
   ) async {
@@ -100,15 +106,21 @@ void main() {
     expect(find.text('添加连接'), findsOneWidget);
     expect(find.textContaining('选择 开听 要索引'), findsNothing);
 
-    final tree = find.byKey(const ValueKey('source-connection-tree-nas'));
-    expect(tree, findsOneWidget);
+    final connection = find.byKey(const ValueKey('source-connection-nas'));
+    final directory = find.byKey(const ValueKey('source-directory-music'));
+    expect(connection, findsOneWidget);
+    expect(directory, findsOneWidget);
+    // Flat card: directory sits under its connection (indented sibling, not
+    // nested chrome).
     expect(
-      find.descendant(
-        of: tree,
-        matching: find.byKey(const ValueKey('source-directory-music')),
-      ),
-      findsOneWidget,
+      tester.getTopLeft(directory).dy,
+      greaterThan(tester.getTopLeft(connection).dy),
     );
+    expect(find.text('家庭 NAS'), findsOneWidget);
+    expect(find.text('WebDAV · nas.local/dav'), findsOneWidget);
+    expect(find.text('音乐'), findsOneWidget);
+    expect(find.text('/dav/music'), findsOneWidget);
+    expect(find.textContaining('已连接 · '), findsNothing);
     expect(tester.takeException(), isNull);
 
     await tester.pumpWidget(const SizedBox.shrink());

@@ -1555,36 +1555,64 @@ class SoundSwitch extends StatelessWidget {
 
 /// 轻提示（design/components/feedback.md SnackBar 一节）。
 ///
-/// 桌面/宽窗：居中窄条（宽 220，窗口 <420 时收缩），距底 36；
-/// 窄窗：左右 16、距底 18。1.4s，新提示顶掉旧提示，下滑关闭。
+/// 居中、宽度随文案收缩的胶囊；无描边，仅轻阴影。距底约 36（窄屏 18）。
+/// 约 1.6s，新提示顶掉旧提示，可下滑关闭。
 void showSoundSnackBar(BuildContext context, String message) {
   final width = MediaQuery.sizeOf(context).width;
-  final centered = width >= 420;
-  final toastWidth = centered ? 220.0 : null;
-  final margin = centered
-      ? EdgeInsets.fromLTRB(
-          (width - toastWidth!) / 2,
-          0,
-          (width - toastWidth) / 2,
-          36,
-        )
-      : const EdgeInsets.fromLTRB(16, 0, 16, 18);
+  final bottom = width >= 420 ? 36.0 : 18.0;
+  final scheme = Theme.of(context).colorScheme;
+  final snackTheme = Theme.of(context).snackBarTheme;
+  final background =
+      snackTheme.backgroundColor ??
+      scheme.inverseSurface.withValues(alpha: 0.94);
+  final foreground =
+      snackTheme.contentTextStyle?.color ?? scheme.onInverseSurface;
 
   ScaffoldMessenger.of(context)
     ..clearSnackBars()
     ..showSnackBar(
       SnackBar(
         behavior: SnackBarBehavior.floating,
-        content: Text(
-          message,
-          textAlign: centered ? TextAlign.center : TextAlign.start,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
-        ),
-        duration: const Duration(milliseconds: 2200),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        margin: margin,
+        elevation: 0,
+        backgroundColor: Colors.transparent,
+        // Override theme shape (which draws a hairline border) so the host
+        // stays fully invisible around the inner pill.
+        shape: const RoundedRectangleBorder(side: BorderSide.none),
+        padding: EdgeInsets.zero,
+        margin: EdgeInsets.fromLTRB(20, 0, 20, bottom),
+        duration: const Duration(milliseconds: 1600),
         dismissDirection: DismissDirection.down,
+        content: Center(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(maxWidth: width - 40),
+            child: Material(
+              color: background,
+              elevation: 3,
+              shadowColor: Colors.black.withValues(alpha: 0.22),
+              surfaceTintColor: Colors.transparent,
+              shape: const StadiumBorder(side: BorderSide.none),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 18,
+                  vertical: 11,
+                ),
+                child: Text(
+                  message,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: foreground,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    height: 1.3,
+                    letterSpacing: -0.1,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
       ),
     );
 }

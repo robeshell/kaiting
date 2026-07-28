@@ -608,6 +608,7 @@ class _AppShellState extends State<AppShell>
             NowPlayingScreen(
               playback: widget.playback,
               userState: _libraryUserState,
+              sleepTimer: _sleepTimer,
               style: widget.nowPlayingStyle,
               openLyricsByDefault: widget.openLyricsByDefault,
               onOpenAlbum: _openAlbumFromPlayer,
@@ -981,7 +982,6 @@ class _AppShellState extends State<AppShell>
                       webDavService: _webDavService,
                       offline: _offline,
                       sleepTimer: _sleepTimer,
-                      diagnostics: _diagnostics,
                       onShowKeyboardShortcuts: _showKeyboardShortcuts,
                       initialDestination: _settingsDestination,
                       accentPreset:
@@ -1187,6 +1187,7 @@ class _AppShellState extends State<AppShell>
                         animation: _nowPlayingExpansion,
                         playback: widget.playback,
                         userState: _libraryUserState,
+                        sleepTimer: _sleepTimer,
                         style: widget.nowPlayingStyle,
                         openLyricsByDefault: widget.openLyricsByDefault,
                         onClose: () => unawaited(_collapseMobileNowPlaying()),
@@ -1239,6 +1240,7 @@ class _MobileNowPlayingOverlay extends StatefulWidget {
     required this.playback,
     required this.userState,
     required this.style,
+    this.sleepTimer,
     this.openLyricsByDefault = false,
     required this.onClose,
     this.onOpenAlbum,
@@ -1252,6 +1254,7 @@ class _MobileNowPlayingOverlay extends StatefulWidget {
   final Animation<double> animation;
   final SoundPlaybackController playback;
   final LibraryUserStateController userState;
+  final SleepTimerController? sleepTimer;
   final NowPlayingStyle style;
   final bool openLyricsByDefault;
   final VoidCallback onClose;
@@ -1316,6 +1319,7 @@ class _MobileNowPlayingOverlayState extends State<_MobileNowPlayingOverlay> {
       child: NowPlayingScreen(
         playback: widget.playback,
         userState: widget.userState,
+        sleepTimer: widget.sleepTimer,
         style: widget.style,
         openLyricsByDefault: widget.openLyricsByDefault,
         isActive: _contentActive,

@@ -174,7 +174,7 @@ class AppFailure {
     return AppFailure(
       kind: AppFailureKind.unknown,
       title: '操作没有完成',
-      message: '可以重试；如果问题持续出现，请在设置中查看诊断信息。',
+      message: '可以重试；如果问题持续出现，请检查网络与音乐来源设置。',
       action: AppFailureAction.retry,
       rawMessage: raw,
     );

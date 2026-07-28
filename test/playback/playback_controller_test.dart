@@ -1104,6 +1104,25 @@ void main() {
       });
     });
 
+    test('combined mode cycles sequential, list loop, one, shuffle', () {
+      final engine = ManualPlaybackEngine();
+      final controller = SoundPlaybackController(engine: engine);
+      addTearDown(controller.dispose);
+      addTearDown(engine.dispose);
+
+      expect(controller.playbackMode, PlaybackMode.repeatAll);
+      controller.cycleCombinedPlaybackMode();
+      expect(controller.playbackMode, PlaybackMode.repeatOne);
+      controller.cycleCombinedPlaybackMode();
+      expect(controller.playbackMode, PlaybackMode.shuffle);
+      expect(controller.isShuffleEnabled, isTrue);
+      controller.cycleCombinedPlaybackMode();
+      expect(controller.playbackMode, PlaybackMode.sequential);
+      expect(controller.isShuffleEnabled, isFalse);
+      controller.cycleCombinedPlaybackMode();
+      expect(controller.playbackMode, PlaybackMode.repeatAll);
+    });
+
     test('shuffle and repeat controls stay independent', () {
       final engine = ManualPlaybackEngine();
       final controller = SoundPlaybackController(engine: engine);

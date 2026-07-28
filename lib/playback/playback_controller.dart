@@ -417,6 +417,18 @@ class SoundPlaybackController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Cycles the combined playback mode for the now-playing single control:
+  /// 顺序 → 列表循环 → 单曲循环 → 随机 → 顺序.
+  void cycleCombinedPlaybackMode() {
+    final next = switch (playbackMode) {
+      PlaybackMode.sequential => PlaybackMode.repeatAll,
+      PlaybackMode.repeatAll => PlaybackMode.repeatOne,
+      PlaybackMode.repeatOne => PlaybackMode.shuffle,
+      PlaybackMode.shuffle => PlaybackMode.sequential,
+    };
+    setPlaybackMode(next);
+  }
+
   Future<void> playQueueIndex(int index) async {
     if (index < 0 || index >= _queue.length || index == _queueIndex) return;
     _clearResumePosition();

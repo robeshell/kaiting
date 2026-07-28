@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 /// Combined playback mode used for session persistence and exclusive mode
 /// pickers (for example the queue sheet).
 ///
@@ -16,6 +18,14 @@ extension PlaybackModeLabel on PlaybackMode {
     PlaybackMode.repeatOne => '单曲循环',
     PlaybackMode.repeatAll => '列表循环',
     PlaybackMode.shuffle => '随机播放',
+  };
+
+  /// Icon for the combined mode control on now-playing.
+  IconData get icon => switch (this) {
+    PlaybackMode.sequential => Icons.arrow_forward_rounded,
+    PlaybackMode.repeatOne => Icons.repeat_one_rounded,
+    PlaybackMode.repeatAll => Icons.repeat_rounded,
+    PlaybackMode.shuffle => Icons.shuffle_rounded,
   };
 }
 

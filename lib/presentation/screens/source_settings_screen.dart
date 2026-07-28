@@ -36,8 +36,6 @@ Color _sourcePrimaryText(BuildContext context) => context.settingsPrimary;
 
 Color _sourceSecondaryText(BuildContext context) => context.settingsSecondary;
 
-Color _sourceHairline(BuildContext context) => context.settingsHairline;
-
 class RemoteSourceSettingsAdapter {
   const RemoteSourceSettingsAdapter({
     required this.definition,
@@ -204,8 +202,11 @@ class _SourceSettingsScreenState extends State<SourceSettingsScreen> {
       final changeSummary = changes.isEmpty
           ? '，没有文件变化'
           : '，${changes.join('、')}';
-      showSoundSnackBar(context, '已索引 ${report.indexedTracks} 首歌曲$changeSummary$skipped'
-            '${_scanWarningSuffix(report)}',);
+      showSoundSnackBar(
+        context,
+        '已索引 ${report.indexedTracks} 首歌曲$changeSummary$skipped'
+        '${_scanWarningSuffix(report)}',
+      );
     } on ScanCancelledException {
       if (!mounted) return;
       showSoundSnackBar(context, '扫描已取消，原资料库保持不变');
@@ -389,17 +390,6 @@ class _SourceSettingsScreenState extends State<SourceSettingsScreen> {
     };
   }
 
-  Color _managedStatusColor(SourceManagedResource resource, Color readyColor) {
-    return switch (resource.status) {
-      SourceManagedStatus.idle ||
-      SourceManagedStatus.working ||
-      SourceManagedStatus.available => readyColor,
-      SourceManagedStatus.authenticationFailed => context.soundWarning,
-      SourceManagedStatus.unavailable ||
-      SourceManagedStatus.error => context.soundColors.error,
-    };
-  }
-
   String _scanSummary(SourceScanSummary result) {
     final changes = [
       if (result.addedTracks > 0) '新增 ${result.addedTracks}',
@@ -459,18 +449,16 @@ class _SourceSettingsScreenState extends State<SourceSettingsScreen> {
               .toList(growable: false);
           return _SourceGroup(
             children: [
-              for (final connection in connections)
-                _RemoteConnectionTree(
+              for (final connection in connections) ...[
+                // Flat list: one card, hierarchy only via indent — no nested
+                // frames that stack borders and double the chrome.
+                KeyedSubtree(
                   key: ValueKey('source-connection-tree-${connection.id}'),
-                  connection: _SourceRow(
+                  child: _SourceRow(
                     key: ValueKey('source-connection-${connection.id}'),
-                    icon: adapter.connectionIcon,
-                    iconColor: adapter.color,
                     title: connection.displayName,
-                    location:
-                        '${adapter.definition.displayName} · ${formatSourceLocation(connection.location)}',
-                    status: _managedStatus(connection),
-                    statusColor: _managedStatusColor(connection, adapter.color),
+                    subtitle: _connectionSubtitle(adapter, connection),
+                    emphasis: _statusEmphasis(connection.status),
                     primaryActionLabel: connection.isAvailable
                         ? '选择目录'
                         : '重新连接',
@@ -483,24 +471,26 @@ class _SourceSettingsScreenState extends State<SourceSettingsScreen> {
                     onEdit: () => adapter.openEditor(context, connection),
                     onRemove: () => _removeRemoteSource(adapter, connection),
                   ),
-                  directories: catalogs
-                      .where(
-                        (catalog) =>
-                            catalog.parentConnectionId == connection.id,
-                      )
-                      .map((source) => _remoteCatalogRow(adapter, source))
-                      .toList(growable: false),
-                  onAddDirectory: connection.isAvailable
-                      ? () => _browseRemoteDirectories(adapter, connection)
-                      : null,
                 ),
-              if (orphanCatalogs.isNotEmpty)
-                _UnassignedDirectories(
-                  children: [
-                    for (final source in orphanCatalogs)
-                      _remoteCatalogRow(adapter, source),
-                  ],
-                ),
+                ...catalogs
+                    .where(
+                      (catalog) => catalog.parentConnectionId == connection.id,
+                    )
+                    .map((source) => _remoteCatalogRow(adapter, source)),
+                if (!catalogs.any(
+                  (catalog) => catalog.parentConnectionId == connection.id,
+                ))
+                  _EmptyDirectoryBranch(
+                    onAddDirectory: connection.isAvailable
+                        ? () => _browseRemoteDirectories(adapter, connection)
+                        : null,
+                  ),
+              ],
+              if (orphanCatalogs.isNotEmpty) ...[
+                const _OrphanDirectoriesLabel(),
+                for (final source in orphanCatalogs)
+                  _remoteCatalogRow(adapter, source),
+              ],
             ],
           );
         },
@@ -515,22 +505,61 @@ class _SourceSettingsScreenState extends State<SourceSettingsScreen> {
     final scanning =
         _scanningSourceIds.contains(source.id) ||
         adapter.scanner.isScanning(source.id);
+    final path = formatSourceLocation(source.location);
     return _SourceRow(
       key: ValueKey('source-directory-${source.id}'),
-      icon: adapter.catalogIcon,
-      iconColor: adapter.color,
-      title: source.displayName,
-      location: formatSourceLocation(source.location),
-      status: _managedStatus(source),
-      statusColor: _managedStatusColor(source, adapter.color),
+      title: preferredSourceTitle(source.displayName, path),
+      subtitle: _catalogSubtitle(source, path),
+      emphasis: _statusEmphasis(source.status),
+      nested: true,
       primaryActionLabel: scanning ? '取消扫描' : '重新扫描',
       primaryActionIcon: scanning ? Icons.close_rounded : Icons.sync_rounded,
       onPrimaryAction: scanning
           ? () => adapter.scanner.cancel(source.id)
           : () => _scanSource(source.type, source.id),
       onRemove: scanning ? null : () => _removeRemoteSource(adapter, source),
-      compact: true,
     );
+  }
+
+  String _connectionSubtitle(
+    RemoteSourceSettingsAdapter adapter,
+    SourceManagedResource connection,
+  ) {
+    final host = formatSourceLocation(connection.location);
+    final type = adapter.definition.displayName;
+    final status = _managedStatus(connection);
+    // Healthy connections only need type + host; keep status for errors / work.
+    return switch (connection.status) {
+      SourceManagedStatus.available => host.isEmpty ? type : '$type · $host',
+      SourceManagedStatus.working || SourceManagedStatus.idle =>
+        host.isEmpty ? status : '$status · $type · $host',
+      _ => host.isEmpty ? status : '$status · $host',
+    };
+  }
+
+  String _catalogSubtitle(SourceManagedResource source, String path) {
+    final status = _managedStatus(source);
+    final title = preferredSourceTitle(source.displayName, path);
+    // Avoid repeating the same string as title and path.
+    final showPath =
+        path.isNotEmpty && path != title && path != source.displayName;
+    return switch (source.status) {
+      SourceManagedStatus.available => showPath ? path : status,
+      SourceManagedStatus.working ||
+      SourceManagedStatus.idle => showPath ? '$status · $path' : status,
+      _ => showPath ? '$status · $path' : status,
+    };
+  }
+
+  _SourceEmphasis _statusEmphasis(SourceManagedStatus status) {
+    return switch (status) {
+      SourceManagedStatus.authenticationFailed => _SourceEmphasis.warning,
+      SourceManagedStatus.unavailable ||
+      SourceManagedStatus.error => _SourceEmphasis.error,
+      SourceManagedStatus.working => _SourceEmphasis.working,
+      SourceManagedStatus.idle ||
+      SourceManagedStatus.available => _SourceEmphasis.neutral,
+    };
   }
 
   @override
@@ -585,21 +614,28 @@ class _SourceSettingsScreenState extends State<SourceSettingsScreen> {
                                 final scanning = _scanningSourceIds.contains(
                                   source.id,
                                 );
+                                final path = formatSourceLocation(
+                                  source.rootUri,
+                                );
                                 return _SourceRow(
                                   key: ValueKey('local-source-${source.id}'),
-                                  icon: Icons.folder_outlined,
-                                  iconColor: SoundColors.local,
-                                  title: source.displayName,
-                                  location: formatSourceLocation(source.rootUri),
-                                  status: _sourceStatus(source),
-                                  statusColor: _sourceStatusColor(source),
-                                  primaryActionLabel: scanning ? '取消扫描' : '重新扫描',
+                                  title: preferredSourceTitle(
+                                    source.displayName,
+                                    path,
+                                  ),
+                                  subtitle: _localSubtitle(source, path),
+                                  emphasis: _localEmphasis(source),
+                                  primaryActionLabel: scanning
+                                      ? '取消扫描'
+                                      : '重新扫描',
                                   primaryActionIcon: scanning
                                       ? Icons.close_rounded
                                       : Icons.sync_rounded,
                                   onPrimaryAction: scanning
-                                      ? () => _localScanProvider.cancel(source.id)
-                                      : () => _scanSource(source.type, source.id),
+                                      ? () =>
+                                            _localScanProvider.cancel(source.id)
+                                      : () =>
+                                            _scanSource(source.type, source.id),
                                   onRemove: scanning
                                       ? null
                                       : () => _removeLocalSource(source),
@@ -627,22 +663,34 @@ class _SourceSettingsScreenState extends State<SourceSettingsScreen> {
     return switch (source.status) {
       LibrarySourceStatus.idle => '等待扫描',
       LibrarySourceStatus.scanning => '正在扫描',
-      LibrarySourceStatus.available =>
-        source.scanRevision == 0 ? '已授权' : '已索引 · 第 ${source.scanRevision} 次扫描',
+      LibrarySourceStatus.available => source.scanRevision == 0 ? '已授权' : '已索引',
       LibrarySourceStatus.permissionRequired => '需要重新授权',
       LibrarySourceStatus.unavailable => '文件夹不可用',
       LibrarySourceStatus.error => source.lastError ?? '来源错误',
     };
   }
 
-  Color _sourceStatusColor(LibrarySourceRecord source) {
+  String _localSubtitle(LibrarySourceRecord source, String path) {
+    final status = _sourceStatus(source);
+    final title = preferredSourceTitle(source.displayName, path);
+    final showPath =
+        path.isNotEmpty && path != title && path != source.displayName;
     return switch (source.status) {
-      LibrarySourceStatus.idle ||
+      LibrarySourceStatus.available => showPath ? path : status,
       LibrarySourceStatus.scanning ||
-      LibrarySourceStatus.available => SoundColors.local,
-      LibrarySourceStatus.permissionRequired => context.soundColors.tertiary,
+      LibrarySourceStatus.idle => showPath ? '$status · $path' : status,
+      _ => showPath ? '$status · $path' : status,
+    };
+  }
+
+  _SourceEmphasis _localEmphasis(LibrarySourceRecord source) {
+    return switch (source.status) {
+      LibrarySourceStatus.permissionRequired => _SourceEmphasis.warning,
       LibrarySourceStatus.unavailable ||
-      LibrarySourceStatus.error => context.soundColors.error,
+      LibrarySourceStatus.error => _SourceEmphasis.error,
+      LibrarySourceStatus.scanning => _SourceEmphasis.working,
+      LibrarySourceStatus.idle ||
+      LibrarySourceStatus.available => _SourceEmphasis.neutral,
     };
   }
 }
@@ -681,6 +729,32 @@ String formatSourceLocation(String value) {
   return _decodeLoose(value);
 }
 
+/// Prefer a short leaf name when the display name is a path-like label.
+String preferredSourceTitle(String displayName, String formattedLocation) {
+  final name = displayName.trim();
+  if (name.isEmpty) {
+    return formattedLocation.isEmpty ? '未命名' : formattedLocation;
+  }
+  if (name.contains(' / ')) {
+    final leaf = name.split(' / ').last.trim();
+    if (leaf.isNotEmpty) return leaf;
+  }
+  final slash = name.contains('/') ? name.split('/').last.trim() : '';
+  if (slash.isNotEmpty && slash != name) return slash;
+
+  final pathLeaf = formattedLocation
+      .split('/')
+      .where((segment) => segment.isNotEmpty)
+      .lastOrNull;
+  if (pathLeaf != null &&
+      (name == formattedLocation ||
+          name.endsWith(pathLeaf) ||
+          formattedLocation.endsWith(name))) {
+    return pathLeaf;
+  }
+  return name;
+}
+
 String _decodeLoose(String value) {
   try {
     return Uri.decodeFull(value);
@@ -688,6 +762,8 @@ String _decodeLoose(String value) {
     return value;
   }
 }
+
+enum _SourceEmphasis { neutral, working, warning, error }
 
 class _SourceSection extends StatelessWidget {
   const _SourceSection({
@@ -770,190 +846,117 @@ class _SourceGroup extends StatelessWidget {
 
 class _SourceRow extends StatelessWidget {
   const _SourceRow({
-    required this.icon,
-    required this.iconColor,
     required this.title,
-    required this.location,
-    required this.status,
-    required this.statusColor,
+    required this.subtitle,
     required this.primaryActionLabel,
     required this.primaryActionIcon,
     required this.onPrimaryAction,
+    this.emphasis = _SourceEmphasis.neutral,
+    this.nested = false,
     this.onEdit,
     this.onRemove,
-    this.compact = false,
     super.key,
   });
 
-  final IconData icon;
-  final Color iconColor;
   final String title;
-  final String location;
-  final String status;
-  final Color statusColor;
+  final String subtitle;
+  final _SourceEmphasis emphasis;
+  final bool nested;
   final String primaryActionLabel;
   final IconData primaryActionIcon;
   final VoidCallback onPrimaryAction;
   final VoidCallback? onEdit;
   final VoidCallback? onRemove;
-  final bool compact;
+
+  Color _subtitleColor(BuildContext context) {
+    return switch (emphasis) {
+      _SourceEmphasis.neutral => context.settingsMuted,
+      _SourceEmphasis.working => context.settingsSecondary,
+      _SourceEmphasis.warning => context.soundWarning,
+      _SourceEmphasis.error => context.soundColors.error,
+    };
+  }
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final narrow = context.soundIsCompact || constraints.maxWidth < 560;
-        return Padding(
-          padding: EdgeInsets.fromLTRB(
-            14,
-            compact ? 8 : 10,
-            6,
-            compact ? 8 : 10,
-          ),
-          child: Row(
-            children: [
-              SizedBox(
-                width: compact ? 24 : 28,
-                child: Icon(
-                  icon,
-                  size: compact ? 17 : 18,
-                  color: iconColor.withValues(alpha: iconColor.a * 0.78),
-                ),
-              ),
-              SizedBox(width: compact ? 8 : 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: _sourcePrimaryText(context),
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 3),
-                    Text(
-                      narrow ? '$status · $location' : location,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: _sourceSecondaryText(context),
-                        fontSize: 11.5,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              if (!narrow) ...[
-                const SizedBox(width: 14),
-                _StatusDot(color: statusColor),
-                const SizedBox(width: 7),
-                ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 190),
-                  child: Text(
-                    status,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: _sourceSecondaryText(context),
-                      fontSize: 11.5,
-                    ),
+    final subtitleText = subtitle.trim();
+    return Padding(
+      padding: EdgeInsets.fromLTRB(nested ? 28 : 14, 12, 6, 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: _sourcePrimaryText(context),
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    height: 1.25,
+                    letterSpacing: -0.1,
                   ),
                 ),
-              ],
-              IconButton(
-                onPressed: onPrimaryAction,
-                tooltip: primaryActionLabel,
-                icon: Icon(primaryActionIcon, size: 19),
-                visualDensity: VisualDensity.compact,
-              ),
-              if (onEdit != null || onRemove != null)
-                SoundMenuButton<_SourceMenuAction>(
-                  tooltip: '更多操作',
-                  icon: const Icon(Icons.more_horiz_rounded, size: 20),
-                  padding: const EdgeInsets.all(8),
-                  onSelected: (action) {
-                    switch (action) {
-                      case _SourceMenuAction.edit:
-                        onEdit?.call();
-                      case _SourceMenuAction.remove:
-                        onRemove?.call();
-                    }
-                  },
-                  actions: [
-                    if (onEdit != null)
-                      const SoundMenuAction(
-                        value: _SourceMenuAction.edit,
-                        label: '编辑',
-                        icon: Icons.edit_outlined,
-                      ),
-                    if (onRemove != null)
-                      const SoundMenuAction(
-                        value: _SourceMenuAction.remove,
-                        label: '移除',
-                        icon: Icons.delete_outline_rounded,
-                        destructive: true,
-                        dividerBefore: true,
-                      ),
-                  ],
-                ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _RemoteConnectionTree extends StatelessWidget {
-  const _RemoteConnectionTree({
-    required this.connection,
-    required this.directories,
-    required this.onAddDirectory,
-    super.key,
-  });
-
-  final Widget connection;
-  final List<Widget> directories;
-  final VoidCallback? onAddDirectory;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        connection,
-        Padding(
-          padding: const EdgeInsets.only(left: 18),
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              border: Border(left: BorderSide(color: _sourceHairline(context))),
-            ),
-            child: Padding(
-              padding: const EdgeInsets.only(left: 14),
-              child: directories.isEmpty
-                  ? _EmptyDirectoryBranch(onAddDirectory: onAddDirectory)
-                  : Column(
-                      children: [
-                        for (
-                          var index = 0;
-                          index < directories.length;
-                          index++
-                        ) ...[
-                          directories[index],
-                          if (index != directories.length - 1)
-                            Divider(height: 1, color: _sourceHairline(context)),
-                        ],
-                      ],
+                if (subtitleText.isNotEmpty) ...[
+                  const SizedBox(height: 3),
+                  Text(
+                    subtitleText,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
+                      color: _subtitleColor(context),
+                      fontSize: 12,
+                      height: 1.35,
+                      fontWeight: FontWeight.w500,
                     ),
+                  ),
+                ],
+              ],
             ),
           ),
-        ),
-      ],
+          const SizedBox(width: 4),
+          IconButton(
+            onPressed: onPrimaryAction,
+            tooltip: primaryActionLabel,
+            icon: Icon(primaryActionIcon, size: 20),
+            visualDensity: VisualDensity.compact,
+          ),
+          if (onEdit != null || onRemove != null)
+            SoundMenuButton<_SourceMenuAction>(
+              tooltip: '更多操作',
+              icon: const Icon(Icons.more_horiz_rounded, size: 20),
+              padding: const EdgeInsets.all(8),
+              onSelected: (action) {
+                switch (action) {
+                  case _SourceMenuAction.edit:
+                    onEdit?.call();
+                  case _SourceMenuAction.remove:
+                    onRemove?.call();
+                }
+              },
+              actions: [
+                if (onEdit != null)
+                  const SoundMenuAction(
+                    value: _SourceMenuAction.edit,
+                    label: '编辑',
+                    icon: Icons.edit_outlined,
+                  ),
+                if (onRemove != null)
+                  const SoundMenuAction(
+                    value: _SourceMenuAction.remove,
+                    label: '移除',
+                    icon: Icons.delete_outline_rounded,
+                    destructive: true,
+                    dividerBefore: true,
+                  ),
+              ],
+            ),
+        ],
+      ),
     );
   }
 }
@@ -966,15 +969,16 @@ class _EmptyDirectoryBranch extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(4, 4, 0, 10),
+      padding: const EdgeInsets.fromLTRB(28, 10, 8, 12),
       child: Row(
         children: [
           Expanded(
             child: Text(
               '尚未选择目录',
               style: TextStyle(
-                color: _sourceSecondaryText(context),
-                fontSize: 11.5,
+                color: context.settingsMuted,
+                fontSize: 12,
+                height: 1.3,
               ),
             ),
           ),
@@ -983,7 +987,7 @@ class _EmptyDirectoryBranch extends StatelessWidget {
               onPressed: onAddDirectory,
               style: TextButton.styleFrom(
                 minimumSize: const Size(0, 32),
-                padding: const EdgeInsets.symmetric(horizontal: 8),
+                padding: const EdgeInsets.symmetric(horizontal: 10),
                 tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
               child: const Text('选择目录'),
@@ -994,49 +998,23 @@ class _EmptyDirectoryBranch extends StatelessWidget {
   }
 }
 
-class _UnassignedDirectories extends StatelessWidget {
-  const _UnassignedDirectories({required this.children});
-
-  final List<Widget> children;
+class _OrphanDirectoriesLabel extends StatelessWidget {
+  const _OrphanDirectoriesLabel();
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(top: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(4, 8, 4, 2),
-            child: Text(
-              '待确认归属的目录',
-              style: TextStyle(
-                color: _sourceSecondaryText(context),
-                fontSize: 11.5,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          ...children,
-        ],
+      padding: const EdgeInsets.fromLTRB(14, 10, 14, 2),
+      child: Text(
+        '待确认归属的目录',
+        style: TextStyle(
+          color: context.settingsMuted,
+          fontSize: 11.5,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
 }
 
 enum _SourceMenuAction { edit, remove }
-
-class _StatusDot extends StatelessWidget {
-  const _StatusDot({required this.color});
-
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 7,
-      height: 7,
-      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-    );
-  }
-}

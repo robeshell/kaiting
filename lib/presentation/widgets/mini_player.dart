@@ -522,6 +522,8 @@ class _CondensedMiniPlayer extends StatelessWidget {
                         icon: visual.primaryIcon,
                         tooltip: visual.primaryTooltip,
                         onTap: visual.primaryEnabled ? playback.toggle : null,
+                        // Match now-playing: loading uses a spinner, not hourglass.
+                        busy: visual.busy && !visual.primaryEnabled,
                         prominent: !embedded,
                         color: embedded ? SoundColors.accent : null,
                         size: compact ? (embedded ? 25 : 22) : 23,
@@ -659,6 +661,7 @@ class _TransportControls extends StatelessWidget {
             icon: visual.primaryIcon,
             tooltip: visual.primaryTooltip,
             onTap: visual.primaryEnabled ? playback.toggle : null,
+            busy: visual.busy && !visual.primaryEnabled,
             prominent: true,
             accentProminent: accentPrimary,
             size: 24,
@@ -741,6 +744,7 @@ class _MiniIconButton extends StatelessWidget {
     this.size = 20,
     this.tooltip,
     this.color,
+    this.busy = false,
     this.prominent = false,
     this.accentProminent = false,
     super.key,
@@ -751,6 +755,7 @@ class _MiniIconButton extends StatelessWidget {
   final double size;
   final String? tooltip;
   final Color? color;
+  final bool busy;
   final bool prominent;
   final bool accentProminent;
 
@@ -759,18 +764,28 @@ class _MiniIconButton extends StatelessWidget {
     final enabled = onTap != null;
     final foreground = prominent
         ? context.soundGlass.canvasHighlight.withValues(
-            alpha: enabled ? 1 : 0.45,
+            alpha: enabled || busy ? 1 : 0.45,
           )
         : color ??
-              context.soundPrimaryText.withValues(alpha: enabled ? 0.84 : 0.38);
+              context.soundPrimaryText.withValues(
+                alpha: enabled || busy ? 0.84 : 0.38,
+              );
     return IconButton(
       onPressed: onTap,
-      icon: Icon(icon, color: foreground, size: size),
+      icon: busy
+          ? SizedBox.square(
+              dimension: size,
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: foreground,
+              ),
+            )
+          : Icon(icon, color: foreground, size: size),
       tooltip: tooltip,
       visualDensity: VisualDensity.compact,
       style: prominent
           ? IconButton.styleFrom(
-              backgroundColor: onTap == null
+              backgroundColor: onTap == null && !busy
                   ? context.soundTint(0.16)
                   : accentProminent
                   ? SoundColors.accent
