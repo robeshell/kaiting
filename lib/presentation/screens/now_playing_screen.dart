@@ -348,8 +348,7 @@ class _NowPlayingArtworkChromeState extends State<_NowPlayingArtworkChrome> {
 
   void _refresh(Brightness brightness, {bool force = false}) {
     final album = widget.album;
-    final requestKey =
-        '${album.id}|${album.artworkUri}|${brightness.name}';
+    final requestKey = '${album.id}|${album.artworkUri}|${brightness.name}';
     if (_requestKey == requestKey && !force) return;
     final changedArtwork = _requestKey != requestKey;
     _requestKey = requestKey;
@@ -395,10 +394,7 @@ class _NowPlayingArtworkChromeState extends State<_NowPlayingArtworkChrome> {
   @override
   Widget build(BuildContext context) {
     final palette = ArtworkPagePalette.fromBackground(_colors);
-    return ArtworkChromeTheme(
-      palette: palette,
-      child: widget.child,
-    );
+    return ArtworkChromeTheme(palette: palette, child: widget.child);
   }
 }
 
@@ -1147,8 +1143,7 @@ class _PlayerColumn extends StatelessWidget {
 
   Widget _playerColumnBody(BuildContext context, Widget artwork) {
     final detailsPadding = EdgeInsets.symmetric(
-      horizontal:
-          compactLayout && style == NowPlayingStyle.vinyl ? 12 : 0,
+      horizontal: compactLayout && style == NowPlayingStyle.vinyl ? 12 : 0,
     );
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -1749,7 +1744,9 @@ class _PlaybackTimelineAndControlsState
         final mode = playback.playbackMode;
         final modeActive = mode != PlaybackMode.sequential;
         final timerActive = sleepTimer?.isActive ?? false;
-        final transportColor = context.chromePrimaryText.withValues(alpha: 0.72);
+        final transportColor = context.chromePrimaryText.withValues(
+          alpha: 0.72,
+        );
         final secondaryControlColor = context.chromePrimaryText.withValues(
           alpha: 0.60,
         );

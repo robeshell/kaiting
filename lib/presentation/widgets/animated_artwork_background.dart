@@ -100,6 +100,7 @@ class _AnimatedArtworkBackgroundState extends State<AnimatedArtworkBackground>
   late List<Color> _targetColors;
   late final AnimationController _motionController;
   late final AnimationController _paletteController;
+
   /// 0 = quiet ambient, 1 = full playback energy. Never snap — avoids jumps.
   late final AnimationController _energyController;
   Brightness? _brightness;
@@ -137,8 +138,7 @@ class _AnimatedArtworkBackgroundState extends State<AnimatedArtworkBackground>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final brightness =
-        widget.paletteBrightness ?? Theme.of(context).brightness;
+    final brightness = widget.paletteBrightness ?? Theme.of(context).brightness;
     final effects = context.soundSkinEffects;
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
     _reduceMotion = reduceMotion;
@@ -165,12 +165,13 @@ class _AnimatedArtworkBackgroundState extends State<AnimatedArtworkBackground>
     final paletteBrightnessChanged =
         oldWidget.paletteBrightness != widget.paletteBrightness;
     if (paletteBrightnessChanged) {
-      _brightness =
-          widget.paletteBrightness ?? Theme.of(context).brightness;
+      _brightness = widget.paletteBrightness ?? Theme.of(context).brightness;
     }
-    if (oldWidget.album.artworkUri != widget.album.artworkUri ||
-        oldWidget.album.id != widget.album.id ||
-        paletteBrightnessChanged) {
+    final artworkChanged =
+        oldWidget.album.artworkUri != widget.album.artworkUri ||
+        oldWidget.album.id != widget.album.id;
+    final becameActive = !oldWidget.isActive && widget.isActive;
+    if (artworkChanged || paletteBrightnessChanged || becameActive) {
       _loadArtworkColors();
     }
     if (oldWidget.isPlaying != widget.isPlaying) {
@@ -178,7 +179,6 @@ class _AnimatedArtworkBackgroundState extends State<AnimatedArtworkBackground>
     }
     if (oldWidget.isActive != widget.isActive) {
       _syncMotion();
-      if (widget.isActive) _loadArtworkColors();
     }
     if (oldWidget.staticVerticalGradient != widget.staticVerticalGradient) {
       _syncMotion();
@@ -240,9 +240,7 @@ class _AnimatedArtworkBackgroundState extends State<AnimatedArtworkBackground>
 
   Future<void> _loadArtworkColors() async {
     final brightness =
-        _brightness ??
-        widget.paletteBrightness ??
-        Theme.of(context).brightness;
+        _brightness ?? widget.paletteBrightness ?? Theme.of(context).brightness;
     final artworkUri = widget.album.artworkUri?.trim();
     final fallback = artworkFallbackGradientColors(widget.album, brightness);
     final requestKey = '${artworkUri ?? widget.album.id}|${brightness.name}';
@@ -378,8 +376,9 @@ class _AnimatedArtworkBackgroundState extends State<AnimatedArtworkBackground>
           // Quiet ambient ↔ full breath: smooth blend, never a hard cut.
           final energy = Curves.easeInOut.transform(_energyController.value);
           final strengthScale = 0.55 + energy * 0.60; // 0.55 … 1.15
-          final motionStrength =
-              (baseStrength * strengthScale).clamp(0.35, 1.25).toDouble();
+          final motionStrength = (baseStrength * strengthScale)
+              .clamp(0.35, 1.25)
+              .toDouble();
           return CustomPaint(
             key: const ValueKey('now-playing-background-base'),
             painter: ArtworkGradientPainter(
@@ -415,11 +414,7 @@ List<Color> artworkVerticalGradientColors(List<Color> colors) {
   final primary = safeColors.first;
   final shadow = safeColors.length > 1 ? safeColors[1] : primary;
   final highlight = safeColors.length > 2 ? safeColors[2] : primary;
-  return [
-    Color.lerp(primary, highlight, 0.22)!,
-    primary,
-    shadow,
-  ];
+  return [Color.lerp(primary, highlight, 0.22)!, primary, shadow];
 }
 
 /// Palette generation never needs the full-resolution cover. Keeping this
@@ -490,17 +485,15 @@ class ArtworkGradientPainter extends CustomPainter {
         Color.lerp(colors[1], colors[0], breathB * 0.22 * s)!,
         Color.lerp(colors[2], colors[1], breathC * 0.28 * s)!,
       ],
-      stops: [
-        0.0,
-        (0.42 + (breathA - 0.5) * 0.14 * s).clamp(0.28, 0.58),
-        1.0,
-      ],
+      stops: [0.0, (0.42 + (breathA - 0.5) * 0.14 * s).clamp(0.28, 0.58), 1.0],
     );
     canvas.drawRect(rect, Paint()..shader = base.createShader(rect));
 
     // Primary glow: radius and opacity swing hard enough to read as "breath".
-    final primaryAlpha =
-        (primaryGlowOpacity * (0.38 + breathA * 0.72)).clamp(0.12, 1.0);
+    final primaryAlpha = (primaryGlowOpacity * (0.38 + breathA * 0.72)).clamp(
+      0.12,
+      1.0,
+    );
     final first = RadialGradient(
       center: Alignment(
         -0.40 + _drift(t * 0.72) * 0.42 * s,
@@ -517,8 +510,8 @@ class ArtworkGradientPainter extends CustomPainter {
     canvas.drawRect(rect, Paint()..shader = first.createShader(rect));
 
     // Secondary glow, offset phase — light "flows" across the field.
-    final secondaryAlpha =
-        (secondaryGlowOpacity * (0.32 + breathB * 0.78)).clamp(0.10, 1.0);
+    final secondaryAlpha = (secondaryGlowOpacity * (0.32 + breathB * 0.78))
+        .clamp(0.10, 1.0);
     final second = RadialGradient(
       center: Alignment(
         0.46 + _drift(t * 0.68 + 2.0) * 0.40 * s,
@@ -535,7 +528,8 @@ class ArtworkGradientPainter extends CustomPainter {
     canvas.drawRect(rect, Paint()..shader = second.createShader(rect));
 
     // Mid bloom for depth.
-    final midAlpha = (0.22 + breathC * 0.28) *
+    final midAlpha =
+        (0.22 + breathC * 0.28) *
         s *
         (brightness == Brightness.light ? 0.65 : 1.0);
     if (midAlpha > 0.04) {
@@ -701,9 +695,7 @@ class ArtworkPagePalette {
       secondaryText: secondary,
       mutedText: muted,
       divider: primary.withValues(alpha: useLightText ? 0.15 : 0.10),
-      controlSurface: primary.withValues(
-        alpha: useLightText ? 0.13 : 0.075,
-      ),
+      controlSurface: primary.withValues(alpha: useLightText ? 0.13 : 0.075),
       useLightText: useLightText,
     );
   }
