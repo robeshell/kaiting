@@ -9,7 +9,9 @@
 
 ## [Unreleased]
 
-（尚无未发布条目。）
+### Changed
+
+- 设计锁升级至 **Kai Design 0.4.4**（标题 w700 通用规则、ChoiceStrip 选中 accent+w700、token digest 对齐）
 
 ---
 
