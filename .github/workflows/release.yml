@@ -53,19 +53,19 @@ jobs:
 
       - name: Name Android packages
         run: |
-          cp build/app/outputs/bundle/release/app-release.aab build/app/outputs/bundle/release/reverie-${{ needs.prepare.outputs.version }}-android.aab
-          cp build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/reverie-${{ needs.prepare.outputs.version }}-android.apk
+          cp build/app/outputs/bundle/release/app-release.aab build/app/outputs/bundle/release/kaiting-${{ needs.prepare.outputs.version }}-android.aab
+          cp build/app/outputs/flutter-apk/app-release.apk build/app/outputs/flutter-apk/kaiting-${{ needs.prepare.outputs.version }}-android.apk
 
       - uses: actions/upload-artifact@v7
         with:
-          name: reverie-${{ needs.prepare.outputs.version }}-android-aab
-          path: build/app/outputs/bundle/release/reverie-${{ needs.prepare.outputs.version }}-android.aab
+          name: kaiting-${{ needs.prepare.outputs.version }}-android-aab
+          path: build/app/outputs/bundle/release/kaiting-${{ needs.prepare.outputs.version }}-android.aab
           if-no-files-found: error
 
       - uses: actions/upload-artifact@v7
         with:
-          name: reverie-${{ needs.prepare.outputs.version }}-android-apk
-          path: build/app/outputs/flutter-apk/reverie-${{ needs.prepare.outputs.version }}-android.apk
+          name: kaiting-${{ needs.prepare.outputs.version }}-android-apk
+          path: build/app/outputs/flutter-apk/kaiting-${{ needs.prepare.outputs.version }}-android.apk
           if-no-files-found: error
 
   # ── iOS ──────────────────────────────────────────────────
@@ -94,12 +94,12 @@ jobs:
           cd build/ios/iphoneos
           mkdir -p Payload
           cp -R Runner.app Payload/
-          zip -r reverie-${{ needs.prepare.outputs.version }}-ios-unsigned.zip Payload/
+          zip -r kaiting-${{ needs.prepare.outputs.version }}-ios-unsigned.zip Payload/
 
       - uses: actions/upload-artifact@v7
         with:
-          name: reverie-${{ needs.prepare.outputs.version }}-ios-unsigned
-          path: build/ios/iphoneos/reverie-${{ needs.prepare.outputs.version }}-ios-unsigned.zip
+          name: kaiting-${{ needs.prepare.outputs.version }}-ios-unsigned
+          path: build/ios/iphoneos/kaiting-${{ needs.prepare.outputs.version }}-ios-unsigned.zip
           if-no-files-found: error
 
   # ── macOS ────────────────────────────────────────────────
@@ -129,14 +129,24 @@ jobs:
           FLUTTER_XCODE_DEVELOPMENT_TEAM: ''
 
       - name: Package macOS app
+        shell: bash
         run: |
-          cd build/macos/Build/Products/Release
-          zip -r reverie-${{ needs.prepare.outputs.version }}-macos.zip Reverie.app
+          release_dir=build/macos/Build/Products/Release
+          shopt -s nullglob
+          apps=("$release_dir"/*.app)
+          if [[ ${#apps[@]} -ne 1 ]]; then
+            echo "Expected exactly one macOS app in $release_dir; found ${#apps[@]}." >&2
+            printf 'Found: %s\n' "${apps[@]}" >&2
+            exit 1
+          fi
+          ditto -c -k --sequesterRsrc --keepParent \
+            "${apps[0]}" \
+            "$release_dir/kaiting-${{ needs.prepare.outputs.version }}-macos.zip"
 
       - uses: actions/upload-artifact@v7
         with:
-          name: reverie-${{ needs.prepare.outputs.version }}-macos
-          path: build/macos/Build/Products/Release/reverie-${{ needs.prepare.outputs.version }}-macos.zip
+          name: kaiting-${{ needs.prepare.outputs.version }}-macos
+          path: build/macos/Build/Products/Release/kaiting-${{ needs.prepare.outputs.version }}-macos.zip
           if-no-files-found: error
 
   # ── Windows ──────────────────────────────────────────────
@@ -165,12 +175,12 @@ jobs:
       - name: Package Windows app
         shell: pwsh
         run: |
-          Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath reverie-${{ needs.prepare.outputs.version }}-windows.zip
+          Compress-Archive -Path build/windows/x64/runner/Release/* -DestinationPath kaiting-${{ needs.prepare.outputs.version }}-windows.zip
 
       - uses: actions/upload-artifact@v7
         with:
-          name: reverie-${{ needs.prepare.outputs.version }}-windows
-          path: reverie-${{ needs.prepare.outputs.version }}-windows.zip
+          name: kaiting-${{ needs.prepare.outputs.version }}-windows
+          path: kaiting-${{ needs.prepare.outputs.version }}-windows.zip
           if-no-files-found: error
 
   # ── Web ──────────────────────────────────────────────────
@@ -192,20 +202,21 @@ jobs:
         run: dart run build_runner build --delete-conflicting-outputs
 
       - name: Build Web
-        run: flutter build web --release --base-href /MusicPlayerNext/ --build-name=${{ needs.prepare.outputs.version }} --build-number=${{ github.run_number }}
+        run: flutter build web --release --base-href /kaiting/ --build-name=${{ needs.prepare.outputs.version }} --build-number=${{ github.run_number }}
 
       - name: Package Web build
-        run: cd build && zip -r reverie-${{ needs.prepare.outputs.version }}-web.zip web
+        run: cd build && zip -r kaiting-${{ needs.prepare.outputs.version }}-web.zip web
 
       - uses: actions/upload-artifact@v7
         with:
-          name: reverie-${{ needs.prepare.outputs.version }}-web
-          path: build/reverie-${{ needs.prepare.outputs.version }}-web.zip
+          name: kaiting-${{ needs.prepare.outputs.version }}-web
+          path: build/kaiting-${{ needs.prepare.outputs.version }}-web.zip
           if-no-files-found: error
 
   # ── GitHub Release ───────────────────────────────────────
   create-release:
     needs:
+      - prepare
       - build-android
       - build-ios
       - build-macos
@@ -224,7 +235,7 @@ jobs:
 
       - uses: softprops/action-gh-release@v3
         with:
-          name: ${{ github.ref_name }}
+          name: 开听 ${{ needs.prepare.outputs.version }}
           tag_name: ${{ github.ref_name }}
           generate_release_notes: true
           files: artifacts/**/*
