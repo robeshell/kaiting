@@ -285,7 +285,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
               padding: EdgeInsets.fromLTRB(
                 gutter,
                 mobileShell ? 0 : 24,
-                gutter,
+                // Keep play-all / sort / filter clear of the A–Z rail.
+                gutter + (showSongIndex ? _songFastIndexContentInset : 0),
                 12,
               ),
               child: _LibraryToolbar(
@@ -381,27 +382,30 @@ class _LibraryScreenState extends State<LibraryScreen> {
           ],
         );
 
-        final page = Column(
+        // Index rail only overlays the list body — never the mode nav /
+        // toolbar where compact 「播放全部」 lives.
+        return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             ...header,
-            Expanded(child: body),
-          ],
-        );
-
-        if (!showSongIndex) return page;
-        return Stack(
-          children: [
-            Positioned.fill(child: page),
-            Positioned(
-              // Header stays fixed; index rail starts below mobile nav + toolbar.
-              top: compact ? 104 : 70,
-              right: compact ? 0 : 6,
-              bottom: compact ? 12 : 20,
-              child: _SongFastIndex(
-                entries: songIndexEntries,
-                onSelected: (entry) => _jumpToSongIndex(entry, compact),
-              ),
+            Expanded(
+              child: showSongIndex
+                  ? Stack(
+                      children: [
+                        Positioned.fill(child: body),
+                        Positioned(
+                          top: 0,
+                          right: compact ? 0 : 6,
+                          bottom: compact ? 12 : 20,
+                          child: _SongFastIndex(
+                            entries: songIndexEntries,
+                            onSelected: (entry) =>
+                                _jumpToSongIndex(entry, compact),
+                          ),
+                        ),
+                      ],
+                    )
+                  : body,
             ),
           ],
         );
@@ -759,10 +763,11 @@ class _LibraryScreenState extends State<LibraryScreen> {
     required bool compact,
     required bool reserveFastIndex,
   }) {
+    final indexInset = reserveFastIndex ? _songFastIndexContentInset : 0.0;
     return [
       if (!compact)
         SliverPadding(
-          padding: EdgeInsets.fromLTRB(gutter, 12, gutter, 12),
+          padding: EdgeInsets.fromLTRB(gutter, 12, gutter + indexInset, 12),
           sliver: SliverToBoxAdapter(
             child: _SongHeader(
               trackCount: tracks.length,
@@ -774,7 +779,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
         padding: EdgeInsets.fromLTRB(
           gutter,
           0,
-          gutter + (reserveFastIndex ? (compact ? 32 : 20) : 0),
+          gutter + indexInset,
           bottomPadding,
         ),
         sliver: SliverPrototypeExtentList.builder(
@@ -826,6 +831,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
     ];
   }
 }
+
+/// Horizontal inset so list/toolbar content clears the A–Z hit rail (44 wide).
+const _songFastIndexContentInset = 36.0;
 
 const _alphabet = [
   'A',
