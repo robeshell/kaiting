@@ -127,12 +127,9 @@ extension SoundThemeContext on BuildContext {
 
   /// Content inset for library browse (专辑 / 艺人 / 歌曲) and dense track lists.
   ///
-  /// One step under [soundPageGutter] so the three library tabs share the same
-  /// edge and song rows still feel slightly less padded than settings pages.
-  double get soundListGutter {
-    final gutter = soundPageGutter;
-    return (gutter - 8).clamp(8.0, gutter);
-  }
+  /// Matches [soundPageGutter] so the three library tabs share a comfortable
+  /// page edge (compact 16 / medium 24 / wide 32).
+  double get soundListGutter => soundPageGutter;
 
   double get soundPageTitleSize => soundIsCompact
       ? KaiBrandLayout.compactPageTitle
