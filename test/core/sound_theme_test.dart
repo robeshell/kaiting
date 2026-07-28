@@ -129,6 +129,30 @@ void main() {
     expect(SoundTheme.dark.dialogTheme.barrierColor?.a, closeTo(0.62, 0.001));
   });
 
+  test('compact album grids stay at two columns on wide phones', () {
+    for (final extent in [358.0, 382.0, 398.0]) {
+      expect(
+        soundAlbumGridColumnCount(
+          crossAxisExtent: extent,
+          compact: true,
+          spacing: 12,
+          maxCardWidth: 180,
+        ),
+        2,
+        reason: '$extent logical pixels',
+      );
+    }
+    expect(
+      soundAlbumGridColumnCount(
+        crossAxisExtent: 260,
+        compact: true,
+        spacing: 12,
+        maxCardWidth: 180,
+      ),
+      1,
+    );
+  });
+
   test(
     'accent presets rebuild theme tokens and choose readable foregrounds',
     () {

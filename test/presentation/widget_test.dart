@@ -248,6 +248,7 @@ void main() {
       final compactGrid = tester.widget<SliverGrid>(find.byType(SliverGrid));
       final compactDelegate =
           compactGrid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
+      expect(compactDelegate.crossAxisCount, 2);
       expect(compactDelegate.mainAxisExtent, lessThan(220));
       expect(compactDelegate.mainAxisSpacing, 12);
 
@@ -374,6 +375,7 @@ void main() {
     final compactCollectionDelegate =
         compactCollectionGrid.gridDelegate
             as SliverGridDelegateWithFixedCrossAxisCount;
+    expect(compactCollectionDelegate.crossAxisCount, 2);
     expect(compactCollectionDelegate.mainAxisExtent, lessThan(220));
     expect(compactCollectionDelegate.mainAxisSpacing, 12);
     expect(
@@ -1727,7 +1729,10 @@ void main() {
       await tester.pump();
 
       expect(sought, isNotNull);
-      expect(sought!.inMilliseconds, greaterThan(enginePosition.inMilliseconds));
+      expect(
+        sought!.inMilliseconds,
+        greaterThan(enginePosition.inMilliseconds),
+      );
       // Label must have left the frozen engine time while (or after) the drag.
       expect(find.text('0:10'), findsNothing);
       final label = tester.widget<Text>(
@@ -1753,9 +1758,7 @@ void main() {
     await playback.playTrack(_testTrack, queue: const [_testTrack]);
 
     await tester.pumpWidget(
-      MaterialApp(
-        home: NowPlayingScreen(playback: playback),
-      ),
+      MaterialApp(home: NowPlayingScreen(playback: playback)),
     );
     await tester.pump();
     final classicTitle = tester.getRect(

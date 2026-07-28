@@ -77,8 +77,7 @@ class _LibraryCollectionScreenState extends State<LibraryCollectionScreen> {
   @override
   void didUpdateWidget(LibraryCollectionScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final oldArtwork =
-        oldWidget.collection.representativeAlbum?.artworkUri;
+    final oldArtwork = oldWidget.collection.representativeAlbum?.artworkUri;
     final newArtwork = widget.collection.representativeAlbum?.artworkUri;
     if (oldWidget.collection.id != widget.collection.id ||
         oldArtwork != newArtwork) {
@@ -155,10 +154,12 @@ class _LibraryCollectionScreenState extends State<LibraryCollectionScreen> {
     final playQueue = _sortTracks(collection.tracks);
     // Artist pages are album-first: hide the song list when albums exist.
     // Keep tracks only for genres, or featured-only artists with no albums.
-    final showTrackList = collection.kind != LibraryCollectionKind.artist ||
+    final showTrackList =
+        collection.kind != LibraryCollectionKind.artist ||
         collection.albums.isEmpty;
-    final primaryTracks =
-        showTrackList ? _sortTracks(collection.primaryTracks) : const <Track>[];
+    final primaryTracks = showTrackList
+        ? _sortTracks(collection.primaryTracks)
+        : const <Track>[];
     final featuredTracks = showTrackList
         ? _sortTracks(collection.featuredTracks)
         : const <Track>[];
@@ -180,8 +181,9 @@ class _LibraryCollectionScreenState extends State<LibraryCollectionScreen> {
         final pagePalette = immersiveArtist
             ? ArtworkPagePalette.fromBackground(_backgroundColors)
             : null;
-        final albumGridBottom =
-            showTrackList ? (compact ? 20.0 : 28.0) : bottomPadding;
+        final albumGridBottom = showTrackList
+            ? (compact ? 20.0 : 28.0)
+            : bottomPadding;
         final listGutter = context.soundListGutter;
         final scrollView = CustomScrollView(
           key: PageStorageKey<String>(
@@ -201,8 +203,7 @@ class _LibraryCollectionScreenState extends State<LibraryCollectionScreen> {
                       ),
                 onShuffle: playQueue.isEmpty
                     ? null
-                    : () =>
-                          unawaited(widget.playback.playShuffled(playQueue)),
+                    : () => unawaited(widget.playback.playShuffled(playQueue)),
                 onQueue: playQueue.isEmpty
                     ? null
                     : () {
@@ -244,11 +245,12 @@ class _LibraryCollectionScreenState extends State<LibraryCollectionScreen> {
                   builder: (context, constraints) {
                     final spacing = compact ? 12.0 : 16.0;
                     final maxCardWidth = compact ? 180.0 : 210.0;
-                    final columnCount =
-                        ((constraints.crossAxisExtent + spacing) /
-                                (maxCardWidth + spacing))
-                            .ceil()
-                            .clamp(1, 12);
+                    final columnCount = soundAlbumGridColumnCount(
+                      crossAxisExtent: constraints.crossAxisExtent,
+                      compact: compact,
+                      spacing: spacing,
+                      maxCardWidth: maxCardWidth,
+                    );
                     final cardWidth =
                         (constraints.crossAxisExtent -
                             spacing * (columnCount - 1)) /
@@ -430,8 +432,7 @@ class _LibraryCollectionScreenState extends State<LibraryCollectionScreen> {
               track: track,
               album: album,
               favorite: widget.userState?.isFavorite(track.id) ?? false,
-              onTap: () =>
-                  widget.playback.playTrack(track, queue: playQueue),
+              onTap: () => widget.playback.playTrack(track, queue: playQueue),
               onPlayNext: () => widget.playback.playNext(track),
               onToggleFavorite: widget.userState == null
                   ? null
@@ -466,8 +467,7 @@ List<Color> _collectionFallbackColors(
   LibraryCollection collection,
   Brightness brightness,
 ) {
-  final album =
-      collection.representativeAlbum ?? collection.albums.firstOrNull;
+  final album = collection.representativeAlbum ?? collection.albums.firstOrNull;
   if (album != null) return artworkFallbackGradientColors(album, brightness);
   final first = collection.palette.first;
   final last = collection.palette.last;
@@ -571,9 +571,7 @@ class _CollectionTrackHeader extends StatelessWidget {
 }
 
 String _collectionStatsLine(LibraryCollection collection) {
-  final parts = <String>[
-    '${collection.albums.length} 张专辑',
-  ];
+  final parts = <String>['${collection.albums.length} 张专辑'];
   final primaryCount = collection.primaryTracks.length;
   final featuredCount = collection.featuredTracks.length;
   if (featuredCount > 0) {

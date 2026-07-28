@@ -672,11 +672,12 @@ class _LibraryScreenState extends State<LibraryScreen> {
         ),
         sliver: SliverLayoutBuilder(
           builder: (context, constraints) {
-            final columnCount =
-                ((constraints.crossAxisExtent + spacing) /
-                        (maxCardWidth + spacing))
-                    .ceil()
-                    .clamp(1, 12);
+            final columnCount = soundAlbumGridColumnCount(
+              crossAxisExtent: constraints.crossAxisExtent,
+              compact: compact,
+              spacing: spacing,
+              maxCardWidth: maxCardWidth,
+            );
             final cardWidth =
                 (constraints.crossAxisExtent - spacing * (columnCount - 1)) /
                 columnCount;
@@ -1171,9 +1172,7 @@ class _LibraryTrackRow extends StatelessWidget {
               tooltip: favorite ? '取消收藏 ${track.title}' : '收藏 ${track.title}',
               color: favorite ? SoundColors.accent : null,
               icon: Icon(
-                favorite
-                    ? KaitingIcons.favoriteFilled
-                    : KaitingIcons.favorite,
+                favorite ? KaitingIcons.favoriteFilled : KaitingIcons.favorite,
               ),
             ),
           if (onAddToPlaylist != null)
@@ -1582,9 +1581,7 @@ class _ArtistListRow extends StatelessWidget {
                 child: Row(
                   children: [
                     ArtistAvatar(
-                      key: ValueKey(
-                        'library-collection-art-${collection.id}',
-                      ),
+                      key: ValueKey('library-collection-art-${collection.id}'),
                       collection: collection,
                       size: avatarSize,
                       showShadow: false,
@@ -1608,9 +1605,7 @@ class _ArtistListRow extends StatelessWidget {
               thickness: 1,
               // Align with the name column (avatar + gap).
               indent: avatarSize + 12,
-              color: showDivider
-                  ? context.soundDivider
-                  : Colors.transparent,
+              color: showDivider ? context.soundDivider : Colors.transparent,
             ),
           ],
         ),
