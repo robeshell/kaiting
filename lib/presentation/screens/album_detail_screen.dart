@@ -156,9 +156,9 @@ class _AlbumDetailScreenState extends State<AlbumDetailScreen> {
               ),
               SliverPadding(
                 padding: EdgeInsets.fromLTRB(
-                  context.soundPageGutter,
+                  context.soundListGutter,
                   8,
-                  context.soundPageGutter,
+                  context.soundListGutter,
                   context.soundContentBottomPadding,
                 ),
                 sliver: SliverList.builder(

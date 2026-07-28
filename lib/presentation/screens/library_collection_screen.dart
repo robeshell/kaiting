@@ -182,6 +182,7 @@ class _LibraryCollectionScreenState extends State<LibraryCollectionScreen> {
             : null;
         final albumGridBottom =
             showTrackList ? (compact ? 20.0 : 28.0) : bottomPadding;
+        final listGutter = context.soundListGutter;
         final scrollView = CustomScrollView(
           key: PageStorageKey<String>(
             'library-collection-${collection.kind.name}-${collection.id}',
@@ -275,7 +276,7 @@ class _LibraryCollectionScreenState extends State<LibraryCollectionScreen> {
             if (showTrackList &&
                 (primaryTracks.isNotEmpty || featuredTracks.isEmpty)) ...[
               SliverPadding(
-                padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 12),
+                padding: EdgeInsets.fromLTRB(listGutter, 0, listGutter, 12),
                 sliver: SliverToBoxAdapter(
                   child: _CollectionTrackHeader(
                     title: featuredTracks.isEmpty ? null : '歌曲',
@@ -293,7 +294,7 @@ class _LibraryCollectionScreenState extends State<LibraryCollectionScreen> {
                 ..._trackListSlivers(
                   tracks: primaryTracks,
                   playQueue: playQueue,
-                  gutter: gutter,
+                  gutter: listGutter,
                   bottomPadding: featuredTracks.isEmpty ? bottomPadding : 20,
                   pagePalette: pagePalette,
                   resolveAlbum: resolveAlbum,
@@ -302,9 +303,9 @@ class _LibraryCollectionScreenState extends State<LibraryCollectionScreen> {
             if (showTrackList && featuredTracks.isNotEmpty) ...[
               SliverPadding(
                 padding: EdgeInsets.fromLTRB(
-                  gutter,
+                  listGutter,
                   primaryTracks.isEmpty ? 0 : 8,
-                  gutter,
+                  listGutter,
                   12,
                 ),
                 sliver: SliverToBoxAdapter(
@@ -324,7 +325,7 @@ class _LibraryCollectionScreenState extends State<LibraryCollectionScreen> {
               ..._trackListSlivers(
                 tracks: featuredTracks,
                 playQueue: playQueue,
-                gutter: gutter,
+                gutter: listGutter,
                 bottomPadding: bottomPadding,
                 pagePalette: pagePalette,
                 resolveAlbum: resolveAlbum,

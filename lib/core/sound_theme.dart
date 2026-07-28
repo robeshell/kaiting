@@ -125,6 +125,15 @@ extension SoundThemeContext on BuildContext {
     SoundWindowClass.wide => KaiBrandLayout.wideGutter,
   };
 
+  /// Tighter horizontal inset for dense song lists (library / search / album).
+  ///
+  /// About one step under [soundPageGutter] so track rows use more width
+  /// without feeling edge-to-edge.
+  double get soundListGutter {
+    final gutter = soundPageGutter;
+    return (gutter - 8).clamp(8.0, gutter);
+  }
+
   double get soundPageTitleSize => soundIsCompact
       ? KaiBrandLayout.compactPageTitle
       : KaiBrandLayout.regularPageTitle;

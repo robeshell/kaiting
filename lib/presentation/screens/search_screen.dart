@@ -281,9 +281,9 @@ class _SearchScreenState extends State<SearchScreen> {
                     ),
                   SliverPadding(
                     padding: EdgeInsets.fromLTRB(
-                      gutter,
+                      context.soundListGutter,
                       0,
-                      gutter,
+                      context.soundListGutter,
                       context.soundContentBottomPadding,
                     ),
                     sliver: SliverList.builder(

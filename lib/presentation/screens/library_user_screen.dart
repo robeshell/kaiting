@@ -294,9 +294,9 @@ class _LibraryUserScreenState extends State<LibraryUserScreen> {
         else
           SliverPadding(
             padding: EdgeInsets.fromLTRB(
-              context.soundPageGutter,
+              context.soundListGutter,
               0,
-              context.soundPageGutter,
+              context.soundListGutter,
               context.soundContentBottomPadding,
             ),
             sliver: SliverReorderableList(
@@ -427,9 +427,9 @@ class _LibraryUserScreenState extends State<LibraryUserScreen> {
   ) {
     return SliverPadding(
       padding: EdgeInsets.fromLTRB(
-        context.soundPageGutter,
+        context.soundListGutter,
         0,
-        context.soundPageGutter,
+        context.soundListGutter,
         context.soundContentBottomPadding,
       ),
       sliver: SliverPrototypeExtentList.builder(

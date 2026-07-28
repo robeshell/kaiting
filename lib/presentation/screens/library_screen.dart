@@ -371,7 +371,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 LibraryBrowseMode.songs => _songSlivers(
                   tracks,
                   albumByTrackId,
-                  gutter,
+                  context.soundListGutter,
                   bottomPadding,
                   compact: compact,
                   reserveFastIndex: showSongIndex,
