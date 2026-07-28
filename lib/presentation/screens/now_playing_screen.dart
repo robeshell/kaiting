@@ -24,6 +24,7 @@ import '../widgets/playback_queue_sheet.dart';
 import '../widgets/progress_scrubber.dart';
 import '../widgets/sound_components.dart';
 import '../widgets/sound_metadata_line.dart';
+import '../widgets/balanced_lyric_text.dart';
 import '../widgets/now_playing_motion_director.dart';
 import '../widgets/vinyl_record_art.dart';
 
@@ -386,9 +387,11 @@ class _WideNowPlayingState extends State<_WideNowPlaying> {
             ? 250.0
             : 230.0;
         final foldableWidth = constraints.maxWidth < 780;
-        final horizontalPadding = foldableWidth ? 24.0 : 44.0;
+        // Tighter chrome on foldables so the lyrics column keeps more usable
+        // width (fewer single-character wraps).
+        final horizontalPadding = foldableWidth ? 16.0 : 44.0;
         final paneGap = math.max(
-          foldableWidth ? 24.0 : 48.0,
+          foldableWidth ? 16.0 : 48.0,
           _centerDisplayFeatureGap(context, constraints),
         );
         // Classic and vinyl share a balanced dual pane; only artwork differs.
@@ -2028,17 +2031,15 @@ class _LyricsPanelState extends State<_LyricsPanel> {
   }) {
     final isActive = _timeline.isInCue(index, active);
     final line = lyrics[index];
-    return GestureDetector(
-      key: _lineKeys[index],
-      behavior: HitTestBehavior.opaque,
-      onTap: !_timeline.isSeekable(index)
-          ? null
-          : () => _seekToLine(index, line),
-      // The cue must become visibly active on its timestamp. Animating the
-      // text style here made a correct cue index appear roughly 320 ms late.
-      child: AnimatedDefaultTextStyle(
-        duration: Duration.zero,
-        style: TextStyle(
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Foldable dual-pane and compact sheets: slightly smaller type so
+        // fewer "甩一字" wraps before balancing.
+        final narrow = constraints.maxWidth < 340;
+        final fontSize = isActive
+            ? (narrow ? 20.0 : 22.0)
+            : (narrow ? 18.0 : 20.0);
+        final style = TextStyle(
           color: context.soundPrimaryText.withValues(
             alpha: isActive
                 ? 1
@@ -2046,12 +2047,25 @@ class _LyricsPanelState extends State<_LyricsPanel> {
                 ? 0.28
                 : 0.5,
           ),
-          fontSize: isActive ? 22 : 20,
+          fontSize: fontSize,
           height: synchronized ? 2.25 : 1.7,
           fontWeight: isActive ? FontWeight.w800 : FontWeight.w700,
-        ),
-        child: Text(line.text),
-      ),
+        );
+        return GestureDetector(
+          key: _lineKeys[index],
+          behavior: HitTestBehavior.opaque,
+          onTap: !_timeline.isSeekable(index)
+              ? null
+              : () => _seekToLine(index, line),
+          // The cue must become visibly active on its timestamp. Animating the
+          // text style here made a correct cue index appear roughly 320 ms late.
+          child: AnimatedDefaultTextStyle(
+            duration: Duration.zero,
+            style: style,
+            child: BalancedLyricText(line.text, style: style),
+          ),
+        );
+      },
     );
   }
 
@@ -2096,7 +2110,8 @@ class _LyricsPanelState extends State<_LyricsPanel> {
         children: [
           Padding(
             padding: EdgeInsets.only(
-              right: synchronized && _timeline.hasTimedContent ? 68 : 0,
+              // Keep controls readable but reclaim width for lyric lines.
+              right: synchronized && _timeline.hasTimedContent ? 56 : 0,
             ),
             child: _buildLyricsScroller(
               lyrics,
