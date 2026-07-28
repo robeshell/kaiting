@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:math' as math;
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/sound_theme.dart';
@@ -167,15 +166,6 @@ class _NowPlayingArtworkWarmupState extends State<_NowPlayingArtworkWarmup> {
 
   void _scheduleWarmup() {
     final media = MediaQuery.of(context);
-    if (!kIsWeb &&
-        defaultTargetPlatform == TargetPlatform.iOS &&
-        context.soundUsesMobileShell) {
-      // On iPhone, pre-decoding the mini tile, two hero sizes, and the palette
-      // at once competes with taps, keyboard animation, and player expansion.
-      // Visible artwork remains demand-loaded at its exact layout size.
-      _generation++;
-      return;
-    }
     final brightness = Theme.of(context).brightness;
     final dpr = media.devicePixelRatio;
     // Mini tile + now-playing hero sizes so the first open does not re-decode.
@@ -198,6 +188,8 @@ class _NowPlayingArtworkWarmupState extends State<_NowPlayingArtworkWarmup> {
     if (_warmupKey == key) return;
     _warmupKey = key;
     final generation = ++_generation;
+    // Start after the visible frame, then decode sequentially. Fast devices
+    // populate the cache early; slower devices avoid a burst of parallel work.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || generation != _generation) return;
       unawaited(
@@ -216,24 +208,28 @@ class _NowPlayingArtworkWarmupState extends State<_NowPlayingArtworkWarmup> {
     required Set<int> cacheExtents,
   }) async {
     try {
-      await Future.wait([
-        AnimatedArtworkBackground.prewarm(album: album, brightness: brightness),
-        for (final extent in cacheExtents)
-          if (artworkImageProvider(
-                album.artworkUri,
-                cacheWidth: extent,
-                cacheHeight: extent,
-              )
-              case final provider?)
-            precacheImage(
-              provider,
-              context,
-              // onError swallows PathNotFound / codec errors without the
-              // IMAGE RESOURCE SERVICE red banner; AlbumArt has its own
-              // errorBuilder placeholder.
-              onError: (Object error, StackTrace? stackTrace) {},
-            ),
-      ]);
+      await AnimatedArtworkBackground.prewarm(
+        album: album,
+        brightness: brightness,
+      );
+      for (final extent in cacheExtents) {
+        if (!mounted) return;
+        if (artworkImageProvider(
+              album.artworkUri,
+              cacheWidth: extent,
+              cacheHeight: extent,
+            )
+            case final provider?) {
+          await precacheImage(
+            provider,
+            context,
+            // onError swallows PathNotFound / codec errors without the
+            // IMAGE RESOURCE SERVICE red banner; AlbumArt has its own
+            // errorBuilder placeholder.
+            onError: (Object error, StackTrace? stackTrace) {},
+          );
+        }
+      }
     } catch (_) {
       // The visible album art and background already have deterministic
       // fallbacks. Warmup failure must never affect playback or navigation.

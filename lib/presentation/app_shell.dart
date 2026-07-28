@@ -604,11 +604,13 @@ class _AppShellState extends State<AppShell>
   void _openNowPlaying() {
     final track = widget.playback.displayTrack;
     if (track == null) return;
-    unawaited(_prewarmNowPlayingForTrack(track));
     if (context.soundUsesMobileShell) {
+      // Compact players are warmed opportunistically by MiniPlayer. Never
+      // start image decode or palette work on the frame that handles the tap.
       _expandMobileNowPlaying();
       return;
     }
+    unawaited(_prewarmNowPlayingForTrack(track));
     Navigator.of(context).push(
       PageRouteBuilder<void>(
         pageBuilder: (context, animation, secondaryAnimation) =>
@@ -639,14 +641,6 @@ class _AppShellState extends State<AppShell>
 
   Future<void> _prewarmNowPlayingForTrack(Track track) async {
     if (!mounted) return;
-    if (!kIsWeb &&
-        defaultTargetPlatform == TargetPlatform.iOS &&
-        context.soundUsesMobileShell) {
-      // The compact iOS player paints a deterministic fallback immediately.
-      // Starting four image decodes on the tap frame makes older iPhones miss
-      // the expansion frames, so let the mounted artwork load on demand.
-      return;
-    }
     final album = albumForTrack(track);
     final dpr = MediaQuery.devicePixelRatioOf(context);
     // Now-playing art is much larger than the mini-player tile; warm both.

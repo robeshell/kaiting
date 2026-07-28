@@ -6,22 +6,12 @@ import 'package:kaiting/core/sound_theme.dart';
 import 'package:kaiting/presentation/widgets/sound_components.dart';
 
 void main() {
-  test('iOS mobile surfaces avoid live backdrop filtering', () {
+  test('mobile glass only pauses live blur while the keyboard is visible', () {
     expect(
       soundBackdropBlurEnabled(
         requested: true,
         usesMobileShell: true,
-        platform: TargetPlatform.iOS,
-        isWeb: false,
-      ),
-      isFalse,
-    );
-    expect(
-      soundBackdropBlurEnabled(
-        requested: true,
-        usesMobileShell: false,
-        platform: TargetPlatform.iOS,
-        isWeb: false,
+        keyboardVisible: false,
       ),
       isTrue,
     );
@@ -29,8 +19,15 @@ void main() {
       soundBackdropBlurEnabled(
         requested: true,
         usesMobileShell: true,
-        platform: TargetPlatform.android,
-        isWeb: false,
+        keyboardVisible: true,
+      ),
+      isFalse,
+    );
+    expect(
+      soundBackdropBlurEnabled(
+        requested: true,
+        usesMobileShell: false,
+        keyboardVisible: true,
       ),
       isTrue,
     );

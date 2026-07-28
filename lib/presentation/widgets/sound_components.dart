@@ -12,15 +12,12 @@ import '../../core/brand_tokens.g.dart';
 bool soundBackdropBlurEnabled({
   required bool requested,
   required bool usesMobileShell,
-  TargetPlatform? platform,
-  bool isWeb = kIsWeb,
+  required bool keyboardVisible,
 }) {
-  final target = platform ?? defaultTargetPlatform;
-  // A live backdrop filter is especially costly while iOS animates routes or
-  // resizes the view for the keyboard. The translucent fill remains, so phone
-  // surfaces keep the same hierarchy without repeatedly filtering the scene.
-  return requested &&
-      (isWeb || target != TargetPlatform.iOS || !usesMobileShell);
+  // Keep the full glass treatment on every phone class. During keyboard
+  // resize only, skip the live filter so UIKit and Flutter do not redraw and
+  // refilter the scene on the same frames; it returns when the inset settles.
+  return requested && !(usesMobileShell && keyboardVisible);
 }
 
 /// Shared translucent surface used by the application shell and overlays.
@@ -63,6 +60,7 @@ class SoundGlassSurface extends StatelessWidget {
     final useBackdropBlur = soundBackdropBlurEnabled(
       requested: blur,
       usesMobileShell: context.soundUsesMobileShell,
+      keyboardVisible: MediaQuery.viewInsetsOf(context).bottom > 0,
     );
     final surface = DecoratedBox(
       decoration: BoxDecoration(
