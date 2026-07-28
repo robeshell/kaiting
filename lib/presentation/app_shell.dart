@@ -730,7 +730,10 @@ class _AppShellState extends State<AppShell>
   }
 
   void _handleNowPlayingDragCancel() {
-    _settleNowPlayingDrag(0);
+    // Competing gestures (progress scrub) cancel dismiss mid-flight. Snap fully
+    // open without animateTo — settle animation reads as rubber-band bounce.
+    _nowPlayingExpansion.stop();
+    _nowPlayingExpansion.value = 1.0;
   }
 
   void _settleNowPlayingDrag(double velocity) {

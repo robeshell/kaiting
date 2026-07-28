@@ -273,10 +273,10 @@ class _ScrubberPainter extends CustomPainter {
 
     if (!showThumb) return;
     final thumbX = activeWidth.clamp(thumbRadius, size.width - thumbRadius);
-    final r = thumbHighlighted ? thumbRadius + 1.5 : thumbRadius;
+    // Keep thumb size stable while dragging — scale pops read as elasticity.
     canvas.drawCircle(
       Offset(thumbX, cy),
-      r,
+      thumbRadius,
       Paint()..color = activeColor,
     );
   }

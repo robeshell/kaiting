@@ -730,12 +730,15 @@ class _CompactNowPlayingState extends State<_CompactNowPlaying> {
       _scrubInteractionActive || _scrubPointer == pointer;
 
   void _abortCoverDismissForScrub() {
-    if (_coverDismissGestureActive) {
-      _coverDismissGestureActive = false;
-      widget.onVerticalDragCancel?.call();
-    }
+    final wasDismissing = _coverDismissGestureActive;
+    _coverDismissGestureActive = false;
     _coverPointer = null;
     _coverLastGlobalDy = null;
+    // Only notify cancel when dismiss actually armed — snaps the sheet without
+    // a settle bounce (see AppShell._handleNowPlayingDragCancel).
+    if (wasDismissing) {
+      widget.onVerticalDragCancel?.call();
+    }
   }
 
   void _handleCoverPointerDown(PointerDownEvent event) {
@@ -873,7 +876,10 @@ class _CompactNowPlayingState extends State<_CompactNowPlaying> {
                 child: SingleChildScrollView(
                   key: const ValueKey('compact-player'),
                   controller: _coverScrollController,
-                  physics: const AlwaysScrollableScrollPhysics(),
+                  // Clamping avoids iOS rubber-band while scrubbing the bar.
+                  physics: const AlwaysScrollableScrollPhysics(
+                    parent: ClampingScrollPhysics(),
+                  ),
                   padding: EdgeInsets.fromLTRB(
                     widget.style == NowPlayingStyle.vinyl ? 16 : 28,
                     8,
