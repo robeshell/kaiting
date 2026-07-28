@@ -2145,8 +2145,12 @@ class _LyricsPanelState extends State<_LyricsPanel> {
             child: SingleChildScrollView(
               controller: _scrollController,
               padding: EdgeInsets.only(
+                // Compact: clear the overlaid ⋯ menu; wide dual-pane keeps
+                // a large top inset so the active cue sits mid-column.
                 top: widget.verticalControls
                     ? math.max(88, constraints.maxHeight * 0.36)
+                    : widget.compact
+                    ? 36
                     : 0,
                 bottom: widget.compact
                     ? math.max(72, constraints.maxHeight * 0.66)
@@ -2183,9 +2187,11 @@ class _LyricsPanelState extends State<_LyricsPanel> {
                   colors: [Colors.black, Colors.black],
                 ).createShader(bounds);
               }
-              // Top: wider dissolve (reads as “into the void” above the cue).
+              // Top: wider dissolve (compact includes space under the ⋯ bar).
               // Bottom: shorter so chrome under the list stays clean.
-              final topPx = math.min(h * 0.22, 110.0).clamp(48.0, 120.0);
+              final topPx = widget.compact
+                  ? math.min(h * 0.28, 128.0).clamp(64.0, 140.0)
+                  : math.min(h * 0.22, 110.0).clamp(48.0, 120.0);
               final bottomPx = math.min(h * 0.12, 64.0).clamp(28.0, 72.0);
               final t1 = (topPx * 0.35 / h).clamp(0.02, 0.12);
               final t2 = (topPx * 0.70 / h).clamp(0.06, 0.20);
@@ -2335,21 +2341,27 @@ class _LyricsPanelState extends State<_LyricsPanel> {
       );
     }
     if (widget.compact) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      // Overlay the ⋯ menu on the scroller so top edge fade runs under it
+      // (no hard band between toolbar and lyrics).
+      return Stack(
+        fit: StackFit.expand,
         children: [
-          if (synchronized && _timeline.hasTimedContent)
-            Align(
-              alignment: Alignment.centerRight,
-              child: _buildCompactLyricsMenu(),
-            ),
-          Expanded(
+          Positioned.fill(
             child: _buildLyricsScroller(
               lyrics,
               active: active,
               synchronized: synchronized,
             ),
           ),
+          if (synchronized && _timeline.hasTimedContent)
+            Positioned(
+              top: 0,
+              right: 0,
+              child: Material(
+                type: MaterialType.transparency,
+                child: _buildCompactLyricsMenu(),
+              ),
+            ),
         ],
       );
     }
