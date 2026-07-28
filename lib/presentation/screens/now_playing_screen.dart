@@ -975,29 +975,27 @@ class _PlayerColumn extends StatelessWidget {
               ? (compactLayout ? 40.0 : 36.0)
               : (compactLayout ? 26.0 : 24.0),
         ),
-        // Title always full-width so its edges share the same vertical rail as
-        // the progress track / time labels below (no trailing action cluster).
-        _TrackChangeTransition(
-          trackId: track.id,
-          child: SizedBox(
-            key: const ValueKey('now-playing-track-title'),
-            width: double.infinity,
-            child: Text(
-              track.title,
-              maxLines: compactLayout ? 2 : 1,
-              overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 24,
-                height: 1.08,
-                fontWeight: FontWeight.w700,
-                letterSpacing: -0.25,
+        if (compactLayout) ...[
+          // Compact: full-width title + artist; actions sit below transport.
+          _TrackChangeTransition(
+            trackId: track.id,
+            child: SizedBox(
+              key: const ValueKey('now-playing-track-title'),
+              width: double.infinity,
+              child: Text(
+                track.title,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: const TextStyle(
+                  fontSize: 24,
+                  height: 1.08,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -0.25,
+                ),
               ),
             ),
           ),
-        ),
-        // Keep title ↔ artist tight; desktop actions must not inflate this gap.
-        const SizedBox(height: 3),
-        if (compactLayout)
+          const SizedBox(height: 3),
           _TrackChangeTransition(
             trackId: track.id,
             child: SoundMetadataLine(
@@ -1016,30 +1014,52 @@ class _PlayerColumn extends StatelessWidget {
                 height: 1.2,
               ),
             ),
-          )
-        else
+          ),
+        ] else
+          // Desktop: favorite / playlist (etc.) center against title+artist.
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Expanded(
-                child: _TrackChangeTransition(
-                  trackId: track.id,
-                  child: SoundMetadataLine(
-                    artist: track.artist,
-                    album: track.albumTitle,
-                    separator: ' — ',
-                    onOpenArtist: onOpenArtist == null
-                        ? null
-                        : () => onOpenArtist!(track.artist),
-                    onOpenAlbum: onOpenAlbum == null
-                        ? null
-                        : () => onOpenAlbum!(album),
-                    style: TextStyle(
-                      color: context.soundSecondaryText,
-                      fontSize: 13,
-                      height: 1.2,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _TrackChangeTransition(
+                      trackId: track.id,
+                      child: Text(
+                        key: const ValueKey('now-playing-track-title'),
+                        track.title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 24,
+                          height: 1.08,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.25,
+                        ),
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 3),
+                    _TrackChangeTransition(
+                      trackId: track.id,
+                      child: SoundMetadataLine(
+                        artist: track.artist,
+                        album: track.albumTitle,
+                        separator: ' — ',
+                        onOpenArtist: onOpenArtist == null
+                            ? null
+                            : () => onOpenArtist!(track.artist),
+                        onOpenAlbum: onOpenAlbum == null
+                            ? null
+                            : () => onOpenAlbum!(album),
+                        style: TextStyle(
+                          color: context.soundSecondaryText,
+                          fontSize: 13,
+                          height: 1.2,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
               _NowPlayingActions(
