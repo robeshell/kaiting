@@ -1768,7 +1768,9 @@ class _LyricsPanel extends StatefulWidget {
 
 class _LyricsPanelState extends State<_LyricsPanel> {
   static const _offsetStep = Duration(milliseconds: 500);
-  static const _followDuration = Duration(milliseconds: 300);
+  /// Soft scroll when the singing cue advances (not seeks / first open).
+  static const _followDuration = Duration(milliseconds: 380);
+  static const _lineStyleDuration = Duration(milliseconds: 260);
   static const _manualScrollPause = Duration(seconds: 3);
 
   final _scrollController = ScrollController();
@@ -1882,7 +1884,8 @@ class _LyricsPanelState extends State<_LyricsPanel> {
       setState(() => _activeIndex = next);
     }
     if (next != null) {
-      _followActiveLine(next, force: forceFollow || changed);
+      // Animate on normal cue advances; only snap on seek / open / hydrate.
+      _followActiveLine(next, force: forceFollow);
     } else {
       _followPreamble(force: forceFollow);
     }
@@ -2201,33 +2204,39 @@ class _LyricsPanelState extends State<_LyricsPanel> {
           fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
         );
         // Line-level LRC: fill from this cue to the next (karaoke wipe).
+        // Karaoke starts the same frame as the cue; size/opacity ease separately.
         final karaoke = isActive && synchronized;
-        final text = karaoke
-            ? KaraokeLyricText(
-                line.text,
-                style: style,
-                progressListenable: widget.positionListenable,
-                progressOf: () => _timeline.cueProgress(
-                  widget.positionOf(),
-                  lineIndex: index,
-                  offset: _offset,
-                ),
-                fillColor: primary,
-                baseColor: primary.withValues(alpha: 0.34),
-              )
-            : BalancedLyricText(line.text, style: style);
         return GestureDetector(
           key: _lineKeys[index],
           behavior: HitTestBehavior.opaque,
           onTap: !_timeline.isSeekable(index)
               ? null
               : () => _seekToLine(index, line),
-          // The cue must become visibly active on its timestamp. Animating the
-          // text style here made a correct cue index appear roughly 320 ms late.
           child: AnimatedDefaultTextStyle(
-            duration: Duration.zero,
+            duration: synchronized ? _lineStyleDuration : Duration.zero,
+            curve: Curves.easeOutCubic,
             style: style,
-            child: text,
+            // Read the lerped style so size/opacity actually animate.
+            child: Builder(
+              builder: (context) {
+                final animatedStyle = DefaultTextStyle.of(context).style;
+                if (karaoke) {
+                  return KaraokeLyricText(
+                    line.text,
+                    style: animatedStyle,
+                    progressListenable: widget.positionListenable,
+                    progressOf: () => _timeline.cueProgress(
+                      widget.positionOf(),
+                      lineIndex: index,
+                      offset: _offset,
+                    ),
+                    fillColor: primary,
+                    baseColor: primary.withValues(alpha: 0.34),
+                  );
+                }
+                return BalancedLyricText(line.text, style: animatedStyle);
+              },
+            ),
           ),
         );
       },
