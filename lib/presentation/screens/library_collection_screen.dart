@@ -664,7 +664,7 @@ class _CollectionHero extends StatelessWidget {
             ? ArtistAvatar(
                 key: const ValueKey('collection-detail-artwork'),
                 collection: collection,
-                size: compact ? 132.0 : 176.0,
+                size: compact ? 108.0 : 140.0,
               )
             : collection.albums.isEmpty
             ? SizedBox.square(dimension: artSize)
@@ -728,9 +728,9 @@ class _CollectionHero extends StatelessWidget {
 
   Widget _buildCompactArtist(BuildContext context, BoxConstraints constraints) {
     final palette = pagePalette!;
-    // One step smaller than album heroes — avatar, not full sleeve.
-    final artworkSize = (constraints.maxWidth * 0.42)
-        .clamp(148.0, 176.0)
+    // Compact avatar — not a full album sleeve.
+    final artworkSize = (constraints.maxWidth * 0.34)
+        .clamp(112.0, 136.0)
         .toDouble();
     final artworkCacheExtent = quantizedArtworkCacheExtent(
       (constraints.maxWidth - context.soundPageGutter * 2 - 12) / 2,
@@ -831,8 +831,8 @@ class _CollectionHero extends StatelessWidget {
   }
 
   Widget _buildDesktopArtist(BuildContext context, BoxConstraints constraints) {
-    final artworkSize = (constraints.maxWidth * 0.26)
-        .clamp(200.0, 280.0)
+    final artworkSize = (constraints.maxWidth * 0.20)
+        .clamp(152.0, 200.0)
         .toDouble();
     final buttonWidth = constraints.maxWidth >= 1040 ? 146.0 : 132.0;
     final horizontalGap = constraints.maxWidth >= 1000 ? 48.0 : 32.0;
