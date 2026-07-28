@@ -2,12 +2,14 @@ package com.kaiting.player
 
 import android.Manifest
 import android.app.Activity
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
 import android.os.Build
 import android.provider.DocumentsContract
 import java.io.File
+import androidx.core.content.FileProvider
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
@@ -21,6 +23,10 @@ class MainActivity : AudioServiceActivity() {
         private const val notificationPermissionRequestCode = 9402
         private const val systemMediaChannelName =
             "com.kaiting.player/system_media"
+        private const val apkMimeType =
+            "application/vnd.android.package-archive"
+        private const val updateFileProviderSuffix =
+            ".update_file_provider"
     }
 
     private var pendingDirectoryResult: MethodChannel.Result? = null
@@ -36,8 +42,48 @@ class MainActivity : AudioServiceActivity() {
         ).setMethodCallHandler { call, result ->
             when (call.method) {
                 "ensureNotificationPermission" -> ensureNotificationPermission(result)
+                "installApk" -> installApk(call, result)
                 else -> result.notImplemented()
             }
+        }
+    }
+
+    private fun installApk(call: MethodCall, result: MethodChannel.Result) {
+        val path = call.argument<String>("path")
+        if (path.isNullOrBlank()) {
+            result.error("invalid_apk_path", "安装包路径无效", null)
+            return
+        }
+
+        val file = File(path)
+        if (!file.isFile) {
+            result.error("apk_not_found", "安装包不存在", null)
+            return
+        }
+
+        val uri = try {
+            FileProvider.getUriForFile(
+                this,
+                "$packageName$updateFileProviderSuffix",
+                file,
+            )
+        } catch (_: IllegalArgumentException) {
+            result.error("apk_share_failed", "无法读取安装包", null)
+            return
+        }
+
+        val intent = Intent(Intent.ACTION_VIEW).apply {
+            setDataAndType(uri, apkMimeType)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        }
+        try {
+            startActivity(intent)
+            result.success(null)
+        } catch (_: ActivityNotFoundException) {
+            result.error("installer_not_found", "系统中没有可用的安装程序", null)
+        } catch (_: SecurityException) {
+            result.error("install_permission_denied", "请允许开听安装应用", null)
         }
     }
 
