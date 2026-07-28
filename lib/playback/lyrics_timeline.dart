@@ -69,4 +69,33 @@ class LyricsTimeline {
     if (activeIndex == null || !isSeekable(index)) return false;
     return lines[index].time == lines[activeIndex].time;
   }
+
+  /// Karaoke-style fill progress for the cue that owns [lineIndex].
+  ///
+  /// With line-level LRC (no word timestamps), progress is linear from this
+  /// cue's start to the next cue's start. Last cue falls back to [fallbackEnd]
+  /// or a 5s window. Returns 0–1.
+  double cueProgress(
+    Duration position, {
+    required int lineIndex,
+    Duration offset = Duration.zero,
+    Duration? fallbackEnd,
+  }) {
+    if (!isSeekable(lineIndex)) return 0;
+    final startMs = lines[lineIndex].time!.inMilliseconds;
+    var endMs = fallbackEnd?.inMilliseconds;
+    for (var i = lineIndex + 1; i < lines.length; i++) {
+      final next = lines[i].time?.inMilliseconds;
+      if (next != null && next > startMs) {
+        endMs = next;
+        break;
+      }
+    }
+    endMs ??= startMs + 5000;
+    if (endMs <= startMs) return 1;
+    final nowMs = position.inMilliseconds + offset.inMilliseconds;
+    if (nowMs <= startMs) return 0;
+    if (nowMs >= endMs) return 1;
+    return (nowMs - startMs) / (endMs - startMs);
+  }
 }

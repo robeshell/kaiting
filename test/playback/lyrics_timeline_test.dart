@@ -58,6 +58,34 @@ void main() {
     expect(timeline.isSynchronized, isFalse);
     expect(timeline.activeLineIndex(const Duration(seconds: 5)), isNull);
   });
+
+  test('cueProgress interpolates between consecutive timestamps', () {
+    final timeline = LyricsTimeline.forTrack(
+      _track([
+        const LyricLine(Duration(seconds: 0), 'A'),
+        const LyricLine(Duration(seconds: 10), 'B'),
+        const LyricLine(Duration(seconds: 20), 'C'),
+      ]),
+    );
+
+    expect(
+      timeline.cueProgress(const Duration(seconds: 0), lineIndex: 0),
+      0,
+    );
+    expect(
+      timeline.cueProgress(const Duration(seconds: 5), lineIndex: 0),
+      closeTo(0.5, 0.001),
+    );
+    expect(
+      timeline.cueProgress(const Duration(seconds: 10), lineIndex: 0),
+      1,
+    );
+    // Same-timestamp partner still uses the cue window to the next cue.
+    expect(
+      timeline.cueProgress(const Duration(seconds: 15), lineIndex: 1),
+      closeTo(0.5, 0.001),
+    );
+  });
 }
 
 Track _track(List<LyricLine> lyrics) => Track(

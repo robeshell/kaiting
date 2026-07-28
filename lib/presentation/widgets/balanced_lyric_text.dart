@@ -35,8 +35,7 @@ class BalancedLyricText extends StatelessWidget {
   }
 }
 
-/// Pure helper for tests and [BalancedLyricText].
-@visibleForTesting
+/// Pure helper for [BalancedLyricText] / [KaraokeLyricText] and tests.
 String balanceLyricLineBreaks(
   String raw, {
   required TextStyle style,

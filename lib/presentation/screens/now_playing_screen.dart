@@ -25,6 +25,7 @@ import '../widgets/progress_scrubber.dart';
 import '../widgets/sound_components.dart';
 import '../widgets/sound_metadata_line.dart';
 import '../widgets/balanced_lyric_text.dart';
+import '../widgets/karaoke_lyric_text.dart';
 import '../widgets/now_playing_motion_director.dart';
 import '../widgets/vinyl_record_art.dart';
 
@@ -2093,8 +2094,9 @@ class _LyricsPanelState extends State<_LyricsPanel> {
         final fontSize = isActive
             ? (narrow ? 20.0 : 22.0)
             : (narrow ? 18.0 : 20.0);
+        final primary = context.soundPrimaryText;
         final style = TextStyle(
-          color: context.soundPrimaryText.withValues(
+          color: primary.withValues(
             alpha: isActive
                 ? 1
                 : active != null && index < active
@@ -2106,6 +2108,24 @@ class _LyricsPanelState extends State<_LyricsPanel> {
           // Soft type: emphasis is color/size, not heavy weight.
           fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
         );
+        // Line-level LRC: fill from this cue to the next (karaoke wipe).
+        final karaoke = isActive && synchronized;
+        final progress = karaoke
+            ? _timeline.cueProgress(
+                widget.position,
+                lineIndex: index,
+                offset: _offset,
+              )
+            : 0.0;
+        final text = karaoke
+            ? KaraokeLyricText(
+                line.text,
+                style: style,
+                progress: progress,
+                fillColor: primary,
+                baseColor: primary.withValues(alpha: 0.34),
+              )
+            : BalancedLyricText(line.text, style: style);
         return GestureDetector(
           key: _lineKeys[index],
           behavior: HitTestBehavior.opaque,
@@ -2117,7 +2137,7 @@ class _LyricsPanelState extends State<_LyricsPanel> {
           child: AnimatedDefaultTextStyle(
             duration: Duration.zero,
             style: style,
-            child: BalancedLyricText(line.text, style: style),
+            child: text,
           ),
         );
       },
