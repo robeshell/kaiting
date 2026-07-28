@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/sound_theme.dart';
@@ -68,26 +69,77 @@ class _ProgressScrubberState extends State<ProgressScrubber> {
   double? _previewMilliseconds;
   final Set<int> _activePointers = <int>{};
   Timer? _settleTimer;
+  bool _globalRouteInstalled = false;
+  bool _interactionNotified = false;
 
   double get _durationMs =>
       widget.duration.inMilliseconds.toDouble().clamp(1, double.infinity);
 
+  bool get _isDragging => _activePointers.isNotEmpty;
+
+  void _ensureGlobalRoute() {
+    if (_globalRouteInstalled) return;
+    GestureBinding.instance.pointerRouter.addGlobalRoute(_handleGlobalPointer);
+    _globalRouteInstalled = true;
+  }
+
+  void _removeGlobalRoute() {
+    if (!_globalRouteInstalled) return;
+    GestureBinding.instance.pointerRouter.removeGlobalRoute(
+      _handleGlobalPointer,
+    );
+    _globalRouteInstalled = false;
+  }
+
+  void _handleGlobalPointer(PointerEvent event) {
+    if (!_activePointers.contains(event.pointer)) return;
+    if (event is PointerUpEvent || event is PointerCancelEvent) {
+      _finishPointer(event.pointer);
+    }
+  }
+
   void _handlePointerDown(PointerDownEvent event) {
     final wasInactive = _activePointers.isEmpty;
     _activePointers.add(event.pointer);
+    _ensureGlobalRoute();
     if (wasInactive) {
-      const ProgressScrubInteractionNotification(active: true).dispatch(context);
+      _notifyInteraction(true);
     }
   }
 
   void _finishPointer(int pointer) {
-    if (!_activePointers.remove(pointer) || _activePointers.isNotEmpty) return;
-    const ProgressScrubInteractionNotification(active: false).dispatch(context);
+    if (!_activePointers.remove(pointer)) return;
+    if (_activePointers.isEmpty) {
+      _removeGlobalRoute();
+      _notifyInteraction(false);
+    }
+  }
+
+  void _clearAllPointers() {
+    if (_activePointers.isEmpty) {
+      _removeGlobalRoute();
+      _notifyInteraction(false);
+      return;
+    }
+    _activePointers.clear();
+    _removeGlobalRoute();
+    _notifyInteraction(false);
+  }
+
+  void _notifyInteraction(bool active) {
+    if (_interactionNotified == active) return;
+    _interactionNotified = active;
+    if (!mounted) return;
+    ProgressScrubInteractionNotification(active: active).dispatch(context);
   }
 
   Future<void> _commitSeek(double value) async {
     final target = Duration(milliseconds: value.round());
-    setState(() => _previewMilliseconds = value);
+    if (mounted) {
+      setState(() => _previewMilliseconds = value);
+    } else {
+      _previewMilliseconds = value;
+    }
     try {
       await widget.onSeek(target);
     } finally {
@@ -99,7 +151,7 @@ class _ProgressScrubberState extends State<ProgressScrubber> {
       // timer if it never does.
       _settleTimer?.cancel();
       _settleTimer = Timer(_settleTimeout, () {
-        if (mounted && _previewMilliseconds == value) {
+        if (mounted && _previewMilliseconds == value && !_isDragging) {
           setState(() => _previewMilliseconds = null);
         }
       });
@@ -110,7 +162,8 @@ class _ProgressScrubberState extends State<ProgressScrubber> {
   void didUpdateWidget(covariant ProgressScrubber oldWidget) {
     super.didUpdateWidget(oldWidget);
     final preview = _previewMilliseconds;
-    if (preview == null || _activePointers.isNotEmpty) return;
+    // Never let engine ticks override the thumb while the user is dragging.
+    if (preview == null || _isDragging) return;
     final engineValue = widget.position.inMilliseconds.toDouble();
     if ((engineValue - preview).abs() <= _settleToleranceMs) {
       _settleTimer?.cancel();
@@ -121,6 +174,7 @@ class _ProgressScrubberState extends State<ProgressScrubber> {
   @override
   void dispose() {
     _settleTimer?.cancel();
+    _clearAllPointers();
     super.dispose();
   }
 
@@ -132,7 +186,9 @@ class _ProgressScrubberState extends State<ProgressScrubber> {
     final displayValue = (_previewMilliseconds ?? engineValue)
         .clamp(0, _durationMs)
         .toDouble();
-    final fraction = enabled ? (displayValue / _durationMs).clamp(0.0, 1.0) : 0.0;
+    final fraction = enabled
+        ? (displayValue / _durationMs).clamp(0.0, 1.0)
+        : 0.0;
 
     if (!interactive) {
       return _NonInteractiveProgressTrack(
@@ -168,13 +224,23 @@ class _ProgressScrubberState extends State<ProgressScrubber> {
       allowedInteraction: SliderInteraction.tapAndSlide,
       activeColor: widget.activeColor ?? context.soundPrimaryText,
       onChangeStart: enabled
-          ? (value) => setState(() => _previewMilliseconds = value)
+          ? (value) {
+              // Slider won the arena — keep interaction latched even if the
+              // outer Listener misses later up events outside its bounds.
+              _notifyInteraction(true);
+              setState(() => _previewMilliseconds = value);
+            }
           : null,
       onChanged: enabled
           ? (value) => setState(() => _previewMilliseconds = value)
           : null,
       onChangeEnd: enabled
-          ? (value) => unawaited(_commitSeek(value))
+          ? (value) {
+              unawaited(_commitSeek(value));
+              // Always release latch after a gesture ends so the bar cannot
+              // get permanently stuck non-interactive / dismiss-blocked.
+              _clearAllPointers();
+            }
           : null,
     );
     return SliderTheme(
@@ -198,7 +264,10 @@ class _ProgressScrubberState extends State<ProgressScrubber> {
       child: SizedBox(
         height: widget.minInteractiveHeight,
         child: Listener(
-          behavior: HitTestBehavior.opaque,
+          // Translucent so we still see downs early for dismiss suppression,
+          // without eating events the Slider needs after the finger leaves
+          // this box (global route finishes those pointers).
+          behavior: HitTestBehavior.translucent,
           onPointerDown: _handlePointerDown,
           onPointerUp: (event) => _finishPointer(event.pointer),
           onPointerCancel: (event) => _finishPointer(event.pointer),
@@ -234,7 +303,8 @@ class _NonInteractiveProgressTrack extends StatelessWidget {
           // Prefer filling the parent height when it matches [trackHeight]
           // (docked mini player). Centering inside a taller box leaves a
           // visible hairline of the bar surface above the fill.
-          final height = constraints.maxHeight.isFinite &&
+          final height =
+              constraints.maxHeight.isFinite &&
                   constraints.maxHeight > 0 &&
                   constraints.maxHeight <= trackHeight + 0.5
               ? constraints.maxHeight
@@ -251,9 +321,7 @@ class _NonInteractiveProgressTrack extends StatelessWidget {
                       child: Container(color: activeColor),
                     ),
                   if (activeWidth < constraints.maxWidth)
-                    Expanded(
-                      child: Container(color: inactiveColor),
-                    ),
+                    Expanded(child: Container(color: inactiveColor)),
                 ],
               ),
             ),
