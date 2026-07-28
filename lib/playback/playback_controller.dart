@@ -8,6 +8,7 @@ import 'playback_engine.dart';
 import 'playback_lyrics_source.dart';
 import 'playback_media_provider.dart';
 import 'playback_mode.dart';
+import 'playback_policy.dart';
 import 'playback_session.dart';
 
 class SoundPlaybackController extends ChangeNotifier {
@@ -46,12 +47,7 @@ class SoundPlaybackController extends ChangeNotifier {
   int _queueIndex = 0;
   int _queueRevision = 0;
 
-  /// Independent of [_repeatMode]. When true the queue is walked in a shuffled
-  /// order; turning it off keeps the current queue order.
-  bool _shuffleEnabled = false;
-
-  /// Independent of [_shuffleEnabled]. Controls end-of-queue / single-track loop.
-  PlaybackRepeatMode _repeatMode = PlaybackRepeatMode.all;
+  PlaybackPolicy _policy = const PlaybackPolicy.repeatAll();
   Duration? _resumePosition;
   String? _resumeTrackId;
   Duration? _pendingSeekPosition;
@@ -86,24 +82,17 @@ class SoundPlaybackController extends ChangeNotifier {
   int get queueIndex => _queueIndex;
 
   /// Whether shuffle is active. Orthogonal to [repeatMode].
-  bool get isShuffleEnabled => _shuffleEnabled;
+  bool get isShuffleEnabled => _policy.shuffleEnabled;
 
   /// List-loop preference. Orthogonal to [isShuffleEnabled].
-  PlaybackRepeatMode get repeatMode => _repeatMode;
+  PlaybackRepeatMode get repeatMode => _policy.repeatMode;
 
-  /// Combined mode for session persistence and exclusive pickers.
+  /// Combined presentation mode for exclusive pickers and compatibility.
   ///
   /// When shuffle is on this always reports [PlaybackMode.shuffle], so the
-  /// underlying [repeatMode] is not visible through this getter — use
-  /// [isShuffleEnabled] / [repeatMode] for the now-playing controls.
-  PlaybackMode get playbackMode {
-    if (_shuffleEnabled) return PlaybackMode.shuffle;
-    return switch (_repeatMode) {
-      PlaybackRepeatMode.off => PlaybackMode.sequential,
-      PlaybackRepeatMode.one => PlaybackMode.repeatOne,
-      PlaybackRepeatMode.all => PlaybackMode.repeatAll,
-    };
-  }
+  /// underlying [repeatMode] is not visible through this getter. Consumers
+  /// that expose both axes must use [isShuffleEnabled] and [repeatMode].
+  PlaybackMode get playbackMode => _policy.combinedMode;
 
   Stream<Track> get trackStarted => _trackStartedController.stream;
   bool get supportsGaplessTransitions => switch (_engine) {
@@ -132,6 +121,8 @@ class SoundPlaybackController extends ChangeNotifier {
     queueIndex: _queueIndex,
     positionMs: displayPosition.inMilliseconds,
     playbackMode: playbackMode,
+    shuffleEnabled: isShuffleEnabled,
+    repeatMode: repeatMode,
     queueRevision: _queueRevision,
   );
 
@@ -141,7 +132,7 @@ class SoundPlaybackController extends ChangeNotifier {
   /// album / collection "随机播放" does not always open on the first song.
   Future<void> playShuffled(List<Track> tracks, {Track? startTrack}) async {
     if (tracks.isEmpty) return;
-    _shuffleEnabled = true;
+    _policy = PlaybackPolicy.fromCombinedMode(PlaybackMode.shuffle);
     final start = startTrack ?? tracks[_random.nextInt(tracks.length)];
     await playTrack(start, queue: tracks);
   }
@@ -177,7 +168,7 @@ class SoundPlaybackController extends ChangeNotifier {
         _queue = [selected];
         _queueIndex = 0;
       }
-      if (_shuffleEnabled && _queue.length > 1) {
+      if (isShuffleEnabled && _queue.length > 1) {
         _shuffleQueueKeepingCurrent(selected.id);
       }
     } else {
@@ -354,12 +345,17 @@ class SoundPlaybackController extends ChangeNotifier {
   Future<void> previous() async {
     if (_queue.isEmpty) return;
     _clearResumePosition();
-    if (_queueIndex > 0) {
-      _queueIndex--;
-    } else if (_shouldWrapQueue) {
-      _queueIndex = _queue.length - 1;
-    } else {
-      return;
+    final transition = _policy.resolvePrevious(
+      currentIndex: _queueIndex,
+      queueLength: _queue.length,
+    );
+    switch (transition.kind) {
+      case PlaybackQueueTransitionKind.moveToIndex:
+        _queueIndex = transition.targetIndex!;
+      case PlaybackQueueTransitionKind.none ||
+          PlaybackQueueTransitionKind.replayCurrent ||
+          PlaybackQueueTransitionKind.reshuffle:
+        return;
     }
     await playTrack(_queue[_queueIndex]);
   }
@@ -369,21 +365,11 @@ class SoundPlaybackController extends ChangeNotifier {
   /// Prefer [toggleShuffle] / [cycleRepeatMode] on the now-playing surface so
   /// shuffle and list-loop stay independent.
   void setPlaybackMode(PlaybackMode mode) {
-    if (playbackMode == mode) return;
-    final enablingShuffle = mode == PlaybackMode.shuffle && !_shuffleEnabled;
-    switch (mode) {
-      case PlaybackMode.shuffle:
-        _shuffleEnabled = true;
-      case PlaybackMode.sequential:
-        _shuffleEnabled = false;
-        _repeatMode = PlaybackRepeatMode.off;
-      case PlaybackMode.repeatOne:
-        _shuffleEnabled = false;
-        _repeatMode = PlaybackRepeatMode.one;
-      case PlaybackMode.repeatAll:
-        _shuffleEnabled = false;
-        _repeatMode = PlaybackRepeatMode.all;
-    }
+    final nextPolicy = PlaybackPolicy.fromCombinedMode(mode);
+    if (_policy == nextPolicy) return;
+    final enablingShuffle =
+        nextPolicy.shuffleEnabled && !_policy.shuffleEnabled;
+    _policy = nextPolicy;
     if (enablingShuffle && _queue.length > 1) {
       final currentId =
           displayTrack?.id ??
@@ -400,13 +386,13 @@ class SoundPlaybackController extends ChangeNotifier {
 
   /// Toggles shuffle without clearing the current list-loop preference.
   void toggleShuffle() {
-    if (_shuffleEnabled) {
-      _shuffleEnabled = false;
+    final enablingShuffle = !isShuffleEnabled;
+    _policy = _policy.toggleShuffle();
+    if (!enablingShuffle) {
       _syncPlaylistLoopMode();
       notifyListeners();
       return;
     }
-    _shuffleEnabled = true;
     if (_queue.length > 1) {
       final currentId =
           displayTrack?.id ??
@@ -423,11 +409,7 @@ class SoundPlaybackController extends ChangeNotifier {
 
   /// Cycles list-loop (all → one → off → all) without clearing shuffle.
   void cycleRepeatMode() {
-    _repeatMode = switch (_repeatMode) {
-      PlaybackRepeatMode.all => PlaybackRepeatMode.one,
-      PlaybackRepeatMode.one => PlaybackRepeatMode.off,
-      PlaybackRepeatMode.off => PlaybackRepeatMode.all,
-    };
+    _policy = _policy.cycleRepeatMode();
     _syncPlaylistLoopMode();
     notifyListeners();
   }
@@ -554,30 +536,11 @@ class SoundPlaybackController extends ChangeNotifier {
     _queue = List.of(session.queue);
     _queueRevision = session.queueRevision;
     _queueIndex = session.queueIndex.clamp(0, _queue.length - 1);
-    _restorePlaybackMode(session.playbackMode);
+    _policy = session.playbackPolicy;
     _fallbackTrack = _queue[_queueIndex];
     if (session.positionMs > 0) {
       _resumePosition = Duration(milliseconds: session.positionMs);
       _resumeTrackId = _queue[_queueIndex].id;
-    }
-  }
-
-  void _restorePlaybackMode(PlaybackMode mode) {
-    switch (mode) {
-      case PlaybackMode.shuffle:
-        _shuffleEnabled = true;
-        // Session only stores the combined enum; keep continuous play when
-        // restoring shuffle so a cycle still reshuffles instead of stopping.
-        _repeatMode = PlaybackRepeatMode.all;
-      case PlaybackMode.sequential:
-        _shuffleEnabled = false;
-        _repeatMode = PlaybackRepeatMode.off;
-      case PlaybackMode.repeatOne:
-        _shuffleEnabled = false;
-        _repeatMode = PlaybackRepeatMode.one;
-      case PlaybackMode.repeatAll:
-        _shuffleEnabled = false;
-        _repeatMode = PlaybackRepeatMode.all;
     }
   }
 
@@ -763,45 +726,27 @@ class SoundPlaybackController extends ChangeNotifier {
   Future<void> _advance({required bool fromCompletion}) async {
     if (_queue.isEmpty) return;
     _clearResumePosition();
-
-    if (fromCompletion && _repeatMode == PlaybackRepeatMode.one) {
-      await playTrack(_queue[_queueIndex]);
-      return;
-    }
-
-    if (_queueIndex + 1 < _queue.length) {
-      _queueIndex++;
-    } else if (_shuffleEnabled) {
-      // One full shuffled pass finished.
-      if (_repeatMode == PlaybackRepeatMode.off) return;
-      _reshuffleForNextCycle();
-    } else if (_repeatMode == PlaybackRepeatMode.all) {
-      _queueIndex = 0;
-    } else {
-      return;
+    final transition = _policy.resolveForward(
+      trigger: fromCompletion
+          ? PlaybackTransitionTrigger.completion
+          : PlaybackTransitionTrigger.manual,
+      currentIndex: _queueIndex,
+      queueLength: _queue.length,
+    );
+    switch (transition.kind) {
+      case PlaybackQueueTransitionKind.none:
+        return;
+      case PlaybackQueueTransitionKind.replayCurrent:
+        break;
+      case PlaybackQueueTransitionKind.moveToIndex:
+        _queueIndex = transition.targetIndex!;
+      case PlaybackQueueTransitionKind.reshuffle:
+        _reshuffleForNextCycle();
     }
     await playTrack(_queue[_queueIndex]);
   }
 
-  bool get _shouldWrapQueue {
-    if (_repeatMode == PlaybackRepeatMode.all) return true;
-    // Continuous shuffle (default when shuffle is restored) wraps like list loop.
-    return _shuffleEnabled && _repeatMode != PlaybackRepeatMode.off;
-  }
-
-  PlaybackQueueLoopMode get _queueLoopMode {
-    if (_repeatMode == PlaybackRepeatMode.one) {
-      return PlaybackQueueLoopMode.one;
-    }
-    // Shuffle always uses native loop-off: end-of-queue reshuffle is owned by
-    // the controller so the next cycle is a new permutation.
-    if (_shuffleEnabled) return PlaybackQueueLoopMode.off;
-    return switch (_repeatMode) {
-      PlaybackRepeatMode.all => PlaybackQueueLoopMode.all,
-      PlaybackRepeatMode.off ||
-      PlaybackRepeatMode.one => PlaybackQueueLoopMode.off,
-    };
-  }
+  PlaybackQueueLoopMode get _queueLoopMode => _policy.nativeQueueLoopMode;
 
   /// Hard-reloads the native playlist so upcoming tracks match the controller
   /// queue. Soft [PlaylistPlaybackEngine.updateQueue] alone has been observed

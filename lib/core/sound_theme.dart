@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+export 'kaiting_icons.dart';
+
 import 'brand_tokens.g.dart';
 
 bool get soundUsesDesktopPlatform =>

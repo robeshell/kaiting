@@ -117,7 +117,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 const SliverFillRemaining(
                   hasScrollBody: false,
                   child: _SearchMessage(
-                    icon: Icons.library_music_outlined,
+                    icon: KaitingIcons.library,
                     title: '正在读取资料库',
                     message: '资料库就绪后即可搜索。',
                     loading: true,
@@ -127,7 +127,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 SliverFillRemaining(
                   hasScrollBody: false,
                   child: _SearchMessage(
-                    icon: Icons.error_outline_rounded,
+                    icon: KaitingIcons.error,
                     title: '无法读取资料库',
                     message: widget.catalog.errorMessage ?? '请稍后重试。',
                   ),
@@ -150,7 +150,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 SliverFillRemaining(
                   hasScrollBody: false,
                   child: _SearchMessage(
-                    icon: Icons.error_outline_rounded,
+                    icon: KaitingIcons.error,
                     title: '搜索失败',
                     message: widget.search.errorMessage ?? '请重新输入关键词。',
                   ),
@@ -162,7 +162,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 const SliverFillRemaining(
                   hasScrollBody: false,
                   child: _SearchMessage(
-                    icon: Icons.search_rounded,
+                    icon: KaitingIcons.search,
                     title: '正在搜索',
                     message: '正在从资料库中查找匹配内容。',
                     loading: true,
@@ -174,7 +174,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 SliverFillRemaining(
                   hasScrollBody: false,
                   child: _SearchMessage(
-                    icon: Icons.search_off_rounded,
+                    icon: KaitingIcons.searchEmpty,
                     title: '没有找到结果',
                     message:
                         '没有与“${widget.search.query.trim()}”匹配的艺人、专辑或歌曲。',
@@ -248,7 +248,7 @@ class _SearchScreenState extends State<SearchScreen> {
                               key: const ValueKey('search-play-results'),
                               onPressed: () => _playSearchResults(),
                               icon: const Icon(
-                                Icons.playlist_play_rounded,
+                                KaitingIcons.playNext,
                                 size: 18,
                               ),
                               label: Text(
@@ -375,14 +375,14 @@ class _SearchScreenState extends State<SearchScreen> {
               onChanged: widget.search.setQuery,
               decoration: InputDecoration(
                 hintText: compact ? '搜索歌名、艺人、专辑' : '搜索歌名、艺人、专辑、流派',
-                prefixIcon: const Icon(Icons.search_rounded, size: 20),
+                prefixIcon: const Icon(KaitingIcons.search, size: 20),
                 prefixIconConstraints: const BoxConstraints(minWidth: 42),
                 suffixIcon: widget.search.query.isEmpty
                     ? null
                     : IconButton(
                         onPressed: _clearQuery,
                         tooltip: '清除搜索',
-                        icon: const Icon(Icons.close_rounded, size: 18),
+                        icon: const Icon(KaitingIcons.close, size: 18),
                       ),
                 suffixIconConstraints: const BoxConstraints(minWidth: 42),
                 isDense: true,
@@ -427,7 +427,7 @@ class _EmptySearchBody extends StatelessWidget {
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const _SearchMessage(
-            icon: Icons.search_rounded,
+            icon: KaitingIcons.search,
             title: '搜索你的音乐',
             message: '',
           ),
@@ -513,7 +513,7 @@ class _ArtistHitList extends StatelessWidget {
             title: Text(hit.name),
             subtitle: Text(_artistHitSubtitle(hit.collection)),
             trailing: Icon(
-              Icons.chevron_right_rounded,
+              KaitingIcons.chevronRight,
               size: 19,
               color: context.soundSecondaryText,
             ),
@@ -658,8 +658,8 @@ class _SearchResultRow extends StatelessWidget {
               color: favorite ? SoundColors.accent : null,
               icon: Icon(
                 favorite
-                    ? Icons.favorite_rounded
-                    : Icons.favorite_border_rounded,
+                    ? KaitingIcons.favoriteFilled
+                    : KaitingIcons.favorite,
               ),
             ),
           if (onAddToPlaylist != null)
@@ -667,12 +667,12 @@ class _SearchResultRow extends StatelessWidget {
               key: ValueKey('add-search-${hit.track.id}-to-playlist'),
               onPressed: onAddToPlaylist,
               tooltip: '将 ${hit.track.title} 添加到播放列表',
-              icon: const Icon(Icons.playlist_add_rounded),
+              icon: const Icon(KaitingIcons.playlistAdd),
             ),
           IconButton(
             onPressed: onOpenAlbum,
             tooltip: '打开专辑 ${hit.album.title}',
-            icon: const Icon(Icons.chevron_right_rounded),
+            icon: const Icon(KaitingIcons.chevronRight),
           ),
         ],
       ),
@@ -680,7 +680,7 @@ class _SearchResultRow extends StatelessWidget {
         key: ValueKey('search-result-menu-${hit.track.id}'),
         tooltip: '更多操作 ${hit.track.title}',
         menuTitle: hit.track.title,
-        icon: const Icon(Icons.more_horiz_rounded, size: 21),
+        icon: const Icon(KaitingIcons.moreHorizontal, size: 21),
         onSelected: (action) {
           switch (action) {
             case _SearchResultAction.openAlbum:
@@ -699,33 +699,33 @@ class _SearchResultRow extends StatelessWidget {
           const SoundMenuAction(
             value: _SearchResultAction.openAlbum,
             label: '打开专辑',
-            icon: Icons.album_outlined,
+            icon: KaitingIcons.album,
           ),
           if (onOpenArtist != null)
             const SoundMenuAction(
               value: _SearchResultAction.openArtist,
               label: '打开艺人',
-              icon: Icons.person_outline_rounded,
+              icon: KaitingIcons.person,
             ),
           const SoundMenuAction(
             value: _SearchResultAction.playResults,
             label: '从这里播放搜索结果',
-            icon: Icons.playlist_play_rounded,
+            icon: KaitingIcons.playNext,
           ),
           if (onToggleFavorite != null)
             SoundMenuAction(
               value: _SearchResultAction.favorite,
               label: favorite ? '取消收藏' : '收藏',
               icon: favorite
-                  ? Icons.favorite_rounded
-                  : Icons.favorite_border_rounded,
+                  ? KaitingIcons.favoriteFilled
+                  : KaitingIcons.favorite,
               selected: favorite,
             ),
           if (onAddToPlaylist != null)
             const SoundMenuAction(
               value: _SearchResultAction.addToPlaylist,
               label: '添加到播放列表',
-              icon: Icons.playlist_add_rounded,
+              icon: KaitingIcons.playlistAdd,
             ),
         ],
       ),

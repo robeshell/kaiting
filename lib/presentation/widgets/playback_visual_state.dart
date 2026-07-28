@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/kaiting_icons.dart';
 import '../../playback/playback_engine.dart';
 
 enum PlaybackPrimaryVisual { none, play, pause, replay, retry }
@@ -69,11 +70,11 @@ class PlaybackVisualState {
   bool get primaryEnabled => primaryVisual != PlaybackPrimaryVisual.none;
 
   IconData get primaryIcon => switch (primaryVisual) {
-    PlaybackPrimaryVisual.none => Icons.hourglass_empty_rounded,
-    PlaybackPrimaryVisual.play => Icons.play_arrow_rounded,
-    PlaybackPrimaryVisual.pause => Icons.pause_rounded,
-    PlaybackPrimaryVisual.replay => Icons.replay_rounded,
-    PlaybackPrimaryVisual.retry => Icons.refresh_rounded,
+    PlaybackPrimaryVisual.none => KaitingIcons.hourglass,
+    PlaybackPrimaryVisual.play => KaitingIcons.play,
+    PlaybackPrimaryVisual.pause => KaitingIcons.pause,
+    PlaybackPrimaryVisual.replay => KaitingIcons.replay,
+    PlaybackPrimaryVisual.retry => KaitingIcons.refresh,
   };
 
   String get primaryTooltip => switch (primaryVisual) {

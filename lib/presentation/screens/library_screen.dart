@@ -37,9 +37,9 @@ extension LibraryBrowseModePresentation on LibraryBrowseMode {
   };
 
   IconData get icon => switch (this) {
-    LibraryBrowseMode.albums => Icons.album_outlined,
-    LibraryBrowseMode.artists => Icons.person_outline_rounded,
-    LibraryBrowseMode.songs => Icons.music_note_outlined,
+    LibraryBrowseMode.albums => KaitingIcons.album,
+    LibraryBrowseMode.artists => KaitingIcons.person,
+    LibraryBrowseMode.songs => KaitingIcons.music,
   };
 }
 
@@ -316,7 +316,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
               const SliverFillRemaining(
                 hasScrollBody: false,
                 child: SoundEmptyState(
-                  icon: Icons.library_music_outlined,
+                  icon: KaitingIcons.library,
                   title: '正在读取资料库',
                   message: '正在加载已索引的专辑和歌曲。',
                   loading: true,
@@ -326,7 +326,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
               SliverFillRemaining(
                 hasScrollBody: false,
                 child: SoundEmptyState(
-                  icon: Icons.error_outline_rounded,
+                  icon: KaitingIcons.error,
                   title: '无法读取资料库',
                   message: widget.catalog.errorMessage ?? '无法读取资料库。',
                   actionLabel: '重试',
@@ -337,7 +337,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
               SliverFillRemaining(
                 hasScrollBody: false,
                 child: SoundEmptyState(
-                  icon: Icons.create_new_folder_outlined,
+                  icon: KaitingIcons.newFolder,
                   title: '资料库还是空的',
                   message: kIsWeb
                       ? '添加一个 WebDAV 音乐源，扫描完成后歌曲会显示在这里。'
@@ -350,7 +350,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
               const SliverFillRemaining(
                 hasScrollBody: false,
                 child: SoundEmptyState(
-                  icon: Icons.filter_alt_off_outlined,
+                  icon: KaitingIcons.filterOff,
                   title: '当前筛选没有内容',
                   message: '这个来源中没有已索引的音乐，可以切换到其他来源继续浏览。',
                 ),
@@ -716,7 +716,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
         SliverFillRemaining(
           hasScrollBody: false,
           child: SoundEmptyState(
-            icon: Icons.category_outlined,
+            icon: KaitingIcons.category,
             title: '暂无内容',
             message: emptyMessage,
           ),
@@ -1132,7 +1132,7 @@ class _LibraryTrackRow extends StatelessWidget {
         tooltip: '更多操作 ${track.title}',
         menuTitle: track.title,
         padding: EdgeInsets.zero,
-        icon: const Icon(Icons.more_horiz_rounded, size: 21),
+        icon: const Icon(KaitingIcons.moreHorizontal, size: 21),
         onSelected: (value) {
           if (value == 'favorite') onToggleFavorite?.call();
           if (value == 'playlist') onAddToPlaylist?.call();
@@ -1144,20 +1144,20 @@ class _LibraryTrackRow extends StatelessWidget {
               value: 'favorite',
               label: favorite ? '取消收藏' : '收藏',
               icon: favorite
-                  ? Icons.favorite_rounded
-                  : Icons.favorite_border_rounded,
+                  ? KaitingIcons.favoriteFilled
+                  : KaitingIcons.favorite,
               selected: favorite,
             ),
           if (onAddToPlaylist != null)
             const SoundMenuAction(
               value: 'playlist',
               label: '添加到播放列表',
-              icon: Icons.playlist_add_rounded,
+              icon: KaitingIcons.playlistAdd,
             ),
           const SoundMenuAction(
             value: 'album',
             label: '打开专辑',
-            icon: Icons.album_outlined,
+            icon: KaitingIcons.album,
           ),
         ],
       ),
@@ -1172,8 +1172,8 @@ class _LibraryTrackRow extends StatelessWidget {
               color: favorite ? SoundColors.accent : null,
               icon: Icon(
                 favorite
-                    ? Icons.favorite_rounded
-                    : Icons.favorite_border_rounded,
+                    ? KaitingIcons.favoriteFilled
+                    : KaitingIcons.favorite,
               ),
             ),
           if (onAddToPlaylist != null)
@@ -1181,12 +1181,12 @@ class _LibraryTrackRow extends StatelessWidget {
               key: ValueKey('add-library-${track.id}-to-playlist'),
               onPressed: onAddToPlaylist,
               tooltip: '将 ${track.title} 添加到播放列表',
-              icon: const Icon(Icons.playlist_add_rounded),
+              icon: const Icon(KaitingIcons.playlistAdd),
             ),
           IconButton(
             onPressed: onOpenAlbum,
             tooltip: '打开专辑 ${album.title}',
-            icon: const Icon(Icons.chevron_right_rounded),
+            icon: const Icon(KaitingIcons.chevronRight),
           ),
         ],
       ),
@@ -1242,7 +1242,7 @@ class _CompactLibraryNavigation extends StatelessWidget {
                   width: 42,
                   height: 34,
                   child: Icon(
-                    Icons.more_horiz_rounded,
+                    KaitingIcons.moreHorizontal,
                     size: 20,
                     color: context.soundSecondaryText,
                   ),
@@ -1351,14 +1351,14 @@ class _LibraryToolbar extends StatelessWidget {
             ],
             _sortMenu(
               child: _ToolbarIconButton(
-                icon: Icons.sort_rounded,
+                icon: KaitingIcons.sort,
                 tooltip: '排序：${sortOrder.label}',
               ),
             ),
             const SizedBox(width: 6),
             _sourceMenu(
               child: _ToolbarIconButton(
-                icon: Icons.filter_alt_outlined,
+                icon: KaitingIcons.filter,
                 tooltip: '来源：${sourceFilter.label}',
               ),
             ),
@@ -1378,13 +1378,13 @@ class _LibraryToolbar extends StatelessWidget {
           ),
         _sortMenu(
           child: _ToolbarIconButton(
-            icon: Icons.sort_rounded,
+            icon: KaitingIcons.sort,
             tooltip: '排序：${sortOrder.label}',
           ),
         ),
         _sourceMenu(
           child: _ToolbarIconButton(
-            icon: Icons.filter_alt_outlined,
+            icon: KaitingIcons.filter,
             tooltip: '来源：${sourceFilter.label}',
           ),
         ),
@@ -1402,7 +1402,7 @@ class _LibraryToolbar extends StatelessWidget {
           SoundMenuAction(
             value: option,
             label: option.label,
-            icon: Icons.sort_rounded,
+            icon: KaitingIcons.sort,
             selected: option == sortOrder,
           ),
       ],
@@ -1463,7 +1463,7 @@ class _CompactPlayAllButton extends StatelessWidget {
     return TextButton.icon(
       key: const ValueKey('compact-library-play-all'),
       onPressed: onPressed,
-      icon: const Icon(Icons.play_arrow_rounded, size: 17),
+      icon: const Icon(KaitingIcons.play, size: 17),
       label: const Text('播放全部'),
       style: TextButton.styleFrom(
         minimumSize: const Size(0, 40),
@@ -1492,7 +1492,7 @@ class _SongHeader extends StatelessWidget {
         const Spacer(),
         FilledButton.icon(
           onPressed: onPlayAll,
-          icon: const Icon(Icons.play_arrow_rounded),
+          icon: const Icon(KaitingIcons.play),
           label: const Text('播放全部'),
         ),
       ],

@@ -133,6 +133,29 @@ void main() {
       expect(restored.queueIndex, 1);
       expect(restored.positionMs, 42000);
       expect(restored.playbackMode, PlaybackMode.shuffle);
+      expect(restored.shuffleEnabled, isTrue);
+      expect(restored.repeatMode, PlaybackRepeatMode.all);
+    });
+
+    test('round-trips independent shuffle and repeat state', () {
+      final session = PlaybackSession(
+        queue: [_trackA, _trackB],
+        queueIndex: 0,
+        positionMs: 12000,
+        playbackMode: PlaybackMode.shuffle,
+        shuffleEnabled: true,
+        repeatMode: PlaybackRepeatMode.one,
+      );
+
+      final json = session.toJson();
+      final restored = PlaybackSession.fromJson(json);
+
+      expect(json['version'], 4);
+      expect(json['shuffleEnabled'], isTrue);
+      expect(json['repeatMode'], 'one');
+      expect(restored.shuffleEnabled, isTrue);
+      expect(restored.repeatMode, PlaybackRepeatMode.one);
+      expect(restored.playbackMode, PlaybackMode.shuffle);
     });
 
     test('empty queue fromJson produces empty session', () {
@@ -329,47 +352,85 @@ void main() {
       expect((await store.load())!.queue, hasLength(2));
     });
 
-    test('saving a version 2 file migrates it to compact version 3', () async {
-      final file = File('${tmpDir.path}/playback_session.json');
-      await file.writeAsString(
-        jsonEncode({
-          'version': 2,
-          'queue': [
-            {
-              'id': 'legacy-track',
-              'title': 'Legacy',
-              'artist': 'Artist',
-              'albumTitle': 'Album',
-              'durationMs': 60000,
-              'source': 'local',
-              'lyrics': [
-                {'timeMs': 1000, 'text': 'Current fallback kept'},
-              ],
-            },
-            {
-              'id': 'legacy-track-2',
-              'title': 'Legacy 2',
-              'artist': 'Artist',
-              'albumTitle': 'Album',
-              'durationMs': 60000,
-              'source': 'local',
-              'lyrics': [
-                {'timeMs': 2000, 'text': 'Removed after migration'},
-              ],
-            },
-          ],
-          'queueIndex': 0,
-          'positionMs': 1000,
-        }),
+    test(
+      'saving a version 2 file migrates it to policy-aware version 4',
+      () async {
+        final file = File('${tmpDir.path}/playback_session.json');
+        await file.writeAsString(
+          jsonEncode({
+            'version': 2,
+            'queue': [
+              {
+                'id': 'legacy-track',
+                'title': 'Legacy',
+                'artist': 'Artist',
+                'albumTitle': 'Album',
+                'durationMs': 60000,
+                'source': 'local',
+                'lyrics': [
+                  {'timeMs': 1000, 'text': 'Current fallback kept'},
+                ],
+              },
+              {
+                'id': 'legacy-track-2',
+                'title': 'Legacy 2',
+                'artist': 'Artist',
+                'albumTitle': 'Album',
+                'durationMs': 60000,
+                'source': 'local',
+                'lyrics': [
+                  {'timeMs': 2000, 'text': 'Removed after migration'},
+                ],
+              },
+            ],
+            'queueIndex': 0,
+            'positionMs': 1000,
+          }),
+        );
+
+        final legacy = await store.load();
+        await store.save(legacy!);
+        final migrated = await file.readAsString();
+
+        final migratedJson = jsonDecode(migrated) as Map<String, dynamic>;
+        expect(migratedJson['version'], 4);
+        expect(migratedJson['shuffleEnabled'], isFalse);
+        expect(migratedJson['repeatMode'], 'all');
+        expect(migrated, isNot(contains('Removed after migration')));
+        expect(migrated, contains('Current fallback kept'));
+      },
+    );
+
+    test('checkpoint preserves independent shuffle and repeat state', () async {
+      await store.save(
+        PlaybackSession(
+          queue: [_trackA, _trackB],
+          queueIndex: 0,
+          positionMs: 1000,
+          queueRevision: 8,
+        ),
+      );
+      await store.save(
+        PlaybackSession(
+          queue: [_trackA, _trackB],
+          queueIndex: 0,
+          positionMs: 2000,
+          playbackMode: PlaybackMode.shuffle,
+          shuffleEnabled: true,
+          repeatMode: PlaybackRepeatMode.one,
+          queueRevision: 8,
+        ),
       );
 
-      final legacy = await store.load();
-      await store.save(legacy!);
-      final migrated = await file.readAsString();
+      final restored = await PlaybackSessionStore(
+        documentsDir: tmpDir.path,
+      ).load();
 
-      expect(jsonDecode(migrated)['version'], 3);
-      expect(migrated, isNot(contains('Removed after migration')));
-      expect(migrated, contains('Current fallback kept'));
+      expect(restored, isNotNull);
+      expect(restored!.shuffleEnabled, isTrue);
+      expect(restored.repeatMode, PlaybackRepeatMode.one);
+      expect(restored.playbackMode, PlaybackMode.shuffle);
+      expect(restored.positionMs, 2000);
     });
 
     test('clear removes the session', () async {
@@ -500,7 +561,10 @@ void main() {
       const lyrics = [LyricLine(Duration(seconds: 3), 'From catalog')];
       final controller = SoundPlaybackController(
         engine: engine,
-        lyricsSource: _MapLyricsSource({_trackA.id: lyrics, _trackB.id: lyrics}),
+        lyricsSource: _MapLyricsSource({
+          _trackA.id: lyrics,
+          _trackB.id: lyrics,
+        }),
       );
       addTearDown(controller.dispose);
       addTearDown(engine.dispose);
@@ -529,6 +593,28 @@ void main() {
 
       expect(controller.playbackMode, PlaybackMode.shuffle);
       expect(controller.sessionSnapshot.playbackMode, PlaybackMode.shuffle);
+    });
+
+    test('restores independent shuffle and repeat policy', () {
+      final engine = ManualPlaybackEngine();
+      final controller = SoundPlaybackController(
+        engine: engine,
+        initialSession: PlaybackSession(
+          queue: [_trackA, _trackB],
+          queueIndex: 0,
+          positionMs: 0,
+          playbackMode: PlaybackMode.shuffle,
+          shuffleEnabled: true,
+          repeatMode: PlaybackRepeatMode.one,
+        ),
+      );
+      addTearDown(controller.dispose);
+      addTearDown(engine.dispose);
+
+      expect(controller.isShuffleEnabled, isTrue);
+      expect(controller.repeatMode, PlaybackRepeatMode.one);
+      expect(controller.sessionSnapshot.shuffleEnabled, isTrue);
+      expect(controller.sessionSnapshot.repeatMode, PlaybackRepeatMode.one);
     });
 
     test('toggle plays the restored track after session restore', () async {
@@ -796,7 +882,8 @@ class _MapLyricsSource implements PlaybackLyricsSource {
   ) async {
     return {
       for (final id in trackIds)
-        if (lyricsById[id] case final lyrics? when lyrics.isNotEmpty) id: lyrics,
+        if (lyricsById[id] case final lyrics? when lyrics.isNotEmpty)
+          id: lyrics,
     };
   }
 }

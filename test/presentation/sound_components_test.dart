@@ -29,12 +29,12 @@ void main() {
                 SoundMenuAction(
                   value: 'next',
                   label: '下一首播放',
-                  icon: Icons.playlist_play_rounded,
+                  icon: KaitingIcons.playNext,
                 ),
                 SoundMenuAction(
                   value: 'remove',
                   label: '移除',
-                  icon: Icons.delete_outline_rounded,
+                  icon: KaitingIcons.delete,
                   destructive: true,
                   dividerBefore: true,
                 ),
@@ -79,13 +79,13 @@ void main() {
                 SoundMenuAction(
                   value: 'title',
                   label: '按标题',
-                  icon: Icons.sort_by_alpha_rounded,
+                  icon: KaitingIcons.sortAlphabetically,
                   selected: true,
                 ),
                 SoundMenuAction(
                   value: 'artist',
                   label: '按艺人',
-                  icon: Icons.person_outline_rounded,
+                  icon: KaitingIcons.person,
                 ),
               ],
             ),
@@ -128,13 +128,13 @@ void main() {
                 SoundMenuAction(
                   value: 'title',
                   label: '按标题',
-                  icon: Icons.sort_by_alpha_rounded,
+                  icon: KaitingIcons.sortAlphabetically,
                   selected: true,
                 ),
                 SoundMenuAction(
                   value: 'artist',
                   label: '按艺人',
-                  icon: Icons.person_outline_rounded,
+                  icon: KaitingIcons.person,
                 ),
               ],
             ),
@@ -230,8 +230,8 @@ void main() {
           body: SoundListRow(
             title: const Text('一首标题非常长、需要正确截断的测试歌曲'),
             subtitle: const Text('这里是同样很长的艺人与专辑说明'),
-            leading: const Icon(Icons.music_note_rounded),
-            trailing: const Icon(Icons.more_horiz_rounded),
+            leading: const Icon(KaitingIcons.musicFilled),
+            trailing: const Icon(KaitingIcons.moreHorizontal),
             onTap: () {},
           ),
         ),
@@ -340,13 +340,13 @@ void main() {
               onDestinationSelected: (_) {},
               destinations: const [
                 SoundNavigationItem(
-                  icon: Icons.album_outlined,
-                  selectedIcon: Icons.album_rounded,
+                  icon: KaitingIcons.album,
+                  selectedIcon: KaitingIcons.albumFilled,
                   label: '资料库',
                 ),
                 SoundNavigationItem(
-                  icon: Icons.search_rounded,
-                  selectedIcon: Icons.search_rounded,
+                  icon: KaitingIcons.search,
+                  selectedIcon: KaitingIcons.search,
                   label: '搜索',
                 ),
               ],

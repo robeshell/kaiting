@@ -85,6 +85,187 @@ void main() {
     engine.dispose();
   });
 
+  testWidgets('mini player shares one transport style across form factors', (
+    tester,
+  ) async {
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final engine = StaticPlaybackEngine(
+      _snapshot(PlaybackPhase.paused, track: _track),
+    );
+    final playback = SoundPlaybackController(engine: engine);
+
+    Future<void> pumpMiniPlayer({
+      required double width,
+      required bool compact,
+      required bool docked,
+      required bool embedded,
+    }) async {
+      tester.view.physicalSize = Size(width, 160);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: SoundTheme.light,
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.bottomCenter,
+              child: MiniPlayer(
+                playback: playback,
+                compact: compact,
+                docked: docked,
+                embedded: embedded,
+                onOpen: () {},
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final toggle = find.byKey(
+        const ValueKey('mini-player-playback-toggle'),
+      );
+      final toggleButton = tester.widget<IconButton>(
+        find.descendant(of: toggle, matching: find.byType(IconButton)),
+      );
+      final toggleIconFinder = find.descendant(
+        of: toggle,
+        matching: find.byType(Icon),
+      );
+      final toggleIcon = tester.widget<Icon>(toggleIconFinder);
+      expect(toggleIcon.icon, KaitingIcons.playMini);
+      expect(toggleIcon.size, compact ? 24 : 28);
+      expect(
+        toggleIcon.color,
+        SoundColors.accent.withValues(alpha: 0.96),
+      );
+      expect(
+        toggleButton.style?.backgroundColor?.resolve(<WidgetState>{}),
+        Colors.transparent,
+      );
+      final nextIconFinder = find.byIcon(KaitingIcons.nextMini);
+      expect(nextIconFinder, findsOneWidget);
+      expect(
+        tester.widget<Icon>(nextIconFinder).size,
+        compact ? 20 : 23,
+      );
+      if (compact) {
+        expect(
+          tester.getCenter(nextIconFinder).dx -
+              tester.getCenter(toggleIconFinder).dx,
+          greaterThan(44),
+        );
+      }
+    }
+
+    // Desktop dock: full previous / play / next group.
+    await pumpMiniPlayer(
+      width: 1200,
+      compact: false,
+      docked: true,
+      embedded: false,
+    );
+    expect(find.byIcon(KaitingIcons.previousMini), findsOneWidget);
+    expect(tester.widget<Text>(find.text(_track.title)).style?.fontSize, 16);
+
+    // Phone: preserve metadata space; play and next remain.
+    await pumpMiniPlayer(
+      width: 390,
+      compact: true,
+      docked: false,
+      embedded: true,
+    );
+    expect(find.byIcon(KaitingIcons.previousMini), findsNothing);
+    expect(tester.widget<Text>(find.text(_track.title)).style?.fontSize, 13);
+
+    // Open foldable: restore previous and expose the queue action.
+    await pumpMiniPlayer(
+      width: 720,
+      compact: false,
+      docked: false,
+      embedded: true,
+    );
+    expect(find.byIcon(KaitingIcons.previousMini), findsOneWidget);
+    expect(find.byTooltip('打开播放队列'), findsOneWidget);
+    expect(tester.getSize(find.byType(MiniPlayer)).height, 70);
+    expect(tester.widget<Text>(find.text(_track.title)).style?.fontSize, 15);
+    expect(
+      tester
+          .widget<Text>(
+            find.text('${_track.artist} — ${_track.albumTitle}'),
+          )
+          .style
+          ?.fontSize,
+      12,
+    );
+    expect(
+      tester
+          .widget<Padding>(
+            find.byKey(
+              const ValueKey('mini-player-condensed-content-padding'),
+            ),
+          )
+          .padding,
+      const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
+    );
+    expect(tester.takeException(), isNull);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    playback.dispose();
+    engine.dispose();
+  });
+
+  testWidgets('foldable now-playing shares margins across player styles', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(720, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final engine = StaticPlaybackEngine(
+      _snapshot(PlaybackPhase.paused, track: _track),
+    );
+    final playback = SoundPlaybackController(engine: engine);
+
+    Future<Rect> pumpStyle(NowPlayingStyle style) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: SoundTheme.light,
+          home: NowPlayingScreen(
+            playback: playback,
+            style: style,
+          ),
+        ),
+      );
+      await tester.pump();
+      final content = tester.widget<Padding>(
+        find.byKey(const ValueKey('wide-now-playing-content')),
+      );
+      expect(content.padding, const EdgeInsets.fromLTRB(24, 0, 24, 24));
+      final lyrics = tester.widget<Padding>(
+        find.byKey(const ValueKey('wide-now-playing-lyrics')),
+      );
+      expect(lyrics.padding, const EdgeInsets.fromLTRB(16, 6, 0, 24));
+      final player = tester.widget<Padding>(
+        find.byKey(const ValueKey('wide-now-playing-player-padding')),
+      );
+      expect(player.padding, const EdgeInsets.fromLTRB(12, 18, 12, 0));
+      return tester.getRect(
+        find.byKey(const ValueKey('now-playing-track-title')),
+      );
+    }
+
+    final classicTitle = await pumpStyle(NowPlayingStyle.classic);
+    final vinylTitle = await pumpStyle(NowPlayingStyle.vinyl);
+    expect(vinylTitle.left, closeTo(classicTitle.left, 0.5));
+    expect(vinylTitle.right, closeTo(classicTitle.right, 0.5));
+    expect(tester.takeException(), isNull);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    playback.dispose();
+    engine.dispose();
+  });
+
   testWidgets('mini player progress is read-only', (tester) async {
     tester.view.physicalSize = const Size(1200, 120);
     tester.view.devicePixelRatio = 1;
@@ -212,6 +393,10 @@ void main() {
     await tester.pump();
 
     expect(tester.takeException(), isNull);
+    expect(
+      find.byKey(const ValueKey('now-playing-background-static')),
+      findsOneWidget,
+    );
     expect(find.text(_longTrack.title), findsOneWidget);
     expect(find.text('封面'), findsNothing);
     final playerTop = tester

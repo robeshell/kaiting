@@ -317,18 +317,30 @@ void main() {
       },
     );
 
-    test('unconfirmed seek does not leave a false display position', () async {
-      final engine = NoopSeekPlaybackEngine();
-      final controller = SoundPlaybackController(engine: engine);
-      addTearDown(controller.dispose);
-      addTearDown(engine.dispose);
-      await controller.playTrack(_firstTrack);
+    test(
+      'provisional display holds until the engine snapshot catches the seek',
+      () async {
+        // Real engines (just_audio) force-publish the seek target before the
+        // Future completes. Until then — or if native is slow while paused —
+        // displayPosition stays on the scrub target so the bar and labels do
+        // not snap back to the pre-seek head (often zero).
+        final engine = NoopSeekPlaybackEngine();
+        final controller = SoundPlaybackController(engine: engine);
+        addTearDown(controller.dispose);
+        addTearDown(engine.dispose);
+        await controller.playTrack(_firstTrack);
 
-      await controller.seek(const Duration(seconds: 42));
+        await controller.seek(const Duration(seconds: 42));
 
-      expect(controller.displayPosition, Duration.zero);
-      expect(controller.snapshot.position, Duration.zero);
-    });
+        expect(controller.displayPosition, const Duration(seconds: 42));
+        expect(controller.snapshot.position, Duration.zero);
+
+        engine.emitPosition(const Duration(seconds: 42));
+        await Future<void>.delayed(Duration.zero);
+        expect(controller.displayPosition, const Duration(seconds: 42));
+        expect(controller.snapshot.position, const Duration(seconds: 42));
+      },
+    );
   });
 
   // ---------------------------------------------------------------------------
@@ -1114,9 +1126,11 @@ void main() {
       addTearDown(engine.dispose);
 
       final tracks = [_firstTrack, _secondTrack, _thirdTrack];
+      controller.setPlaybackMode(PlaybackMode.repeatOne);
       await controller.playShuffled(tracks);
 
       expect(controller.isShuffleEnabled, isTrue);
+      expect(controller.repeatMode, PlaybackRepeatMode.all);
       expect(controller.currentTrack, same(_secondTrack));
       expect(controller.queue.first, same(_secondTrack));
       expect(controller.queue.map((track) => track.id).toSet(), {
@@ -1138,12 +1152,43 @@ void main() {
       controller.cycleCombinedPlaybackMode();
       expect(controller.playbackMode, PlaybackMode.shuffle);
       expect(controller.isShuffleEnabled, isTrue);
+      expect(controller.repeatMode, PlaybackRepeatMode.all);
       controller.cycleCombinedPlaybackMode();
       expect(controller.playbackMode, PlaybackMode.sequential);
       expect(controller.isShuffleEnabled, isFalse);
       controller.cycleCombinedPlaybackMode();
       expect(controller.playbackMode, PlaybackMode.repeatAll);
     });
+
+    test(
+      'entering shuffle after repeat-one advances when a track completes',
+      () async {
+        final engine = ManualPlaylistPlaybackEngine();
+        final controller = SoundPlaybackController(
+          engine: engine,
+          initialQueue: [_firstTrack, _secondTrack, _thirdTrack],
+          random: Random(17),
+        );
+        addTearDown(controller.dispose);
+        addTearDown(engine.dispose);
+        await controller.playTrack(_firstTrack);
+
+        controller.setPlaybackMode(PlaybackMode.repeatOne);
+        controller.cycleCombinedPlaybackMode();
+        await Future<void>.delayed(Duration.zero);
+
+        expect(controller.playbackMode, PlaybackMode.shuffle);
+        expect(controller.repeatMode, PlaybackRepeatMode.all);
+        expect(engine.loopMode, PlaybackQueueLoopMode.off);
+
+        final completed = controller.currentTrack!;
+        engine.emitCompleted(controller.snapshot.sessionId, completed);
+        await Future<void>.delayed(Duration.zero);
+
+        expect(controller.currentTrack, isNot(same(completed)));
+        expect(controller.isPlaying, isTrue);
+      },
+    );
 
     test('shuffle and repeat controls stay independent', () {
       final engine = ManualPlaybackEngine();

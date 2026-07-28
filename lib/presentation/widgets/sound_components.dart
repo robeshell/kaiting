@@ -640,7 +640,7 @@ class SoundEmptyState extends StatelessWidget {
                 const SizedBox(height: 20),
                 FilledButton.tonalIcon(
                   onPressed: onAction,
-                  icon: const Icon(Icons.arrow_forward_rounded, size: 17),
+                  icon: const Icon(KaitingIcons.forward, size: 17),
                   label: Text(actionLabel!),
                 ),
               ],
@@ -895,7 +895,7 @@ class SoundMenuButton<T> extends StatelessWidget {
     required this.tooltip,
     this.menuTitle,
     this.child,
-    this.icon = const Icon(Icons.more_horiz_rounded, size: 21),
+    this.icon = const Icon(KaitingIcons.moreHorizontal, size: 21),
     this.padding = EdgeInsets.zero,
     this.enabled = true,
     super.key,
@@ -1217,7 +1217,7 @@ class _SoundMenuActionRow<T> extends StatelessWidget {
                   if (action.selected) ...[
                     SizedBox(width: compact ? 12 : 10),
                     Icon(
-                      Icons.check_rounded,
+                      KaitingIcons.check,
                       size: compact ? 18 : 16,
                       color: SoundColors.accent,
                     ),
@@ -1372,8 +1372,8 @@ class SoundCheckRow extends StatelessWidget {
         onTap: enabled ? () => onChanged(!value) : null,
         leading: Icon(
           value
-              ? Icons.check_box_rounded
-              : Icons.check_box_outline_blank_rounded,
+              ? KaitingIcons.checkboxChecked
+              : KaitingIcons.checkbox,
           size: 20,
           color: value ? SoundColors.accent : context.soundMutedText,
         ),

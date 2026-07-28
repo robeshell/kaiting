@@ -175,7 +175,7 @@ class _Disc extends StatelessWidget {
           border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
         ),
         child: Icon(
-          Icons.music_note_rounded,
+          KaitingIcons.musicFilled,
           color: Colors.white.withValues(alpha: 0.52),
           size: 18,
         ),

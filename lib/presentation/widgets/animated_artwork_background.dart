@@ -20,6 +20,8 @@ class AnimatedArtworkBackground extends StatefulWidget {
     required this.position,
     required this.isPlaying,
     this.isActive = true,
+    this.paletteBrightness,
+    this.staticVerticalGradient = false,
     super.key,
   });
 
@@ -30,6 +32,14 @@ class AnimatedArtworkBackground extends StatefulWidget {
   /// When false (mobile now-playing still sliding), freeze motion so the open
   /// transition is not fighting continuous gradient tickers.
   final bool isActive;
+
+  /// Overrides the app theme when a surface needs a stable light or dark
+  /// artwork palette.
+  final Brightness? paletteBrightness;
+
+  /// Uses a calm top-to-bottom gradient without continuous glow or breathing
+  /// animation. Palette changes can still crossfade briefly between tracks.
+  final bool staticVerticalGradient;
 
   /// Starts the bounded artwork decode and palette extraction before the
   /// now-playing route is opened. The route can still paint its deterministic
@@ -101,7 +111,7 @@ class _AnimatedArtworkBackgroundState extends State<AnimatedArtworkBackground>
     super.initState();
     _targetColors = artworkFallbackGradientColors(
       widget.album,
-      Brightness.light,
+      widget.paletteBrightness ?? Brightness.light,
     );
     _fromColors = List<Color>.of(_targetColors);
     // Drift loop (~12s). Breath uses a higher harmonic so one inhale/exhale
@@ -127,7 +137,8 @@ class _AnimatedArtworkBackgroundState extends State<AnimatedArtworkBackground>
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final brightness = Theme.of(context).brightness;
+    final brightness =
+        widget.paletteBrightness ?? Theme.of(context).brightness;
     final effects = context.soundSkinEffects;
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
     _reduceMotion = reduceMotion;
@@ -151,8 +162,15 @@ class _AnimatedArtworkBackgroundState extends State<AnimatedArtworkBackground>
   @override
   void didUpdateWidget(AnimatedArtworkBackground oldWidget) {
     super.didUpdateWidget(oldWidget);
+    final paletteBrightnessChanged =
+        oldWidget.paletteBrightness != widget.paletteBrightness;
+    if (paletteBrightnessChanged) {
+      _brightness =
+          widget.paletteBrightness ?? Theme.of(context).brightness;
+    }
     if (oldWidget.album.artworkUri != widget.album.artworkUri ||
-        oldWidget.album.id != widget.album.id) {
+        oldWidget.album.id != widget.album.id ||
+        paletteBrightnessChanged) {
       _loadArtworkColors();
     }
     if (oldWidget.isPlaying != widget.isPlaying) {
@@ -160,6 +178,10 @@ class _AnimatedArtworkBackgroundState extends State<AnimatedArtworkBackground>
     }
     if (oldWidget.isActive != widget.isActive) {
       _syncMotion();
+    }
+    if (oldWidget.staticVerticalGradient != widget.staticVerticalGradient) {
+      _syncMotion();
+      _syncEnergy();
     }
   }
 
@@ -170,6 +192,11 @@ class _AnimatedArtworkBackgroundState extends State<AnimatedArtworkBackground>
   }
 
   void _syncEnergy() {
+    if (widget.staticVerticalGradient) {
+      _energyController.stop();
+      _energyController.value = 0;
+      return;
+    }
     if (_reduceMotion) {
       _energyController.value = widget.isPlaying ? 1.0 : 0.0;
       return;
@@ -182,6 +209,10 @@ class _AnimatedArtworkBackgroundState extends State<AnimatedArtworkBackground>
   }
 
   void _syncMotion() {
+    if (widget.staticVerticalGradient) {
+      _motionController.stop();
+      return;
+    }
     if (_reduceMotion) {
       _motionController.stop();
       _motionController.value = 0;
@@ -207,7 +238,10 @@ class _AnimatedArtworkBackgroundState extends State<AnimatedArtworkBackground>
   }
 
   Future<void> _loadArtworkColors() async {
-    final brightness = _brightness ?? Theme.of(context).brightness;
+    final brightness =
+        _brightness ??
+        widget.paletteBrightness ??
+        Theme.of(context).brightness;
     final artworkUri = widget.album.artworkUri?.trim();
     final fallback = artworkFallbackGradientColors(widget.album, brightness);
     final requestKey = '${artworkUri ?? widget.album.id}|${brightness.name}';
@@ -310,6 +344,26 @@ class _AnimatedArtworkBackgroundState extends State<AnimatedArtworkBackground>
     final effects = context.soundSkinEffects;
     final baseStrength = effects.motionStrength.clamp(0.45, 1.0).toDouble();
 
+    if (widget.staticVerticalGradient) {
+      return RepaintBoundary(
+        key: const ValueKey('now-playing-artwork-background'),
+        child: AnimatedBuilder(
+          animation: _paletteController,
+          builder: (context, _) => DecoratedBox(
+            key: const ValueKey('now-playing-background-static'),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: artworkVerticalGradientColors(_interpolatedColors),
+                stops: const [0, 0.52, 1],
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
     return RepaintBoundary(
       key: const ValueKey('now-playing-artwork-background'),
       child: AnimatedBuilder(
@@ -350,6 +404,20 @@ class _AnimatedArtworkBackgroundState extends State<AnimatedArtworkBackground>
     _energyController.dispose();
     super.dispose();
   }
+}
+
+List<Color> artworkVerticalGradientColors(List<Color> colors) {
+  final safeColors = colors.isEmpty
+      ? const [Color(0xFF3D514E), Color(0xFF212C2A), Color(0xFF526E69)]
+      : colors;
+  final primary = safeColors.first;
+  final shadow = safeColors.length > 1 ? safeColors[1] : primary;
+  final highlight = safeColors.length > 2 ? safeColors[2] : primary;
+  return [
+    Color.lerp(primary, highlight, 0.22)!,
+    primary,
+    shadow,
+  ];
 }
 
 /// Palette generation never needs the full-resolution cover. Keeping this
@@ -530,9 +598,9 @@ List<Color> artworkGradientColorsFromScheme(
     ];
   }
   return [
-    _tone(scheme.primary, saturation: 0.48, lightness: 0.14),
-    _tone(blended, saturation: 0.32, lightness: 0.10),
-    _tone(analogous, saturation: 0.50, lightness: 0.24),
+    _tone(scheme.primary, saturation: 0.48, lightness: 0.18),
+    _tone(blended, saturation: 0.32, lightness: 0.14),
+    _tone(analogous, saturation: 0.50, lightness: 0.26),
   ];
 }
 
@@ -556,13 +624,13 @@ List<Color> artworkFallbackGradientColors(Album album, Brightness brightness) {
     ];
   }
   return [
-    _tone(first, saturation: 0.34, lightness: 0.14),
-    _tone(middle, saturation: 0.22, lightness: 0.10),
-    _tone(last, saturation: 0.38, lightness: 0.22),
+    _tone(first, saturation: 0.34, lightness: 0.18),
+    _tone(middle, saturation: 0.22, lightness: 0.14),
+    _tone(last, saturation: 0.38, lightness: 0.26),
   ];
 }
 
-/// Contrast-safe colors shared by artwork-led detail pages.
+/// Contrast-safe colors shared by artwork-led detail pages and now-playing.
 @immutable
 class ArtworkPagePalette {
   const ArtworkPagePalette({
@@ -581,21 +649,59 @@ class ArtworkPagePalette {
       0.24,
     )!;
     final useLightText = sample.computeLuminance() < 0.34;
-    final primary = useLightText
-        ? Colors.white.withValues(alpha: 0.94)
-        : const Color(0xEC17171C);
-    final secondary = useLightText
-        ? Colors.white.withValues(alpha: 0.76)
-        : Colors.black.withValues(alpha: 0.64);
-    final muted = useLightText
-        ? Colors.white.withValues(alpha: 0.60)
-        : Colors.black.withValues(alpha: 0.49);
+    final backgroundHsl = HSLColor.fromColor(sample);
+    // Generate role-specific tones from the background hue. Reusing one pale
+    // base with different alpha values makes unrelated covers converge on the
+    // same gray; separate chroma/lightness roles keep red, brown, and teal
+    // surfaces visibly distinct while preserving hierarchy and contrast.
+    late final Color primary;
+    late final Color secondary;
+    late final Color muted;
+    if (useLightText) {
+      primary = _foregroundTone(
+        backgroundHsl,
+        saturationScale: 0.30,
+        minSaturation: 0.07,
+        maxSaturation: 0.22,
+        lightness: 0.93,
+        alpha: 0.96,
+      );
+      secondary = _foregroundTone(
+        backgroundHsl,
+        saturationScale: 0.48,
+        minSaturation: 0.12,
+        maxSaturation: 0.34,
+        lightness: 0.72,
+        alpha: 0.94,
+      );
+      muted = _foregroundTone(
+        backgroundHsl,
+        saturationScale: 0.56,
+        minSaturation: 0.14,
+        maxSaturation: 0.38,
+        lightness: 0.60,
+        alpha: 0.90,
+      );
+    } else {
+      final foregroundBase = _foregroundTone(
+        backgroundHsl,
+        saturationScale: 0.42,
+        minSaturation: 0.10,
+        maxSaturation: 0.24,
+        lightness: 0.20,
+      );
+      primary = foregroundBase.withValues(alpha: 0.94);
+      secondary = foregroundBase.withValues(alpha: 0.68);
+      muted = foregroundBase.withValues(alpha: 0.52);
+    }
     return ArtworkPagePalette(
       primaryText: primary,
       secondaryText: secondary,
       mutedText: muted,
       divider: primary.withValues(alpha: useLightText ? 0.15 : 0.10),
-      controlSurface: primary.withValues(alpha: useLightText ? 0.13 : 0.075),
+      controlSurface: primary.withValues(
+        alpha: useLightText ? 0.13 : 0.075,
+      ),
       useLightText: useLightText,
     );
   }
@@ -606,6 +712,57 @@ class ArtworkPagePalette {
   final Color divider;
   final Color controlSurface;
   final bool useLightText;
+}
+
+/// Provides [ArtworkPagePalette] to now-playing chrome (and similar surfaces).
+class ArtworkChromeTheme extends InheritedWidget {
+  const ArtworkChromeTheme({
+    required this.palette,
+    required super.child,
+    super.key,
+  });
+
+  final ArtworkPagePalette palette;
+
+  static ArtworkPagePalette? maybeOf(BuildContext context) {
+    return context
+        .dependOnInheritedWidgetOfExactType<ArtworkChromeTheme>()
+        ?.palette;
+  }
+
+  static ArtworkPagePalette of(BuildContext context) {
+    final palette = maybeOf(context);
+    assert(palette != null, 'ArtworkChromeTheme not found in context');
+    return palette!;
+  }
+
+  @override
+  bool updateShouldNotify(covariant ArtworkChromeTheme oldWidget) {
+    return oldWidget.palette.primaryText != palette.primaryText ||
+        oldWidget.palette.secondaryText != palette.secondaryText ||
+        oldWidget.palette.mutedText != palette.mutedText ||
+        oldWidget.palette.controlSurface != palette.controlSurface ||
+        oldWidget.palette.useLightText != palette.useLightText;
+  }
+}
+
+/// Now-playing / artwork-surface chrome colors with theme fallbacks.
+extension ArtworkChromeContext on BuildContext {
+  ArtworkPagePalette? get artworkChrome => ArtworkChromeTheme.maybeOf(this);
+
+  Color get chromePrimaryText => artworkChrome?.primaryText ?? soundPrimaryText;
+
+  Color get chromeSecondaryText =>
+      artworkChrome?.secondaryText ?? soundSecondaryText;
+
+  Color get chromeMutedText => artworkChrome?.mutedText ?? soundMutedText;
+
+  Color get chromeControlSurface =>
+      artworkChrome?.controlSurface ?? soundTint(0.08);
+
+  bool get chromeUseLightText =>
+      artworkChrome?.useLightText ??
+      (Theme.of(this).brightness == Brightness.dark);
 }
 
 /// Softens extracted artwork colors into a restrained page background.
@@ -642,4 +799,22 @@ Color _tone(
       .withSaturation((sourceSaturation * 0.55 + saturation * 0.45).clamp(0, 1))
       .withLightness(lightness)
       .toColor();
+}
+
+Color _foregroundTone(
+  HSLColor background, {
+  required double saturationScale,
+  required double minSaturation,
+  required double maxSaturation,
+  required double lightness,
+  double alpha = 1,
+}) {
+  return HSLColor.fromAHSL(
+    alpha,
+    background.hue,
+    (background.saturation * saturationScale)
+        .clamp(minSaturation, maxSaturation)
+        .toDouble(),
+    lightness,
+  ).toColor();
 }

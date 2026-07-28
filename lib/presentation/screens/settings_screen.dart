@@ -481,7 +481,7 @@ class _CompactSettingsOption extends StatelessWidget {
                 ),
                 if (selected)
                   Icon(
-                    Icons.check_rounded,
+                    KaitingIcons.check,
                     size: 20,
                     color: SoundColors.accent,
                   ),
@@ -558,7 +558,7 @@ class _SleepTimerSelector extends StatelessWidget {
               key: const ValueKey('sleep-timer-cancel'),
               onPressed: timer.cancel,
               style: context.soundDestructiveButtonStyle,
-              icon: const Icon(Icons.close_rounded, size: 16),
+              icon: const Icon(KaitingIcons.close, size: 16),
               label: const Text('取消定时'),
             ),
         ],
@@ -974,7 +974,7 @@ class _OfflineDownloadRow extends StatelessWidget {
       tooltip: '更多操作 ${item.title}',
       menuTitle: item.title,
       padding: const EdgeInsets.all(8),
-      icon: const Icon(Icons.more_horiz_rounded, size: 20),
+      icon: const Icon(KaitingIcons.moreHorizontal, size: 20),
       onSelected: (value) {
         if (value == 'cancel') onCancel(item);
         if (value == 'retry') onRetry(item);
@@ -985,20 +985,20 @@ class _OfflineDownloadRow extends StatelessWidget {
           const SoundMenuAction(
             value: 'cancel',
             label: '取消下载',
-            icon: Icons.close_rounded,
+            icon: KaitingIcons.close,
             destructive: true,
           ),
         if (failed && item.canRetry)
           const SoundMenuAction(
             value: 'retry',
             label: '重试下载',
-            icon: Icons.refresh_rounded,
+            icon: KaitingIcons.refresh,
           ),
         if (failed)
           const SoundMenuAction(
             value: 'remove',
             label: '移除失败记录',
-            icon: Icons.delete_outline_rounded,
+            icon: KaitingIcons.delete,
             destructive: true,
             dividerBefore: true,
           ),
@@ -1006,7 +1006,7 @@ class _OfflineDownloadRow extends StatelessWidget {
           const SoundMenuAction(
             value: 'remove',
             label: '移除离线下载',
-            icon: Icons.delete_outline_rounded,
+            icon: KaitingIcons.delete,
             destructive: true,
           ),
       ],
@@ -1067,7 +1067,7 @@ class _OfflineDownloadRow extends StatelessWidget {
             key: ValueKey('offline-cancel-${item.reference.storageKey}'),
             onPressed: () => onCancel(item),
             tooltip: '取消下载',
-            icon: const Icon(Icons.close_rounded, size: 20),
+            icon: const Icon(KaitingIcons.close, size: 20),
             visualDensity: VisualDensity.compact,
           )
         else if (failed) ...[
@@ -1075,14 +1075,14 @@ class _OfflineDownloadRow extends StatelessWidget {
             key: ValueKey('offline-dismiss-${item.reference.storageKey}'),
             onPressed: () => onRemove(item),
             tooltip: '移除失败记录',
-            icon: const Icon(Icons.close_rounded, size: 20),
+            icon: const Icon(KaitingIcons.close, size: 20),
             visualDensity: VisualDensity.compact,
           ),
           IconButton(
             key: ValueKey('offline-retry-${item.reference.storageKey}'),
             onPressed: item.canRetry ? () => onRetry(item) : null,
             tooltip: item.canRetry ? '重试下载' : '来源已不在资料库',
-            icon: const Icon(Icons.refresh_rounded, size: 20),
+            icon: const Icon(KaitingIcons.refresh, size: 20),
             visualDensity: VisualDensity.compact,
           ),
         ] else
@@ -1090,7 +1090,7 @@ class _OfflineDownloadRow extends StatelessWidget {
             key: ValueKey('offline-remove-${item.reference.storageKey}'),
             onPressed: () => onRemove(item),
             tooltip: '移除离线下载',
-            icon: const Icon(Icons.delete_outline_rounded, size: 20),
+            icon: const Icon(KaitingIcons.delete, size: 20),
             visualDensity: VisualDensity.compact,
           ),
       ],
@@ -1176,10 +1176,10 @@ String _formatBytes(int bytes) {
 }
 
 IconData _playbackModeIcon(PlaybackMode mode) => switch (mode) {
-  PlaybackMode.sequential => Icons.arrow_right_alt_rounded,
-  PlaybackMode.repeatOne => Icons.repeat_one_rounded,
-  PlaybackMode.repeatAll => Icons.repeat_rounded,
-  PlaybackMode.shuffle => Icons.shuffle_rounded,
+  PlaybackMode.sequential => KaitingIcons.sequence,
+  PlaybackMode.repeatOne => KaitingIcons.repeatOne,
+  PlaybackMode.repeatAll => KaitingIcons.repeatAll,
+  PlaybackMode.shuffle => KaitingIcons.shuffle,
 };
 
 class _SettingsSection extends StatelessWidget {
@@ -1286,8 +1286,8 @@ class _SettingsRow extends StatelessWidget {
                   const SizedBox(width: 10),
                   Icon(
                     expanded
-                        ? Icons.keyboard_arrow_up_rounded
-                        : Icons.chevron_right_rounded,
+                        ? KaitingIcons.arrowUp
+                        : KaitingIcons.chevronRight,
                     size: 19,
                     color: _settingsSecondaryText(context),
                   ),
@@ -1471,7 +1471,7 @@ class _PlaybackModeChoice extends StatelessWidget {
                 ),
               ),
               if (selected)
-                Icon(Icons.check_rounded, size: 17, color: SoundColors.accent),
+                Icon(KaitingIcons.check, size: 17, color: SoundColors.accent),
             ],
           ),
         ),
@@ -2153,7 +2153,7 @@ class _CustomAccentDialogState extends State<_CustomAccentDialog> {
                 foregroundColor: _color,
               ),
               onPressed: () {},
-              icon: const Icon(Icons.play_arrow_rounded),
+              icon: const Icon(KaitingIcons.play),
               label: const Text('主题色预览'),
             ),
           ),

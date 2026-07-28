@@ -57,7 +57,9 @@ class MiniPlayer extends StatelessWidget {
               final wide = docked || (!compact && constraints.maxWidth >= 900);
               final height = docked
                   ? 76.0
-                  : (compact ? (embedded ? 66.0 : 72.0) : (wide ? 58.0 : 82.0));
+                  : (compact
+                        ? (embedded ? 66.0 : 72.0)
+                        : (wide ? 58.0 : (embedded ? 70.0 : 82.0)));
               final content = SizedBox(
                 height: height,
                 child: docked
@@ -311,8 +313,8 @@ class _WideMiniPlayer extends StatelessWidget {
                   if (userState case final state?)
                     _MiniIconButton(
                       icon: state.isFavorite(track.id)
-                          ? Icons.favorite_rounded
-                          : Icons.favorite_border_rounded,
+                          ? KaitingIcons.favoriteFilled
+                          : KaitingIcons.favorite,
                       color: state.isFavorite(track.id)
                           ? SoundColors.accent
                           : null,
@@ -321,12 +323,12 @@ class _WideMiniPlayer extends StatelessWidget {
                     ),
                   _VolumeControl(playback: playback),
                   _MiniIconButton(
-                    icon: Icons.lyrics_outlined,
+                    icon: KaitingIcons.lyrics,
                     tooltip: '打开歌词',
                     onTap: onOpen,
                   ),
                   _MiniIconButton(
-                    icon: Icons.queue_music_rounded,
+                    icon: KaitingIcons.queue,
                     tooltip: '打开播放队列',
                     onTap: onOpenQueue ?? onOpen,
                   ),
@@ -391,14 +393,15 @@ class _DockedMiniPlayer extends StatelessWidget {
                           track: track,
                           visual: visual,
                           prominent: false,
+                          titleSize: 16,
                         ),
                       ),
                       if (userState case final state?) ...[
                         const SizedBox(width: 5),
                         _MiniIconButton(
                           icon: state.isFavorite(track.id)
-                              ? Icons.favorite_rounded
-                              : Icons.favorite_border_rounded,
+                              ? KaitingIcons.favoriteFilled
+                              : KaitingIcons.favorite,
                           color: state.isFavorite(track.id)
                               ? SoundColors.accent
                               : null,
@@ -409,12 +412,12 @@ class _DockedMiniPlayer extends StatelessWidget {
                       const Spacer(),
                       _VolumeControl(playback: playback),
                       _MiniIconButton(
-                        icon: Icons.lyrics_outlined,
+                        icon: KaitingIcons.lyrics,
                         tooltip: '打开歌词',
                         onTap: onOpen,
                       ),
                       _MiniIconButton(
-                        icon: Icons.queue_music_rounded,
+                        icon: KaitingIcons.queue,
                         tooltip: '打开播放队列',
                         onTap: onOpenQueue ?? onOpen,
                       ),
@@ -429,7 +432,6 @@ class _DockedMiniPlayer extends StatelessWidget {
                 child: _TransportControls(
                   playback: playback,
                   visual: visual,
-                  accentPrimary: true,
                 ),
               ),
             ),
@@ -491,6 +493,7 @@ class _CondensedMiniPlayer extends StatelessWidget {
   Widget build(BuildContext context) {
     final showPrevious = !compact && availableWidth >= 600;
     final showQueue = !compact && availableWidth >= 690;
+    final foldableEmbedded = embedded && !compact;
     return Stack(
       children: [
         Positioned.fill(
@@ -503,9 +506,15 @@ class _CondensedMiniPlayer extends StatelessWidget {
                 key: const ValueKey('mini-player-open-now-playing'),
                 onTap: onOpen,
                 child: Padding(
-                  padding: EdgeInsets.all(
-                    compact ? 6 : (availableWidth < 800 ? 8 : 14),
-                  ),
+                  key: const ValueKey('mini-player-condensed-content-padding'),
+                  padding: compact
+                      ? const EdgeInsets.all(6)
+                      : foldableEmbedded
+                      ? const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 5,
+                        )
+                      : EdgeInsets.all(availableWidth < 800 ? 8 : 14),
                   child: Row(
                     children: [
                       _MiniArtwork(album: album, dimension: compact ? 44 : 50),
@@ -514,35 +523,40 @@ class _CondensedMiniPlayer extends StatelessWidget {
                         child: _TrackIdentity(
                           track: track,
                           visual: visual,
-                          prominent: false,
+                          prominent: foldableEmbedded,
                         ),
                       ),
                       if (showPrevious)
                         _MiniIconButton(
-                          icon: Icons.skip_previous_rounded,
+                          icon: KaitingIcons.previousMini,
                           tooltip: '上一首',
                           onTap: playback.previous,
+                          size: 23,
                         ),
                       _MiniIconButton(
                         key: const ValueKey('mini-player-playback-toggle'),
-                        icon: visual.primaryIcon,
+                        icon: _miniPrimaryIcon(visual),
                         tooltip: visual.primaryTooltip,
                         onTap: visual.primaryEnabled ? playback.toggle : null,
                         // Match now-playing: loading uses a spinner, not hourglass.
                         busy: visual.busy && !visual.primaryEnabled,
-                        prominent: !embedded,
-                        color: embedded ? SoundColors.accent : null,
-                        size: compact ? (embedded ? 25 : 22) : 23,
+                        prominent: true,
+                        size: _miniPrimaryIconSize(
+                          visual,
+                          compact: compact,
+                        ),
+                        opticalOffset: _miniPrimaryOpticalOffset(visual),
                       ),
+                      if (compact) const SizedBox(width: 6),
                       _MiniIconButton(
-                        icon: Icons.skip_next_rounded,
+                        icon: KaitingIcons.nextMini,
                         tooltip: '下一首',
                         onTap: playback.next,
-                        size: 23,
+                        size: compact ? 20 : 23,
                       ),
                       if (showQueue)
                         _MiniIconButton(
-                          icon: Icons.queue_music_rounded,
+                          icon: KaitingIcons.queue,
                           tooltip: '打开播放队列',
                           onTap: onOpenQueue ?? onOpen,
                         ),
@@ -596,11 +610,13 @@ class _TrackIdentity extends StatelessWidget {
     required this.track,
     required this.visual,
     required this.prominent,
+    this.titleSize,
   });
 
   final Track track;
   final PlaybackVisualState visual;
   final bool prominent;
+  final double? titleSize;
 
   @override
   Widget build(BuildContext context) {
@@ -617,7 +633,7 @@ class _TrackIdentity extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: context.soundPrimaryText,
-              fontSize: prominent ? 15 : 13,
+              fontSize: titleSize ?? (prominent ? 15 : 13),
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -641,22 +657,20 @@ class _TransportControls extends StatelessWidget {
   const _TransportControls({
     required this.playback,
     required this.visual,
-    this.accentPrimary = false,
   });
 
   final SoundPlaybackController playback;
   final PlaybackVisualState visual;
-  final bool accentPrimary;
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      height: 28,
+      height: 40,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           _MiniIconButton(
-            icon: Icons.skip_previous_rounded,
+            icon: KaitingIcons.previousMini,
             tooltip: '上一首',
             onTap: playback.previous,
             size: 23,
@@ -664,17 +678,17 @@ class _TransportControls extends StatelessWidget {
           const SizedBox(width: 4),
           _MiniIconButton(
             key: const ValueKey('mini-player-playback-toggle'),
-            icon: visual.primaryIcon,
+            icon: _miniPrimaryIcon(visual),
             tooltip: visual.primaryTooltip,
             onTap: visual.primaryEnabled ? playback.toggle : null,
             busy: visual.busy && !visual.primaryEnabled,
             prominent: true,
-            accentProminent: accentPrimary,
-            size: 24,
+            size: _miniPrimaryIconSize(visual),
+            opticalOffset: _miniPrimaryOpticalOffset(visual),
           ),
           const SizedBox(width: 4),
           _MiniIconButton(
-            icon: Icons.skip_next_rounded,
+            icon: KaitingIcons.nextMini,
             tooltip: '下一首',
             onTap: playback.next,
             size: 23,
@@ -683,6 +697,34 @@ class _TransportControls extends StatelessWidget {
       ),
     );
   }
+}
+
+IconData _miniPrimaryIcon(PlaybackVisualState visual) {
+  return switch (visual.primaryVisual) {
+    PlaybackPrimaryVisual.play => KaitingIcons.playMini,
+    PlaybackPrimaryVisual.pause => KaitingIcons.pauseMini,
+    _ => visual.primaryIcon,
+  };
+}
+
+double _miniPrimaryIconSize(
+  PlaybackVisualState visual, {
+  bool compact = false,
+}) {
+  return switch (visual.primaryVisual) {
+    PlaybackPrimaryVisual.play => compact ? 24 : 28,
+    // Two solid pause bars carry more visual mass than the play triangle.
+    PlaybackPrimaryVisual.pause => compact ? 20 : 23,
+    PlaybackPrimaryVisual.replay || PlaybackPrimaryVisual.retry =>
+      compact ? 20 : 22,
+    PlaybackPrimaryVisual.none => compact ? 18 : 20,
+  };
+}
+
+Offset _miniPrimaryOpticalOffset(PlaybackVisualState visual) {
+  return visual.primaryVisual == PlaybackPrimaryVisual.play
+      ? const Offset(1, 0)
+      : Offset.zero;
 }
 
 class _MiniProgressRow extends StatelessWidget {
@@ -752,7 +794,7 @@ class _MiniIconButton extends StatelessWidget {
     this.color,
     this.busy = false,
     this.prominent = false,
-    this.accentProminent = false,
+    this.opticalOffset = Offset.zero,
     super.key,
   });
 
@@ -763,14 +805,14 @@ class _MiniIconButton extends StatelessWidget {
   final Color? color;
   final bool busy;
   final bool prominent;
-  final bool accentProminent;
+  final Offset opticalOffset;
 
   @override
   Widget build(BuildContext context) {
     final enabled = onTap != null;
     final foreground = prominent
-        ? context.soundGlass.canvasHighlight.withValues(
-            alpha: enabled || busy ? 1 : 0.45,
+        ? SoundColors.accent.withValues(
+            alpha: enabled || busy ? 0.96 : 0.38,
           )
         : color ??
               context.soundPrimaryText.withValues(
@@ -786,22 +828,17 @@ class _MiniIconButton extends StatelessWidget {
                 color: foreground,
               ),
             )
-          : Icon(icon, color: foreground, size: size),
+          : Transform.translate(
+              offset: opticalOffset,
+              child: Icon(icon, color: foreground, size: size),
+            ),
       tooltip: tooltip,
       visualDensity: VisualDensity.compact,
       style: prominent
           ? IconButton.styleFrom(
-              backgroundColor: onTap == null && !busy
-                  ? context.soundTint(0.16)
-                  : accentProminent
-                  ? SoundColors.accent
-                  : context.soundPrimaryText,
-              hoverColor: accentProminent
-                  ? SoundColors.accentHover
-                  : context.soundTint(0.08),
-              highlightColor: accentProminent
-                  ? SoundColors.accentPressed
-                  : context.soundTint(0.12),
+              backgroundColor: Colors.transparent,
+              hoverColor: SoundColors.accent.withValues(alpha: 0.10),
+              highlightColor: SoundColors.accent.withValues(alpha: 0.16),
               minimumSize: const Size.square(40),
               maximumSize: const Size.square(40),
               padding: EdgeInsets.zero,
@@ -840,9 +877,9 @@ class _VolumeControlState extends State<_VolumeControl> {
 
   IconData get _icon {
     final v = widget.playback.volume;
-    if (v == 0) return Icons.volume_off_rounded;
-    if (v < 0.5) return Icons.volume_down_rounded;
-    return Icons.volume_up_rounded;
+    if (v == 0) return KaitingIcons.mute;
+    if (v < 0.5) return KaitingIcons.volumeLow;
+    return KaitingIcons.volumeHigh;
   }
 
   void _showOverlay() {

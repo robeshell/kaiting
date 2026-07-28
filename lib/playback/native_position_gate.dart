@@ -32,12 +32,29 @@ class NativePositionGate {
     return normalized;
   }
 
+  /// Marks [target] as the settled seek when native is silent (common while
+  /// paused). Rejects stale pre-seek / zero callbacks until playback advances
+  /// past the target; does **not** re-open the gate the way [cancelSeek] does.
+  Duration forceConfirm(Duration target, {required Duration duration}) {
+    final normalized = normalize(target, duration: duration);
+    _pendingTarget = null;
+    _confirmedTarget = normalized;
+    return normalized;
+  }
+
   void cancelSeek() {
     _pendingTarget = null;
     _confirmedTarget = null;
   }
 
   void reset() => cancelSeek();
+
+  /// True while a seek is waiting for native confirmation (not yet force- or
+  /// native-confirmed).
+  bool get hasPendingSeek => _pendingTarget != null;
+
+  /// Settled target after native or [forceConfirm], until forward progress.
+  Duration? get confirmedTarget => _confirmedTarget;
 
   /// Returns a safe position to publish, or `null` while a stale callback is
   /// being rejected.

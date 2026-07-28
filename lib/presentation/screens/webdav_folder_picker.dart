@@ -241,7 +241,7 @@ class _BreadcrumbBar extends StatelessWidget {
         if (canGoBack)
           IconButton(
             onPressed: onBack,
-            icon: const Icon(Icons.arrow_back_rounded, size: 20),
+            icon: const Icon(KaitingIcons.back, size: 20),
             visualDensity: VisualDensity.compact,
           )
         else
@@ -280,7 +280,7 @@ class _FolderEntry extends StatelessWidget {
   Widget build(BuildContext context) {
     return SoundListRow(
       leading: Icon(
-        entry.isDirectory ? Icons.folder_rounded : Icons.audio_file_rounded,
+        entry.isDirectory ? KaitingIcons.folderFilled : KaitingIcons.audioFile,
         color: context.soundSecondaryText,
         size: 20,
       ),
@@ -291,7 +291,7 @@ class _FolderEntry extends StatelessWidget {
               tooltip: isSelected ? '取消选择' : '选择此目录',
               visualDensity: VisualDensity.compact,
               icon: Icon(
-                isSelected ? Icons.check_rounded : Icons.add_rounded,
+                isSelected ? KaitingIcons.check : KaitingIcons.add,
                 color: isSelected
                     ? SoundColors.accent
                     : context.soundSecondaryText,
@@ -317,7 +317,7 @@ class _ErrorBanner extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Icon(
-            Icons.error_outline_rounded,
+            KaitingIcons.error,
             color: context.soundColors.error,
             size: 16,
           ),

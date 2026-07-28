@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -47,7 +48,10 @@ void main() {
     final response = await source.request();
 
     expect(response.rangeRequestsSupported, isTrue);
-    expect(response.contentLength, bytes.length);
+    // Full-body responses omit contentLength so a dropped NAS connection
+    // cannot crash the just_audio loopback proxy on close.
+    expect(response.contentLength, isNull);
+    expect(response.sourceLength, bytes.length);
     expect(await response.stream.expand((chunk) => chunk).toList(), bytes);
   });
 
@@ -67,5 +71,39 @@ void main() {
       await response.stream.expand((chunk) => chunk).toList(),
       bytes.sublist(3, 7),
     );
+  });
+
+  test('treats incomplete Content-Length bodies as end-of-stream', () async {
+    // Raw socket so we can promise Content-Length: 100 then hang up after 4
+    // bytes — HttpServer refuses to close short of the declared length.
+    final incomplete = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+    addTearDown(() => incomplete.close());
+    incomplete.listen((socket) async {
+      await socket.first;
+      socket.add(
+        utf8.encode(
+          'HTTP/1.1 200 OK\r\n'
+          'Content-Type: audio/flac\r\n'
+          'Content-Length: 100\r\n'
+          'Connection: close\r\n'
+          '\r\n',
+        ),
+      );
+      socket.add([1, 2, 3, 4]);
+      await socket.close();
+    });
+
+    final source = HttpStreamAudioSource(
+      uri: Uri.parse('http://127.0.0.1:${incomplete.port}/partial.flac'),
+      headers: const {},
+      allowBadCertificate: false,
+    );
+
+    final response = await source.request();
+    final chunks = <int>[];
+    await for (final chunk in response.stream) {
+      chunks.addAll(chunk);
+    }
+    expect(chunks, [1, 2, 3, 4]);
   });
 }

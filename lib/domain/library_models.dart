@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import '../core/kaiting_icons.dart';
+
 class SourceKind {
   const SourceKind(this.name);
 
@@ -33,9 +35,8 @@ extension SourceKindLabel on SourceKind {
     return name;
   }
 
-  IconData get icon => this == SourceKind.local
-      ? Icons.laptop_mac_rounded
-      : Icons.cloud_outlined;
+  IconData get icon =>
+      this == SourceKind.local ? KaitingIcons.localSource : KaitingIcons.cloud;
 }
 
 class Track {
@@ -226,8 +227,7 @@ class LibraryCollection {
   List<Color> get monogramPalette => artistMonogramPalette(title);
 
   List<Color> get palette {
-    final album = representativeAlbum ??
-        (albums.isEmpty ? null : albums.first);
+    final album = representativeAlbum ?? (albums.isEmpty ? null : albums.first);
     if (album != null) return album.palette;
     if (kind == LibraryCollectionKind.artist) return monogramPalette;
     return const [Color(0xFF385057), Color(0xFF11191C)];
@@ -243,9 +243,9 @@ bool _albumCreditIncludes(String albumArtist, String artistKey) {
   final credit = albumArtist.trim();
   if (credit.isEmpty) return false;
   if (_collectionKey(credit) == artistKey) return true;
-  return splitArtistCredit(credit).any(
-    (part) => _collectionKey(part) == artistKey,
-  );
+  return splitArtistCredit(
+    credit,
+  ).any((part) => _collectionKey(part) == artistKey);
 }
 
 /// First visible character for artist monogram tiles.
@@ -306,8 +306,9 @@ List<LibraryCollection> buildArtistCollections(List<Album> albums) {
   for (final album in albums) {
     final albumCredit = _cleanCollectionName(album.artist, fallback: '未知艺人');
     final albumParts = splitArtistCredit(albumCredit);
-    final resolvedAlbumParts =
-        albumParts.isEmpty ? <String>[albumCredit] : albumParts;
+    final resolvedAlbumParts = albumParts.isEmpty
+        ? <String>[albumCredit]
+        : albumParts;
     final albumPartKeys = {
       for (final part in resolvedAlbumParts) _collectionKey(part),
     };
@@ -323,8 +324,9 @@ List<LibraryCollection> buildArtistCollections(List<Album> albums) {
         fallback: albumCredit,
       );
       final trackParts = splitArtistCredit(trackCredit);
-      final resolvedTrackParts =
-          trackParts.isEmpty ? <String>[trackCredit] : trackParts;
+      final resolvedTrackParts = trackParts.isEmpty
+          ? <String>[trackCredit]
+          : trackParts;
 
       for (var index = 0; index < resolvedTrackParts.length; index++) {
         final part = resolvedTrackParts[index];

@@ -143,8 +143,8 @@ class _SourceSettingsScreenState extends State<SourceSettingsScreen> {
                     folderUrls: directoryIds,
                   ),
               color: SoundColors.webDav,
-              connectionIcon: Icons.cloud_rounded,
-              catalogIcon: Icons.folder_rounded,
+              connectionIcon: KaitingIcons.cloudFilled,
+              catalogIcon: KaitingIcons.folderFilled,
             ),
         ];
     _scanProviders = SourceScanProviderRegistry([
@@ -463,8 +463,8 @@ class _SourceSettingsScreenState extends State<SourceSettingsScreen> {
                         ? '选择目录'
                         : '重新连接',
                     primaryActionIcon: connection.isAvailable
-                        ? Icons.add_rounded
-                        : Icons.refresh_rounded,
+                        ? KaitingIcons.add
+                        : KaitingIcons.refresh,
                     onPrimaryAction: connection.isAvailable
                         ? () => _browseRemoteDirectories(adapter, connection)
                         : () => _probeRemoteConnection(adapter, connection),
@@ -513,7 +513,7 @@ class _SourceSettingsScreenState extends State<SourceSettingsScreen> {
       emphasis: _statusEmphasis(source.status),
       nested: true,
       primaryActionLabel: scanning ? '取消扫描' : '重新扫描',
-      primaryActionIcon: scanning ? Icons.close_rounded : Icons.sync_rounded,
+      primaryActionIcon: scanning ? KaitingIcons.close : KaitingIcons.sync,
       onPrimaryAction: scanning
           ? () => adapter.scanner.cancel(source.id)
           : () => _scanSource(source.type, source.id),
@@ -629,8 +629,8 @@ class _SourceSettingsScreenState extends State<SourceSettingsScreen> {
                                       ? '取消扫描'
                                       : '重新扫描',
                                   primaryActionIcon: scanning
-                                      ? Icons.close_rounded
-                                      : Icons.sync_rounded,
+                                      ? KaitingIcons.close
+                                      : KaitingIcons.sync,
                                   onPrimaryAction: scanning
                                       ? () =>
                                             _localScanProvider.cancel(source.id)
@@ -928,7 +928,7 @@ class _SourceRow extends StatelessWidget {
           if (onEdit != null || onRemove != null)
             SoundMenuButton<_SourceMenuAction>(
               tooltip: '更多操作',
-              icon: const Icon(Icons.more_horiz_rounded, size: 20),
+              icon: const Icon(KaitingIcons.moreHorizontal, size: 20),
               padding: const EdgeInsets.all(8),
               onSelected: (action) {
                 switch (action) {
@@ -943,13 +943,13 @@ class _SourceRow extends StatelessWidget {
                   const SoundMenuAction(
                     value: _SourceMenuAction.edit,
                     label: '编辑',
-                    icon: Icons.edit_outlined,
+                    icon: KaitingIcons.edit,
                   ),
                 if (onRemove != null)
                   const SoundMenuAction(
                     value: _SourceMenuAction.remove,
                     label: '移除',
-                    icon: Icons.delete_outline_rounded,
+                    icon: KaitingIcons.delete,
                     destructive: true,
                     dividerBefore: true,
                   ),

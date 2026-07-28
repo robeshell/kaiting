@@ -6,6 +6,7 @@ import '../domain/library_models.dart';
 import '../library/library_records.dart';
 import '../library/scanning/embedded_lyrics_parser.dart';
 import 'playback_mode.dart';
+import 'playback_policy.dart';
 import 'playback_session_storage_factory.dart';
 
 class PlaybackSession {
@@ -13,18 +14,38 @@ class PlaybackSession {
     required this.queue,
     required this.queueIndex,
     required this.positionMs,
-    this.playbackMode = PlaybackMode.repeatAll,
+    PlaybackMode playbackMode = PlaybackMode.repeatAll,
+    bool? shuffleEnabled,
+    PlaybackRepeatMode? repeatMode,
     this.queueRevision = 0,
-  });
+  }) : _legacyPlaybackMode = playbackMode,
+       _persistedShuffleEnabled = shuffleEnabled,
+       _persistedRepeatMode = repeatMode;
 
   final List<Track> queue;
   final int queueIndex;
   final int positionMs;
-  final PlaybackMode playbackMode;
+  final PlaybackMode _legacyPlaybackMode;
+  final bool? _persistedShuffleEnabled;
+  final PlaybackRepeatMode? _persistedRepeatMode;
   final int queueRevision;
 
+  PlaybackPolicy get playbackPolicy {
+    final legacy = PlaybackPolicy.fromCombinedMode(_legacyPlaybackMode);
+    return PlaybackPolicy(
+      order: (_persistedShuffleEnabled ?? legacy.shuffleEnabled)
+          ? PlaybackOrder.shuffled
+          : PlaybackOrder.sequential,
+      repeatMode: _persistedRepeatMode ?? legacy.repeatMode,
+    );
+  }
+
+  PlaybackMode get playbackMode => playbackPolicy.combinedMode;
+  bool get shuffleEnabled => playbackPolicy.shuffleEnabled;
+  PlaybackRepeatMode get repeatMode => playbackPolicy.repeatMode;
+
   Map<String, dynamic> toJson() => {
-    'version': 3,
+    'version': 4,
     'queue': [
       for (final (index, track) in queue.indexed)
         _trackToJson(track, includeLyrics: index == queueIndex),
@@ -32,6 +53,8 @@ class PlaybackSession {
     'queueIndex': queueIndex,
     'positionMs': positionMs,
     'playbackMode': playbackMode.name,
+    'shuffleEnabled': shuffleEnabled,
+    'repeatMode': repeatMode.name,
     'queueRevision': queueRevision,
     'lyricsTrackId': queueIndex >= 0 && queueIndex < queue.length
         ? queue[queueIndex].id
@@ -49,6 +72,8 @@ class PlaybackSession {
       queueIndex: (json['queueIndex'] as int?) ?? 0,
       positionMs: (json['positionMs'] as int?) ?? 0,
       playbackMode: _playbackModeFromJson(json['playbackMode']),
+      shuffleEnabled: json['shuffleEnabled'] as bool?,
+      repeatMode: _repeatModeFromJson(json['repeatMode']),
       queueRevision: (json['queueRevision'] as int?) ?? 0,
     );
   }
@@ -59,6 +84,8 @@ class PlaybackSession {
       queueIndex: checkpoint.queueIndex,
       positionMs: checkpoint.positionMs,
       playbackMode: checkpoint.playbackMode,
+      shuffleEnabled: checkpoint.playbackPolicy.shuffleEnabled,
+      repeatMode: checkpoint.playbackPolicy.repeatMode,
       queueRevision: queueRevision,
     );
   }
@@ -72,6 +99,15 @@ PlaybackMode _playbackModeFromJson(Object? value) {
   }
   // Version 1 sessions always wrapped at the ends of the queue.
   return PlaybackMode.repeatAll;
+}
+
+PlaybackRepeatMode? _repeatModeFromJson(Object? value) {
+  if (value is String) {
+    for (final mode in PlaybackRepeatMode.values) {
+      if (mode.name == value) return mode;
+    }
+  }
+  return null;
 }
 
 Map<String, dynamic> _trackToJson(Track track, {required bool includeLyrics}) =>
@@ -174,7 +210,7 @@ class PlaybackSessionStore {
       if (session.queue.isEmpty) return null;
       _persistedQueueRevision = session.queueRevision;
       _persistedLyricsTrackId = json['lyricsTrackId'] as String?;
-      _requiresStructureWrite = (json['version'] as int? ?? 1) < 3;
+      _requiresStructureWrite = (json['version'] as int? ?? 1) < 4;
 
       final checkpointContent = await _storage.readCheckpoint();
       if (checkpointContent != null && checkpointContent.trim().isNotEmpty) {
@@ -235,7 +271,7 @@ class _PlaybackSessionCheckpoint {
     required this.queueRevision,
     required this.queueIndex,
     required this.positionMs,
-    required this.playbackMode,
+    required this.playbackPolicy,
   });
 
   factory _PlaybackSessionCheckpoint.fromSession(PlaybackSession session) {
@@ -243,29 +279,41 @@ class _PlaybackSessionCheckpoint {
       queueRevision: session.queueRevision,
       queueIndex: session.queueIndex,
       positionMs: session.positionMs,
-      playbackMode: session.playbackMode,
+      playbackPolicy: session.playbackPolicy,
     );
   }
 
   factory _PlaybackSessionCheckpoint.fromJson(Map<String, dynamic> json) {
+    final legacyMode = _playbackModeFromJson(json['playbackMode']);
+    final legacyPolicy = PlaybackPolicy.fromCombinedMode(legacyMode);
     return _PlaybackSessionCheckpoint(
       queueRevision: (json['queueRevision'] as int?) ?? 0,
       queueIndex: (json['queueIndex'] as int?) ?? 0,
       positionMs: (json['positionMs'] as int?) ?? 0,
-      playbackMode: _playbackModeFromJson(json['playbackMode']),
+      playbackPolicy: PlaybackPolicy(
+        order: (json['shuffleEnabled'] as bool? ?? legacyPolicy.shuffleEnabled)
+            ? PlaybackOrder.shuffled
+            : PlaybackOrder.sequential,
+        repeatMode:
+            _repeatModeFromJson(json['repeatMode']) ?? legacyPolicy.repeatMode,
+      ),
     );
   }
 
   final int queueRevision;
   final int queueIndex;
   final int positionMs;
-  final PlaybackMode playbackMode;
+  final PlaybackPolicy playbackPolicy;
+
+  PlaybackMode get playbackMode => playbackPolicy.combinedMode;
 
   Map<String, dynamic> toJson() => {
-    'version': 1,
+    'version': 2,
     'queueRevision': queueRevision,
     'queueIndex': queueIndex,
     'positionMs': positionMs,
     'playbackMode': playbackMode.name,
+    'shuffleEnabled': playbackPolicy.shuffleEnabled,
+    'repeatMode': playbackPolicy.repeatMode.name,
   };
 }

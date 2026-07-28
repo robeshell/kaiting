@@ -181,8 +181,8 @@ class _WebDavAddDialogState extends State<WebDavAddDialog> {
               suffixIcon: IconButton(
                 icon: Icon(
                   _obscurePassword
-                      ? Icons.visibility_off_rounded
-                      : Icons.visibility_rounded,
+                      ? KaitingIcons.hide
+                      : KaitingIcons.show,
                 ),
                 onPressed: () =>
                     setState(() => _obscurePassword = !_obscurePassword),
@@ -209,7 +209,7 @@ class _WebDavAddDialogState extends State<WebDavAddDialog> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Icon(
-                    Icons.error_outline_rounded,
+                    KaitingIcons.error,
                     color: context.soundColors.error,
                     size: 18,
                   ),

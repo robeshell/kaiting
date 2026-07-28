@@ -249,12 +249,19 @@ class JustAudioPlaybackEngine
     final uri = resource.uri;
     final isRemote = uri.scheme == 'http' || uri.scheme == 'https';
     if (isRemote) {
-      if (!kIsWeb && resource.allowBadCertificate) {
+      // Prefer StreamAudioSource whenever just_audio would open its URI
+      // loopback proxy (macOS / Windows headers proxy, or custom TLS). That
+      // proxy mishandles incomplete Content-Length bodies (common with large
+      // WebDAV FLAC) and can crash in detachSocket via an HTTP/0.9 fallback.
+      final useHttpStream =
+          !kIsWeb &&
+          (resource.allowBadCertificate || useProxyForPlaybackRequestHeaders);
+      if (useHttpStream) {
         return _PreparedAudioSource(
           HttpStreamAudioSource(
             uri: uri,
             headers: resource.headers,
-            allowBadCertificate: true,
+            allowBadCertificate: resource.allowBadCertificate,
             tag: track.id,
           ),
           deferredCache: _deferredCache(resource),
@@ -360,6 +367,15 @@ class JustAudioPlaybackEngine
     final operationSession = _sessionId;
     final operationTrackId = _track?.id;
     try {
+      // Paused seeks often leave just_audio's reported position lagging (or
+      // briefly at 0). Re-apply the UI-authoritative position before play so
+      // resume does not audibly restart from the beginning.
+      await _resyncNativePositionIfNeeded(operationSession);
+      if (_disposed ||
+          operationSession != _sessionId ||
+          _track?.id != operationTrackId) {
+        return;
+      }
       await _player.play();
     } catch (error) {
       if (_track != null &&
@@ -368,6 +384,34 @@ class JustAudioPlaybackEngine
         _publish(PlaybackPhase.error, errorMessage: _readableError(error));
       }
     }
+  }
+
+  /// When the published head and the native head diverge, seek again.
+  ///
+  /// Paused scrub + force-confirm can leave just_audio reporting 0 (or the
+  /// pre-seek time) even though the UI already moved. Resync before play so
+  /// audio does not restart from the wrong place.
+  Future<void> _resyncNativePositionIfNeeded(int operationSession) async {
+    if (_track == null || _duration == Duration.zero) return;
+    final expected = _positionGate.confirmedTarget ?? _position;
+    final native = _player.position;
+    const tolerance = Duration(milliseconds: 750);
+    if ((native - expected).abs() <= tolerance) return;
+    final clamped = _positionGate.beginSeek(expected, duration: _duration);
+    try {
+      await _player.seek(clamped);
+    } catch (_) {
+      // Play path will surface errors from play() itself if needed.
+      return;
+    }
+    if (_disposed || operationSession != _sessionId || _track == null) return;
+    final confirmed = _positionGate.accept(
+      _player.position,
+      duration: _duration,
+    );
+    _position = confirmed ??
+        _positionGate.forceConfirm(clamped, duration: _duration);
+    _publish(_resolvedPhase);
   }
 
   @override
@@ -396,15 +440,18 @@ class JustAudioPlaybackEngine
       // createPositionStream intentionally stops while paused or stalled.
       // Confirm and publish the native seek here so the scrubber and lyrics
       // still move immediately in those states. If native is slow to report
-      // the new position (common while paused), force-publish the clamped
-      // target so the UI does not snap back.
+      // the new position (common while paused), force-confirm the clamped
+      // target so settle-mode rejects stale zeros until real progress.
       final confirmed = _positionGate.accept(
         _player.position,
         duration: _duration,
       );
-      _position = confirmed ?? clamped;
-      if (confirmed == null) {
-        _positionGate.cancelSeek();
+      if (confirmed != null) {
+        _position = confirmed;
+      } else {
+        // Never cancelSeek() here — that re-opens the gate and lets a stale
+        // native 0 overwrite the scrubbed position (play-from-zero bug).
+        _position = _positionGate.forceConfirm(clamped, duration: _duration);
       }
       _publish(_resolvedPhase);
     } catch (error) {

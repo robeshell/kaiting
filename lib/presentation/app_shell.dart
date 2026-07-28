@@ -640,7 +640,6 @@ class _AppShellState extends State<AppShell>
   Future<void> _prewarmNowPlayingForTrack(Track track) async {
     if (!mounted) return;
     final album = albumForTrack(track);
-    final brightness = Theme.of(context).brightness;
     final dpr = MediaQuery.devicePixelRatioOf(context);
     // Now-playing art is much larger than the mini-player tile; warm both.
     final extents = <int>{
@@ -652,7 +651,7 @@ class _AppShellState extends State<AppShell>
       await Future.wait([
         AnimatedArtworkBackground.prewarm(
           album: album,
-          brightness: brightness,
+          brightness: Brightness.dark,
         ),
         for (final extent in extents)
           if (artworkImageProvider(
@@ -1469,7 +1468,7 @@ class _AppFailureBanner extends StatelessWidget {
               width: 32,
               height: 32,
               child: Icon(
-                Icons.error_outline_rounded,
+                KaitingIcons.error,
                 size: 20,
                 color: SoundColors.accent.withValues(alpha: 0.82),
               ),
@@ -1536,7 +1535,7 @@ class _AppFailureBanner extends StatelessWidget {
               visualDensity: VisualDensity.compact,
               constraints: const BoxConstraints.tightFor(width: 32, height: 32),
               color: context.soundMutedText,
-              icon: const Icon(Icons.close_rounded, size: 17),
+              icon: const Icon(KaitingIcons.close, size: 17),
             ),
           ],
         ),
@@ -1678,7 +1677,7 @@ class _DesktopTitleBarState extends State<_DesktopTitleBar> {
             // App action buttons (search + settings).
             _TitleBarAction(
               key: const ValueKey('desktop-search-action'),
-              icon: Icons.search_rounded,
+              icon: KaitingIcons.search,
               tooltip: '搜索',
               active: widget.selection == AppSection.search,
               onPressed: widget.onSearch,
@@ -1686,7 +1685,7 @@ class _DesktopTitleBarState extends State<_DesktopTitleBar> {
             const SizedBox(width: 2),
             _TitleBarAction(
               key: const ValueKey('desktop-settings-action'),
-              icon: Icons.settings_outlined,
+              icon: KaitingIcons.settings,
               tooltip: '设置',
               active: widget.selection == AppSection.settings,
               onPressed: widget.onSettings,
@@ -1696,23 +1695,21 @@ class _DesktopTitleBarState extends State<_DesktopTitleBar> {
               const SizedBox(width: 10),
               _WindowControlButton(
                 key: const ValueKey('window-minimize'),
-                icon: Icons.horizontal_rule_rounded,
+                icon: KaitingIcons.minimize,
                 tooltip: '最小化',
                 onPressed: () => unawaited(minimizeWindow()),
               ),
               const SizedBox(width: 2),
               _WindowControlButton(
                 key: const ValueKey('window-maximize'),
-                icon: _maximized
-                    ? Icons.filter_none_rounded
-                    : Icons.crop_square_rounded,
+                icon: _maximized ? KaitingIcons.restore : KaitingIcons.maximize,
                 tooltip: _maximized ? '向下还原' : '最大化',
                 onPressed: () => unawaited(_toggleMaximize()),
               ),
               const SizedBox(width: 2),
               _WindowControlButton(
                 key: const ValueKey('window-close'),
-                icon: Icons.close_rounded,
+                icon: KaitingIcons.close,
                 tooltip: '关闭',
                 closeButton: true,
                 onPressed: () => unawaited(closeWindow()),
@@ -1969,18 +1966,18 @@ class _CompactPlaybackDock extends StatelessWidget {
 
   static const _destinations = [
     SoundNavigationItem(
-      icon: Icons.library_music_outlined,
-      selectedIcon: Icons.library_music_rounded,
+      icon: KaitingIcons.library,
+      selectedIcon: KaitingIcons.libraryFilled,
       label: '资料库',
     ),
     SoundNavigationItem(
-      icon: Icons.search_rounded,
-      selectedIcon: Icons.search_rounded,
+      icon: KaitingIcons.search,
+      selectedIcon: KaitingIcons.searchFilled,
       label: '搜索',
     ),
     SoundNavigationItem(
-      icon: Icons.settings_outlined,
-      selectedIcon: Icons.settings_rounded,
+      icon: KaitingIcons.settings,
+      selectedIcon: KaitingIcons.settingsFilled,
       label: '设置',
     ),
   ];
@@ -2048,7 +2045,7 @@ class _KeyboardShortcutDialog extends StatelessWidget {
     return SoundDialog(
       title: const Row(
         children: [
-          Icon(Icons.keyboard_alt_outlined),
+          Icon(KaitingIcons.keyboard),
           SizedBox(width: 10),
           Text('键盘快捷键'),
         ],
