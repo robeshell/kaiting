@@ -172,9 +172,99 @@ class LibraryCollection {
     ];
   }
 
-  List<Color> get palette => albums.isEmpty
-      ? const [Color(0xFF385057), Color(0xFF11191C)]
-      : albums.first.palette;
+  /// Albums where this collection title appears in the album artist credit.
+  ///
+  /// For split multi-artist browsing these are "their" releases, as opposed to
+  /// albums they only appear on as a featured track credit.
+  List<Album> get ownedAlbums {
+    if (kind != LibraryCollectionKind.artist || albums.isEmpty) {
+      return albums;
+    }
+    final key = _collectionKey(title);
+    final owned = [
+      for (final album in albums)
+        if (_albumCreditIncludes(album.artist, key)) album,
+    ];
+    return owned.isEmpty ? const [] : owned;
+  }
+
+  /// Whether the artist avatar should be a monogram (no reliable self-cover).
+  ///
+  /// Featured-only artists and artists whose own albums have no artwork fall
+  /// back to a letter tile instead of a random collab cover.
+  bool get prefersMonogramAvatar {
+    if (kind != LibraryCollectionKind.artist) return false;
+    final owned = ownedAlbums;
+    if (owned.isEmpty) return true;
+    return !owned.any(_albumHasArtworkHint);
+  }
+
+  /// Best album to use as a circular artist avatar cover.
+  ///
+  /// Prefers owned albums with artwork and more tracks. Null when a monogram
+  /// should be shown instead.
+  Album? get representativeAlbum {
+    if (prefersMonogramAvatar) return null;
+    final pool = ownedAlbums.isNotEmpty ? ownedAlbums : albums;
+    if (pool.isEmpty) return null;
+    final ranked = [...pool]
+      ..sort((left, right) {
+        final art = (_albumHasArtworkHint(right) ? 1 : 0).compareTo(
+          _albumHasArtworkHint(left) ? 1 : 0,
+        );
+        if (art != 0) return art;
+        final tracks = right.tracks.length.compareTo(left.tracks.length);
+        if (tracks != 0) return tracks;
+        return left.title.toLowerCase().compareTo(right.title.toLowerCase());
+      });
+    return ranked.first;
+  }
+
+  /// Single character for monogram avatars (first rune, uppercased when Latin).
+  String get monogram => artistMonogram(title);
+
+  List<Color> get monogramPalette => artistMonogramPalette(title);
+
+  List<Color> get palette {
+    final album = representativeAlbum ??
+        (albums.isEmpty ? null : albums.first);
+    if (album != null) return album.palette;
+    if (kind == LibraryCollectionKind.artist) return monogramPalette;
+    return const [Color(0xFF385057), Color(0xFF11191C)];
+  }
+}
+
+bool _albumHasArtworkHint(Album album) {
+  final uri = album.artworkUri?.trim();
+  return uri != null && uri.isNotEmpty;
+}
+
+bool _albumCreditIncludes(String albumArtist, String artistKey) {
+  final credit = albumArtist.trim();
+  if (credit.isEmpty) return false;
+  if (_collectionKey(credit) == artistKey) return true;
+  return splitArtistCredit(credit).any(
+    (part) => _collectionKey(part) == artistKey,
+  );
+}
+
+/// First visible character for artist monogram tiles.
+String artistMonogram(String name) {
+  final trimmed = name.trim();
+  if (trimmed.isEmpty || trimmed == '未知艺人') return '?';
+  final iterator = trimmed.runes.iterator;
+  if (!iterator.moveNext()) return '?';
+  final char = String.fromCharCode(iterator.current);
+  return char.toUpperCase();
+}
+
+/// Stable two-stop gradient from an artist name (no network, no artwork).
+List<Color> artistMonogramPalette(String name) {
+  final hash = name.trim().toLowerCase().hashCode;
+  final hue = (hash % 360).abs().toDouble();
+  final primary = HSLColor.fromAHSL(1, hue, 0.40, 0.40).toColor();
+  final deep = HSLColor.fromAHSL(1, (hue + 26) % 360, 0.34, 0.24).toColor();
+  return [primary, deep];
 }
 
 /// Splits a multi-artist credit into individual display names.

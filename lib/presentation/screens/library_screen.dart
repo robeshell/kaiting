@@ -13,6 +13,7 @@ import '../controllers/library_user_state_controller.dart';
 import '../models/library_source_filter.dart';
 import '../widgets/add_to_playlist_sheet.dart';
 import '../widgets/album_art.dart';
+import '../widgets/artist_avatar.dart';
 import '../widgets/sound_components.dart';
 import '../widgets/sound_metadata_line.dart';
 import 'library_user_screen.dart';
@@ -1547,7 +1548,10 @@ class _CollectionCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final album = collection.albums.first;
+    final isArtist = collection.kind == LibraryCollectionKind.artist;
+    final coverAlbum =
+        collection.representativeAlbum ??
+        (collection.albums.isEmpty ? null : collection.albums.first);
     return InkWell(
       key: ValueKey('library-collection-${collection.id}'),
       onTap: onTap,
@@ -1555,11 +1559,28 @@ class _CollectionCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          AlbumArt(
-            key: ValueKey('library-collection-art-${collection.id}'),
-            album: album,
-            showShadow: false,
-          ),
+          if (isArtist)
+            ArtistAvatar(
+              key: ValueKey('library-collection-art-${collection.id}'),
+              collection: collection,
+              showShadow: false,
+            )
+          else if (coverAlbum != null)
+            AlbumArt(
+              key: ValueKey('library-collection-art-${collection.id}'),
+              album: coverAlbum,
+              showShadow: false,
+            )
+          else
+            AspectRatio(
+              aspectRatio: 1,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: context.soundTint(0.06),
+                  borderRadius: BorderRadius.circular(14),
+                ),
+              ),
+            ),
           const SizedBox(height: 7),
           Text(
             collection.title,
@@ -1569,7 +1590,7 @@ class _CollectionCard extends StatelessWidget {
           ),
           const SizedBox(height: 2),
           Text(
-            '${collection.albums.length} 张专辑 · ${collection.tracks.length} 首歌',
+            _collectionCardSubtitle(collection),
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(fontSize: 12, color: context.soundSecondaryText),
@@ -1578,4 +1599,18 @@ class _CollectionCard extends StatelessWidget {
       ),
     );
   }
+}
+
+String _collectionCardSubtitle(LibraryCollection collection) {
+  if (collection.kind == LibraryCollectionKind.artist) {
+    final featured = collection.featuredTracks.length;
+    if (featured > 0 && collection.primaryTracks.isEmpty) {
+      return '$featured 首参与';
+    }
+    if (featured > 0) {
+      return '${collection.ownedAlbums.length} 张专辑 · '
+          '${collection.primaryTracks.length} 首 · $featured 参与';
+    }
+  }
+  return '${collection.albums.length} 张专辑 · ${collection.tracks.length} 首歌';
 }

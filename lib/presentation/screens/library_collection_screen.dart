@@ -11,6 +11,7 @@ import '../controllers/library_user_state_controller.dart';
 import '../widgets/add_to_playlist_sheet.dart';
 import '../widgets/album_art.dart';
 import '../widgets/animated_artwork_background.dart';
+import '../widgets/artist_avatar.dart';
 import '../widgets/progress_scrubber.dart';
 import '../widgets/sound_components.dart';
 import '../widgets/sound_metadata_line.dart';
@@ -76,8 +77,9 @@ class _LibraryCollectionScreenState extends State<LibraryCollectionScreen> {
   @override
   void didUpdateWidget(LibraryCollectionScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final oldArtwork = oldWidget.collection.albums.firstOrNull?.artworkUri;
-    final newArtwork = widget.collection.albums.firstOrNull?.artworkUri;
+    final oldArtwork =
+        oldWidget.collection.representativeAlbum?.artworkUri;
+    final newArtwork = widget.collection.representativeAlbum?.artworkUri;
     if (oldWidget.collection.id != widget.collection.id ||
         oldArtwork != newArtwork) {
       _refreshPalette(
@@ -92,7 +94,7 @@ class _LibraryCollectionScreenState extends State<LibraryCollectionScreen> {
     required bool extractArtwork,
   }) {
     final collection = widget.collection;
-    final artworkAlbum = collection.albums.firstOrNull;
+    final artworkAlbum = collection.representativeAlbum;
     final request =
         '${collection.id}|${artworkAlbum?.artworkUri}|${brightness.name}';
     _paletteRequest = request;
@@ -450,7 +452,8 @@ List<Color> _collectionFallbackColors(
   LibraryCollection collection,
   Brightness brightness,
 ) {
-  final album = collection.albums.firstOrNull;
+  final album =
+      collection.representativeAlbum ?? collection.albums.firstOrNull;
   if (album != null) return artworkFallbackGradientColors(album, brightness);
   final first = collection.palette.first;
   final last = collection.palette.last;
@@ -643,12 +646,19 @@ class _CollectionHero extends StatelessWidget {
             ),
           ],
         );
-        final artwork = collection.albums.isEmpty
-            ? SizedBox.square(dimension: compact ? 156 : 220)
+        final artSize = compact ? 156.0 : 220.0;
+        final artwork = collection.kind == LibraryCollectionKind.artist
+            ? ArtistAvatar(
+                key: const ValueKey('collection-detail-artwork'),
+                collection: collection,
+                size: artSize,
+              )
+            : collection.albums.isEmpty
+            ? SizedBox.square(dimension: artSize)
             : AlbumArt(
                 key: const ValueKey('collection-detail-artwork'),
                 album: collection.albums.first,
-                size: compact ? 156 : 220,
+                size: artSize,
               );
 
         return Container(
@@ -712,29 +722,12 @@ class _CollectionHero extends StatelessWidget {
       (constraints.maxWidth - context.soundPageGutter * 2 - 12) / 2,
       MediaQuery.devicePixelRatioOf(context),
     );
-    final artwork = collection.albums.isEmpty
-        ? Container(
-            key: const ValueKey('collection-detail-artwork'),
-            width: artworkSize,
-            height: artworkSize,
-            decoration: BoxDecoration(
-              color: palette.controlSurface,
-              borderRadius: BorderRadius.circular(14),
-            ),
-            alignment: Alignment.center,
-            child: Icon(
-              Icons.person_rounded,
-              size: artworkSize * 0.34,
-              color: palette.mutedText,
-            ),
-          )
-        : AlbumArt(
-            key: const ValueKey('collection-detail-artwork'),
-            album: collection.albums.first,
-            size: artworkSize,
-            borderRadius: 14,
-            cacheExtent: artworkCacheExtent,
-          );
+    final artwork = ArtistAvatar(
+      key: const ValueKey('collection-detail-artwork'),
+      collection: collection,
+      size: artworkSize,
+      cacheExtent: artworkCacheExtent,
+    );
 
     return Container(
       key: const ValueKey('collection-detail-hero'),
@@ -829,28 +822,11 @@ class _CollectionHero extends StatelessWidget {
         .toDouble();
     final buttonWidth = constraints.maxWidth >= 1040 ? 146.0 : 132.0;
     final horizontalGap = constraints.maxWidth >= 1000 ? 48.0 : 32.0;
-    final artwork = collection.albums.isEmpty
-        ? Container(
-            key: const ValueKey('collection-detail-artwork'),
-            width: artworkSize,
-            height: artworkSize,
-            decoration: BoxDecoration(
-              color: context.soundTint(0.045),
-              borderRadius: BorderRadius.circular(12),
-            ),
-            alignment: Alignment.center,
-            child: Icon(
-              Icons.person_rounded,
-              size: artworkSize * 0.34,
-              color: context.soundMutedText,
-            ),
-          )
-        : AlbumArt(
-            key: const ValueKey('collection-detail-artwork'),
-            album: collection.albums.first,
-            size: artworkSize,
-            borderRadius: 12,
-          );
+    final artwork = ArtistAvatar(
+      key: const ValueKey('collection-detail-artwork'),
+      collection: collection,
+      size: artworkSize,
+    );
 
     return Container(
       key: const ValueKey('collection-detail-hero'),

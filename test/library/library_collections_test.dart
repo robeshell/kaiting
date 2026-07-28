@@ -122,6 +122,37 @@ void main() {
     expect(splitArtistCredit('  solo  '), ['solo']);
   });
 
+  test('artist avatar prefers monogram for featured-only people', () {
+    const track = Track(
+      id: 'feat',
+      title: 'Duet',
+      artist: '主唱 feat. 嘉宾',
+      albumTitle: '主唱专辑',
+      duration: Duration(minutes: 3),
+      source: SourceKind.local,
+    );
+    const album = Album(
+      id: 'album',
+      title: '主唱专辑',
+      artist: '主唱',
+      source: SourceKind.local,
+      palette: [Colors.blue, Colors.black],
+      tracks: [track],
+      artworkUri: 'file:///cover.jpg',
+    );
+
+    final artists = buildArtistCollections(const [album]);
+    final lead = artists.singleWhere((item) => item.title == '主唱');
+    final guest = artists.singleWhere((item) => item.title == '嘉宾');
+
+    expect(lead.prefersMonogramAvatar, isFalse);
+    expect(lead.representativeAlbum?.id, 'album');
+    expect(guest.prefersMonogramAvatar, isTrue);
+    expect(guest.representativeAlbum, isNull);
+    expect(guest.monogram, '嘉');
+    expect(artistMonogram('Jay'), 'J');
+  });
+
   test('genre browsing falls back to album genre and keeps uncategorized', () {
     const inherited = Track(
       id: 'inherited',

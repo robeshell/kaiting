@@ -10,6 +10,7 @@ import '../controllers/library_search_controller.dart';
 import '../controllers/library_user_state_controller.dart';
 import '../widgets/add_to_playlist_sheet.dart';
 import '../widgets/album_art.dart';
+import '../widgets/artist_avatar.dart';
 import '../widgets/sound_components.dart';
 import '../widgets/sound_metadata_line.dart';
 
@@ -521,16 +522,13 @@ class _ArtistHitList extends StatelessWidget {
           SoundListRow(
             key: ValueKey('search-artist-${hit.collection.id}'),
             padding: EdgeInsets.zero,
-            leading: Icon(
-              Icons.person_rounded,
-              size: 20,
-              color: context.soundSecondaryText,
+            leading: ArtistAvatar(
+              collection: hit.collection,
+              size: 40,
+              showShadow: false,
             ),
             title: Text(hit.name),
-            subtitle: Text(
-              '${hit.collection.albums.length} 张专辑 · '
-              '${hit.collection.tracks.length} 首',
-            ),
+            subtitle: Text(_artistHitSubtitle(hit.collection)),
             trailing: Icon(
               Icons.chevron_right_rounded,
               size: 19,
@@ -541,6 +539,18 @@ class _ArtistHitList extends StatelessWidget {
       ],
     );
   }
+}
+
+String _artistHitSubtitle(LibraryCollection collection) {
+  final featured = collection.featuredTracks.length;
+  if (featured > 0 && collection.primaryTracks.isEmpty) {
+    return '$featured 首参与';
+  }
+  if (featured > 0) {
+    return '${collection.ownedAlbums.length} 张专辑 · '
+        '${collection.primaryTracks.length} 首 · $featured 参与';
+  }
+  return '${collection.albums.length} 张专辑 · ${collection.tracks.length} 首';
 }
 
 class _AlbumHitList extends StatelessWidget {
