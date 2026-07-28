@@ -81,6 +81,27 @@ class LibraryScreen extends StatefulWidget {
   State<LibraryScreen> createState() => _LibraryScreenState();
 }
 
+/// Per-mode derived lists. Mode switches only recompute the active mode when
+/// catalog / filter / that mode's sort actually change — avoids re-sorting the
+/// entire song list when the user only taps 「艺人」.
+class _LibraryDerivedLists {
+  List<Album>? allAlbums;
+  LibrarySourceFilter? sourceFilter;
+
+  List<Album>? filteredAlbums;
+
+  LibrarySortOrder? albumSort;
+  List<Album>? sortedAlbums;
+
+  LibrarySortOrder? artistSort;
+  List<LibraryCollection>? sortedArtists;
+
+  LibrarySortOrder? songSort;
+  List<Track>? sortedTracks;
+  Map<String, Album>? albumByTrackId;
+  List<_SongIndexEntry>? songIndexEntries;
+}
+
 class _LibraryScreenState extends State<LibraryScreen> {
   final Map<LibraryBrowseMode, ScrollController> _scrollControllers = {
     for (final mode in LibraryBrowseMode.values) mode: ScrollController(),
@@ -92,6 +113,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
       mode: LibrarySortOrder.titleAscending,
   };
   LibrarySourceFilter _sourceFilter = LibrarySourceFilter.all;
+  final _LibraryDerivedLists _derived = _LibraryDerivedLists();
 
   LibrarySortOrder get _sortOrder => _sortByMode[widget.mode]!;
   ScrollController get _scrollController => _scrollControllers[widget.mode]!;
@@ -104,6 +126,92 @@ class _LibraryScreenState extends State<LibraryScreen> {
     super.dispose();
   }
 
+  void _invalidateDerivedIfCatalogChanged(List<Album> allAlbums) {
+    if (identical(_derived.allAlbums, allAlbums) &&
+        _derived.sourceFilter == _sourceFilter) {
+      return;
+    }
+    _derived.allAlbums = allAlbums;
+    _derived.sourceFilter = _sourceFilter;
+    _derived.filteredAlbums = null;
+    _derived.albumSort = null;
+    _derived.sortedAlbums = null;
+    _derived.artistSort = null;
+    _derived.sortedArtists = null;
+    _derived.songSort = null;
+    _derived.sortedTracks = null;
+    _derived.albumByTrackId = null;
+    _derived.songIndexEntries = null;
+  }
+
+  List<Album> _filteredAlbumsCached(List<Album> allAlbums) {
+    _invalidateDerivedIfCatalogChanged(allAlbums);
+    return _derived.filteredAlbums ??= _filterAlbums(allAlbums);
+  }
+
+  List<Album> _sortedAlbumsCached(List<Album> allAlbums) {
+    final filtered = _filteredAlbumsCached(allAlbums);
+    final sort = _sortByMode[LibraryBrowseMode.albums]!;
+    if (_derived.albumSort == sort && _derived.sortedAlbums != null) {
+      return _derived.sortedAlbums!;
+    }
+    final sorted = _sortAlbumsWithOrder(filtered, sort);
+    _derived.albumSort = sort;
+    _derived.sortedAlbums = sorted;
+    return sorted;
+  }
+
+  List<LibraryCollection> _sortedArtistsCached(List<Album> allAlbums) {
+    final filtered = _filteredAlbumsCached(allAlbums);
+    final sort = _sortByMode[LibraryBrowseMode.artists]!;
+    if (_derived.artistSort == sort && _derived.sortedArtists != null) {
+      return _derived.sortedArtists!;
+    }
+    final collections = _sourceFilter == LibrarySourceFilter.all
+        ? widget.catalog.artistCollections
+        : buildArtistCollections(filtered);
+    final sorted = _sortCollectionsWithOrder(collections, sort);
+    _derived.artistSort = sort;
+    _derived.sortedArtists = sorted;
+    return sorted;
+  }
+
+  List<Track> _sortedTracksCached(List<Album> allAlbums) {
+    final filtered = _filteredAlbumsCached(allAlbums);
+    final sort = _sortByMode[LibraryBrowseMode.songs]!;
+    if (_derived.songSort == sort &&
+        _derived.sortedTracks != null &&
+        _derived.albumByTrackId != null) {
+      return _derived.sortedTracks!;
+    }
+    final albumByTrackId = <String, Album>{
+      for (final album in filtered)
+        for (final track in album.tracks) track.id: album,
+    };
+    final flat = [for (final album in filtered) ...album.tracks];
+    final sorted = _sortTracksWithOrder(flat, sort);
+    _derived.songSort = sort;
+    _derived.sortedTracks = sorted;
+    _derived.albumByTrackId = albumByTrackId;
+    _derived.songIndexEntries = null;
+    return sorted;
+  }
+
+  Map<String, Album> _albumByTrackIdCached(List<Album> allAlbums) {
+    _sortedTracksCached(allAlbums);
+    return _derived.albumByTrackId ?? const {};
+  }
+
+  List<_SongIndexEntry> _songIndexCached(List<Track> tracks) {
+    final sort = _sortByMode[LibraryBrowseMode.songs]!;
+    if (_derived.songSort == sort && _derived.songIndexEntries != null) {
+      return _derived.songIndexEntries!;
+    }
+    final entries = _songIndexEntries(tracks);
+    _derived.songIndexEntries = entries;
+    return entries;
+  }
+
   @override
   Widget build(BuildContext context) {
     return AnimatedBuilder(
@@ -114,44 +222,94 @@ class _LibraryScreenState extends State<LibraryScreen> {
         final gutter = context.soundPageGutter;
         final bottomPadding = context.soundContentBottomPadding;
         final allAlbums = widget.catalog.albums;
-        final albums = _sortAlbums(_filterAlbums(allAlbums));
-        final albumByTrackId = {
-          for (final album in albums)
-            for (final track in album.tracks) track.id: album,
-        };
-        final tracks = _sortTracks([
-          for (final album in albums) ...album.tracks,
-        ]);
+        final status = widget.catalog.status;
+
+        // Only derive lists required by the active tab so switching to 「艺人」
+        // does not re-sort every track on the UI thread.
+        final filtered = status == LibraryCatalogStatus.ready
+            ? _filteredAlbumsCached(allAlbums)
+            : const <Album>[];
+        final albums =
+            status == LibraryCatalogStatus.ready &&
+                widget.mode == LibraryBrowseMode.albums
+            ? _sortedAlbumsCached(allAlbums)
+            : filtered;
+        final artists =
+            status == LibraryCatalogStatus.ready &&
+                widget.mode == LibraryBrowseMode.artists
+            ? _sortedArtistsCached(allAlbums)
+            : const <LibraryCollection>[];
+        final tracks =
+            status == LibraryCatalogStatus.ready &&
+                widget.mode == LibraryBrowseMode.songs
+            ? _sortedTracksCached(allAlbums)
+            : const <Track>[];
+        final albumByTrackId = widget.mode == LibraryBrowseMode.songs
+            ? _albumByTrackIdCached(allAlbums)
+            : const <String, Album>{};
+
         final sourceOptions = LibrarySourceFilter.options(
           allAlbums.map((album) => album.source),
         );
-        final artists = _sortCollections(buildArtistCollections(albums));
         final resultCount = switch (widget.mode) {
           LibraryBrowseMode.albums => albums.length,
           LibraryBrowseMode.artists => artists.length,
           LibraryBrowseMode.songs => tracks.length,
         };
         final songIndexEntries = widget.mode == LibraryBrowseMode.songs
-            ? _songIndexEntries(tracks)
+            ? _songIndexCached(tracks)
             : const <_SongIndexEntry>[];
         final showSongIndex =
             songIndexEntries.length > 1 && tracks.length >= (compact ? 8 : 12);
-        final scrollView = CustomScrollView(
+
+        final hasCatalogBody =
+            status == LibraryCatalogStatus.ready && allAlbums.isNotEmpty;
+
+        // Keep mode chrome (nav + toolbar) outside the mode-keyed scroll body
+        // so tapping 「艺人」 does not tear down the whole page header and
+        // produce a one-frame layout jump across the shell.
+        final header = <Widget>[
+          if (mobileShell)
+            Padding(
+              padding: EdgeInsets.fromLTRB(gutter, 12, gutter, 10),
+              child: _CompactLibraryNavigation(
+                mode: widget.mode,
+                onModeChanged: widget.onModeChanged,
+                onOpenUserMode: widget.onOpenUserMode,
+              ),
+            ),
+          if (hasCatalogBody)
+            Padding(
+              padding: EdgeInsets.fromLTRB(
+                gutter,
+                mobileShell ? 0 : 24,
+                gutter,
+                12,
+              ),
+              child: _LibraryToolbar(
+                mode: widget.mode,
+                resultCount: resultCount,
+                sortOrder: _sortOrder,
+                sortOptions: _sortOptions(widget.mode),
+                sourceFilter: _sourceFilter,
+                sourceOptions: sourceOptions,
+                onSortChanged: _changeSortOrder,
+                onSourceChanged: _changeSourceFilter,
+                onPlayAll:
+                    widget.mode == LibraryBrowseMode.songs && tracks.isNotEmpty
+                    ? () => widget.onPlayTrack(tracks.first, tracks)
+                    : null,
+              ),
+            ),
+        ];
+
+        final body = CustomScrollView(
+          // Keep the historical PageStorage bucket name so mobile detail
+          // navigation restores the same scroll offset as before.
           key: PageStorageKey<String>('library-${widget.mode.name}'),
           controller: _scrollController,
           slivers: [
-            if (mobileShell)
-              SliverPadding(
-                padding: EdgeInsets.fromLTRB(gutter, 12, gutter, 10),
-                sliver: SliverToBoxAdapter(
-                  child: _CompactLibraryNavigation(
-                    mode: widget.mode,
-                    onModeChanged: widget.onModeChanged,
-                    onOpenUserMode: widget.onOpenUserMode,
-                  ),
-                ),
-              ),
-            if (widget.catalog.status == LibraryCatalogStatus.loading)
+            if (status == LibraryCatalogStatus.loading)
               const SliverFillRemaining(
                 hasScrollBody: false,
                 child: SoundEmptyState(
@@ -161,7 +319,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   loading: true,
                 ),
               )
-            else if (widget.catalog.status == LibraryCatalogStatus.error)
+            else if (status == LibraryCatalogStatus.error)
               SliverFillRemaining(
                 hasScrollBody: false,
                 child: SoundEmptyState(
@@ -185,73 +343,56 @@ class _LibraryScreenState extends State<LibraryScreen> {
                   onAction: widget.onManageSources,
                 ),
               )
-            else ...[
-              SliverPadding(
-                padding: EdgeInsets.fromLTRB(
-                  gutter,
-                  mobileShell ? 0 : 24,
-                  gutter,
-                  12,
+            else if (filtered.isEmpty)
+              const SliverFillRemaining(
+                hasScrollBody: false,
+                child: SoundEmptyState(
+                  icon: Icons.filter_alt_off_outlined,
+                  title: '当前筛选没有内容',
+                  message: '这个来源中没有已索引的音乐，可以切换到其他来源继续浏览。',
                 ),
-                sliver: SliverToBoxAdapter(
-                  child: _LibraryToolbar(
-                    mode: widget.mode,
-                    resultCount: resultCount,
-                    sortOrder: _sortOrder,
-                    sortOptions: _sortOptions(widget.mode),
-                    sourceFilter: _sourceFilter,
-                    sourceOptions: sourceOptions,
-                    onSortChanged: _changeSortOrder,
-                    onSourceChanged: _changeSourceFilter,
-                    onPlayAll:
-                        widget.mode == LibraryBrowseMode.songs &&
-                            tracks.isNotEmpty
-                        ? () => widget.onPlayTrack(tracks.first, tracks)
-                        : null,
-                  ),
+              )
+            else
+              ...switch (widget.mode) {
+                LibraryBrowseMode.albums => _albumSlivers(
+                  albums,
+                  gutter,
+                  bottomPadding,
+                  compact: compact,
                 ),
-              ),
-              if (albums.isEmpty)
-                const SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: SoundEmptyState(
-                    icon: Icons.filter_alt_off_outlined,
-                    title: '当前筛选没有内容',
-                    message: '这个来源中没有已索引的音乐，可以切换到其他来源继续浏览。',
-                  ),
-                )
-              else
-                ...switch (widget.mode) {
-                  LibraryBrowseMode.albums => _albumSlivers(
-                    albums,
-                    gutter,
-                    bottomPadding,
-                    compact: compact,
-                  ),
-                  LibraryBrowseMode.artists => _collectionSlivers(
-                    artists,
-                    gutter: gutter,
-                    bottomPadding: bottomPadding,
-                    emptyMessage: '资料库中没有可浏览的艺人。',
-                    compact: compact,
-                  ),
-                  LibraryBrowseMode.songs => _songSlivers(
-                    tracks,
-                    albumByTrackId,
-                    gutter,
-                    bottomPadding,
-                    compact: compact,
-                    reserveFastIndex: showSongIndex,
-                  ),
-                },
-            ],
+                LibraryBrowseMode.artists => _collectionSlivers(
+                  artists,
+                  gutter: gutter,
+                  bottomPadding: bottomPadding,
+                  emptyMessage: '资料库中没有可浏览的艺人。',
+                  compact: compact,
+                ),
+                LibraryBrowseMode.songs => _songSlivers(
+                  tracks,
+                  albumByTrackId,
+                  gutter,
+                  bottomPadding,
+                  compact: compact,
+                  reserveFastIndex: showSongIndex,
+                ),
+              },
           ],
         );
-        if (!showSongIndex) return scrollView;
+
+        final page = Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ...header,
+            Expanded(child: body),
+          ],
+        );
+
+        if (!showSongIndex) return page;
         return Stack(
           children: [
-            Positioned.fill(child: scrollView),
+            Positioned.fill(child: page),
             Positioned(
+              // Header stays fixed; index rail starts below mobile nav + toolbar.
               top: compact ? 104 : 70,
               right: compact ? 0 : 6,
               bottom: compact ? 12 : 20,
@@ -267,12 +408,41 @@ class _LibraryScreenState extends State<LibraryScreen> {
   }
 
   void _changeSortOrder(LibrarySortOrder value) {
-    setState(() => _sortByMode[widget.mode] = value);
+    setState(() {
+      _sortByMode[widget.mode] = value;
+      switch (widget.mode) {
+        case LibraryBrowseMode.albums:
+          _derived.albumSort = null;
+          _derived.sortedAlbums = null;
+        case LibraryBrowseMode.artists:
+          _derived.artistSort = null;
+          _derived.sortedArtists = null;
+        case LibraryBrowseMode.songs:
+          _derived.songSort = null;
+          _derived.sortedTracks = null;
+          _derived.albumByTrackId = null;
+          _derived.songIndexEntries = null;
+      }
+    });
     _resetScrollPosition();
   }
 
   void _changeSourceFilter(LibrarySourceFilter value) {
-    setState(() => _sourceFilter = value);
+    setState(() {
+      _sourceFilter = value;
+      // Source changes invalidate every derived list.
+      _derived.allAlbums = null;
+      _derived.sourceFilter = null;
+      _derived.filteredAlbums = null;
+      _derived.albumSort = null;
+      _derived.sortedAlbums = null;
+      _derived.artistSort = null;
+      _derived.sortedArtists = null;
+      _derived.songSort = null;
+      _derived.sortedTracks = null;
+      _derived.albumByTrackId = null;
+      _derived.songIndexEntries = null;
+    });
     _resetScrollPosition();
   }
 
@@ -302,7 +472,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
   List<_SongIndexEntry> _songIndexEntries(List<Track> tracks) {
     if (tracks.isEmpty) return const [];
-    if (_sortOrder == LibrarySortOrder.yearDescending) {
+    final sort = _sortByMode[LibraryBrowseMode.songs]!;
+    if (sort == LibrarySortOrder.yearDescending) {
       final entries = <_SongIndexEntry>[];
       String? previous;
       for (var index = 0; index < tracks.length; index++) {
@@ -316,10 +487,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
 
     final firstIndexByLetter = <String, int>{};
     for (var index = 0; index < tracks.length; index++) {
-      final label = _alphabetIndexLabel(_trackSortText(tracks[index]));
+      final label = _alphabetIndexLabel(_trackSortText(tracks[index], sort));
       firstIndexByLetter.putIfAbsent(label, () => index);
     }
-    final letters = _sortOrder == LibrarySortOrder.titleDescending
+    final letters = sort == LibrarySortOrder.titleDescending
         ? _alphabet.reversed.toList(growable: false)
         : _alphabet;
     final labels = [...letters, '#'];
@@ -340,7 +511,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
     return entries;
   }
 
-  String _trackSortText(Track track) => switch (_sortOrder) {
+  String _trackSortText(Track track, LibrarySortOrder sort) => switch (sort) {
     LibrarySortOrder.artistAscending => track.artist,
     LibrarySortOrder.albumAscending => track.albumTitle,
     LibrarySortOrder.titleAscending ||
@@ -394,9 +565,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
     ];
   }
 
-  List<Album> _sortAlbums(List<Album> albums) {
+  List<Album> _sortAlbumsWithOrder(List<Album> albums, LibrarySortOrder order) {
     final sorted = [...albums];
-    sorted.sort(switch (_sortOrder) {
+    sorted.sort(switch (order) {
       LibrarySortOrder.titleAscending => (left, right) => _compareText(
         left.title,
         right.title,
@@ -420,9 +591,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
     return sorted;
   }
 
-  List<Track> _sortTracks(List<Track> tracks) {
+  List<Track> _sortTracksWithOrder(List<Track> tracks, LibrarySortOrder order) {
     final sorted = [...tracks];
-    sorted.sort(switch (_sortOrder) {
+    sorted.sort(switch (order) {
       LibrarySortOrder.titleAscending => (left, right) => _compareText(
         left.title,
         right.title,
@@ -449,11 +620,12 @@ class _LibraryScreenState extends State<LibraryScreen> {
     return sorted;
   }
 
-  List<LibraryCollection> _sortCollections(
+  List<LibraryCollection> _sortCollectionsWithOrder(
     List<LibraryCollection> collections,
+    LibrarySortOrder order,
   ) {
     final sorted = [...collections];
-    sorted.sort(switch (_sortOrder) {
+    sorted.sort(switch (order) {
       LibrarySortOrder.titleAscending => (left, right) => _compareText(
         left.title,
         right.title,
@@ -649,6 +821,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 final collection = findArtistCollection(
                   widget.catalog.albums,
                   track.artist,
+                  collections: widget.catalog.artistCollections,
                 );
                 if (collection != null) {
                   widget.onOpenCollection(collection);
