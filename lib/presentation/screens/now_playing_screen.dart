@@ -1211,7 +1211,7 @@ class _TrackChangeTransition extends StatelessWidget {
   }
 }
 
-class _CompactLyricsPlayer extends StatelessWidget {
+class _CompactLyricsPlayer extends StatefulWidget {
   const _CompactLyricsPlayer({
     required this.album,
     required this.track,
@@ -1242,7 +1242,38 @@ class _CompactLyricsPlayer extends StatelessWidget {
   final GestureDragCancelCallback? onVerticalDragCancel;
 
   @override
+  State<_CompactLyricsPlayer> createState() => _CompactLyricsPlayerState();
+}
+
+class _CompactLyricsPlayerState extends State<_CompactLyricsPlayer> {
+  final GlobalKey<_LyricsPanelState> _lyricsPanelKey =
+      GlobalKey<_LyricsPanelState>();
+
+  @override
+  void initState() {
+    super.initState();
+    // Panel state is available after the first frame for the header ⋯ slot.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() {});
+    });
+  }
+
+  @override
+  void didUpdateWidget(covariant _CompactLyricsPlayer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.track.id != widget.track.id ||
+        !identical(oldWidget.track.lyrics, widget.track.lyrics)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) setState(() {});
+      });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final album = widget.album;
+    final track = widget.track;
+    final trailingMenu = _lyricsPanelKey.currentState?.compactTrailingMenu();
     return Padding(
       padding: const EdgeInsets.fromLTRB(28, 0, 28, 16),
       child: Column(
@@ -1250,10 +1281,10 @@ class _CompactLyricsPlayer extends StatelessWidget {
           GestureDetector(
             key: const ValueKey('now-playing-expanded-drag-region'),
             behavior: HitTestBehavior.translucent,
-            onVerticalDragStart: onVerticalDragStart,
-            onVerticalDragUpdate: onVerticalDragUpdate,
-            onVerticalDragEnd: onVerticalDragEnd,
-            onVerticalDragCancel: onVerticalDragCancel,
+            onVerticalDragStart: widget.onVerticalDragStart,
+            onVerticalDragUpdate: widget.onVerticalDragUpdate,
+            onVerticalDragEnd: widget.onVerticalDragEnd,
+            onVerticalDragCancel: widget.onVerticalDragCancel,
             child: Row(
               children: [
                 AlbumArt(
@@ -1289,12 +1320,12 @@ class _CompactLyricsPlayer extends StatelessWidget {
                           artist: track.artist,
                           album: track.albumTitle,
                           separator: ' — ',
-                          onOpenArtist: onOpenArtist == null
+                          onOpenArtist: widget.onOpenArtist == null
                               ? null
-                              : () => onOpenArtist!(track.artist),
-                          onOpenAlbum: onOpenAlbum == null
+                              : () => widget.onOpenArtist!(track.artist),
+                          onOpenAlbum: widget.onOpenAlbum == null
                               ? null
-                              : () => onOpenAlbum!(album),
+                              : () => widget.onOpenAlbum!(album),
                           style: TextStyle(
                             color: context.soundSecondaryText,
                             fontSize: 12,
@@ -1304,6 +1335,10 @@ class _CompactLyricsPlayer extends StatelessWidget {
                     ],
                   ),
                 ),
+                if (trailingMenu != null) ...[
+                  const SizedBox(width: 4),
+                  trailingMenu,
+                ],
               ],
             ),
           ),
@@ -1314,12 +1349,13 @@ class _CompactLyricsPlayer extends StatelessWidget {
               key: const ValueKey('compact-lyrics-region'),
               constraints: const BoxConstraints(maxHeight: 392),
               child: _LyricsPanel(
+                key: _lyricsPanelKey,
                 track: track,
-                positionListenable: playback.positionListenable,
-                positionOf: () => playback.displayPosition,
+                positionListenable: widget.playback.positionListenable,
+                positionOf: () => widget.playback.displayPosition,
                 discontinuityRevision:
-                    playback.positionDiscontinuityRevision,
-                onSeek: playback.seek,
+                    widget.playback.positionDiscontinuityRevision,
+                onSeek: widget.playback.seek,
                 compact: true,
               ),
             ),
@@ -1327,16 +1363,16 @@ class _CompactLyricsPlayer extends StatelessWidget {
           const SizedBox(height: 10),
           _PlaybackTimelineAndControls(
             key: const ValueKey('compact-lyrics-playback-controls'),
-            playback: playback,
-            sleepTimer: sleepTimer,
+            playback: widget.playback,
+            sleepTimer: widget.sleepTimer,
           ),
           const SizedBox(height: 24),
           _NowPlayingActions(
             key: const ValueKey('compact-lyrics-secondary-actions'),
             track: track,
-            userState: userState,
+            userState: widget.userState,
             lyricsSelected: true,
-            onToggleLyrics: onToggleLyrics,
+            onToggleLyrics: widget.onToggleLyrics,
             distributed: true,
           ),
         ],
@@ -2014,6 +2050,13 @@ class _LyricsPanelState extends State<_LyricsPanel> {
     }
   }
 
+  /// Compact header slot: ⋯ next to cover/title (not over the lyric list).
+  Widget? compactTrailingMenu() {
+    if (!widget.compact) return null;
+    if (!_timeline.isSynchronized || !_timeline.hasTimedContent) return null;
+    return _buildCompactLyricsMenu();
+  }
+
   Widget _buildCompactLyricsMenu() {
     return SoundMenuButton<_LyricsMenuAction>(
       key: const ValueKey('compact-lyrics-more'),
@@ -2049,11 +2092,11 @@ class _LyricsPanelState extends State<_LyricsPanel> {
       ],
       onSelected: _handleLyricsMenuAction,
       child: SizedBox.square(
-        dimension: 32,
+        dimension: 36,
         child: Center(
           child: Icon(
             Icons.more_horiz_rounded,
-            size: 20,
+            size: 22,
             color: context.soundMutedText,
           ),
         ),
@@ -2150,7 +2193,7 @@ class _LyricsPanelState extends State<_LyricsPanel> {
                 top: widget.verticalControls
                     ? math.max(88, constraints.maxHeight * 0.36)
                     : widget.compact
-                    ? 36
+                    ? 12
                     : 0,
                 bottom: widget.compact
                     ? math.max(72, constraints.maxHeight * 0.66)
@@ -2188,12 +2231,12 @@ class _LyricsPanelState extends State<_LyricsPanel> {
                 ).createShader(bounds);
               }
               // Layout-specific bands:
-              // - compact (phone): long top under ⋯ bar, modest bottom
+              // - compact (phone): balanced top (⋯ lives on the title row)
               // - desktop / foldable dual-pane: short top, longer bottom
               final double topPx;
               final double bottomPx;
               if (widget.compact) {
-                topPx = math.min(h * 0.28, 128.0).clamp(64.0, 140.0);
+                topPx = math.min(h * 0.16, 80.0).clamp(36.0, 88.0);
                 bottomPx = math.min(h * 0.14, 72.0).clamp(32.0, 80.0);
               } else if (widget.verticalControls) {
                 topPx = math.min(h * 0.10, 56.0).clamp(28.0, 64.0);
@@ -2358,28 +2401,11 @@ class _LyricsPanelState extends State<_LyricsPanel> {
       );
     }
     if (widget.compact) {
-      // Overlay the ⋯ menu on the scroller so top edge fade runs under it
-      // (no hard band between toolbar and lyrics).
-      return Stack(
-        fit: StackFit.expand,
-        children: [
-          Positioned.fill(
-            child: _buildLyricsScroller(
-              lyrics,
-              active: active,
-              synchronized: synchronized,
-            ),
-          ),
-          if (synchronized && _timeline.hasTimedContent)
-            Positioned(
-              top: 0,
-              right: 0,
-              child: Material(
-                type: MaterialType.transparency,
-                child: _buildCompactLyricsMenu(),
-              ),
-            ),
-        ],
+      // ⋯ menu is hosted on the cover/title row (see compactTrailingMenu).
+      return _buildLyricsScroller(
+        lyrics,
+        active: active,
+        synchronized: synchronized,
       );
     }
     return Column(
