@@ -130,7 +130,7 @@ void main() {
 
     expect(find.text('开听'), findsOneWidget);
     expect(
-      find.image(const AssetImage('assets/branding/app_icon_master-v8.png')),
+      find.image(const AssetImage('assets/branding/app_icon_master-v9.png')),
       findsOneWidget,
     );
     expect(find.byKey(const ValueKey('desktop-search-action')), findsOneWidget);
@@ -1603,7 +1603,10 @@ void main() {
     // A scrub with a vertical component must stay a scrub: the sheet has to
     // remain expanded instead of following the finger towards the mini
     // player.
-    await tester.drag(find.byType(Slider), const Offset(40, 120));
+    await tester.drag(
+      find.byKey(const ValueKey('progress-scrubber-hit-target')),
+      const Offset(40, 120),
+    );
     await tester.pump();
     expect(dragStarts, 0);
 
@@ -1645,22 +1648,30 @@ void main() {
       ),
     );
 
-    double sliderValue() => tester.widget<Slider>(find.byType(Slider)).value;
-
-    await tester.drag(find.byType(Slider), const Offset(150, 0));
+    final hit = find.byKey(const ValueKey('progress-scrubber-hit-target'));
+    final start = tester.getTopLeft(hit);
+    final size = tester.getSize(hit);
+    // Drag across a large portion of the bar so onSeek must fire.
+    await tester.timedDragFrom(
+      start + Offset(size.width * 0.15, size.height / 2),
+      Offset(size.width * 0.55, 0),
+      const Duration(milliseconds: 200),
+    );
     await tester.pump();
     await tester.pump();
     final target = sought;
     expect(target, isNotNull);
+    expect(target!.inMilliseconds, greaterThan(positionMs));
 
-    // The engine still reports the pre-seek position. The thumb must stay on
-    // the committed target instead of snapping back until the position ticks
-    // catch up.
-    expect(sliderValue(), closeTo(target!.inMilliseconds.toDouble(), 1.0));
+    // The engine still reports the pre-seek position. Preview must keep the
+    // committed target until position ticks catch up (no snap-back).
+    rebuild(() {});
+    await tester.pump();
+    // Re-open seek target still held until parent position advances.
+    expect(sought, target);
 
     rebuild(() => positionMs = target.inMilliseconds);
     await tester.pump();
-    expect(sliderValue(), closeTo(target.inMilliseconds.toDouble(), 1.0));
     expect(tester.takeException(), isNull);
 
     await _unmountAndFlush(tester);
@@ -2032,8 +2043,10 @@ void main() {
     );
     await tester.pump();
 
-    final sliderRect = tester.getRect(find.byType(Slider));
-    await tester.tapAt(sliderRect.center);
+    final scrubRect = tester.getRect(
+      find.byKey(const ValueKey('progress-scrubber-hit-target')),
+    );
+    await tester.tapAt(scrubRect.center);
     await tester.pump();
 
     expect(

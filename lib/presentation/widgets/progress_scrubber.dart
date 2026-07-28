@@ -1,6 +1,6 @@
 import 'dart:async';
+import 'dart:math' as math;
 
-import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 
 import '../../core/sound_theme.dart';
@@ -16,6 +16,10 @@ class ProgressScrubInteractionNotification extends Notification {
   final bool active;
 }
 
+/// Thin progress track with a large, direct pointer hit target.
+///
+/// Uses [Listener] (not Material [Slider]) so horizontal drags are not stolen
+/// by scroll/dismiss arenas and the full [minInteractiveHeight] is tappable.
 class ProgressScrubber extends StatefulWidget {
   const ProgressScrubber({
     required this.position,
@@ -27,7 +31,7 @@ class ProgressScrubber extends StatefulWidget {
     this.thumbRadius = 6,
     this.overlayRadius = 20,
     this.padding,
-    this.minInteractiveHeight = 40,
+    this.minInteractiveHeight = 44,
     this.interactive = true,
     super.key,
   });
@@ -39,17 +43,12 @@ class ProgressScrubber extends StatefulWidget {
   final Color? inactiveColor;
   final double trackHeight;
   final double thumbRadius;
+
+  /// Kept for API compatibility with call sites; hit height uses
+  /// [minInteractiveHeight] instead of Material overlay radius.
   final double overlayRadius;
   final EdgeInsetsGeometry? padding;
-
-  /// Minimum vertical hit target for interactive scrubbing. The painted track
-  /// stays [trackHeight]; extra space is transparent padding so a finger can
-  /// grab the bar without pixel-perfect aim.
   final double minInteractiveHeight;
-
-  /// When false, the scrubber is read-only: no thumb, no overlay, and no
-  /// pointer interaction. Useful for mini-players where precise scrubbing
-  /// is impractical.
   final bool interactive;
 
   @override
@@ -57,74 +56,26 @@ class ProgressScrubber extends StatefulWidget {
 }
 
 class _ProgressScrubberState extends State<ProgressScrubber> {
-  /// How close the engine-reported position must get to a committed seek
-  /// target before the preview hands the display back to the engine.
   static const _settleToleranceMs = 800.0;
-
-  /// Upper bound on how long a committed preview may outlive its seek. Covers
-  /// seeks the engine never confirms near the target (failed seek, track
-  /// completion rolling into the next track).
   static const _settleTimeout = Duration(milliseconds: 1500);
 
   double? _previewMilliseconds;
-  final Set<int> _activePointers = <int>{};
   Timer? _settleTimer;
-  bool _globalRouteInstalled = false;
+  bool _dragging = false;
   bool _interactionNotified = false;
+  int? _activePointer;
+  double _trackWidth = 0;
 
   double get _durationMs =>
       widget.duration.inMilliseconds.toDouble().clamp(1, double.infinity);
 
-  bool get _isDragging => _activePointers.isNotEmpty;
-
-  void _ensureGlobalRoute() {
-    if (_globalRouteInstalled) return;
-    GestureBinding.instance.pointerRouter.addGlobalRoute(_handleGlobalPointer);
-    _globalRouteInstalled = true;
+  double get _displayMs {
+    final engine = widget.position.inMilliseconds.toDouble();
+    return (_previewMilliseconds ?? engine).clamp(0, _durationMs);
   }
 
-  void _removeGlobalRoute() {
-    if (!_globalRouteInstalled) return;
-    GestureBinding.instance.pointerRouter.removeGlobalRoute(
-      _handleGlobalPointer,
-    );
-    _globalRouteInstalled = false;
-  }
-
-  void _handleGlobalPointer(PointerEvent event) {
-    if (!_activePointers.contains(event.pointer)) return;
-    if (event is PointerUpEvent || event is PointerCancelEvent) {
-      _finishPointer(event.pointer);
-    }
-  }
-
-  void _handlePointerDown(PointerDownEvent event) {
-    final wasInactive = _activePointers.isEmpty;
-    _activePointers.add(event.pointer);
-    _ensureGlobalRoute();
-    if (wasInactive) {
-      _notifyInteraction(true);
-    }
-  }
-
-  void _finishPointer(int pointer) {
-    if (!_activePointers.remove(pointer)) return;
-    if (_activePointers.isEmpty) {
-      _removeGlobalRoute();
-      _notifyInteraction(false);
-    }
-  }
-
-  void _clearAllPointers() {
-    if (_activePointers.isEmpty) {
-      _removeGlobalRoute();
-      _notifyInteraction(false);
-      return;
-    }
-    _activePointers.clear();
-    _removeGlobalRoute();
-    _notifyInteraction(false);
-  }
+  double get _fraction =>
+      widget.duration > Duration.zero ? (_displayMs / _durationMs).clamp(0.0, 1.0) : 0.0;
 
   void _notifyInteraction(bool active) {
     if (_interactionNotified == active) return;
@@ -133,28 +84,52 @@ class _ProgressScrubberState extends State<ProgressScrubber> {
     ProgressScrubInteractionNotification(active: active).dispatch(context);
   }
 
-  Future<void> _commitSeek(double value) async {
-    final target = Duration(milliseconds: value.round());
+  void _setFractionFromLocalDx(double dx) {
+    if (_trackWidth <= 0 || widget.duration <= Duration.zero) return;
+    final fraction = (dx / _trackWidth).clamp(0.0, 1.0);
+    final ms = fraction * _durationMs;
+    setState(() => _previewMilliseconds = ms);
+  }
+
+  Future<void> _commitSeek(double valueMs) async {
+    final target = Duration(milliseconds: valueMs.round());
     if (mounted) {
-      setState(() => _previewMilliseconds = value);
+      setState(() => _previewMilliseconds = valueMs);
     } else {
-      _previewMilliseconds = value;
+      _previewMilliseconds = valueMs;
     }
     try {
       await widget.onSeek(target);
     } finally {
-      // Do not clear the preview here: the engine may complete its seek
-      // Future before the confirmed position reaches [widget.position], and
-      // falling back to the stale engine value would snap the thumb back to
-      // the pre-seek position for a few frames. The preview is released in
-      // [didUpdateWidget] once the reported position catches up, or by this
-      // timer if it never does.
       _settleTimer?.cancel();
       _settleTimer = Timer(_settleTimeout, () {
-        if (mounted && _previewMilliseconds == value && !_isDragging) {
+        if (mounted && _previewMilliseconds == valueMs && !_dragging) {
           setState(() => _previewMilliseconds = null);
         }
       });
+    }
+  }
+
+  void _beginDrag(int pointer, double localDx) {
+    _activePointer = pointer;
+    _dragging = true;
+    _notifyInteraction(true);
+    _setFractionFromLocalDx(localDx);
+  }
+
+  void _updateDrag(int pointer, double localDx) {
+    if (!_dragging || _activePointer != pointer) return;
+    _setFractionFromLocalDx(localDx);
+  }
+
+  void _endDrag(int pointer, {required bool commit}) {
+    if (_activePointer != pointer && pointer != -1) return;
+    final preview = _previewMilliseconds;
+    _activePointer = null;
+    _dragging = false;
+    _notifyInteraction(false);
+    if (commit && preview != null && widget.duration > Duration.zero) {
+      unawaited(_commitSeek(preview));
     }
   }
 
@@ -162,8 +137,7 @@ class _ProgressScrubberState extends State<ProgressScrubber> {
   void didUpdateWidget(covariant ProgressScrubber oldWidget) {
     super.didUpdateWidget(oldWidget);
     final preview = _previewMilliseconds;
-    // Never let engine ticks override the thumb while the user is dragging.
-    if (preview == null || _isDragging) return;
+    if (preview == null || _dragging) return;
     final engineValue = widget.position.inMilliseconds.toDouble();
     if ((engineValue - preview).abs() <= _settleToleranceMs) {
       _settleTimer?.cancel();
@@ -174,107 +148,136 @@ class _ProgressScrubberState extends State<ProgressScrubber> {
   @override
   void dispose() {
     _settleTimer?.cancel();
-    _clearAllPointers();
+    if (_dragging || _interactionNotified) {
+      _dragging = false;
+      _activePointer = null;
+      _interactionNotified = false;
+    }
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final interactive = widget.interactive;
-    final enabled = widget.duration > Duration.zero;
-    final engineValue = widget.position.inMilliseconds.toDouble();
-    final displayValue = (_previewMilliseconds ?? engineValue)
-        .clamp(0, _durationMs)
-        .toDouble();
-    final fraction = enabled
-        ? (displayValue / _durationMs).clamp(0.0, 1.0)
-        : 0.0;
+    final activeColor = widget.activeColor ?? context.soundPrimaryText;
+    final inactiveColor = widget.inactiveColor ?? context.soundTint(0.14);
+    final enabled = widget.interactive && widget.duration > Duration.zero;
+    final fraction = _fraction;
 
-    if (!interactive) {
+    if (!widget.interactive) {
       return _NonInteractiveProgressTrack(
         fraction: fraction,
         trackHeight: widget.trackHeight,
-        activeColor: widget.activeColor ?? context.soundPrimaryText,
-        inactiveColor: widget.inactiveColor ?? context.soundTint(0.14),
+        activeColor: activeColor,
+        inactiveColor: inactiveColor,
         padding: widget.padding ?? EdgeInsets.zero,
       );
     }
 
-    // Material insets the painted track by overlay/thumb radius when
-    // [SliderThemeData.padding] is null. Always supply a padding (callers
-    // may pass [EdgeInsets.zero] for horizontal edge alignment) so the track
-    // spans the parent width and lines up with title / time labels.
-    final resolvedPadding = widget.padding ?? EdgeInsets.zero;
-    // Expand vertical hit beyond a hairline track. Prefer explicit vertical
-    // padding from the caller; otherwise derive from [minInteractiveHeight].
-    final EdgeInsetsGeometry hitPadding;
-    if (resolvedPadding.vertical > 0) {
-      hitPadding = resolvedPadding;
-    } else {
-      final vertical = ((widget.minInteractiveHeight - widget.trackHeight) / 2)
-          .clamp(12.0, 20.0);
-      hitPadding = resolvedPadding.add(
-        EdgeInsets.symmetric(vertical: vertical),
+    final height = math.max(widget.minInteractiveHeight, 44.0);
+    final thumbR = widget.thumbRadius;
+
+    return Padding(
+      padding: widget.padding ?? EdgeInsets.zero,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          _trackWidth = constraints.maxWidth;
+          return Listener(
+            behavior: HitTestBehavior.opaque,
+            onPointerDown: enabled
+                ? (event) => _beginDrag(event.pointer, event.localPosition.dx)
+                : null,
+            onPointerMove: enabled
+                ? (event) => _updateDrag(event.pointer, event.localPosition.dx)
+                : null,
+            onPointerUp: enabled
+                ? (event) => _endDrag(event.pointer, commit: true)
+                : null,
+            onPointerCancel: enabled
+                ? (event) => _endDrag(event.pointer, commit: false)
+                : null,
+            child: SizedBox(
+              key: const ValueKey('progress-scrubber-hit-target'),
+              height: height,
+              width: double.infinity,
+              child: CustomPaint(
+                painter: _ScrubberPainter(
+                  fraction: fraction,
+                  trackHeight: widget.trackHeight,
+                  thumbRadius: thumbR,
+                  activeColor: activeColor,
+                  inactiveColor: inactiveColor,
+                  showThumb: enabled,
+                  thumbHighlighted: _dragging,
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _ScrubberPainter extends CustomPainter {
+  _ScrubberPainter({
+    required this.fraction,
+    required this.trackHeight,
+    required this.thumbRadius,
+    required this.activeColor,
+    required this.inactiveColor,
+    required this.showThumb,
+    required this.thumbHighlighted,
+  });
+
+  final double fraction;
+  final double trackHeight;
+  final double thumbRadius;
+  final Color activeColor;
+  final Color inactiveColor;
+  final bool showThumb;
+  final bool thumbHighlighted;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cy = size.height / 2;
+    final trackTop = cy - trackHeight / 2;
+    final radius = Radius.circular(trackHeight);
+    final trackRect = RRect.fromRectAndRadius(
+      Rect.fromLTWH(0, trackTop, size.width, trackHeight),
+      radius,
+    );
+    canvas.drawRRect(trackRect, Paint()..color = inactiveColor);
+
+    final activeWidth = (size.width * fraction).clamp(0.0, size.width);
+    if (activeWidth > 0) {
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(
+          Rect.fromLTWH(0, trackTop, activeWidth, trackHeight),
+          radius,
+        ),
+        Paint()..color = activeColor,
       );
     }
-    final slider = Slider(
-      value: displayValue,
-      max: _durationMs,
-      padding: hitPadding,
-      allowedInteraction: SliderInteraction.tapAndSlide,
-      activeColor: widget.activeColor ?? context.soundPrimaryText,
-      onChangeStart: enabled
-          ? (value) {
-              // Slider won the arena — keep interaction latched even if the
-              // outer Listener misses later up events outside its bounds.
-              _notifyInteraction(true);
-              setState(() => _previewMilliseconds = value);
-            }
-          : null,
-      onChanged: enabled
-          ? (value) => setState(() => _previewMilliseconds = value)
-          : null,
-      onChangeEnd: enabled
-          ? (value) {
-              unawaited(_commitSeek(value));
-              // Always release latch after a gesture ends so the bar cannot
-              // get permanently stuck non-interactive / dismiss-blocked.
-              _clearAllPointers();
-            }
-          : null,
+
+    if (!showThumb) return;
+    final thumbX = activeWidth.clamp(thumbRadius, size.width - thumbRadius);
+    final r = thumbHighlighted ? thumbRadius + 1.5 : thumbRadius;
+    canvas.drawCircle(
+      Offset(thumbX, cy),
+      r,
+      Paint()..color = activeColor,
     );
-    return SliderTheme(
-      data: SliderTheme.of(context).copyWith(
-        trackHeight: widget.trackHeight,
-        thumbShape: RoundSliderThumbShape(
-          enabledThumbRadius: widget.thumbRadius,
-          elevation: 0,
-          pressedElevation: 0,
-        ),
-        overlayShape: RoundSliderOverlayShape(
-          overlayRadius: widget.overlayRadius,
-        ),
-        // Soft press ring — overlay radius mainly expands the hit target.
-        overlayColor: (widget.activeColor ?? context.soundPrimaryText)
-            .withValues(alpha: 0.10),
-        inactiveTrackColor: widget.inactiveColor ?? context.soundTint(0.14),
-        // Keep padding non-null so BaseSliderTrackShape uses full width.
-        padding: hitPadding,
-      ),
-      child: SizedBox(
-        height: widget.minInteractiveHeight,
-        child: Listener(
-          // Translucent so we still see downs early for dismiss suppression,
-          // without eating events the Slider needs after the finger leaves
-          // this box (global route finishes those pointers).
-          behavior: HitTestBehavior.translucent,
-          onPointerDown: _handlePointerDown,
-          onPointerUp: (event) => _finishPointer(event.pointer),
-          onPointerCancel: (event) => _finishPointer(event.pointer),
-          child: Center(child: slider),
-        ),
-      ),
-    );
+  }
+
+  @override
+  bool shouldRepaint(covariant _ScrubberPainter oldDelegate) {
+    return oldDelegate.fraction != fraction ||
+        oldDelegate.trackHeight != trackHeight ||
+        oldDelegate.thumbRadius != thumbRadius ||
+        oldDelegate.activeColor != activeColor ||
+        oldDelegate.inactiveColor != inactiveColor ||
+        oldDelegate.showThumb != showThumb ||
+        oldDelegate.thumbHighlighted != thumbHighlighted;
   }
 }
 
@@ -300,9 +303,6 @@ class _NonInteractiveProgressTrack extends StatelessWidget {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final activeWidth = constraints.maxWidth * fraction;
-          // Prefer filling the parent height when it matches [trackHeight]
-          // (docked mini player). Centering inside a taller box leaves a
-          // visible hairline of the bar surface above the fill.
           final height =
               constraints.maxHeight.isFinite &&
                   constraints.maxHeight > 0 &&
