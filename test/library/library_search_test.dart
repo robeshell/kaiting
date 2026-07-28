@@ -178,6 +178,32 @@ void main() {
       await repository.close();
     });
 
+    test('dedupes collab credits to one artist hit collection', () async {
+      final collabRepo = await _repositoryWithCollabArtistFixture();
+      addTearDown(collabRepo.close);
+      final collabCatalog = LibraryCatalogController(repository: collabRepo);
+      await collabCatalog.refresh();
+      addTearDown(collabCatalog.dispose);
+      final search = LibrarySearchController(
+        catalog: collabCatalog,
+        debounce: Duration.zero,
+        runner: (request) async => searchLibraryDocuments(request),
+      );
+      addTearDown(search.dispose);
+
+      search.setQuery('周杰伦');
+      await Future<void>.delayed(Duration.zero);
+      await Future<void>.delayed(Duration.zero);
+
+      expect(search.status, LibrarySearchStatus.ready);
+      final ids = search.artistHits.map((hit) => hit.collection.id).toList();
+      expect(ids.toSet().length, ids.length);
+      expect(
+        search.artistHits.where((hit) => hit.collection.title == '周杰伦'),
+        hasLength(1),
+      );
+    });
+
     test('does not search on a single latin letter while typing pinyin', () async {
       var ran = 0;
       final search = LibrarySearchController(
@@ -414,6 +440,78 @@ Future<void> _waitForSearch(
     if (search.status != LibrarySearchStatus.searching) return;
   }
   throw TimeoutException('Search did not finish.');
+}
+
+Future<DriftLibraryRepository> _repositoryWithCollabArtistFixture() async {
+  final repository = DriftLibraryRepository(
+    LibraryDatabase(NativeDatabase.memory()),
+  );
+  final now = DateTime.utc(2026, 7, 13);
+  const sourceId = 'local:collab';
+  await repository.upsertSource(
+    LibrarySourceRecord(
+      id: sourceId,
+      type: LibrarySourceType.local,
+      displayName: 'Collab',
+      rootUri: 'file:///collab/',
+      status: LibrarySourceStatus.available,
+      createdAt: now,
+      updatedAt: now,
+    ),
+  );
+  await repository.replaceSourceScan(
+    LibraryScanBatch(
+      sourceId: sourceId,
+      completedAt: now,
+      artists: const [
+        LibraryArtistRecord(
+          id: 'artist-jay',
+          sourceId: sourceId,
+          name: '周杰伦',
+          sortName: '周杰伦',
+        ),
+      ],
+      albums: const [
+        LibraryAlbumRecord(
+          id: 'album-jay',
+          sourceId: sourceId,
+          artistId: 'artist-jay',
+          title: '叶惠美',
+          sortTitle: '叶惠美',
+          albumArtist: '周杰伦',
+        ),
+      ],
+      tracks: [
+        LibraryTrackRecord(
+          id: 'track-solo',
+          sourceId: sourceId,
+          albumId: 'album-jay',
+          artistId: 'artist-jay',
+          relativePath: 'solo.flac',
+          mediaUri: 'file:///collab/solo.flac',
+          title: '晴天',
+          artistName: '周杰伦',
+          albumTitle: '叶惠美',
+          durationMs: 180000,
+          modifiedAt: now,
+        ),
+        LibraryTrackRecord(
+          id: 'track-feat',
+          sourceId: sourceId,
+          albumId: 'album-jay',
+          artistId: 'artist-jay',
+          relativePath: 'feat.flac',
+          mediaUri: 'file:///collab/feat.flac',
+          title: '珊瑚海',
+          artistName: '周杰伦 feat. Lara',
+          albumTitle: '叶惠美',
+          durationMs: 200000,
+          modifiedAt: now,
+        ),
+      ],
+    ),
+  );
+  return repository;
 }
 
 Future<DriftLibraryRepository> _repositoryWithSearchFixture() async {

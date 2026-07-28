@@ -401,10 +401,12 @@ class LibrarySearchController extends ChangeNotifier {
         return left.key.compareTo(right.key);
       });
 
-    final results = <LibrarySearchArtistHit>[];
+    // Resolve credits → catalog artists, then collapse by collection id.
+    // Multi-credit tags ("周杰伦 feat. X") and split artist browsing both map
+    // to the same collection; listing each credit would crash on duplicate keys.
+    final byCollectionId = <String, LibrarySearchArtistHit>{};
     final artistCollections = catalog.artistCollections;
     for (final entry in ranked) {
-      if (results.length >= maxEntityHits) break;
       final name = names[entry.key]!;
       final collection = findArtistCollection(
         albums,
@@ -412,15 +414,24 @@ class LibrarySearchController extends ChangeNotifier {
         collections: artistCollections,
       );
       if (collection == null) continue;
-      results.add(
-        LibrarySearchArtistHit(
+      final existing = byCollectionId[collection.id];
+      if (existing == null || entry.value > existing.trackCount) {
+        byCollectionId[collection.id] = LibrarySearchArtistHit(
           name: collection.title,
           collection: collection,
           trackCount: entry.value,
-        ),
-      );
+        );
+      }
     }
-    return results;
+
+    final results = byCollectionId.values.toList()
+      ..sort((left, right) {
+        final byCount = right.trackCount.compareTo(left.trackCount);
+        if (byCount != 0) return byCount;
+        return left.name.toLowerCase().compareTo(right.name.toLowerCase());
+      });
+    if (results.length <= maxEntityHits) return results;
+    return results.sublist(0, maxEntityHits);
   }
 
   List<LibrarySearchAlbumHit> _buildAlbumHits(
