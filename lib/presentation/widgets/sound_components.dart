@@ -504,8 +504,9 @@ class SoundTrackListRow extends StatelessWidget {
       onActivate: onActivate,
       semanticLabel: title,
       child: Padding(
-        // Keep horizontal inset light — list containers already apply page gutter.
-        padding: const EdgeInsets.symmetric(horizontal: 4),
+        // Horizontal inset comes from the list container gutter only, so song
+        // rows line up with album grids and artist lists on the same page.
+        padding: EdgeInsets.zero,
         child: DecoratedBox(
           decoration: BoxDecoration(
             border: Border(bottom: BorderSide(color: divider)),

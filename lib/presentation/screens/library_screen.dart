@@ -220,7 +220,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
       builder: (context, _) {
         final compact = context.soundIsCompact;
         final mobileShell = context.soundUsesMobileShell;
-        final gutter = context.soundPageGutter;
+        // One content inset for 专辑 / 艺人 / 歌曲 so tabs share the same edge.
+        final gutter = context.soundListGutter;
         final bottomPadding = context.soundContentBottomPadding;
         final allAlbums = widget.catalog.albums;
         final status = widget.catalog.status;
@@ -371,7 +372,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 LibraryBrowseMode.songs => _songSlivers(
                   tracks,
                   albumByTrackId,
-                  context.soundListGutter,
+                  gutter,
                   bottomPadding,
                   compact: compact,
                   reserveFastIndex: showSongIndex,

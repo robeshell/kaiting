@@ -125,10 +125,10 @@ extension SoundThemeContext on BuildContext {
     SoundWindowClass.wide => KaiBrandLayout.wideGutter,
   };
 
-  /// Tighter horizontal inset for dense song lists (library / search / album).
+  /// Content inset for library browse (专辑 / 艺人 / 歌曲) and dense track lists.
   ///
-  /// About one step under [soundPageGutter] so track rows use more width
-  /// without feeling edge-to-edge.
+  /// One step under [soundPageGutter] so the three library tabs share the same
+  /// edge and song rows still feel slightly less padded than settings pages.
   double get soundListGutter {
     final gutter = soundPageGutter;
     return (gutter - 8).clamp(8.0, gutter);
