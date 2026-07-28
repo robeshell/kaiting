@@ -147,49 +147,105 @@ class LibraryCollection {
     required this.title,
     required this.albums,
     required this.tracks,
+    this.featuredTracks = const [],
   });
 
   final String id;
   final LibraryCollectionKind kind;
   final String title;
   final List<Album> albums;
+
+  /// All tracks under this collection (primary + featured).
   final List<Track> tracks;
+
+  /// Tracks where this artist only appears as a collab credit (not lead /
+  /// album artist). Empty for genres. Subset of [tracks].
+  final List<Track> featuredTracks;
+
+  /// Tracks that are not collab-only appearances.
+  List<Track> get primaryTracks {
+    if (featuredTracks.isEmpty) return tracks;
+    final featuredIds = {for (final track in featuredTracks) track.id};
+    return [
+      for (final track in tracks)
+        if (!featuredIds.contains(track.id)) track,
+    ];
+  }
 
   List<Color> get palette => albums.isEmpty
       ? const [Color(0xFF385057), Color(0xFF11191C)]
       : albums.first.palette;
 }
 
+/// Splits a multi-artist credit into individual display names.
+///
+/// Used for artist browsing so "A feat. B" yields separate people. Track
+/// rows still show the original credit string.
+List<String> splitArtistCredit(String value) {
+  final cleaned = value.trim();
+  if (cleaned.isEmpty) return const [];
+  return cleaned
+      .split(
+        RegExp(
+          // featuring/feat/ft before shorter tokens; optional "." is not
+          // wrapped in \b or "feat." leaves a leading ". B" fragment.
+          r'\s*(?:&|/|、|,|，|;|；|\bfeaturing\b|\bfeat\.?|\bft\.?|\bwith\b)\s*',
+          caseSensitive: false,
+        ),
+      )
+      .map((part) => part.trim())
+      .where((part) => part.isNotEmpty)
+      .toList(growable: false);
+}
+
 List<LibraryCollection> buildArtistCollections(List<Album> albums) {
   final groups = <String, _LibraryCollectionAccumulator>{};
-  for (final album in albums) {
-    final albumArtist = _cleanCollectionName(album.artist, fallback: '未知艺人');
-    final albumArtistKey = _collectionKey(albumArtist);
-    final albumGroup = groups.putIfAbsent(
-      albumArtistKey,
+
+  _LibraryCollectionAccumulator groupFor(String displayName) {
+    final cleaned = _cleanCollectionName(displayName, fallback: '未知艺人');
+    final key = _collectionKey(cleaned);
+    return groups.putIfAbsent(
+      key,
       () => _LibraryCollectionAccumulator(
         kind: LibraryCollectionKind.artist,
-        title: albumArtist,
+        title: cleaned,
       ),
     );
-    albumGroup.add(album, album.tracks);
+  }
+
+  for (final album in albums) {
+    final albumCredit = _cleanCollectionName(album.artist, fallback: '未知艺人');
+    final albumParts = splitArtistCredit(albumCredit);
+    final resolvedAlbumParts =
+        albumParts.isEmpty ? <String>[albumCredit] : albumParts;
+    final albumPartKeys = {
+      for (final part in resolvedAlbumParts) _collectionKey(part),
+    };
+
+    // Album-level credits own the full album as primary work.
+    for (final part in resolvedAlbumParts) {
+      groupFor(part).add(album, album.tracks, featured: false);
+    }
 
     for (final track in album.tracks) {
-      final trackArtist = _cleanCollectionName(
+      final trackCredit = _cleanCollectionName(
         track.artist,
-        fallback: albumArtist,
+        fallback: albumCredit,
       );
-      final trackArtistKey = _collectionKey(trackArtist);
-      if (trackArtistKey == albumArtistKey) continue;
-      groups
-          .putIfAbsent(
-            trackArtistKey,
-            () => _LibraryCollectionAccumulator(
-              kind: LibraryCollectionKind.artist,
-              title: trackArtist,
-            ),
-          )
-          .add(album, [track]);
+      final trackParts = splitArtistCredit(trackCredit);
+      final resolvedTrackParts =
+          trackParts.isEmpty ? <String>[trackCredit] : trackParts;
+
+      for (var index = 0; index < resolvedTrackParts.length; index++) {
+        final part = resolvedTrackParts[index];
+        final partKey = _collectionKey(part);
+        // Already counted via album credit.
+        if (albumPartKeys.contains(partKey)) continue;
+        // Lead token stays in the main song list; later collab tokens go to
+        // "参与" so the artist page stays scannable.
+        final featured = index > 0;
+        groupFor(part).add(album, [track], featured: featured);
+      }
     }
   }
   return _sortedCollections(groups.values);
@@ -225,22 +281,42 @@ class _LibraryCollectionAccumulator {
   final String title;
   final Map<String, Album> _albums = {};
   final Map<String, Track> _tracks = {};
+  final Set<String> _featuredTrackIds = {};
 
-  void add(Album album, Iterable<Track> tracks) {
+  void add(Album album, Iterable<Track> tracks, {bool featured = false}) {
     _albums[album.id] = album;
     for (final track in tracks) {
-      _tracks[track.id] = track;
+      if (featured) {
+        // Do not demote a track that is already primary work.
+        if (_tracks.containsKey(track.id) &&
+            !_featuredTrackIds.contains(track.id)) {
+          continue;
+        }
+        _tracks[track.id] = track;
+        _featuredTrackIds.add(track.id);
+      } else {
+        _tracks[track.id] = track;
+        _featuredTrackIds.remove(track.id);
+      }
     }
   }
 
   LibraryCollection build() {
     final prefix = kind == LibraryCollectionKind.artist ? 'artist' : 'genre';
+    final tracks = List<Track>.unmodifiable(_tracks.values);
+    final featured = _featuredTrackIds.isEmpty
+        ? const <Track>[]
+        : List<Track>.unmodifiable([
+            for (final track in tracks)
+              if (_featuredTrackIds.contains(track.id)) track,
+          ]);
     return LibraryCollection(
       id: '$prefix:${_collectionKey(title)}',
       kind: kind,
       title: title,
       albums: List.unmodifiable(_albums.values),
-      tracks: List.unmodifiable(_tracks.values),
+      tracks: tracks,
+      featuredTracks: featured,
     );
   }
 }
@@ -285,6 +361,21 @@ LibraryCollection? findArtistCollection(
       .toList(growable: false);
   if (exact.length == 1) return exact.single;
   if (exact.length > 1) return exact.first;
+
+  // Multi-credit strings no longer exist as collection titles after split;
+  // open the lead (first) individual artist when possible.
+  final parts = splitArtistCredit(cleaned);
+  if (parts.length > 1) {
+    for (final part in parts) {
+      final partKey = _collectionKey(part);
+      for (final collection in resolved) {
+        if (_collectionKey(collection.title) == partKey) {
+          return collection;
+        }
+      }
+    }
+  }
+
   final partial = resolved
       .where((collection) => _collectionKey(collection.title).contains(key))
       .toList(growable: false);

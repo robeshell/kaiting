@@ -1,3 +1,5 @@
+import '../../domain/library_models.dart';
+
 class AlbumArtistResolver {
   final Map<String, _ArtistCandidate> _candidates = {};
   final Map<String, _ArtistCandidate> _explicitCandidates = {};
@@ -49,7 +51,7 @@ class AlbumArtistResolver {
     Set<String>? commonParts;
     final displayByPart = <String, String>{};
     for (final candidate in candidates.values) {
-      final parts = _artistParts(candidate.display);
+      final parts = splitArtistCredit(candidate.display);
       for (final part in parts) {
         displayByPart.putIfAbsent(part.toLowerCase(), () => part);
       }
@@ -63,19 +65,6 @@ class AlbumArtistResolver {
     }
     return '群星';
   }
-}
-
-List<String> _artistParts(String value) {
-  return value
-      .split(
-        RegExp(
-          r'\s*(?:&|/|、|,|，|;|；|\bfeat\.?\b|\bfeaturing\b|\bft\.?\b)\s*',
-          caseSensitive: false,
-        ),
-      )
-      .map((part) => part.trim())
-      .where((part) => part.isNotEmpty)
-      .toList(growable: false);
 }
 
 class _ArtistCandidate {

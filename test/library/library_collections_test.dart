@@ -44,8 +44,82 @@ void main() {
 
     expect(lead.albums, [album]);
     expect(lead.tracks, [leadTrack, duetTrack]);
+    expect(lead.featuredTracks, isEmpty);
     expect(guest.albums, [album]);
     expect(guest.tracks, [duetTrack]);
+    expect(guest.featuredTracks, isEmpty);
+  });
+
+  test('artist browsing splits multi-credit strings into people', () {
+    const solo = Track(
+      id: 'solo',
+      title: 'Solo',
+      artist: '周杰伦',
+      albumTitle: '叶惠美',
+      duration: Duration(minutes: 4),
+      source: SourceKind.local,
+    );
+    const feat = Track(
+      id: 'feat',
+      title: 'Coral Sea',
+      artist: '周杰伦 feat. Lara',
+      albumTitle: '叶惠美',
+      duration: Duration(minutes: 4),
+      source: SourceKind.local,
+    );
+    const duet = Track(
+      id: 'duet',
+      title: '千里之外',
+      artist: '周杰伦 / 费玉清',
+      albumTitle: '依然范特西',
+      duration: Duration(minutes: 4),
+      source: SourceKind.local,
+    );
+    const albumA = Album(
+      id: 'a',
+      title: '叶惠美',
+      artist: '周杰伦',
+      source: SourceKind.local,
+      palette: [Colors.indigo, Colors.black],
+      tracks: [solo, feat],
+    );
+    const albumB = Album(
+      id: 'b',
+      title: '依然范特西',
+      artist: '周杰伦',
+      source: SourceKind.local,
+      palette: [Colors.teal, Colors.black],
+      tracks: [duet],
+    );
+
+    final artists = buildArtistCollections(const [albumA, albumB]);
+    final titles = artists.map((item) => item.title).toSet();
+    expect(titles, containsAll(['周杰伦', 'Lara', '费玉清']));
+    expect(titles, isNot(contains('周杰伦 feat. Lara')));
+    expect(titles, isNot(contains('周杰伦 / 费玉清')));
+
+    final jay = artists.singleWhere((item) => item.title == '周杰伦');
+    final lara = artists.singleWhere((item) => item.title == 'Lara');
+    final fei = artists.singleWhere((item) => item.title == '费玉清');
+
+    expect(jay.tracks.map((t) => t.id), containsAll(['solo', 'feat', 'duet']));
+    expect(jay.featuredTracks, isEmpty);
+    expect(lara.tracks.map((t) => t.id), ['feat']);
+    expect(lara.featuredTracks.map((t) => t.id), ['feat']);
+    expect(fei.tracks.map((t) => t.id), ['duet']);
+    expect(fei.featuredTracks.map((t) => t.id), ['duet']);
+
+    expect(
+      findArtistCollection(const [albumA, albumB], '周杰伦 feat. Lara')?.title,
+      '周杰伦',
+    );
+  });
+
+  test('splitArtistCredit handles common delimiters', () {
+    expect(splitArtistCredit('A feat. B'), ['A', 'B']);
+    expect(splitArtistCredit('A & B / C'), ['A', 'B', 'C']);
+    expect(splitArtistCredit('甲、乙'), ['甲', '乙']);
+    expect(splitArtistCredit('  solo  '), ['solo']);
   });
 
   test('genre browsing falls back to album genre and keeps uncategorized', () {

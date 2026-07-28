@@ -150,11 +150,19 @@ class _LibraryCollectionScreenState extends State<LibraryCollectionScreen> {
     final compact = context.soundIsCompact;
     final gutter = context.soundPageGutter;
     final bottomPadding = context.soundContentBottomPadding;
-    final sortedTracks = _sortTracks(collection.tracks);
+    final playQueue = _sortTracks(collection.tracks);
+    final primaryTracks = _sortTracks(collection.primaryTracks);
+    final featuredTracks = _sortTracks(collection.featuredTracks);
     final albumByTrackId = {
       for (final album in collection.albums)
         for (final track in album.tracks) track.id: album,
     };
+    Album resolveAlbum(Track track) {
+      final direct = albumByTrackId[track.id];
+      if (direct != null) return direct;
+      return resolveAlbumForTrack(collection.albums, track);
+    }
+
     return AnimatedBuilder(
       animation: Listenable.merge([?widget.userState]),
       builder: (context, _) {
@@ -173,20 +181,20 @@ class _LibraryCollectionScreenState extends State<LibraryCollectionScreen> {
                 collection: collection,
                 onBack: widget.onBack,
                 pagePalette: pagePalette,
-                onPlay: sortedTracks.isEmpty
+                onPlay: playQueue.isEmpty
                     ? null
                     : () => widget.playback.playTrack(
-                        sortedTracks.first,
-                        queue: sortedTracks,
+                        playQueue.first,
+                        queue: playQueue,
                       ),
-                onShuffle: sortedTracks.isEmpty
+                onShuffle: playQueue.isEmpty
                     ? null
                     : () =>
-                          unawaited(widget.playback.playShuffled(sortedTracks)),
-                onQueue: sortedTracks.isEmpty
+                          unawaited(widget.playback.playShuffled(playQueue)),
+                onQueue: playQueue.isEmpty
                     ? null
                     : () {
-                        for (final track in sortedTracks.reversed) {
+                        for (final track in playQueue.reversed) {
                           widget.playback.playNext(track);
                         }
                         showSoundSnackBar(context, '已添加到接下来播放');
@@ -253,67 +261,61 @@ class _LibraryCollectionScreenState extends State<LibraryCollectionScreen> {
                 ),
               ),
             ],
-            SliverPadding(
-              padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 12),
-              sliver: SliverToBoxAdapter(
-                child: _CollectionTrackHeader(
-                  trackCount: sortedTracks.length,
-                  sort: _trackSort,
-                  pagePalette: pagePalette,
-                  onSortChanged: (value) => setState(() => _trackSort = value),
-                ),
-              ),
-            ),
-            if (sortedTracks.isNotEmpty)
+            if (primaryTracks.isNotEmpty || featuredTracks.isEmpty) ...[
               SliverPadding(
-                padding: EdgeInsets.fromLTRB(gutter, 0, gutter, bottomPadding),
-                sliver: SliverPrototypeExtentList.builder(
-                  itemCount: sortedTracks.length,
-                  prototypeItem: _CollectionTrackRow(
-                    track: sortedTracks.first,
-                    album: albumByTrackId[sortedTracks.first.id]!,
-                    favorite:
-                        widget.userState?.isFavorite(sortedTracks.first.id) ??
-                        false,
-                    onTap: () {},
-                    onPlayNext: () {},
-                    onToggleFavorite: null,
-                    onAddToPlaylist: null,
-                    onOpenAlbum: () {},
-                    onOpenArtist: () {},
+                padding: EdgeInsets.fromLTRB(gutter, 0, gutter, 12),
+                sliver: SliverToBoxAdapter(
+                  child: _CollectionTrackHeader(
+                    title: featuredTracks.isEmpty ? null : '歌曲',
+                    trackCount: primaryTracks.isEmpty
+                        ? playQueue.length
+                        : primaryTracks.length,
+                    sort: _trackSort,
                     pagePalette: pagePalette,
+                    onSortChanged: (value) =>
+                        setState(() => _trackSort = value),
                   ),
-                  itemBuilder: (context, index) {
-                    final track = sortedTracks[index];
-                    final album = albumByTrackId[track.id]!;
-                    return _CollectionTrackRow(
-                      track: track,
-                      album: album,
-                      favorite: widget.userState?.isFavorite(track.id) ?? false,
-                      onTap: () =>
-                          widget.playback.playTrack(track, queue: sortedTracks),
-                      onPlayNext: () => widget.playback.playNext(track),
-                      onToggleFavorite: widget.userState == null
-                          ? null
-                          : () => unawaited(
-                              widget.userState!.toggleFavorite(track),
-                            ),
-                      onAddToPlaylist: widget.userState == null
-                          ? null
-                          : () => showAddToPlaylistSheet(
-                              context,
-                              userState: widget.userState!,
-                              track: track,
-                            ),
-                      onOpenAlbum: () => widget.onOpenAlbum(album),
-                      onOpenArtist: widget.onOpenArtist == null
-                          ? null
-                          : () => widget.onOpenArtist!(track.artist),
-                      pagePalette: pagePalette,
-                    );
-                  },
                 ),
               ),
+              if (primaryTracks.isNotEmpty)
+                ..._trackListSlivers(
+                  tracks: primaryTracks,
+                  playQueue: playQueue,
+                  gutter: gutter,
+                  bottomPadding: featuredTracks.isEmpty ? bottomPadding : 20,
+                  pagePalette: pagePalette,
+                  resolveAlbum: resolveAlbum,
+                ),
+            ],
+            if (featuredTracks.isNotEmpty) ...[
+              SliverPadding(
+                padding: EdgeInsets.fromLTRB(
+                  gutter,
+                  primaryTracks.isEmpty ? 0 : 8,
+                  gutter,
+                  12,
+                ),
+                sliver: SliverToBoxAdapter(
+                  child: _CollectionTrackHeader(
+                    title: '参与的歌曲',
+                    trackCount: featuredTracks.length,
+                    sort: _trackSort,
+                    pagePalette: pagePalette,
+                    showSort: primaryTracks.isEmpty,
+                    onSortChanged: (value) =>
+                        setState(() => _trackSort = value),
+                  ),
+                ),
+              ),
+              ..._trackListSlivers(
+                tracks: featuredTracks,
+                playQueue: playQueue,
+                gutter: gutter,
+                bottomPadding: bottomPadding,
+                pagePalette: pagePalette,
+                resolveAlbum: resolveAlbum,
+              ),
+            ],
           ],
         );
         final content = Material(color: Colors.transparent, child: scrollView);
@@ -377,6 +379,65 @@ class _LibraryCollectionScreenState extends State<LibraryCollectionScreen> {
     });
     return sorted;
   }
+
+  List<Widget> _trackListSlivers({
+    required List<Track> tracks,
+    required List<Track> playQueue,
+    required double gutter,
+    required double bottomPadding,
+    required ArtworkPagePalette? pagePalette,
+    required Album Function(Track track) resolveAlbum,
+  }) {
+    if (tracks.isEmpty) return const [];
+    final prototypeAlbum = resolveAlbum(tracks.first);
+    return [
+      SliverPadding(
+        padding: EdgeInsets.fromLTRB(gutter, 0, gutter, bottomPadding),
+        sliver: SliverPrototypeExtentList.builder(
+          itemCount: tracks.length,
+          prototypeItem: _CollectionTrackRow(
+            track: tracks.first,
+            album: prototypeAlbum,
+            favorite: false,
+            onTap: () {},
+            onPlayNext: () {},
+            onToggleFavorite: null,
+            onAddToPlaylist: null,
+            onOpenAlbum: () {},
+            onOpenArtist: () {},
+            pagePalette: pagePalette,
+          ),
+          itemBuilder: (context, index) {
+            final track = tracks[index];
+            final album = resolveAlbum(track);
+            return _CollectionTrackRow(
+              track: track,
+              album: album,
+              favorite: widget.userState?.isFavorite(track.id) ?? false,
+              onTap: () =>
+                  widget.playback.playTrack(track, queue: playQueue),
+              onPlayNext: () => widget.playback.playNext(track),
+              onToggleFavorite: widget.userState == null
+                  ? null
+                  : () => unawaited(widget.userState!.toggleFavorite(track)),
+              onAddToPlaylist: widget.userState == null
+                  ? null
+                  : () => showAddToPlaylistSheet(
+                      context,
+                      userState: widget.userState!,
+                      track: track,
+                    ),
+              onOpenAlbum: () => widget.onOpenAlbum(album),
+              onOpenArtist: widget.onOpenArtist == null
+                  ? null
+                  : () => widget.onOpenArtist!(track.artist),
+              pagePalette: pagePalette,
+            );
+          },
+        ),
+      ),
+    ];
+  }
 }
 
 int _compareText(String left, String right) =>
@@ -402,16 +463,21 @@ class _CollectionTrackHeader extends StatelessWidget {
     required this.sort,
     required this.onSortChanged,
     required this.pagePalette,
+    this.title,
+    this.showSort = true,
   });
 
+  final String? title;
   final int trackCount;
   final LibraryCollectionTrackSort sort;
   final ValueChanged<LibraryCollectionTrackSort> onSortChanged;
   final ArtworkPagePalette? pagePalette;
+  final bool showSort;
 
   @override
   Widget build(BuildContext context) {
     final compact = context.soundIsCompact;
+    final label = title == null ? '$trackCount 首歌曲' : '$title · $trackCount 首';
     return Wrap(
       spacing: 12,
       runSpacing: 10,
@@ -419,70 +485,86 @@ class _CollectionTrackHeader extends StatelessWidget {
       alignment: WrapAlignment.spaceBetween,
       children: [
         Text(
-          '$trackCount 首歌曲',
+          label,
           style: TextStyle(
             color: pagePalette?.primaryText,
             fontSize: compact ? 17 : 20,
             fontWeight: FontWeight.w800,
           ),
         ),
-        SoundMenuButton<LibraryCollectionTrackSort>(
-          key: const ValueKey('library-collection-track-sort-menu'),
-          tooltip: '排序歌曲',
-          onSelected: onSortChanged,
-          actions: [
-            for (final option in LibraryCollectionTrackSort.values)
-              SoundMenuAction(
-                value: option,
-                label: option.label,
-                icon: Icons.sort_rounded,
-                selected: option == sort,
+        if (showSort)
+          SoundMenuButton<LibraryCollectionTrackSort>(
+            key: const ValueKey('library-collection-track-sort-menu'),
+            tooltip: '排序歌曲',
+            onSelected: onSortChanged,
+            actions: [
+              for (final option in LibraryCollectionTrackSort.values)
+                SoundMenuAction(
+                  value: option,
+                  label: option.label,
+                  icon: Icons.sort_rounded,
+                  selected: option == sort,
+                ),
+            ],
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: pagePalette?.controlSurface ?? context.soundTint(0.045),
+                border: Border.all(
+                  color: pagePalette?.divider ?? context.soundDivider,
+                ),
+                borderRadius: BorderRadius.circular(10),
               ),
-          ],
-          child: DecoratedBox(
-            decoration: BoxDecoration(
-              color: pagePalette?.controlSurface ?? context.soundTint(0.045),
-              border: Border.all(
-                color: pagePalette?.divider ?? context.soundDivider,
-              ),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: compact ? 10 : 12,
-                vertical: compact ? 7 : 9,
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    Icons.sort_rounded,
-                    size: 17,
-                    color: pagePalette?.primaryText,
-                  ),
-                  const SizedBox(width: 7),
-                  Text(
-                    sort.label,
-                    style: TextStyle(
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: compact ? 10 : 12,
+                  vertical: compact ? 7 : 9,
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(
+                      Icons.sort_rounded,
+                      size: 17,
                       color: pagePalette?.primaryText,
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
                     ),
-                  ),
-                  const SizedBox(width: 5),
-                  Icon(
-                    Icons.arrow_drop_down_rounded,
-                    size: 18,
-                    color: pagePalette?.primaryText,
-                  ),
-                ],
+                    const SizedBox(width: 7),
+                    Text(
+                      sort.label,
+                      style: TextStyle(
+                        color: pagePalette?.primaryText,
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                    const SizedBox(width: 5),
+                    Icon(
+                      Icons.arrow_drop_down_rounded,
+                      size: 18,
+                      color: pagePalette?.primaryText,
+                    ),
+                  ],
+                ),
               ),
             ),
           ),
-        ),
       ],
     );
   }
+}
+
+String _collectionStatsLine(LibraryCollection collection) {
+  final parts = <String>[
+    '${collection.albums.length} 张专辑',
+  ];
+  final primaryCount = collection.primaryTracks.length;
+  final featuredCount = collection.featuredTracks.length;
+  if (featuredCount > 0) {
+    parts.add('$primaryCount 首歌曲');
+    parts.add('$featuredCount 首参与');
+  } else {
+    parts.add('${collection.tracks.length} 首歌曲');
+  }
+  return parts.join(' · ');
 }
 
 class _CollectionHero extends StatelessWidget {
@@ -543,7 +625,7 @@ class _CollectionHero extends StatelessWidget {
             ),
             SizedBox(height: compact ? 6 : 10),
             Text(
-              '${collection.albums.length} 张专辑 · ${collection.tracks.length} 首歌曲',
+              _collectionStatsLine(collection),
               style: TextStyle(fontSize: 12, color: context.soundMutedText),
             ),
             SizedBox(height: compact ? 14 : 20),
@@ -699,8 +781,7 @@ class _CollectionHero extends StatelessWidget {
           ),
           const SizedBox(height: 9),
           Text(
-            '${collection.albums.length} 张专辑 · '
-            '${collection.tracks.length} 首歌曲',
+            _collectionStatsLine(collection),
             textAlign: TextAlign.center,
             style: TextStyle(
               color: palette.mutedText,
@@ -843,8 +924,7 @@ class _CollectionHero extends StatelessWidget {
                       ),
                       const SizedBox(height: 14),
                       Text(
-                        '${collection.albums.length} 张专辑 · '
-                        '${collection.tracks.length} 首歌曲',
+                        _collectionStatsLine(collection),
                         style: TextStyle(
                           color: context.soundMutedText,
                           fontSize: 14,
