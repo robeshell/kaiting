@@ -270,7 +270,7 @@ class _SearchScreenState extends State<SearchScreen> {
                       sliver: SliverToBoxAdapter(
                         child: Text(
                           '仅显示前 ${LibrarySearchController.resultLimit} 首，'
-                          '请缩小关键词或改用匹配范围。',
+                          '请缩小关键词再试。',
                           style: TextStyle(
                             fontSize: 11.5,
                             color: context.soundMutedText,
@@ -404,22 +404,6 @@ class _SearchScreenState extends State<SearchScreen> {
               ),
             ),
           ),
-        ),
-        const SizedBox(height: 10),
-        Text(
-          '匹配范围',
-          style: TextStyle(
-            fontSize: 11.5,
-            fontWeight: FontWeight.w600,
-            color: context.soundSecondaryText,
-          ),
-        ),
-        const SizedBox(height: 6),
-        _SearchControls(
-          field: widget.search.field,
-          sort: widget.search.sort,
-          onFieldChanged: widget.search.setField,
-          onSortChanged: widget.search.setSort,
         ),
       ],
     );
@@ -755,74 +739,6 @@ enum _SearchResultAction {
   playResults,
   favorite,
   addToPlaylist,
-}
-
-class _SearchControls extends StatelessWidget {
-  const _SearchControls({
-    required this.field,
-    required this.sort,
-    required this.onFieldChanged,
-    required this.onSortChanged,
-  });
-
-  final LibrarySearchField field;
-  final LibrarySearchSort sort;
-  final ValueChanged<LibrarySearchField> onFieldChanged;
-  final ValueChanged<LibrarySearchSort> onSortChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final fields = context.soundIsCompact
-        ? const [
-            LibrarySearchField.all,
-            LibrarySearchField.title,
-            LibrarySearchField.album,
-            LibrarySearchField.trackArtist,
-          ]
-        : LibrarySearchField.values;
-    return Row(
-      children: [
-        Expanded(
-          child: SoundChoiceStrip<LibrarySearchField>(
-            options: [
-              for (final option in fields)
-                SoundChoiceOption(
-                  key: ValueKey('search-field-${option.name}'),
-                  value: option,
-                  label:
-                      context.soundIsCompact &&
-                          option == LibrarySearchField.trackArtist
-                      ? '艺人'
-                      : option.label,
-                ),
-            ],
-            selected: field,
-            onSelected: onFieldChanged,
-          ),
-        ),
-        const SizedBox(width: 8),
-        SoundMenuButton<LibrarySearchSort>(
-          key: const ValueKey('compact-search-sort'),
-          tooltip: '排序方式',
-          onSelected: onSortChanged,
-          actions: [
-            for (final item in LibrarySearchSort.values)
-              SoundMenuAction(
-                value: item,
-                label: item.label,
-                icon: Icons.sort_rounded,
-                selected: item == sort,
-              ),
-          ],
-          child: SoundToolbarButton(
-            icon: Icons.sort_rounded,
-            label: context.soundIsCompact ? null : sort.label,
-            tooltip: '排序：${sort.label}',
-          ),
-        ),
-      ],
-    );
-  }
 }
 
 class _SearchMessage extends StatelessWidget {

@@ -299,12 +299,7 @@ void main() {
     expect(find.text('Alpha Song'), findsNothing);
     expect(find.text('艺人'), findsWidgets);
     expect(find.text('Main Artist'), findsWidgets);
-
-    await tester.tap(find.byKey(const ValueKey('search-field-albumArtist')));
-    await tester.pump();
-    await _waitForSearch(tester, search);
-    expect(search.field, LibrarySearchField.albumArtist);
-    expect(find.text('Neon Sky'), findsOneWidget);
+    expect(find.text('匹配范围'), findsNothing);
 
     await tester.tap(find.byKey(const ValueKey('search-result-track-neon')));
     await tester.pump();
@@ -374,7 +369,8 @@ void main() {
       tester.getSize(find.byKey(const ValueKey('library-search-field'))).height,
       44,
     );
-    expect(find.byKey(const ValueKey('compact-search-sort')), findsOneWidget);
+    expect(find.byKey(const ValueKey('compact-search-sort')), findsNothing);
+    expect(find.text('匹配范围'), findsNothing);
     expect(find.text('艺人'), findsWidgets);
     expect(
       tester
