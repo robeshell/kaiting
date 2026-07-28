@@ -16,6 +16,9 @@ class VinylRecordArt extends StatefulWidget {
     required this.album,
     required this.isPlaying,
     this.isActive = true,
+    /// Continuous platter spin. When null, falls back to [isPlaying] && [isActive].
+    /// Staged by [NowPlayingMotionDirector] so spin starts after cover/arm.
+    this.discSpinning,
     this.size,
     super.key,
   });
@@ -23,6 +26,7 @@ class VinylRecordArt extends StatefulWidget {
   final Album album;
   final bool isPlaying;
   final bool isActive;
+  final bool? discSpinning;
   final double? size;
 
   @override
@@ -138,29 +142,20 @@ class VinylRecordArtState extends State<VinylRecordArt>
   void didUpdateWidget(covariant VinylRecordArt oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.isPlaying != oldWidget.isPlaying ||
-        widget.isActive != oldWidget.isActive) {
+        widget.isActive != oldWidget.isActive ||
+        widget.discSpinning != oldWidget.discSpinning) {
       _syncRotation();
     }
   }
 
+  bool get _shouldSpin {
+    if (_reduceMotion) return false;
+    return widget.discSpinning ?? (widget.isPlaying && widget.isActive);
+  }
+
   void _syncRotation() {
-    final shouldSpin = widget.isPlaying && widget.isActive && !_reduceMotion;
-    if (shouldSpin) {
-      if (_rotation.isAnimating) return;
-      // Two frames after play so arm settle + lyrics hydrate do not share the
-      // same busy frames as starting a continuous disc ticker.
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted) return;
-          if (widget.isPlaying &&
-              widget.isActive &&
-              !_reduceMotion &&
-              !_rotation.isAnimating) {
-            _rotation.repeat();
-          }
-        });
-      });
+    if (_shouldSpin) {
+      if (!_rotation.isAnimating) _rotation.repeat();
     } else {
       // Preserve disc angle; only stop the ticker (no snap back).
       _rotation.stop();

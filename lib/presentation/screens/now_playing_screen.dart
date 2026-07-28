@@ -24,6 +24,7 @@ import '../widgets/playback_queue_sheet.dart';
 import '../widgets/progress_scrubber.dart';
 import '../widgets/sound_components.dart';
 import '../widgets/sound_metadata_line.dart';
+import '../widgets/now_playing_motion_director.dart';
 import '../widgets/vinyl_record_art.dart';
 
 /// Whether now-playing should paint custom window drag chrome.
@@ -115,19 +116,36 @@ class NowPlayingScreen extends StatelessWidget {
     final compactChrome = context.soundIsCompact;
     final foldableChrome = context.soundUsesMobileShell && !compactChrome;
     final wideIntegratedQueue = MediaQuery.sizeOf(context).width >= 680;
-    return Scaffold(
+    return NowPlayingMotionHost(
+      isActive: isActive,
+      isPlaying: snapshot.isPlaying,
+      child: Scaffold(
       backgroundColor: album.palette.last,
       body: Stack(
         fit: StackFit.expand,
         children: [
-          AnimatedArtworkBackground(
-            album: album,
-            // Phase seed only — continuous motion uses its own ticker so this
-            // must not force full-screen rebuilds on every position tick.
-            position: playback.displayPosition,
-            isPlaying: snapshot.isPlaying,
-            // Freeze gradient tickers while the mobile sheet is still sliding.
-            isActive: isActive,
+          Builder(
+            builder: (context) {
+              final director = NowPlayingMotionScope.maybeOf(context);
+              if (director == null) {
+                return AnimatedArtworkBackground(
+                  album: album,
+                  position: playback.displayPosition,
+                  isPlaying: snapshot.isPlaying,
+                  isActive: isActive,
+                );
+              }
+              return AnimatedBuilder(
+                animation: director,
+                builder: (context, _) => AnimatedArtworkBackground(
+                  album: album,
+                  position: playback.displayPosition,
+                  isPlaying: director.playing,
+                  // Director stages ambient one frame after surface active.
+                  isActive: director.allowAmbientMotion,
+                ),
+              );
+            },
           ),
           SafeArea(
             minimum: EdgeInsets.only(top: context.soundTitlebarInset),
@@ -251,6 +269,7 @@ class NowPlayingScreen extends StatelessWidget {
               ),
             ),
         ],
+      ),
       ),
     );
   }
@@ -888,24 +907,58 @@ class _PlayerColumn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final artwork = style == NowPlayingStyle.vinyl
-        ? VinylRecordArt(
-            key: compactLayout
-                ? const ValueKey('compact-now-playing-artwork')
-                : null,
-            album: album,
-            size: artSize,
-            isPlaying: playback.snapshot.isPlaying,
-            isActive: isActive,
-          )
-        : _PlaybackResponsiveAlbumArt(
-            key: compactLayout
-                ? const ValueKey('compact-now-playing-artwork')
-                : null,
-            album: album,
-            size: artSize,
-            isPlaying: playback.snapshot.isPlaying,
-          );
+    final director = NowPlayingMotionScope.maybeOf(context);
+    if (director == null) {
+      final playing = playback.snapshot.isPlaying;
+      return _playerColumnBody(
+        context,
+        _artwork(
+          isPlaying: playing,
+          isActive: isActive,
+          discSpinning: playing && isActive,
+        ),
+      );
+    }
+    // Rebuild when the director stages disc spin after the cover scale window.
+    return AnimatedBuilder(
+      animation: director,
+      builder: (context, _) => _playerColumnBody(
+        context,
+        _artwork(
+          isPlaying: director.primaryPlayEffects,
+          isActive: director.surfaceActive,
+          discSpinning: director.discSpinning,
+        ),
+      ),
+    );
+  }
+
+  Widget _artwork({
+    required bool isPlaying,
+    required bool isActive,
+    required bool discSpinning,
+  }) {
+    if (style == NowPlayingStyle.vinyl) {
+      return VinylRecordArt(
+        key: compactLayout
+            ? const ValueKey('compact-now-playing-artwork')
+            : null,
+        album: album,
+        size: artSize,
+        isPlaying: isPlaying,
+        isActive: isActive,
+        discSpinning: discSpinning,
+      );
+    }
+    return _PlaybackResponsiveAlbumArt(
+      key: compactLayout ? const ValueKey('compact-now-playing-artwork') : null,
+      album: album,
+      size: artSize,
+      isPlaying: isPlaying,
+    );
+  }
+
+  Widget _playerColumnBody(BuildContext context, Widget artwork) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.center,
