@@ -2132,44 +2132,73 @@ class _LyricsPanelState extends State<_LyricsPanel> {
     required bool synchronized,
   }) {
     return LayoutBuilder(
-      builder: (context, constraints) => Listener(
-        onPointerSignal: (event) {
-          if (event is PointerScrollEvent) _pauseAutoFollow();
-        },
-        child: NotificationListener<ScrollStartNotification>(
-          onNotification: (notification) {
-            if (notification.dragDetails != null) _pauseAutoFollow();
-            return false;
+      builder: (context, constraints) {
+        final scroller = Listener(
+          onPointerSignal: (event) {
+            if (event is PointerScrollEvent) _pauseAutoFollow();
           },
-          child: SingleChildScrollView(
-            controller: _scrollController,
-            padding: EdgeInsets.only(
-              top: widget.verticalControls
-                  ? math.max(88, constraints.maxHeight * 0.36)
-                  : 0,
-              bottom: widget.compact
-                  ? math.max(72, constraints.maxHeight * 0.66)
-                  : math.max(
-                      110,
-                      constraints.maxHeight *
-                          (widget.verticalControls ? 0.62 : 0.55),
+          child: NotificationListener<ScrollStartNotification>(
+            onNotification: (notification) {
+              if (notification.dragDetails != null) _pauseAutoFollow();
+              return false;
+            },
+            child: SingleChildScrollView(
+              controller: _scrollController,
+              padding: EdgeInsets.only(
+                top: widget.verticalControls
+                    ? math.max(88, constraints.maxHeight * 0.36)
+                    : 0,
+                bottom: widget.compact
+                    ? math.max(72, constraints.maxHeight * 0.66)
+                    : math.max(
+                        110,
+                        constraints.maxHeight *
+                            (widget.verticalControls ? 0.62 : 0.55),
+                      ),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (var index = 0; index < lyrics.length; index++)
+                    _buildLyricLine(
+                      lyrics,
+                      index,
+                      active: active,
+                      synchronized: synchronized,
                     ),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (var index = 0; index < lyrics.length; index++)
-                  _buildLyricLine(
-                    lyrics,
-                    index,
-                    active: active,
-                    synchronized: synchronized,
-                  ),
-              ],
+                ],
+              ),
             ),
           ),
-        ),
-      ),
+        );
+        // Soft top/bottom edge so lines dissolve instead of hard-clipping.
+        return ShaderMask(
+          blendMode: BlendMode.dstIn,
+          shaderCallback: (bounds) {
+            final h = bounds.height;
+            if (h <= 1) {
+              return const LinearGradient(
+                colors: [Colors.black, Colors.black],
+              ).createShader(bounds);
+            }
+            final fadePx = math.min(52.0, h * 0.12).clamp(20.0, 64.0);
+            final top = (fadePx / h).clamp(0.04, 0.22);
+            final bottom = (1.0 - fadePx / h).clamp(0.78, 0.96);
+            return LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: const [
+                Color(0x00000000),
+                Color(0xFF000000),
+                Color(0xFF000000),
+                Color(0x00000000),
+              ],
+              stops: [0, top, bottom, 1],
+            ).createShader(bounds);
+          },
+          child: scroller,
+        );
+      },
     );
   }
 
