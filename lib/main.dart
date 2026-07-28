@@ -23,6 +23,13 @@ import 'sources/webdav/webdav_playback_media_provider.dart';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Bound Flutter's decoded-image cache so large album grids with many unique
+  // covers cannot retain the default ~1000 entries / ~100 MiB indefinitely.
+  // ResizeImage already buckets decode size; this caps how many buckets stay hot.
+  final imageCache = PaintingBinding.instance.imageCache;
+  imageCache.maximumSize = 220;
+  imageCache.maximumSizeBytes = 72 << 20; // 72 MiB
+
   SoundColors.defaultAccentPreset.apply();
 
   // Android already owns the launch surface through the system SplashScreen

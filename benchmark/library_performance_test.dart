@@ -55,7 +55,8 @@ void main() {
         stdout.writeln('SOUND_PERF ${jsonEncode(metrics)}');
 
         expect(catalog.tracks, hasLength(trackCount));
-        expect(repository.allLyricsCalls, greaterThan(0));
+        // Catalog refresh must not pull the lyrics table; playback hydrates.
+        expect(repository.allLyricsCalls, 0);
         expect(repository.singleTrackLyricCalls, 0);
         expect(indexedDocuments, trackCount);
         expect(resultIds, isNotEmpty);

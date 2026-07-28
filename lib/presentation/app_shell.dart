@@ -280,12 +280,8 @@ class _AppShellState extends State<AppShell>
     final freshCollection = selectedCollection == null
         ? null
         : switch (selectedCollection.kind) {
-            LibraryCollectionKind.artist => buildArtistCollections(
-              _libraryCatalog.albums,
-            ),
-            LibraryCollectionKind.genre => buildGenreCollections(
-              _libraryCatalog.albums,
-            ),
+            LibraryCollectionKind.artist => _libraryCatalog.artistCollections,
+            LibraryCollectionKind.genre => _libraryCatalog.genreCollections,
           }.where((item) => item.id == selectedCollection.id).firstOrNull;
     final albumChanged =
         selectedAlbum != null && !identical(freshAlbum, selectedAlbum);
@@ -717,7 +713,11 @@ class _AppShellState extends State<AppShell>
   }
 
   void _openArtistByName(String artistName) {
-    final collection = findArtistCollection(_libraryCatalog.albums, artistName);
+    final collection = findArtistCollection(
+      _libraryCatalog.albums,
+      artistName,
+      collections: _libraryCatalog.artistCollections,
+    );
     if (collection == null) return;
     _openCollection(collection);
   }
@@ -1014,9 +1014,7 @@ class _AppShellState extends State<AppShell>
                           colors: [
                             Theme.of(context).scaffoldBackgroundColor,
                             context.soundGlass.canvasHighlight,
-                            Theme.of(
-                              context,
-                            ).colorScheme.surfaceContainerHigh,
+                            Theme.of(context).colorScheme.surfaceContainerHigh,
                           ],
                           stops: const [0, 0.46, 1],
                         ),

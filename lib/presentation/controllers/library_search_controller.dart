@@ -165,8 +165,13 @@ class LibrarySearchController extends ChangeNotifier {
   bool _truncated = false;
   Timer? _timer;
   int _generation = 0;
+  int _documentBuildGeneration = 0;
   String? _errorMessage;
   bool _disposed = false;
+
+  /// Below this size the search index is built on the current isolate so unit
+  /// tests and tiny libraries stay synchronous; larger catalogs use [compute].
+  static const int _syncDocumentBuildThreshold = 500;
 
   LibrarySearchStatus get status => _status;
   String get query => _query;
@@ -212,14 +217,14 @@ class LibrarySearchController extends ChangeNotifier {
   void _refreshDocuments() {
     final albums = catalog.albums;
     _catalogAlbums = albums;
-    final documents = <LibrarySearchDocument>[];
+    final seeds = <LibrarySearchDocumentSeed>[];
     final hits = <String, LibrarySearchHit>{};
     final albumsById = <String, Album>{};
     for (final album in albums) {
       albumsById[album.id] = album;
       for (final track in album.tracks) {
-        documents.add(
-          LibrarySearchDocument(
+        seeds.add(
+          LibrarySearchDocumentSeed(
             trackId: track.id,
             albumId: album.id,
             title: track.title,
@@ -232,9 +237,42 @@ class LibrarySearchController extends ChangeNotifier {
         hits[track.id] = LibrarySearchHit(track: track, album: album);
       }
     }
-    _documents = List.unmodifiable(documents);
     _hitsByTrackId = Map.unmodifiable(hits);
     _albumsById = Map.unmodifiable(albumsById);
+
+    // Small catalogs: build the pinyin index on the current isolate so search
+    // is ready immediately (tests and cold start with empty/tiny libraries).
+    // Large catalogs: offload PinyinHelper work so catalog refresh does not
+    // freeze the UI for tens of milliseconds.
+    final generation = ++_documentBuildGeneration;
+    if (seeds.length < _syncDocumentBuildThreshold) {
+      _documents = List.unmodifiable(buildLibrarySearchDocuments(seeds));
+      return;
+    }
+    _documents = const [];
+    unawaited(_buildDocumentsOffMainIsolate(seeds, generation));
+  }
+
+  Future<void> _buildDocumentsOffMainIsolate(
+    List<LibrarySearchDocumentSeed> seeds,
+    int generation,
+  ) async {
+    try {
+      final documents = await compute(
+        buildLibrarySearchDocuments,
+        seeds,
+        debugLabel: 'sound-library-search-index',
+      );
+      if (_disposed || generation != _documentBuildGeneration) return;
+      _documents = List.unmodifiable(documents);
+      if (_query.trim().isNotEmpty) _scheduleSearch();
+    } catch (_) {
+      if (_disposed || generation != _documentBuildGeneration) return;
+      // Fall back to an in-process build so search remains usable if the
+      // worker isolate fails to spawn.
+      _documents = List.unmodifiable(buildLibrarySearchDocuments(seeds));
+      if (_query.trim().isNotEmpty) _scheduleSearch();
+    }
   }
 
   void _scheduleSearch() {
@@ -259,6 +297,13 @@ class LibrarySearchController extends ChangeNotifier {
 
   Future<void> _search(int generation) async {
     try {
+      // Large catalogs build the pinyin index off-thread; hold the searching
+      // state until documents are ready so we do not flash an empty result set.
+      if (_documents.isEmpty &&
+          catalog.tracks.isNotEmpty &&
+          _query.trim().isNotEmpty) {
+        return;
+      }
       final matchSet = await _runner(
         LibrarySearchRequest(
           documents: _documents,
@@ -327,7 +372,7 @@ class LibrarySearchController extends ChangeNotifier {
     if (_field == LibrarySearchField.all ||
         _field == LibrarySearchField.trackArtist ||
         _field == LibrarySearchField.albumArtist) {
-      for (final collection in buildArtistCollections(albums)) {
+      for (final collection in catalog.artistCollections) {
         if (!_textMatchesAny(collection.title, terms)) continue;
         final key = collection.title.toLowerCase();
         counts.putIfAbsent(key, () => collection.tracks.length);
@@ -343,10 +388,15 @@ class LibrarySearchController extends ChangeNotifier {
       });
 
     final results = <LibrarySearchArtistHit>[];
+    final artistCollections = catalog.artistCollections;
     for (final entry in ranked) {
       if (results.length >= maxEntityHits) break;
       final name = names[entry.key]!;
-      final collection = findArtistCollection(albums, name);
+      final collection = findArtistCollection(
+        albums,
+        name,
+        collections: artistCollections,
+      );
       if (collection == null) continue;
       results.add(
         LibrarySearchArtistHit(
@@ -403,10 +453,50 @@ class LibrarySearchController extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     _generation++;
+    _documentBuildGeneration++;
     _timer?.cancel();
     catalog.removeListener(_handleCatalogChanged);
     super.dispose();
   }
+}
+
+/// Plain-string seed for building [LibrarySearchDocument] off the UI isolate.
+class LibrarySearchDocumentSeed {
+  const LibrarySearchDocumentSeed({
+    required this.trackId,
+    required this.albumId,
+    required this.title,
+    required this.trackArtist,
+    required this.albumTitle,
+    required this.albumArtist,
+    required this.genre,
+  });
+
+  final String trackId;
+  final String albumId;
+  final String title;
+  final String trackArtist;
+  final String albumTitle;
+  final String albumArtist;
+  final String genre;
+}
+
+/// Top-level entry point for [compute]: runs pinyin normalization off the UI.
+List<LibrarySearchDocument> buildLibrarySearchDocuments(
+  List<LibrarySearchDocumentSeed> seeds,
+) {
+  return [
+    for (final seed in seeds)
+      LibrarySearchDocument(
+        trackId: seed.trackId,
+        albumId: seed.albumId,
+        title: seed.title,
+        trackArtist: seed.trackArtist,
+        albumTitle: seed.albumTitle,
+        albumArtist: seed.albumArtist,
+        genre: seed.genre,
+      ),
+  ];
 }
 
 Future<LibrarySearchMatchSet> _runSearchOffMainIsolate(

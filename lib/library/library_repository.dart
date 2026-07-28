@@ -17,6 +17,13 @@ abstract interface class LibraryRepository {
   Future<List<LibraryTrackRecord>> getTracks({String? sourceId});
   Future<List<LibraryLyricRecord>> getLyrics(String trackId);
   Future<Map<String, List<LibraryLyricRecord>>> getAllLyrics();
+
+  /// Loads lyrics for the given track ids only (ordered by track id, then
+  /// sequence). Prefer this over [getAllLyrics] for queue hydrate and other
+  /// multi-track paths so large libraries do not re-read the full table.
+  Future<Map<String, List<LibraryLyricRecord>>> getLyricsForTrackIds(
+    Iterable<String> trackIds,
+  );
   Future<List<LibraryFavoriteTrackRecord>> getFavoriteTracks();
   Future<List<LibraryPlayHistoryRecord>> getPlayHistory({int limit = 500});
   Future<List<LibraryPlaylistRecord>> getPlaylists();

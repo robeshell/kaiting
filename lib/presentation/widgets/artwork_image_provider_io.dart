@@ -12,7 +12,9 @@ ImageProvider<Object>? artworkImageProvider(String? value) {
     final file = File.fromUri(uri);
     // Missing or truncated caches (deleted after a bad WebDAV pass, etc.)
     // must not create a FileImage that later crashes precacheImage.
-    if (!file.existsSync() || !artworkFileLooksValid(uri.toString())) {
+    // Validity is cached so album grids do not re-open the same file every
+    // layout pass.
+    if (!artworkFileLooksValid(uri.toString())) {
       return null;
     }
     return FileImage(file);

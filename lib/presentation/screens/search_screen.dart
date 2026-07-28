@@ -247,8 +247,10 @@ class _SearchScreenState extends State<SearchScreen> {
                             TextButton.icon(
                               key: const ValueKey('search-play-results'),
                               onPressed: () => _playSearchResults(),
-                              icon: const Icon(Icons.playlist_play_rounded,
-                                  size: 18),
+                              icon: const Icon(
+                                Icons.playlist_play_rounded,
+                                size: 18,
+                              ),
                               label: Text(
                                 compact ? '播放结果' : '用结果播放',
                                 style: const TextStyle(fontSize: 12),
@@ -311,6 +313,7 @@ class _SearchScreenState extends State<SearchScreen> {
                                 final collection = findArtistCollection(
                                   widget.catalog.albums,
                                   hit.track.artist,
+                                  collections: widget.catalog.artistCollections,
                                 );
                                 if (collection != null) {
                                   widget.onOpenArtist!(collection);
@@ -371,9 +374,7 @@ class _SearchScreenState extends State<SearchScreen> {
               textInputAction: TextInputAction.search,
               onChanged: widget.search.setQuery,
               decoration: InputDecoration(
-                hintText: compact
-                    ? '搜索歌名、艺人、专辑或拼音'
-                    : '歌名、艺人、专辑、流派，支持拼音与首字母',
+                hintText: compact ? '搜索歌名、艺人、专辑或拼音' : '歌名、艺人、专辑、流派，支持拼音与首字母',
                 prefixIcon: const Icon(Icons.search_rounded, size: 20),
                 prefixIconConstraints: const BoxConstraints(minWidth: 42),
                 suffixIcon: widget.search.query.isEmpty
@@ -398,10 +399,7 @@ class _SearchScreenState extends State<SearchScreen> {
                 ),
                 focusedBorder: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(SoundRadii.control),
-                  borderSide: BorderSide(
-                    color: SoundColors.accent,
-                    width: 2,
-                  ),
+                  borderSide: BorderSide(color: SoundColors.accent, width: 2),
                 ),
               ),
             ),

@@ -29,19 +29,22 @@ Future<LibraryCatalogSnapshot> loadLibraryCatalogSnapshot(
   List<LibraryTrackRecord>? trackRecords,
 }) async {
   // Start every independent read before awaiting any of them. Drift may still
-  // serialize SQLite work internally, but this removes four Dart/isolate
+  // serialize SQLite work internally, but this removes three Dart/isolate
   // round-trips from the critical path and avoids rereading watched tracks.
+  //
+  // Lyrics stay out of the browse catalog: now-playing / queue hydrate loads
+  // them on demand via [LibraryPlaybackLyricsSource]. That keeps startup and
+  // every rescan free of a full lyrics-table read + per-track LyricLine graph.
   final sourcesFuture = repository.getSources();
   final albumsFuture = repository.getAlbums();
   final tracksFuture = trackRecords == null
       ? repository.getTracks()
       : Future.value(trackRecords);
-  final lyricsFuture = repository.getAllLyrics();
   return LibraryCatalogSnapshot(
     sources: await sourcesFuture,
     albums: await albumsFuture,
     tracks: await tracksFuture,
-    lyricsByTrackId: await lyricsFuture,
+    lyricsByTrackId: const {},
   );
 }
 
@@ -71,6 +74,8 @@ class LibraryCatalogController extends ChangeNotifier {
   String? _errorMessage;
   List<Album> _albums = const [];
   List<Track> _tracks = const [];
+  List<LibraryCollection>? _artistCollections;
+  List<LibraryCollection>? _genreCollections;
   int _refreshGeneration = 0;
   bool _disposed = false;
   String? _initialTrackSignature;
@@ -79,6 +84,16 @@ class LibraryCatalogController extends ChangeNotifier {
   String? get errorMessage => _errorMessage;
   List<Album> get albums => _albums;
   List<Track> get tracks => _tracks;
+
+  /// Artist collections for the current catalog, rebuilt only when albums change.
+  List<LibraryCollection> get artistCollections {
+    return _artistCollections ??= buildArtistCollections(_albums);
+  }
+
+  /// Genre collections for the current catalog, rebuilt only when albums change.
+  List<LibraryCollection> get genreCollections {
+    return _genreCollections ??= buildGenreCollections(_albums);
+  }
 
   void _handleTrackRecords(List<LibraryTrackRecord> records) {
     final initialSignature = _initialTrackSignature;
@@ -114,6 +129,10 @@ class LibraryCatalogController extends ChangeNotifier {
       lyricsByTrackId: snapshot.lyricsByTrackId,
     );
     _tracks = List.unmodifiable([for (final album in _albums) ...album.tracks]);
+    // Pre-build artist groups with the snapshot so opening the 「艺人」 tab does
+    // not pay a first-tap regroup cost on the UI thread.
+    _artistCollections = buildArtistCollections(_albums);
+    _genreCollections = null;
     _status = LibraryCatalogStatus.ready;
     _errorMessage = null;
     if (notify) notifyListeners();

@@ -22,15 +22,10 @@ class LibraryPlaybackLyricsSource implements PlaybackLyricsSource {
   ) async {
     final needed = trackIds.toSet();
     if (needed.isEmpty) return const {};
-    if (needed.length == 1) {
-      final id = needed.single;
-      final lyrics = await lyricsForTrack(id);
-      return lyrics.isEmpty ? const {} : {id: lyrics};
-    }
-    final all = await repository.getAllLyrics();
+    final byTrack = await repository.getLyricsForTrackIds(needed);
     return {
       for (final id in needed)
-        if (all[id] case final records? when records.isNotEmpty)
+        if (byTrack[id] case final records? when records.isNotEmpty)
           id: _mapLyrics(id, records),
     };
   }

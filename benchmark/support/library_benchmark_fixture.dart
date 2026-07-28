@@ -143,6 +143,17 @@ class BenchmarkLibraryRepository extends DriftLibraryRepository {
   }
 
   @override
+  Future<Map<String, List<LibraryLyricRecord>>> getLyricsForTrackIds(
+    Iterable<String> trackIds,
+  ) async {
+    final needed = trackIds.toSet();
+    return {
+      for (final id in needed)
+        if (fixture.lyricsByTrackId[id] case final lines?) id: lines,
+    };
+  }
+
+  @override
   Future<List<LibraryLyricRecord>> getLyrics(String trackId) async {
     singleTrackLyricCalls++;
     return fixture.lyricsByTrackId[trackId] ?? const [];

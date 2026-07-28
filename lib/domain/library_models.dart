@@ -267,20 +267,25 @@ String _collectionKey(String value) => value.trim().toLowerCase();
 ///
 /// Prefers an exact title match (case-insensitive), then a unique contains
 /// match. Returns null when the name is empty or ambiguous/missing.
+///
+/// Pass [collections] when the caller already built artist collections for
+/// [albums] so large libraries do not regroup the full catalog on every
+/// metadata tap.
 LibraryCollection? findArtistCollection(
   List<Album> albums,
-  String artistName,
-) {
+  String artistName, {
+  List<LibraryCollection>? collections,
+}) {
   final cleaned = artistName.trim();
   if (cleaned.isEmpty || cleaned == '未知艺人') return null;
   final key = _collectionKey(cleaned);
-  final collections = buildArtistCollections(albums);
-  final exact = collections
+  final resolved = collections ?? buildArtistCollections(albums);
+  final exact = resolved
       .where((collection) => _collectionKey(collection.title) == key)
       .toList(growable: false);
   if (exact.length == 1) return exact.single;
   if (exact.length > 1) return exact.first;
-  final partial = collections
+  final partial = resolved
       .where((collection) => _collectionKey(collection.title).contains(key))
       .toList(growable: false);
   if (partial.length == 1) return partial.single;

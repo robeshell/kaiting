@@ -14,9 +14,33 @@ bool looksLikeCompleteImageBytes(List<int> bytes) {
   return false;
 }
 
+/// In-memory validity results for local artwork files.
+///
+/// Album grids call [artworkFileLooksValid] from build/layout; without a cache
+/// each visible cell re-opens the file and reads head/tail on the UI thread.
+const int _artworkValidityCacheLimit = 512;
+final Map<String, bool> _artworkValidityCache = <String, bool>{};
+
+/// Clears the artwork validity cache. Intended for tests.
+void clearArtworkValidityCache() => _artworkValidityCache.clear();
+
 /// Returns false when [artworkUri] is a local file that is missing or truncated.
+///
+/// Results are cached by URI so scrolling a large album grid does not re-run
+/// sync filesystem checks for the same cover on every frame.
 bool artworkFileLooksValid(String? artworkUri) {
   if (artworkUri == null || artworkUri.isEmpty) return false;
+  final cached = _artworkValidityCache[artworkUri];
+  if (cached != null) return cached;
+  final valid = _artworkFileLooksValidUncached(artworkUri);
+  if (_artworkValidityCache.length >= _artworkValidityCacheLimit) {
+    _artworkValidityCache.remove(_artworkValidityCache.keys.first);
+  }
+  _artworkValidityCache[artworkUri] = valid;
+  return valid;
+}
+
+bool _artworkFileLooksValidUncached(String artworkUri) {
   final uri = Uri.tryParse(artworkUri);
   if (uri == null || uri.scheme != 'file') return true;
   try {
@@ -60,7 +84,10 @@ bool _isPng(List<int> bytes) =>
     bytes[7] == 0x0a;
 
 bool _isJpeg(List<int> bytes) =>
-    bytes.length >= 4 && bytes[0] == 0xff && bytes[1] == 0xd8 && bytes[2] == 0xff;
+    bytes.length >= 4 &&
+    bytes[0] == 0xff &&
+    bytes[1] == 0xd8 &&
+    bytes[2] == 0xff;
 
 bool _isWebp(List<int> bytes) =>
     bytes.length >= 12 &&
