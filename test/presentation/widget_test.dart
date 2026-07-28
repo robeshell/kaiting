@@ -944,61 +944,90 @@ void main() {
     final addToPlaylist = find.byKey(
       ValueKey('add-now-playing-${_testTrack.id}-to-playlist'),
     );
-    final lyrics = find.byKey(const ValueKey('show-now-playing-lyrics'));
-    final title = find.byKey(const ValueKey('now-playing-track-title'));
-    final playbackControls = find.byKey(
-      const ValueKey('compact-cover-playback-controls'),
+    final visualToLyrics = find.byKey(
+      const ValueKey('compact-visual-to-lyrics'),
     );
-    final secondaryActions = find.byKey(
-      const ValueKey('compact-now-playing-secondary-actions'),
+    final title = find.byKey(const ValueKey('now-playing-track-title'));
+    final artist = find.byKey(const ValueKey('now-playing-track-artist'));
+    final playbackControls = find.byKey(
+      const ValueKey('compact-playback-controls'),
+    );
+    final titleActions = find.byKey(
+      const ValueKey('compact-now-playing-title-actions'),
     );
     final topActions = find.byKey(const ValueKey('now-playing-drag-handle'));
     final artwork = find.byKey(const ValueKey('compact-now-playing-artwork'));
+    final stage = find.byKey(const ValueKey('compact-visual-stage'));
+    expect(
+      tester
+          .widget<ProgressScrubber>(
+            find.descendant(
+              of: playbackControls,
+              matching: find.byType(ProgressScrubber),
+            ),
+          )
+          .trackVerticalOffset,
+      7,
+    );
     expect(tester.getSize(topActions).height, lessThan(72));
     expect(
       tester.getTopLeft(artwork).dy - tester.getBottomLeft(topActions).dy,
-      lessThanOrEqualTo(10),
+      inInclusiveRange(36, 44),
     );
-    expect(tester.getSize(title).width, greaterThan(300));
+    expect(tester.getSize(stage).height, lessThanOrEqualTo(370));
+    expect(tester.getSize(title).width, inInclusiveRange(160, 270));
     expect(
-      tester.getTopLeft(secondaryActions).dy,
-      greaterThan(tester.getBottomLeft(playbackControls).dy),
+      tester.getTopLeft(artist).dy - tester.getBottomLeft(title).dy,
+      greaterThanOrEqualTo(7),
     );
     expect(
-      tester.getCenter(lyrics).dx,
+      tester.getCenter(titleActions).dx,
+      greaterThan(tester.getCenter(title).dx),
+    );
+    expect(
+      tester.getCenter(favorite).dx,
       lessThan(tester.getCenter(addToPlaylist).dx),
     );
     expect(
-      tester.getCenter(addToPlaylist).dx,
-      lessThan(tester.getCenter(favorite).dx),
+      tester.getCenter(addToPlaylist).dx - tester.getCenter(favorite).dx,
+      greaterThanOrEqualTo(47),
+    );
+    expect(tester.widget<IconButton>(favorite).iconSize, 24);
+    expect(tester.widget<IconButton>(addToPlaylist).iconSize, 24);
+    expect(
+      (tester.getCenter(favorite).dy - tester.getCenter(titleActions).dy).abs(),
+      lessThan(2),
+    );
+    final titleText = tester.widget<Text>(
+      find.descendant(of: title, matching: find.text(_testTrack.title)).last,
+    );
+    expect(titleText.style?.fontSize, 22);
+    final modeButton = find.byKey(const ValueKey('now-playing-mode-cycle'));
+    final sleepButton = find.byKey(const ValueKey('now-playing-sleep-timer'));
+    final controlsRect = tester.getRect(playbackControls);
+    expect(
+      tester.getCenter(modeButton).dx - controlsRect.left,
+      closeTo(12, 0.1),
     );
     expect(
-      tester.getCenter(favorite).dx - tester.getCenter(lyrics).dx,
-      greaterThan(250),
+      controlsRect.right - tester.getCenter(sleepButton).dx,
+      closeTo(12, 0.1),
     );
+    expect(find.byKey(const ValueKey('show-now-playing-lyrics')), findsNothing);
 
-    final coverLyricsCenter = tester.getCenter(lyrics);
+    final coverStage = tester.getRect(stage);
+    final coverControls = tester.getRect(playbackControls);
+    final coverTitleActions = tester.getRect(titleActions);
     final coverFavoriteCenter = tester.getCenter(favorite);
-    await tester.tap(lyrics);
+    await tester.tap(visualToLyrics);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
-    final returnToCover = find.byKey(
-      const ValueKey('return-now-playing-cover'),
-    );
-    expect(
-      find.byKey(const ValueKey('compact-lyrics-secondary-actions')),
-      findsOneWidget,
-    );
-    expect(
-      tester.getCenter(returnToCover).dx,
-      closeTo(coverLyricsCenter.dx, 1),
-    );
+    expect(find.byKey(const ValueKey('compact-lyrics')), findsOneWidget);
+    expect(tester.getRect(stage), coverStage);
+    expect(tester.getRect(playbackControls), coverControls);
+    expect(tester.getRect(titleActions), coverTitleActions);
     expect(tester.getCenter(favorite).dx, closeTo(coverFavoriteCenter.dx, 1));
-    expect(
-      (tester.getCenter(returnToCover).dy - coverLyricsCenter.dy).abs(),
-      lessThan(80),
-    );
-    await tester.tap(returnToCover);
+    await tester.tapAt(coverStage.topLeft + const Offset(8, 8));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
 
@@ -1550,10 +1579,13 @@ void main() {
     await tester.pump();
 
     expect(find.text('Test Track'), findsOneWidget);
-    expect(find.byTooltip('查看歌词'), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('compact-visual-to-lyrics')),
+      findsOneWidget,
+    );
     expect(tester.takeException(), isNull);
 
-    await tester.tap(find.byTooltip('查看歌词'));
+    await tester.tap(find.byKey(const ValueKey('compact-visual-to-lyrics')));
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.text('这首歌曲没有内嵌歌词'), findsOneWidget);
 
@@ -1759,10 +1791,13 @@ void main() {
       find.byKey(const ValueKey('now-playing-track-title')),
     );
     final classicControls = tester.getRect(
-      find.byKey(const ValueKey('compact-cover-playback-controls')),
+      find.byKey(const ValueKey('compact-playback-controls')),
     );
     final classicActions = tester.getRect(
-      find.byKey(const ValueKey('compact-now-playing-secondary-actions')),
+      find.byKey(const ValueKey('compact-now-playing-title-actions')),
+    );
+    final classicStage = tester.getRect(
+      find.byKey(const ValueKey('compact-visual-stage')),
     );
 
     await tester.pumpWidget(
@@ -1776,15 +1811,23 @@ void main() {
     await tester.pump();
 
     expect(find.byKey(const ValueKey('vinyl-record-art')), findsOneWidget);
+    final vinylDisc = tester.getRect(
+      find.byKey(const ValueKey('vinyl-record-disc')),
+    );
     final vinylTitle = tester.getRect(
       find.byKey(const ValueKey('now-playing-track-title')),
     );
     final vinylControls = tester.getRect(
-      find.byKey(const ValueKey('compact-cover-playback-controls')),
+      find.byKey(const ValueKey('compact-playback-controls')),
     );
     final vinylActions = tester.getRect(
-      find.byKey(const ValueKey('compact-now-playing-secondary-actions')),
+      find.byKey(const ValueKey('compact-now-playing-title-actions')),
     );
+    final vinylStage = tester.getRect(
+      find.byKey(const ValueKey('compact-visual-stage')),
+    );
+    expect(vinylDisc.center.dx, closeTo(vinylStage.center.dx, 0.5));
+    expect(vinylStage, classicStage);
     expect(vinylTitle.left, closeTo(classicTitle.left, 0.5));
     expect(vinylTitle.right, closeTo(classicTitle.right, 0.5));
     expect(vinylControls.left, closeTo(classicControls.left, 0.5));

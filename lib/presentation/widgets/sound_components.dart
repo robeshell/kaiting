@@ -328,6 +328,8 @@ class SoundChoiceStrip<T> extends StatelessWidget {
     required this.onSelected,
     this.wrap = false,
     this.spacing = 8,
+    this.foregroundColor,
+    this.neutralSurfaceColor,
     super.key,
   });
 
@@ -336,6 +338,8 @@ class SoundChoiceStrip<T> extends StatelessWidget {
   final ValueChanged<T> onSelected;
   final bool wrap;
   final double spacing;
+  final Color? foregroundColor;
+  final Color? neutralSurfaceColor;
 
   @override
   Widget build(BuildContext context) {
@@ -346,6 +350,8 @@ class SoundChoiceStrip<T> extends StatelessWidget {
           option: option,
           selected: option.value == selected,
           onTap: option.enabled ? () => onSelected(option.value) : null,
+          foregroundColor: foregroundColor,
+          neutralSurfaceColor: neutralSurfaceColor,
         ),
     ];
     if (wrap) {
@@ -370,22 +376,25 @@ class _SoundChoiceButton<T> extends StatelessWidget {
     required this.option,
     required this.selected,
     required this.onTap,
+    this.foregroundColor,
+    this.neutralSurfaceColor,
     super.key,
   });
 
   final SoundChoiceOption<T> option;
   final bool selected;
   final VoidCallback? onTap;
+  final Color? foregroundColor;
+  final Color? neutralSurfaceColor;
 
   @override
   Widget build(BuildContext context) {
+    final neutralForeground = foregroundColor ?? context.soundSecondaryText;
     final foreground = !option.enabled
-        ? context.soundSecondaryText.withValues(alpha: 0.38)
+        ? neutralForeground.withValues(alpha: 0.38)
         : selected
         ? SoundColors.accent
-        : context.soundSecondaryText.withValues(
-            alpha: context.soundSecondaryText.a * 0.82,
-          );
+        : neutralForeground.withValues(alpha: neutralForeground.a * 0.82);
     return Semantics(
       button: true,
       selected: selected,
@@ -402,7 +411,7 @@ class _SoundChoiceButton<T> extends StatelessWidget {
             decoration: BoxDecoration(
               color: selected
                   ? SoundColors.accent.withValues(alpha: 0.09)
-                  : context.soundTint(0.025),
+                  : neutralSurfaceColor ?? context.soundTint(0.025),
               borderRadius: BorderRadius.circular(SoundRadii.pill),
             ),
             child: Row(

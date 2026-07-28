@@ -12,6 +12,7 @@ import 'package:kaiting/presentation/screens/now_playing_screen.dart';
 import 'package:kaiting/presentation/controllers/offline_download_controller.dart';
 import 'package:kaiting/presentation/widgets/playback_queue_sheet.dart';
 import 'package:kaiting/presentation/widgets/album_art.dart';
+import 'package:kaiting/presentation/widgets/animated_artwork_background.dart';
 import 'package:kaiting/presentation/widgets/sound_components.dart';
 
 void main() {
@@ -63,6 +64,7 @@ void main() {
     expect(find.text('播放队列是空的'), findsOneWidget);
 
     await tester.pumpWidget(const SizedBox.shrink());
+    debugDefaultTargetPlatformOverride = null;
     playback.dispose();
     engine.dispose();
   });
@@ -87,6 +89,9 @@ void main() {
 
     expect(find.byTooltip('播放队列'), findsOneWidget);
     expect(find.byTooltip('列表循环'), findsOneWidget);
+    final modeButton = find.byKey(const ValueKey('now-playing-mode-cycle'));
+    final neutralModeColor = tester.widget<IconButton>(modeButton).color;
+    expect(neutralModeColor, isNot(SoundColors.accent));
     expect(find.byKey(const ValueKey('now-playing-view-switch')), findsNothing);
     expect(find.byKey(const ValueKey('compact-player')), findsOneWidget);
     expect(
@@ -109,32 +114,42 @@ void main() {
     expect(find.text('First'), findsNothing);
     expect(find.text('Second'), findsOneWidget);
 
-    await tester.tap(find.byKey(const ValueKey('show-now-playing-lyrics')));
+    final coverStage = tester.getRect(
+      find.byKey(const ValueKey('compact-visual-stage')),
+    );
+    final coverControls = tester.getRect(
+      find.byKey(const ValueKey('compact-playback-controls')),
+    );
+    expect(find.byKey(const ValueKey('show-now-playing-lyrics')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('compact-visual-to-lyrics')));
     await tester.pump(const Duration(milliseconds: 300));
-    // The compact lyrics header picks up its panel-owned menu after the
-    // panel's first post-frame callback.
     await tester.pump();
     expect(find.byKey(const ValueKey('compact-lyrics')), findsOneWidget);
+    expect(find.byKey(const ValueKey('compact-lyrics-artwork')), findsNothing);
     expect(
-      find.byKey(const ValueKey('compact-lyrics-artwork')),
+      find.byKey(const ValueKey('compact-playback-controls')),
       findsOneWidget,
     );
     expect(
-      find.byKey(const ValueKey('compact-lyrics-playback-controls')),
-      findsOneWidget,
-    );
-    expect(
-      find.byKey(const ValueKey('compact-lyrics-secondary-actions')),
+      find.byKey(const ValueKey('compact-now-playing-title-actions')),
       findsOneWidget,
     );
     expect(find.text('同步歌词'), findsNothing);
     expect(find.byKey(const ValueKey('compact-lyrics-more')), findsOneWidget);
     expect(find.text('Second lyric'), findsOneWidget);
     expect(
+      tester.getRect(find.byKey(const ValueKey('compact-visual-stage'))),
+      coverStage,
+    );
+    expect(
+      tester.getRect(find.byKey(const ValueKey('compact-playback-controls'))),
+      coverControls,
+    );
+    expect(
       tester
           .getSize(find.byKey(const ValueKey('compact-lyrics-region')))
           .height,
-      lessThanOrEqualTo(392),
+      coverStage.height,
     );
     await tester.tap(find.byKey(const ValueKey('compact-lyrics-more')));
     await tester.pump(const Duration(milliseconds: 350));
@@ -142,17 +157,17 @@ void main() {
     expect(find.text('歌词延后 0.5 秒'), findsOneWidget);
     await tester.tapAt(const Offset(8, 8));
     await tester.pump(const Duration(milliseconds: 350));
-    await tester.tap(find.byKey(const ValueKey('return-now-playing-cover')));
+    await tester.tap(find.text('Second lyric'));
     await tester.pump(const Duration(milliseconds: 300));
-    expect(find.byKey(const ValueKey('compact-player')), findsOneWidget);
-    await tester.tap(
-      find.byKey(const ValueKey('now-playing-mode-cycle')).last,
+    expect(
+      find.byKey(const ValueKey('compact-now-playing-artwork')),
+      findsOneWidget,
     );
+    await tester.tap(find.byKey(const ValueKey('now-playing-mode-cycle')).last);
     await tester.pump();
     expect(playback.playbackMode, PlaybackMode.repeatOne);
-    await tester.tap(
-      find.byKey(const ValueKey('now-playing-mode-cycle')).last,
-    );
+    expect(tester.widget<IconButton>(modeButton).color, neutralModeColor);
+    await tester.tap(find.byKey(const ValueKey('now-playing-mode-cycle')).last);
     await tester.pump();
     expect(playback.playbackMode, PlaybackMode.shuffle);
 
@@ -164,6 +179,182 @@ void main() {
     expect(find.textContaining('随机播放'), findsWidgets);
 
     await playback.clearQueue();
+    await tester.pumpWidget(const SizedBox.shrink());
+    debugDefaultTargetPlatformOverride = null;
+    playback.dispose();
+    engine.dispose();
+  });
+
+  testWidgets('compact lyrics drag seeks the line at the center guide', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final engine = SimulatedPlaybackEngine();
+    final playback = SoundPlaybackController(engine: engine);
+    final lyricTrack = Track(
+      id: 'center-seek-lyrics',
+      title: 'Center Seek',
+      artist: 'Artist',
+      albumTitle: 'Album',
+      duration: const Duration(minutes: 4),
+      source: SourceKind.local,
+      lyrics: [
+        for (var index = 0; index < 18; index++)
+          LyricLine(Duration(seconds: index * 6), '定位歌词 $index'),
+      ],
+    );
+    await playback.playTrack(lyricTrack, queue: [lyricTrack]);
+
+    await tester.pumpWidget(
+      MaterialApp(home: NowPlayingScreen(playback: playback)),
+    );
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('compact-visual-to-lyrics')));
+    await tester.pump(const Duration(milliseconds: 300));
+
+    final lyricsRegion = find.byKey(const ValueKey('compact-lyrics-region'));
+    final gesture = await tester.startGesture(tester.getCenter(lyricsRegion));
+    await gesture.moveBy(const Offset(0, -40));
+    await gesture.moveBy(const Offset(0, -190));
+    await tester.pump();
+    expect(
+      find.byKey(const ValueKey('compact-lyrics-seek-guide')),
+      findsOneWidget,
+    );
+    await gesture.up();
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(
+      find.byKey(const ValueKey('compact-lyrics-seek-guide')),
+      findsNothing,
+    );
+    expect(playback.displayPosition, greaterThan(Duration.zero));
+    expect(find.byKey(const ValueKey('compact-lyrics')), findsOneWidget);
+
+    await tester.tapAt(tester.getCenter(lyricsRegion));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(
+      find.byKey(const ValueKey('compact-now-playing-artwork')),
+      findsOneWidget,
+    );
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    debugDefaultTargetPlatformOverride = null;
+    playback.dispose();
+    engine.dispose();
+  });
+
+  testWidgets('compact long metadata loops with gaps and feathered edges', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final engine = SimulatedPlaybackEngine();
+    final playback = SoundPlaybackController(engine: engine);
+    final longTrack = _first.copyWith(
+      id: 'long-metadata',
+      title: '这是一首标题特别特别长并且需要持续横向滚动展示完整内容的歌曲',
+      artist: '这是一位名字特别特别长并且同样需要横向滚动展示的歌手',
+    );
+    await playback.playTrack(longTrack, queue: [longTrack]);
+
+    Widget app({required bool reduceMotion}) {
+      return MaterialApp(
+        home: MediaQuery(
+          data: MediaQueryData(
+            size: const Size(390, 844),
+            disableAnimations: reduceMotion,
+          ),
+          child: NowPlayingScreen(playback: playback),
+        ),
+      );
+    }
+
+    await tester.pumpWidget(app(reduceMotion: false));
+    await tester.pump();
+
+    final title = find.byKey(const ValueKey('now-playing-track-title'));
+    final actions = find.byKey(
+      const ValueKey('compact-now-playing-title-actions'),
+    );
+    final stage = find.byKey(const ValueKey('compact-visual-stage'));
+    expect(tester.getSize(title).width, lessThan(tester.getSize(stage).width));
+    expect(
+      tester.getCenter(actions).dx,
+      greaterThan(tester.getCenter(title).dx),
+    );
+
+    final titleMotion = find.byKey(
+      const ValueKey('now-playing-track-title-marquee-motion'),
+    );
+    final artistMotion = find.byKey(
+      const ValueKey('now-playing-track-artist-marquee-motion'),
+    );
+    expect(titleMotion, findsOneWidget);
+    expect(artistMotion, findsOneWidget);
+    final scrollingTitleText = find.descendant(
+      of: title,
+      matching: find.text(longTrack.title),
+    );
+    final scrollingArtistText = find.descendant(
+      of: find.byKey(const ValueKey('now-playing-track-artist')),
+      matching: find.text(longTrack.artist),
+    );
+    expect(scrollingTitleText, findsNWidgets(2));
+    expect(scrollingArtistText, findsNWidgets(2));
+    expect(
+      tester.getSize(scrollingTitleText.first).width,
+      greaterThan(tester.getSize(title).width),
+    );
+    expect(
+      tester.getSize(scrollingArtistText.first).width,
+      greaterThan(
+        tester
+            .getSize(find.byKey(const ValueKey('now-playing-track-artist')))
+            .width,
+      ),
+    );
+    expect(
+      find.descendant(
+        of: title,
+        matching: find.byKey(const ValueKey('overflow-marquee-edge-mask')),
+      ),
+      findsOneWidget,
+    );
+    final titleRepeatGap = find.descendant(
+      of: title,
+      matching: find.byKey(const ValueKey('overflow-marquee-repeat-gap')),
+    );
+    expect(titleRepeatGap, findsOneWidget);
+    expect(tester.getSize(titleRepeatGap).width, 48);
+    await tester.pump(const Duration(seconds: 10));
+    expect(
+      tester.widget<FractionalTranslation>(titleMotion).translation.dx,
+      lessThan(0),
+    );
+    expect(
+      tester.widget<FractionalTranslation>(artistMotion).translation.dx,
+      lessThan(0),
+    );
+
+    await tester.pumpWidget(app(reduceMotion: true));
+    await tester.pump(const Duration(milliseconds: 300));
+    expect(titleMotion, findsNothing);
+    expect(artistMotion, findsNothing);
+    final titleText = tester.widget<Text>(
+      find.descendant(of: title, matching: find.text(longTrack.title)).last,
+    );
+    expect(titleText.maxLines, 1);
+    expect(titleText.overflow, TextOverflow.ellipsis);
+
     await tester.pumpWidget(const SizedBox.shrink());
     debugDefaultTargetPlatformOverride = null;
     playback.dispose();
@@ -190,10 +381,17 @@ void main() {
         ),
       );
       await tester.pump();
+      final player = find.byKey(const ValueKey('wide-now-playing-player'));
+      final title = find.byKey(const ValueKey('now-playing-track-title'));
+      final artist = find.byKey(const ValueKey('now-playing-track-artist'));
+      expect(
+        tester.getTopLeft(artist).dy - tester.getBottomLeft(title).dy,
+        greaterThanOrEqualTo(7),
+      );
+      expect(tester.getRect(player).contains(tester.getCenter(title)), isTrue);
+      expect(tester.getRect(player).contains(tester.getCenter(artist)), isTrue);
       return (
-        tester
-            .getSize(find.byKey(const ValueKey('wide-now-playing-player')))
-            .width,
+        tester.getSize(player).width,
         tester
             .getSize(find.byKey(const ValueKey('wide-now-playing-lyrics')))
             .width,
@@ -248,6 +446,28 @@ void main() {
       find.byKey(const ValueKey('now-playing-view-switch')),
       findsOneWidget,
     );
+    final lyricsSwitch = find.byKey(const ValueKey('show-wide-lyrics'));
+    final queueSwitch = find.byKey(const ValueKey('show-wide-queue'));
+    expect(
+      tester.getCenter(lyricsSwitch).dy,
+      closeTo(tester.getCenter(queueSwitch).dy, 0.1),
+    );
+    expect(
+      tester
+          .widget<Icon>(
+            find.descendant(of: lyricsSwitch, matching: find.byType(Icon)),
+          )
+          .size,
+      21,
+    );
+    expect(
+      tester
+          .widget<Icon>(
+            find.descendant(of: queueSwitch, matching: find.byType(Icon)),
+          )
+          .size,
+      21,
+    );
     expect(find.text('歌词'), findsNothing);
     expect(find.text('播放清单'), findsNothing);
     expect(find.text('同步\n歌词'), findsOneWidget);
@@ -264,6 +484,12 @@ void main() {
     await tester.pump();
     expect(find.byKey(const ValueKey('wide-playback-queue')), findsOneWidget);
     expect(find.text('播放清单'), findsWidgets);
+    final queuePanel = find.byKey(const ValueKey('wide-playback-queue'));
+    final queueContext = tester.element(queuePanel);
+    final queueTitle = tester.widget<Text>(
+      find.byKey(const ValueKey('embedded-queue-title')),
+    );
+    expect(queueTitle.style?.color, queueContext.chromePrimaryText);
     expect(find.text('3 首歌 · 列表循环'), findsOneWidget);
     expect(find.byType(ChoiceChip), findsNothing);
     final activeRow = find.byKey(const ValueKey('queue-track-row-second'));

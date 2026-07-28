@@ -122,9 +122,7 @@ void main() {
       );
       await tester.pump();
 
-      final toggle = find.byKey(
-        const ValueKey('mini-player-playback-toggle'),
-      );
+      final toggle = find.byKey(const ValueKey('mini-player-playback-toggle'));
       final toggleButton = tester.widget<IconButton>(
         find.descendant(of: toggle, matching: find.byType(IconButton)),
       );
@@ -135,20 +133,14 @@ void main() {
       final toggleIcon = tester.widget<Icon>(toggleIconFinder);
       expect(toggleIcon.icon, KaitingIcons.playMini);
       expect(toggleIcon.size, compact ? 24 : 28);
-      expect(
-        toggleIcon.color,
-        SoundColors.accent.withValues(alpha: 0.96),
-      );
+      expect(toggleIcon.color, SoundColors.accent.withValues(alpha: 0.96));
       expect(
         toggleButton.style?.backgroundColor?.resolve(<WidgetState>{}),
         Colors.transparent,
       );
       final nextIconFinder = find.byIcon(KaitingIcons.nextMini);
       expect(nextIconFinder, findsOneWidget);
-      expect(
-        tester.widget<Icon>(nextIconFinder).size,
-        compact ? 20 : 23,
-      );
+      expect(tester.widget<Icon>(nextIconFinder).size, compact ? 20 : 23);
       if (compact) {
         expect(
           tester.getCenter(nextIconFinder).dx -
@@ -191,9 +183,7 @@ void main() {
     expect(tester.widget<Text>(find.text(_track.title)).style?.fontSize, 15);
     expect(
       tester
-          .widget<Text>(
-            find.text('${_track.artist} — ${_track.albumTitle}'),
-          )
+          .widget<Text>(find.text('${_track.artist} — ${_track.albumTitle}'))
           .style
           ?.fontSize,
       12,
@@ -201,9 +191,7 @@ void main() {
     expect(
       tester
           .widget<Padding>(
-            find.byKey(
-              const ValueKey('mini-player-condensed-content-padding'),
-            ),
+            find.byKey(const ValueKey('mini-player-condensed-content-padding')),
           )
           .padding,
       const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
@@ -231,10 +219,7 @@ void main() {
       await tester.pumpWidget(
         MaterialApp(
           theme: SoundTheme.light,
-          home: NowPlayingScreen(
-            playback: playback,
-            style: style,
-          ),
+          home: NowPlayingScreen(playback: playback, style: style),
         ),
       );
       await tester.pump();
@@ -397,7 +382,7 @@ void main() {
       find.byKey(const ValueKey('now-playing-background-static')),
       findsOneWidget,
     );
-    expect(find.text(_longTrack.title), findsOneWidget);
+    expect(find.text(_longTrack.title), findsNWidgets(2));
     expect(find.text('封面'), findsNothing);
     final playerTop = tester
         .getRect(find.byKey(const ValueKey('wide-now-playing-player')))
@@ -415,7 +400,7 @@ void main() {
     );
     expect(lyricsPadding.padding, const EdgeInsets.fromLTRB(8, 6, 0, 32));
     expect(
-      tester.getTopLeft(find.text(_longTrack.title)).dy,
+      tester.getTopLeft(find.text(_longTrack.title).first).dy,
       lessThan(430),
       reason: 'Desktop content should not be vertically centered downward.',
     );

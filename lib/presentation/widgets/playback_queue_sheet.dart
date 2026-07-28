@@ -4,6 +4,7 @@ import '../../core/sound_theme.dart';
 import '../../domain/library_models.dart';
 import '../../playback/playback_controller.dart';
 import '../../playback/playback_mode.dart';
+import 'animated_artwork_background.dart';
 import 'sound_components.dart';
 import 'sound_metadata_line.dart';
 
@@ -55,6 +56,7 @@ class PlaybackQueuePanel extends StatelessWidget {
   const PlaybackQueuePanel({
     required this.playback,
     this.embedded = false,
+    this.useArtworkChrome = false,
     this.onClose,
     this.onOpenAlbum,
     this.onOpenArtist,
@@ -63,6 +65,7 @@ class PlaybackQueuePanel extends StatelessWidget {
 
   final SoundPlaybackController playback;
   final bool embedded;
+  final bool useArtworkChrome;
   final VoidCallback? onClose;
   final ValueChanged<Album>? onOpenAlbum;
   final ValueChanged<String>? onOpenArtist;
@@ -70,6 +73,19 @@ class PlaybackQueuePanel extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final compact = embedded || context.soundIsCompact;
+    final primaryText = useArtworkChrome
+        ? context.chromePrimaryText
+        : context.soundPrimaryText;
+    final secondaryText = useArtworkChrome
+        ? context.chromeSecondaryText
+        : context.soundSecondaryText;
+    final mutedText = useArtworkChrome
+        ? context.chromeMutedText
+        : context.soundMutedText;
+    final divider = useArtworkChrome
+        ? primaryText.withValues(alpha: 0.10)
+        : context.soundDivider;
+    final interactionTint = primaryText.withValues(alpha: 0.045);
     return AnimatedBuilder(
       animation: playback,
       builder: (context, _) {
@@ -88,8 +104,12 @@ class PlaybackQueuePanel extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
+                          key: embedded
+                              ? const ValueKey('embedded-queue-title')
+                              : null,
                           embedded ? '播放清单' : '播放队列',
                           style: TextStyle(
+                            color: primaryText,
                             fontSize: embedded ? 16 : 22,
                             fontWeight: FontWeight.w600,
                           ),
@@ -97,10 +117,7 @@ class PlaybackQueuePanel extends StatelessWidget {
                         const SizedBox(height: 3),
                         Text(
                           '${queue.length} 首歌 · ${playback.playbackMode.label}',
-                          style: TextStyle(
-                            color: context.soundSecondaryText,
-                            fontSize: 12,
-                          ),
+                          style: TextStyle(color: secondaryText, fontSize: 12),
                         ),
                       ],
                     ),
@@ -129,6 +146,10 @@ class PlaybackQueuePanel extends StatelessWidget {
                   selected: playback.playbackMode,
                   onSelected: playback.setPlaybackMode,
                   spacing: 8,
+                  foregroundColor: useArtworkChrome ? secondaryText : null,
+                  neutralSurfaceColor: useArtworkChrome
+                      ? primaryText.withValues(alpha: 0.04)
+                      : null,
                   options: [
                     for (final mode in PlaybackMode.values)
                       SoundChoiceOption(
@@ -140,13 +161,13 @@ class PlaybackQueuePanel extends StatelessWidget {
                 ),
               ),
             ),
-            Divider(height: 1, color: context.soundDivider),
+            Divider(height: 1, color: divider),
             Expanded(
               child: queue.isEmpty
                   ? Center(
                       child: Text(
                         '播放队列是空的',
-                        style: TextStyle(color: context.soundSecondaryText),
+                        style: TextStyle(color: secondaryText),
                       ),
                     )
                   : ReorderableListView.builder(
@@ -181,7 +202,7 @@ class PlaybackQueuePanel extends StatelessWidget {
                             onActivate: () => playback.playQueueIndex(index),
                             semanticLabel: track.title,
                             showFocusOutline: false,
-                            focusColor: context.soundTint(0.045),
+                            focusColor: interactionTint,
                             borderRadius: BorderRadius.zero,
                             child: DecoratedBox(
                               decoration: BoxDecoration(
@@ -192,8 +213,8 @@ class PlaybackQueuePanel extends StatelessWidget {
                                     : Colors.transparent,
                                 border: Border(
                                   bottom: BorderSide(
-                                    color: context.soundDivider.withValues(
-                                      alpha: context.soundDivider.a * 0.72,
+                                    color: divider.withValues(
+                                      alpha: divider.a * 0.72,
                                     ),
                                   ),
                                 ),
@@ -208,14 +229,15 @@ class PlaybackQueuePanel extends StatelessWidget {
                                       )
                                     : Text(
                                         '${index + 1}',
-                                        style: TextStyle(
-                                          color: context.soundMutedText,
-                                        ),
+                                        style: TextStyle(color: mutedText),
                                       ),
                                 title: track.title,
                                 titleColor: active
                                     ? SoundColors.accent.withValues(alpha: 0.9)
-                                    : null,
+                                    : primaryText.withValues(
+                                        alpha: primaryText.a * 0.92,
+                                      ),
+                                subtitleColor: mutedText,
                                 subtitleWidget: SoundMetadataLine(
                                   artist: track.artist,
                                   album: track.albumTitle,
@@ -223,7 +245,7 @@ class PlaybackQueuePanel extends StatelessWidget {
                                   onOpenArtist: openArtist,
                                   onOpenAlbum: openAlbum,
                                   style: TextStyle(
-                                    color: context.soundMutedText,
+                                    color: mutedText,
                                     fontSize: 12,
                                   ),
                                 ),
@@ -236,9 +258,10 @@ class PlaybackQueuePanel extends StatelessWidget {
                                       ),
                                       tooltip: '更多操作 ${track.title}',
                                       padding: EdgeInsets.zero,
-                                      icon: const Icon(
+                                      icon: Icon(
                                         KaitingIcons.moreHorizontal,
                                         size: 21,
+                                        color: mutedText,
                                       ),
                                       menuTitle: track.title,
                                       onSelected: (value) {
@@ -262,7 +285,7 @@ class PlaybackQueuePanel extends StatelessWidget {
                                         child: Icon(
                                           KaitingIcons.dragHandle,
                                           size: 20,
-                                          color: context.soundMutedText,
+                                          color: mutedText,
                                         ),
                                       ),
                                     ),

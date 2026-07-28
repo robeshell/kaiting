@@ -38,6 +38,7 @@ class ProgressScrubber extends StatefulWidget {
     this.overlayRadius = 20,
     this.padding,
     this.minInteractiveHeight = 44,
+    this.trackVerticalOffset = 0,
     this.interactive = true,
     super.key,
   });
@@ -56,6 +57,7 @@ class ProgressScrubber extends StatefulWidget {
   final double overlayRadius;
   final EdgeInsetsGeometry? padding;
   final double minInteractiveHeight;
+  final double trackVerticalOffset;
   final bool interactive;
 
   @override
@@ -291,6 +293,7 @@ class _ProgressScrubberState extends State<ProgressScrubber> {
               activeColor: activeColor,
               inactiveColor: inactiveColor,
               showThumb: enabled,
+              verticalOffset: widget.trackVerticalOffset,
             ),
           ),
         ),
@@ -307,6 +310,7 @@ class _ScrubberPainter extends CustomPainter {
     required this.activeColor,
     required this.inactiveColor,
     required this.showThumb,
+    required this.verticalOffset,
   });
 
   final double fraction;
@@ -315,10 +319,15 @@ class _ScrubberPainter extends CustomPainter {
   final Color activeColor;
   final Color inactiveColor;
   final bool showThumb;
+  final double verticalOffset;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final cy = size.height / 2;
+    final maxOffset = math.max(
+      0.0,
+      size.height / 2 - math.max(thumbRadius, trackHeight / 2),
+    );
+    final cy = size.height / 2 + verticalOffset.clamp(-maxOffset, maxOffset);
     final trackTop = cy - trackHeight / 2;
     final radius = Radius.circular(trackHeight);
     final trackRect = RRect.fromRectAndRadius(
@@ -354,7 +363,8 @@ class _ScrubberPainter extends CustomPainter {
         oldDelegate.thumbRadius != thumbRadius ||
         oldDelegate.activeColor != activeColor ||
         oldDelegate.inactiveColor != inactiveColor ||
-        oldDelegate.showThumb != showThumb;
+        oldDelegate.showThumb != showThumb ||
+        oldDelegate.verticalOffset != verticalOffset;
   }
 }
 

@@ -24,7 +24,6 @@ import '../widgets/playback_visual_state.dart';
 import '../widgets/playback_queue_sheet.dart';
 import '../widgets/progress_scrubber.dart';
 import '../widgets/sound_components.dart';
-import '../widgets/sound_metadata_line.dart';
 import '../widgets/balanced_lyric_text.dart';
 import '../widgets/karaoke_lyric_text.dart';
 import '../widgets/now_playing_motion_director.dart';
@@ -670,6 +669,7 @@ class _WideNowPlayingPane extends StatelessWidget {
                 key: const ValueKey('wide-playback-queue'),
                 playback: playback,
                 embedded: true,
+                useArtworkChrome: true,
                 onOpenAlbum: onOpenAlbum,
                 onOpenArtist: onOpenArtist,
               ),
@@ -704,18 +704,11 @@ class _WidePaneIconSwitch extends StatelessWidget {
       required _WideNowPlayingView value,
       required String tooltip,
       required IconData icon,
-      double iconSize = 19,
-      double opticalOffsetY = 0,
     }) {
       final selected = view == value;
       Widget normalizedIcon() => SizedBox.square(
-        dimension: 22,
-        child: Center(
-          child: Transform.translate(
-            offset: Offset(0, opticalOffsetY),
-            child: Icon(icon, size: iconSize),
-          ),
-        ),
+        dimension: 24,
+        child: Center(child: Icon(icon, size: 21)),
       );
 
       return IconButton(
@@ -752,30 +745,36 @@ class _WidePaneIconSwitch extends StatelessWidget {
           value: _WideNowPlayingView.lyrics,
           tooltip: '显示歌词',
           icon: KaitingIcons.lyrics,
-          iconSize: 17.5,
-          opticalOffsetY: 1.5,
         ),
         button(
           key: const ValueKey('show-wide-queue'),
           value: _WideNowPlayingView.queue,
           tooltip: '显示播放清单',
           icon: KaitingIcons.queue,
-          opticalOffsetY: -1,
         ),
       ],
     );
   }
 }
 
-/// Phone / narrow compact vinyl size — prefer a large platter; title and
-/// transport scroll below if needed.
-double _compactVinylArtSize(BuildContext context) {
+double _compactVisualStageHeight(BuildContext context) {
   final size = MediaQuery.sizeOf(context);
-  // Use nearly full width (side gutters already on the scroll padding).
-  final byWidth = (size.width - 32).clamp(260.0, 420.0);
-  // Give the disc a larger share of the viewport height.
-  final byHeight = (size.height * 0.52).clamp(260.0, 420.0);
-  return math.min(byWidth, byHeight);
+  return (size.height * 0.45).clamp(320.0, 370.0);
+}
+
+double _compactArtworkTopInset(NowPlayingStyle style) =>
+    style == NowPlayingStyle.vinyl ? 16 : 28;
+
+double _compactVisualArtSize(
+  BuildContext context, {
+  required NowPlayingStyle style,
+}) {
+  final size = MediaQuery.sizeOf(context);
+  final horizontalInset = style == NowPlayingStyle.vinyl ? 24.0 : 56.0;
+  return math.min(
+    (size.width - horizontalInset).clamp(240.0, 420.0),
+    _compactVisualStageHeight(context) - _compactArtworkTopInset(style),
+  );
 }
 
 double _centerDisplayFeatureGap(
@@ -976,85 +975,50 @@ class _CompactNowPlayingState extends State<_CompactNowPlaying> {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 260),
-      switchInCurve: Curves.easeOutCubic,
-      switchOutCurve: Curves.easeInCubic,
-      layoutBuilder: (currentChild, previousChildren) => Stack(
-        alignment: Alignment.topCenter,
-        children: [...previousChildren, ?currentChild],
-      ),
-      child: _showLyrics
-          ? _CompactLyricsPlayer(
-              key: const ValueKey('compact-lyrics'),
-              album: widget.album,
-              track: widget.track,
-              playback: widget.playback,
-              sleepTimer: widget.sleepTimer,
-              userState: widget.userState,
-              onToggleLyrics: () => setState(() => _showLyrics = false),
-              onOpenAlbum: widget.onOpenAlbum,
-              onOpenArtist: widget.onOpenArtist,
-              onVerticalDragStart: widget.onVerticalDragStart,
-              onVerticalDragUpdate: widget.onVerticalDragUpdate,
-              onVerticalDragEnd: widget.onVerticalDragEnd,
-              onVerticalDragCancel: widget.onVerticalDragCancel,
-            )
-          : NotificationListener<ProgressScrubInteractionNotification>(
-              onNotification: _handleScrubInteractionNotification,
-              child: Listener(
-                key: const ValueKey('now-playing-cover-drag-region'),
-                behavior: HitTestBehavior.translucent,
-                onPointerDown: _handleCoverPointerDown,
-                onPointerMove: _handleCoverPointerMove,
-                onPointerUp: _finishCoverPointer,
-                onPointerCancel: _cancelCoverPointer,
-                child: SingleChildScrollView(
-                  key: const ValueKey('compact-player'),
-                  controller: _coverScrollController,
-                  // Freeze scroll while scrubbing so vertical finger noise
-                  // cannot bounce the page. Otherwise use clamping (no iOS
-                  // rubber-band) for a firmer sheet.
-                  physics: _scrubInteractionActive
-                      ? const NeverScrollableScrollPhysics()
-                      : const AlwaysScrollableScrollPhysics(
-                          parent: ClampingScrollPhysics(),
-                        ),
-                  padding: EdgeInsets.fromLTRB(
-                    widget.style == NowPlayingStyle.vinyl ? 16 : 28,
-                    8,
-                    widget.style == NowPlayingStyle.vinyl ? 16 : 28,
-                    widget.style == NowPlayingStyle.vinyl ? 28 : 40,
-                  ),
-                  child: Center(
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(
-                        maxWidth: widget.style == NowPlayingStyle.vinyl
-                            ? 440
-                            : 430,
-                      ),
-                      child: _PlayerColumn(
-                        album: widget.album,
-                        track: widget.track,
-                        playback: widget.playback,
-                        sleepTimer: widget.sleepTimer,
-                        style: widget.style,
-                        onOpenAlbum: widget.onOpenAlbum,
-                        onOpenArtist: widget.onOpenArtist,
-                        userState: widget.userState,
-                        isActive: widget.isActive,
-                        compactLayout: true,
-                        artSize: widget.style == NowPlayingStyle.vinyl
-                            ? _compactVinylArtSize(context)
-                            : null,
-                        onToggleLyrics: () =>
-                            setState(() => _showLyrics = true),
-                      ),
-                    ),
-                  ),
+    return NotificationListener<ProgressScrubInteractionNotification>(
+      onNotification: _handleScrubInteractionNotification,
+      child: Listener(
+        key: const ValueKey('now-playing-cover-drag-region'),
+        behavior: HitTestBehavior.translucent,
+        onPointerDown: _handleCoverPointerDown,
+        onPointerMove: _showLyrics ? null : _handleCoverPointerMove,
+        onPointerUp: _finishCoverPointer,
+        onPointerCancel: _cancelCoverPointer,
+        child: SingleChildScrollView(
+          key: const ValueKey('compact-player'),
+          controller: _coverScrollController,
+          // Freeze scroll while scrubbing so vertical finger noise cannot
+          // bounce the page. Otherwise use clamping (no iOS rubber-band).
+          physics: _scrubInteractionActive
+              ? const NeverScrollableScrollPhysics()
+              : const AlwaysScrollableScrollPhysics(
+                  parent: ClampingScrollPhysics(),
                 ),
+          padding: const EdgeInsets.fromLTRB(28, 8, 28, 32),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 430),
+              child: _PlayerColumn(
+                album: widget.album,
+                track: widget.track,
+                playback: widget.playback,
+                sleepTimer: widget.sleepTimer,
+                style: widget.style,
+                onOpenAlbum: widget.onOpenAlbum,
+                onOpenArtist: widget.onOpenArtist,
+                userState: widget.userState,
+                isActive: widget.isActive,
+                compactLayout: true,
+                artSize: _compactVisualArtSize(context, style: widget.style),
+                visualStageHeight: _compactVisualStageHeight(context),
+                showLyrics: _showLyrics,
+                onToggleLyrics: () =>
+                    setState(() => _showLyrics = !_showLyrics),
               ),
             ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -1070,6 +1034,8 @@ class _PlayerColumn extends StatelessWidget {
     this.isActive = true,
     this.artSize,
     this.compactLayout = false,
+    this.visualStageHeight,
+    this.showLyrics = false,
     this.onToggleLyrics,
     this.onOpenAlbum,
     this.onOpenArtist,
@@ -1084,6 +1050,8 @@ class _PlayerColumn extends StatelessWidget {
   final bool isActive;
   final double? artSize;
   final bool compactLayout;
+  final double? visualStageHeight;
+  final bool showLyrics;
   final VoidCallback? onToggleLyrics;
   final ValueChanged<Album>? onOpenAlbum;
   final ValueChanged<String>? onOpenArtist;
@@ -1142,149 +1110,199 @@ class _PlayerColumn extends StatelessWidget {
   }
 
   Widget _playerColumnBody(BuildContext context, Widget artwork) {
-    final detailsPadding = EdgeInsets.symmetric(
-      horizontal: compactLayout && style == NowPlayingStyle.vinyl ? 12 : 0,
-    );
+    final detailsPadding = EdgeInsets.zero;
+    final compactStage = compactLayout && visualStageHeight != null;
     return Column(
       mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.center,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Center(child: artwork),
-        // Vinyl keeps a larger gap: the platter sits low in its square, so
-        // the same 24px feels tighter than a full-bleed cover art.
-        SizedBox(
-          height: style == NowPlayingStyle.vinyl
-              ? (compactLayout ? 40.0 : 36.0)
-              : (compactLayout ? 26.0 : 24.0),
-        ),
+        if (compactStage)
+          SizedBox(
+            key: const ValueKey('compact-visual-stage'),
+            height: visualStageHeight,
+            width: double.infinity,
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 260),
+              switchInCurve: Curves.easeOutCubic,
+              switchOutCurve: Curves.easeInCubic,
+              layoutBuilder: (currentChild, previousChildren) => Stack(
+                alignment: Alignment.center,
+                children: [...previousChildren, ?currentChild],
+              ),
+              child: showLyrics
+                  ? _CompactLyricsStage(
+                      key: const ValueKey('compact-lyrics'),
+                      track: track,
+                      playback: playback,
+                      onExit: onToggleLyrics!,
+                    )
+                  : Semantics(
+                      button: true,
+                      label: '查看歌词',
+                      child: GestureDetector(
+                        key: const ValueKey('compact-visual-to-lyrics'),
+                        behavior: HitTestBehavior.opaque,
+                        onTap: onToggleLyrics,
+                        child: Align(
+                          alignment: Alignment.topCenter,
+                          child: Padding(
+                            padding: EdgeInsets.only(
+                              top: _compactArtworkTopInset(style),
+                            ),
+                            child: style == NowPlayingStyle.vinyl
+                                ? OverflowBox(
+                                    alignment: Alignment.topCenter,
+                                    maxWidth: double.infinity,
+                                    maxHeight: double.infinity,
+                                    child: artwork,
+                                  )
+                                : artwork,
+                          ),
+                        ),
+                      ),
+                    ),
+            ),
+          )
+        else
+          Center(child: artwork),
+        SizedBox(height: compactLayout ? 24 : 34),
         if (compactLayout) ...[
-          // Compact: full-width title + artist; actions sit below transport.
           Padding(
             padding: detailsPadding,
-            child: _TrackChangeTransition(
-              trackId: track.id,
-              child: SizedBox(
-                key: const ValueKey('now-playing-track-title'),
-                width: double.infinity,
-                child: Text(
-                  track.title,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: context.chromePrimaryText,
-                    fontSize: 24,
-                    height: 1.08,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: -0.25,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _TrackChangeTransition(
+                        trackId: track.id,
+                        child: _OverflowMarquee(
+                          key: const ValueKey('now-playing-track-title'),
+                          motionKey: const ValueKey(
+                            'now-playing-track-title-marquee-motion',
+                          ),
+                          text: track.title,
+                          style: TextStyle(
+                            color: context.chromePrimaryText,
+                            fontSize: 22,
+                            height: 1.08,
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: -0.25,
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      _TrackChangeTransition(
+                        trackId: track.id,
+                        child: _OverflowMarquee(
+                          key: const ValueKey('now-playing-track-artist'),
+                          motionKey: const ValueKey(
+                            'now-playing-track-artist-marquee-motion',
+                          ),
+                          text: track.artist.trim().isEmpty
+                              ? '未知艺人'
+                              : track.artist.trim(),
+                          onTap: onOpenArtist == null
+                              ? null
+                              : () => onOpenArtist!(track.artist),
+                          semanticsLabel: onOpenArtist == null
+                              ? null
+                              : '打开艺人 ${track.artist}',
+                          style: TextStyle(
+                            color: context.chromeSecondaryText,
+                            fontSize: 13,
+                            height: 1.2,
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ),
-            ),
-          ),
-          const SizedBox(height: 3),
-          Padding(
-            padding: detailsPadding,
-            child: _TrackChangeTransition(
-              trackId: track.id,
-              child: SoundMetadataLine(
-                artist: track.artist,
-                album: track.albumTitle,
-                separator: ' — ',
-                onOpenArtist: onOpenArtist == null
-                    ? null
-                    : () => onOpenArtist!(track.artist),
-                onOpenAlbum: onOpenAlbum == null
-                    ? null
-                    : () => onOpenAlbum!(album),
-                style: TextStyle(
-                  color: context.chromeSecondaryText,
-                  fontSize: 13,
-                  height: 1.2,
+                const SizedBox(width: 8),
+                _NowPlayingActions(
+                  key: const ValueKey('compact-now-playing-title-actions'),
+                  track: track,
+                  userState: userState,
+                  lyricsSelected: false,
+                  onToggleLyrics: null,
                 ),
-              ),
+              ],
             ),
           ),
         ] else ...[
-          // Desktop:
-          // [ title                    ] [♥] [＋]
-          // [ artist — album           ]
+          // Foldable / desktop:
+          // [ title                     ] [♥]  [＋]
+          // [ artist                    ]
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Expanded(
-                child: _TrackChangeTransition(
-                  trackId: track.id,
-                  child: Text(
-                    key: const ValueKey('now-playing-track-title'),
-                    track.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: context.chromePrimaryText,
-                      fontSize: 24,
-                      height: 1.08,
-                      fontWeight: FontWeight.w600,
-                      letterSpacing: -0.25,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _TrackChangeTransition(
+                      trackId: track.id,
+                      child: _OverflowMarquee(
+                        key: const ValueKey('now-playing-track-title'),
+                        text: track.title,
+                        style: TextStyle(
+                          color: context.chromePrimaryText,
+                          fontSize: 24,
+                          height: 1.08,
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: -0.25,
+                        ),
+                      ),
                     ),
-                  ),
+                    const SizedBox(height: 8),
+                    _TrackChangeTransition(
+                      trackId: track.id,
+                      child: _OverflowMarquee(
+                        key: const ValueKey('now-playing-track-artist'),
+                        text: track.artist.trim().isEmpty
+                            ? '未知艺人'
+                            : track.artist.trim(),
+                        onTap: onOpenArtist == null
+                            ? null
+                            : () => onOpenArtist!(track.artist),
+                        semanticsLabel: onOpenArtist == null
+                            ? null
+                            : '打开艺人 ${track.artist}',
+                        style: TextStyle(
+                          color: context.chromeSecondaryText,
+                          fontSize: 13,
+                          height: 1.2,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
+              const SizedBox(width: 8),
               _NowPlayingActions(
                 track: track,
                 userState: userState,
                 lyricsSelected: false,
                 onToggleLyrics: onToggleLyrics,
-                dense: true,
               ),
             ],
           ),
-          const SizedBox(height: 3),
-          _TrackChangeTransition(
-            trackId: track.id,
-            child: SoundMetadataLine(
-              artist: track.artist,
-              album: track.albumTitle,
-              separator: ' — ',
-              onOpenArtist: onOpenArtist == null
-                  ? null
-                  : () => onOpenArtist!(track.artist),
-              onOpenAlbum: onOpenAlbum == null
-                  ? null
-                  : () => onOpenAlbum!(album),
-              style: TextStyle(
-                color: context.chromeSecondaryText,
-                fontSize: 13,
-                height: 1.2,
-              ),
-            ),
-          ),
         ],
-        SizedBox(height: compactLayout ? 26 : 20),
+        const SizedBox(height: 30),
         Padding(
           padding: detailsPadding,
           child: _PlaybackTimelineAndControls(
             key: compactLayout
-                ? const ValueKey('compact-cover-playback-controls')
+                ? const ValueKey('compact-playback-controls')
                 : null,
             playback: playback,
             sleepTimer: sleepTimer,
+            edgeAlignTransport: compactLayout,
           ),
         ),
-        if (compactLayout) ...[
-          const SizedBox(height: 24),
-          Padding(
-            padding: detailsPadding,
-            child: _NowPlayingActions(
-              key: const ValueKey('compact-now-playing-secondary-actions'),
-              track: track,
-              userState: userState,
-              lyricsSelected: false,
-              onToggleLyrics: onToggleLyrics,
-              distributed: true,
-            ),
-          ),
-        ],
       ],
     );
   }
@@ -1409,41 +1427,23 @@ class _TrackChangeTransition extends StatelessWidget {
   }
 }
 
-class _CompactLyricsPlayer extends StatefulWidget {
-  const _CompactLyricsPlayer({
-    required this.album,
+class _CompactLyricsStage extends StatefulWidget {
+  const _CompactLyricsStage({
     required this.track,
     required this.playback,
-    required this.userState,
-    required this.onToggleLyrics,
-    this.sleepTimer,
-    this.onOpenAlbum,
-    this.onOpenArtist,
-    required this.onVerticalDragStart,
-    required this.onVerticalDragUpdate,
-    required this.onVerticalDragEnd,
-    required this.onVerticalDragCancel,
+    required this.onExit,
     super.key,
   });
 
-  final Album album;
   final Track track;
   final SoundPlaybackController playback;
-  final SleepTimerController? sleepTimer;
-  final LibraryUserStateController? userState;
-  final VoidCallback onToggleLyrics;
-  final ValueChanged<Album>? onOpenAlbum;
-  final ValueChanged<String>? onOpenArtist;
-  final GestureDragStartCallback? onVerticalDragStart;
-  final GestureDragUpdateCallback? onVerticalDragUpdate;
-  final GestureDragEndCallback? onVerticalDragEnd;
-  final GestureDragCancelCallback? onVerticalDragCancel;
+  final VoidCallback onExit;
 
   @override
-  State<_CompactLyricsPlayer> createState() => _CompactLyricsPlayerState();
+  State<_CompactLyricsStage> createState() => _CompactLyricsStageState();
 }
 
-class _CompactLyricsPlayerState extends State<_CompactLyricsPlayer> {
+class _CompactLyricsStageState extends State<_CompactLyricsStage> {
   final GlobalKey<_LyricsPanelState> _lyricsPanelKey =
       GlobalKey<_LyricsPanelState>();
 
@@ -1457,7 +1457,7 @@ class _CompactLyricsPlayerState extends State<_CompactLyricsPlayer> {
   }
 
   @override
-  void didUpdateWidget(covariant _CompactLyricsPlayer oldWidget) {
+  void didUpdateWidget(covariant _CompactLyricsStage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.track.id != widget.track.id ||
         !identical(oldWidget.track.lyrics, widget.track.lyrics)) {
@@ -1469,87 +1469,23 @@ class _CompactLyricsPlayerState extends State<_CompactLyricsPlayer> {
 
   @override
   Widget build(BuildContext context) {
-    final album = widget.album;
-    final track = widget.track;
     final trailingMenu = _lyricsPanelKey.currentState?.compactTrailingMenu();
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(28, 0, 28, 16),
-      child: Column(
-        children: [
-          GestureDetector(
-            key: const ValueKey('now-playing-expanded-drag-region'),
-            behavior: HitTestBehavior.translucent,
-            onVerticalDragStart: widget.onVerticalDragStart,
-            onVerticalDragUpdate: widget.onVerticalDragUpdate,
-            onVerticalDragEnd: widget.onVerticalDragEnd,
-            onVerticalDragCancel: widget.onVerticalDragCancel,
-            child: Row(
-              children: [
-                AlbumArt(
-                  key: const ValueKey('compact-lyrics-artwork'),
-                  album: album,
-                  size: 56,
-                  borderRadius: 8,
-                  showShadow: false,
-                  gaplessPlayback: true,
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      _TrackChangeTransition(
-                        trackId: track.id,
-                        child: Text(
-                          track.title,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: context.chromePrimaryText,
-                            fontSize: 17,
-                            fontWeight: FontWeight.w600,
-                            letterSpacing: -0.15,
-                          ),
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      _TrackChangeTransition(
-                        trackId: track.id,
-                        child: SoundMetadataLine(
-                          artist: track.artist,
-                          album: track.albumTitle,
-                          separator: ' — ',
-                          onOpenArtist: widget.onOpenArtist == null
-                              ? null
-                              : () => widget.onOpenArtist!(track.artist),
-                          onOpenAlbum: widget.onOpenAlbum == null
-                              ? null
-                              : () => widget.onOpenAlbum!(album),
-                          style: TextStyle(
-                            color: context.chromeSecondaryText,
-                            fontSize: 12,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (trailingMenu != null) ...[
-                  const SizedBox(width: 4),
-                  trailingMenu,
-                ],
-              ],
-            ),
-          ),
-          const SizedBox(height: 14),
-          Flexible(
-            fit: FlexFit.loose,
-            child: ConstrainedBox(
-              key: const ValueKey('compact-lyrics-region'),
-              constraints: const BoxConstraints(maxHeight: 392),
+    return Semantics(
+      button: true,
+      label: '返回封面',
+      child: GestureDetector(
+        key: const ValueKey('compact-lyrics-region'),
+        behavior: HitTestBehavior.translucent,
+        onTap: widget.onExit,
+        child: Stack(
+          fit: StackFit.expand,
+          clipBehavior: Clip.none,
+          children: [
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4),
               child: _LyricsPanel(
                 key: _lyricsPanelKey,
-                track: track,
+                track: widget.track,
                 positionListenable: widget.playback.positionListenable,
                 positionOf: () => widget.playback.displayPosition,
                 discontinuityRevision:
@@ -1558,24 +1494,185 @@ class _CompactLyricsPlayerState extends State<_CompactLyricsPlayer> {
                 compact: true,
               ),
             ),
-          ),
-          const SizedBox(height: 10),
-          _PlaybackTimelineAndControls(
-            key: const ValueKey('compact-lyrics-playback-controls'),
-            playback: widget.playback,
-            sleepTimer: widget.sleepTimer,
-          ),
-          const SizedBox(height: 24),
-          _NowPlayingActions(
-            key: const ValueKey('compact-lyrics-secondary-actions'),
-            track: track,
-            userState: widget.userState,
-            lyricsSelected: true,
-            onToggleLyrics: widget.onToggleLyrics,
-            distributed: true,
-          ),
-        ],
+            if (trailingMenu != null)
+              Positioned(top: 0, right: -8, child: trailingMenu),
+          ],
+        ),
       ),
+    );
+  }
+}
+
+class _OverflowMarquee extends StatefulWidget {
+  const _OverflowMarquee({
+    required this.text,
+    required this.style,
+    this.onTap,
+    this.semanticsLabel,
+    this.motionKey,
+    super.key,
+  });
+
+  final String text;
+  final TextStyle style;
+  final VoidCallback? onTap;
+  final String? semanticsLabel;
+  final Key? motionKey;
+
+  @override
+  State<_OverflowMarquee> createState() => _OverflowMarqueeState();
+}
+
+class _OverflowMarqueeState extends State<_OverflowMarquee>
+    with SingleTickerProviderStateMixin {
+  static const _repeatGap = 48.0;
+  static const _pixelsPerSecond = 28.0;
+
+  late final AnimationController _controller;
+  bool? _targetRunning;
+  Duration? _targetDuration;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(vsync: this);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _syncMotion({required bool running, required Duration duration}) {
+    if (_targetRunning == running && _targetDuration == duration) return;
+    _targetRunning = running;
+    _targetDuration = duration;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted ||
+          _targetRunning != running ||
+          _targetDuration != duration) {
+        return;
+      }
+      if (!running) {
+        _controller
+          ..stop()
+          ..value = 0;
+        return;
+      }
+      _controller
+        ..duration = duration
+        ..repeat();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final media = MediaQuery.maybeOf(context);
+    final reduceMotion =
+        (media?.disableAnimations ?? false) ||
+        (media?.accessibleNavigation ?? false);
+    final direction = Directionality.of(context);
+    final scaler = MediaQuery.textScalerOf(context);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final painter = TextPainter(
+          text: TextSpan(text: widget.text, style: widget.style),
+          maxLines: 1,
+          textDirection: direction,
+          textScaler: scaler,
+        )..layout();
+        final overflow = math.max(0.0, painter.width - constraints.maxWidth);
+        final running = overflow > 1 && !reduceMotion;
+        final cycleDistance = painter.width + _repeatGap;
+        final duration = Duration(
+          milliseconds: ((cycleDistance / _pixelsPerSecond) * 1000).round(),
+        );
+        _syncMotion(running: running, duration: duration);
+
+        Widget child;
+        if (!running) {
+          child = Text(
+            widget.text,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            softWrap: false,
+            style: widget.style,
+          );
+        } else {
+          child = SizedBox(
+            height: painter.height,
+            child: ClipRect(
+              child: ShaderMask(
+                key: const ValueKey('overflow-marquee-edge-mask'),
+                blendMode: BlendMode.dstIn,
+                shaderCallback: (bounds) {
+                  final fade = (14 / bounds.width).clamp(0.04, 0.12);
+                  return LinearGradient(
+                    colors: const [
+                      Color(0x00000000),
+                      Color(0xFF000000),
+                      Color(0xFF000000),
+                      Color(0x00000000),
+                    ],
+                    stops: [0, fade, 1 - fade, 1],
+                  ).createShader(bounds);
+                },
+                child: AnimatedBuilder(
+                  animation: _controller,
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        widget.text,
+                        maxLines: 1,
+                        softWrap: false,
+                        style: widget.style,
+                      ),
+                      const SizedBox(
+                        key: ValueKey('overflow-marquee-repeat-gap'),
+                        width: _repeatGap,
+                      ),
+                      Text(
+                        widget.text,
+                        maxLines: 1,
+                        softWrap: false,
+                        style: widget.style,
+                      ),
+                      const SizedBox(width: _repeatGap),
+                    ],
+                  ),
+                  builder: (context, content) => OverflowBox(
+                    alignment: AlignmentDirectional.centerStart,
+                    minWidth: 0,
+                    maxWidth: double.infinity,
+                    minHeight: painter.height,
+                    maxHeight: painter.height,
+                    child: FractionalTranslation(
+                      key: widget.motionKey,
+                      translation: Offset(-_controller.value / 2, 0),
+                      child: content,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        }
+
+        child = Semantics(
+          label: widget.semanticsLabel ?? widget.text,
+          button: widget.onTap != null,
+          excludeSemantics: true,
+          child: child,
+        );
+        if (widget.onTap == null) return child;
+        return GestureDetector(
+          behavior: HitTestBehavior.opaque,
+          onTap: widget.onTap,
+          child: child,
+        );
+      },
     );
   }
 }
@@ -1584,11 +1681,13 @@ class _PlaybackTimelineAndControls extends StatefulWidget {
   const _PlaybackTimelineAndControls({
     required this.playback,
     this.sleepTimer,
+    this.edgeAlignTransport = false,
     super.key,
   });
 
   final SoundPlaybackController playback;
   final SleepTimerController? sleepTimer;
+  final bool edgeAlignTransport;
 
   @override
   State<_PlaybackTimelineAndControls> createState() =>
@@ -1742,7 +1841,6 @@ class _PlaybackTimelineAndControlsState
             ? '-${formatDuration(remaining.isNegative ? Duration.zero : remaining)}'
             : '0:00';
         final mode = playback.playbackMode;
-        final modeActive = mode != PlaybackMode.sequential;
         final timerActive = sleepTimer?.isActive ?? false;
         final transportColor = context.chromePrimaryText.withValues(
           alpha: 0.72,
@@ -1777,6 +1875,7 @@ class _PlaybackTimelineAndControlsState
               thumbRadius: 7,
               overlayRadius: 22,
               minInteractiveHeight: 44,
+              trackVerticalOffset: 7,
             ),
             Row(
               children: [
@@ -1797,16 +1896,17 @@ class _PlaybackTimelineAndControlsState
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                IconButton(
-                  key: const ValueKey('now-playing-mode-cycle'),
-                  onPressed: () => _cycleMode(context),
-                  tooltip: mode.label,
-                  icon: Icon(mode.icon),
-                  iconSize: 24,
-                  color: modeActive
-                      ? SoundColors.accent
-                      : secondaryControlColor,
-                  style: sideButtonStyle,
+                Transform.translate(
+                  offset: Offset(widget.edgeAlignTransport ? -10 : 0, 0),
+                  child: IconButton(
+                    key: const ValueKey('now-playing-mode-cycle'),
+                    onPressed: () => _cycleMode(context),
+                    tooltip: mode.label,
+                    icon: Icon(mode.icon),
+                    iconSize: 24,
+                    color: secondaryControlColor,
+                    style: sideButtonStyle,
+                  ),
                 ),
                 IconButton(
                   onPressed: playback.previous,
@@ -1850,20 +1950,25 @@ class _PlaybackTimelineAndControlsState
                   color: transportColor,
                   style: sideButtonStyle,
                 ),
-                IconButton(
-                  key: const ValueKey('now-playing-sleep-timer'),
-                  onPressed: () => unawaited(_openSleepTimer(context)),
-                  tooltip: timerActive
-                      ? '睡眠定时：${_sleepTimerStatusLabel(sleepTimer!)}'
-                      : '睡眠定时',
-                  icon: Icon(
-                    timerActive ? KaitingIcons.timerFilled : KaitingIcons.timer,
+                Transform.translate(
+                  offset: Offset(widget.edgeAlignTransport ? 10 : 0, 0),
+                  child: IconButton(
+                    key: const ValueKey('now-playing-sleep-timer'),
+                    onPressed: () => unawaited(_openSleepTimer(context)),
+                    tooltip: timerActive
+                        ? '睡眠定时：${_sleepTimerStatusLabel(sleepTimer!)}'
+                        : '睡眠定时',
+                    icon: Icon(
+                      timerActive
+                          ? KaitingIcons.timerFilled
+                          : KaitingIcons.timer,
+                    ),
+                    iconSize: 24,
+                    color: timerActive
+                        ? SoundColors.accent
+                        : secondaryControlColor,
+                    style: sideButtonStyle,
                   ),
-                  iconSize: 24,
-                  color: timerActive
-                      ? SoundColors.accent
-                      : secondaryControlColor,
-                  style: sideButtonStyle,
                 ),
               ],
             ),
@@ -1895,8 +2000,6 @@ class _NowPlayingActions extends StatelessWidget {
     required this.userState,
     required this.lyricsSelected,
     required this.onToggleLyrics,
-    this.distributed = false,
-    this.dense = false,
     super.key,
   });
 
@@ -1904,72 +2007,67 @@ class _NowPlayingActions extends StatelessWidget {
   final LibraryUserStateController? userState;
   final bool lyricsSelected;
   final VoidCallback? onToggleLyrics;
-  final bool distributed;
-
-  /// Compact hit targets for the desktop title/meta row so action buttons
-  /// do not pull the artist line far below the track title.
-  final bool dense;
 
   @override
   Widget build(BuildContext context) {
     final state = userState;
     final isFavorite = state?.isFavorite(track.id) ?? false;
     final inactiveColor = context.chromePrimaryText.withValues(alpha: 0.64);
-    final actionIconSize = dense ? 20.0 : 24.0;
-    final buttonStyle = dense
-        ? IconButton.styleFrom(
-            visualDensity: VisualDensity.compact,
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            minimumSize: const Size(36, 36),
-            padding: const EdgeInsets.all(6),
-          )
-        : null;
+    const actionIconSize = 24.0;
+    final buttonStyle = IconButton.styleFrom(
+      visualDensity: VisualDensity.compact,
+      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+      minimumSize: const Size.square(42),
+      padding: const EdgeInsets.all(8),
+    );
+    final actions = <Widget>[
+      if (state != null)
+        IconButton(
+          key: ValueKey('favorite-now-playing-${track.id}'),
+          onPressed: () => unawaited(state.toggleFavorite(track)),
+          tooltip: isFavorite ? '取消收藏' : '收藏歌曲',
+          color: isFavorite ? SoundColors.accent : inactiveColor,
+          iconSize: actionIconSize,
+          style: buttonStyle,
+          icon: Icon(
+            isFavorite ? KaitingIcons.favoriteFilled : KaitingIcons.favorite,
+          ),
+        ),
+      if (state != null)
+        IconButton(
+          key: ValueKey('add-now-playing-${track.id}-to-playlist'),
+          onPressed: () =>
+              showAddToPlaylistSheet(context, userState: state, track: track),
+          tooltip: '添加到播放列表',
+          color: inactiveColor,
+          iconSize: actionIconSize,
+          style: buttonStyle,
+          icon: const Icon(KaitingIcons.playlistAdd),
+        ),
+      if (onToggleLyrics != null)
+        IconButton(
+          key: ValueKey(
+            lyricsSelected
+                ? 'return-now-playing-cover'
+                : 'show-now-playing-lyrics',
+          ),
+          onPressed: onToggleLyrics,
+          tooltip: lyricsSelected ? '返回封面' : '查看歌词',
+          color: lyricsSelected ? SoundColors.accent : inactiveColor,
+          iconSize: actionIconSize,
+          style: buttonStyle,
+          icon: Icon(
+            lyricsSelected ? KaitingIcons.lyricsFilled : KaitingIcons.lyrics,
+          ),
+        ),
+    ];
     return Row(
-      mainAxisSize: distributed ? MainAxisSize.max : MainAxisSize.min,
-      mainAxisAlignment: distributed
-          ? MainAxisAlignment.spaceBetween
-          : MainAxisAlignment.start,
-      textDirection: distributed ? TextDirection.rtl : TextDirection.ltr,
+      mainAxisSize: MainAxisSize.min,
       children: [
-        if (state != null)
-          IconButton(
-            key: ValueKey('favorite-now-playing-${track.id}'),
-            onPressed: () => unawaited(state.toggleFavorite(track)),
-            tooltip: isFavorite ? '取消收藏' : '收藏歌曲',
-            color: isFavorite ? SoundColors.accent : inactiveColor,
-            iconSize: actionIconSize,
-            style: buttonStyle,
-            icon: Icon(
-              isFavorite ? KaitingIcons.favoriteFilled : KaitingIcons.favorite,
-            ),
-          ),
-        if (state != null)
-          IconButton(
-            key: ValueKey('add-now-playing-${track.id}-to-playlist'),
-            onPressed: () =>
-                showAddToPlaylistSheet(context, userState: state, track: track),
-            tooltip: '添加到播放列表',
-            color: inactiveColor,
-            iconSize: actionIconSize,
-            style: buttonStyle,
-            icon: const Icon(KaitingIcons.playlistAdd),
-          ),
-        if (onToggleLyrics != null)
-          IconButton(
-            key: ValueKey(
-              lyricsSelected
-                  ? 'return-now-playing-cover'
-                  : 'show-now-playing-lyrics',
-            ),
-            onPressed: onToggleLyrics,
-            tooltip: lyricsSelected ? '返回封面' : '查看歌词',
-            color: lyricsSelected ? SoundColors.accent : inactiveColor,
-            iconSize: actionIconSize,
-            style: buttonStyle,
-            icon: Icon(
-              lyricsSelected ? KaitingIcons.lyricsFilled : KaitingIcons.lyrics,
-            ),
-          ),
+        for (var index = 0; index < actions.length; index++) ...[
+          if (index > 0) const SizedBox(width: 8),
+          actions[index],
+        ],
       ],
     );
   }
@@ -2105,6 +2203,7 @@ class _LyricsPanelState extends State<_LyricsPanel> {
   static const _manualScrollPause = Duration(seconds: 3);
 
   final _scrollController = ScrollController();
+  final _lyricsViewportKey = GlobalKey();
   late List<GlobalKey> _lineKeys;
   late LyricsTimeline _timeline;
   Duration _offset = Duration.zero;
@@ -2113,6 +2212,7 @@ class _LyricsPanelState extends State<_LyricsPanel> {
   bool _snapNextFollow = false;
   bool _showingPreamble = true;
   bool _autoFollowPaused = false;
+  bool _compactUserScrolling = false;
   Timer? _manualScrollTimer;
   Duration _lastPositionSample = Duration.zero;
 
@@ -2261,7 +2361,7 @@ class _LyricsPanelState extends State<_LyricsPanel> {
       }
       Scrollable.ensureVisible(
         lineContext,
-        alignment: 0.40,
+        alignment: widget.compact ? 0.50 : 0.40,
         duration: snap ? Duration.zero : _followDuration,
         curve: Curves.easeOutCubic,
       );
@@ -2294,6 +2394,37 @@ class _LyricsPanelState extends State<_LyricsPanel> {
       setState(() => _autoFollowPaused = true);
     }
     _manualScrollTimer = Timer(_manualScrollPause, _resumeAutoFollow);
+  }
+
+  Future<void> _seekCompactCenterLine() async {
+    if (!widget.compact || !_timeline.isSynchronized || !mounted) return;
+    final viewport = _lyricsViewportKey.currentContext?.findRenderObject();
+    if (viewport is! RenderBox || !viewport.attached) return;
+    final viewportTop = viewport.localToGlobal(Offset.zero).dy;
+    final targetY = viewportTop + viewport.size.height / 2;
+
+    int? closestIndex;
+    var closestDistance = double.infinity;
+    for (var index = 0; index < _lineKeys.length; index++) {
+      if (!_timeline.isSeekable(index)) continue;
+      final lineContext = _lineKeys[index].currentContext;
+      final lineBox = lineContext?.findRenderObject();
+      if (lineBox is! RenderBox || !lineBox.attached) continue;
+      final lineTop = lineBox.localToGlobal(Offset.zero).dy;
+      final distance = (lineTop + lineBox.size.height / 2 - targetY).abs();
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closestIndex = index;
+      }
+    }
+    if (closestIndex == null) return;
+    await _seekToLine(closestIndex, track.lyrics[closestIndex]);
+  }
+
+  void _finishCompactUserScroll() {
+    if (!_compactUserScrolling) return;
+    setState(() => _compactUserScrolling = false);
+    unawaited(_seekCompactCenterLine());
   }
 
   void _resumeAutoFollow() {
@@ -2475,9 +2606,18 @@ class _LyricsPanelState extends State<_LyricsPanel> {
           onPointerSignal: (event) {
             if (event is PointerScrollEvent) _pauseAutoFollow();
           },
-          child: NotificationListener<ScrollStartNotification>(
+          child: NotificationListener<ScrollNotification>(
             onNotification: (notification) {
-              if (notification.dragDetails != null) _pauseAutoFollow();
+              if (notification is ScrollStartNotification &&
+                  notification.dragDetails != null) {
+                _pauseAutoFollow();
+                if (widget.compact && !_compactUserScrolling) {
+                  setState(() => _compactUserScrolling = true);
+                }
+              } else if (notification is ScrollEndNotification &&
+                  widget.compact) {
+                _finishCompactUserScroll();
+              }
               return false;
             },
             child: SingleChildScrollView(
@@ -2488,10 +2628,10 @@ class _LyricsPanelState extends State<_LyricsPanel> {
                 top: widget.verticalControls
                     ? math.max(88, constraints.maxHeight * 0.36)
                     : widget.compact
-                    ? 12
+                    ? math.max(72, constraints.maxHeight * 0.45)
                     : 0,
                 bottom: widget.compact
-                    ? math.max(72, constraints.maxHeight * 0.66)
+                    ? math.max(72, constraints.maxHeight * 0.50)
                     : math.max(
                         110,
                         constraints.maxHeight *
@@ -2515,55 +2655,76 @@ class _LyricsPanelState extends State<_LyricsPanel> {
         );
         // Soft top/bottom edge so lines dissolve instead of hard-clipping.
         // ClipRect prevents 1px mask leaks; multi-stop top fade is longer.
-        return ClipRect(
-          child: ShaderMask(
-            blendMode: BlendMode.dstIn,
-            shaderCallback: (bounds) {
-              final h = bounds.height;
-              if (h <= 1) {
-                return const LinearGradient(
-                  colors: [Colors.black, Colors.black],
-                ).createShader(bounds);
-              }
-              // Layout-specific bands:
-              // - compact (phone): balanced top (⋯ lives on the title row)
-              // - desktop / foldable dual-pane: short top, longer bottom
-              final double topPx;
-              final double bottomPx;
-              if (widget.compact) {
-                topPx = math.min(h * 0.16, 80.0).clamp(36.0, 88.0);
-                bottomPx = math.min(h * 0.14, 72.0).clamp(32.0, 80.0);
-              } else if (widget.verticalControls) {
-                topPx = math.min(h * 0.10, 56.0).clamp(28.0, 64.0);
-                bottomPx = math.min(h * 0.22, 120.0).clamp(56.0, 132.0);
-              } else {
-                topPx = math.min(h * 0.14, 72.0).clamp(36.0, 80.0);
-                bottomPx = math.min(h * 0.16, 88.0).clamp(40.0, 96.0);
-              }
-              final t1 = (topPx * 0.30 / h).clamp(0.015, 0.10);
-              final t2 = (topPx * 0.65 / h).clamp(0.04, 0.16);
-              final t3 = (topPx / h).clamp(0.06, 0.28);
-              final b3 = (1.0 - bottomPx / h).clamp(0.62, 0.92);
-              final b2 = (1.0 - bottomPx * 0.55 / h).clamp(0.74, 0.96);
-              final b1 = (1.0 - bottomPx * 0.22 / h).clamp(0.86, 0.985);
-              return LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
-                colors: const [
-                  Color(0x00000000),
-                  Color(0x00000000),
-                  Color(0x66000000),
-                  Color(0xFF000000),
-                  Color(0xFF000000),
-                  Color(0x99000000),
-                  Color(0x00000000),
-                  Color(0x00000000),
-                ],
-                stops: [0.0, t1, t2, t3, b3, b2, b1, 1.0],
-              ).createShader(bounds);
-            },
-            child: scroller,
-          ),
+        return Stack(
+          key: _lyricsViewportKey,
+          fit: StackFit.expand,
+          children: [
+            ClipRect(
+              child: ShaderMask(
+                blendMode: BlendMode.dstIn,
+                shaderCallback: (bounds) {
+                  final h = bounds.height;
+                  if (h <= 1) {
+                    return const LinearGradient(
+                      colors: [Colors.black, Colors.black],
+                    ).createShader(bounds);
+                  }
+                  // Layout-specific bands:
+                  // - compact (phone): balanced top (⋯ lives on the title row)
+                  // - desktop / foldable dual-pane: short top, longer bottom
+                  final double topPx;
+                  final double bottomPx;
+                  if (widget.compact) {
+                    topPx = math.min(h * 0.16, 80.0).clamp(36.0, 88.0);
+                    bottomPx = math.min(h * 0.14, 72.0).clamp(32.0, 80.0);
+                  } else if (widget.verticalControls) {
+                    topPx = math.min(h * 0.10, 56.0).clamp(28.0, 64.0);
+                    bottomPx = math.min(h * 0.22, 120.0).clamp(56.0, 132.0);
+                  } else {
+                    topPx = math.min(h * 0.14, 72.0).clamp(36.0, 80.0);
+                    bottomPx = math.min(h * 0.16, 88.0).clamp(40.0, 96.0);
+                  }
+                  final t1 = (topPx * 0.30 / h).clamp(0.015, 0.10);
+                  final t2 = (topPx * 0.65 / h).clamp(0.04, 0.16);
+                  final t3 = (topPx / h).clamp(0.06, 0.28);
+                  final b3 = (1.0 - bottomPx / h).clamp(0.62, 0.92);
+                  final b2 = (1.0 - bottomPx * 0.55 / h).clamp(0.74, 0.96);
+                  final b1 = (1.0 - bottomPx * 0.22 / h).clamp(0.86, 0.985);
+                  return LinearGradient(
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                    colors: const [
+                      Color(0x00000000),
+                      Color(0x00000000),
+                      Color(0x66000000),
+                      Color(0xFF000000),
+                      Color(0xFF000000),
+                      Color(0x99000000),
+                      Color(0x00000000),
+                      Color(0x00000000),
+                    ],
+                    stops: [0.0, t1, t2, t3, b3, b2, b1, 1.0],
+                  ).createShader(bounds);
+                },
+                child: scroller,
+              ),
+            ),
+            if (widget.compact && _compactUserScrolling)
+              IgnorePointer(
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Container(
+                    key: const ValueKey('compact-lyrics-seek-guide'),
+                    width: 34,
+                    height: 2,
+                    decoration: BoxDecoration(
+                      color: context.chromePrimaryText.withValues(alpha: 0.72),
+                      borderRadius: BorderRadius.circular(1),
+                    ),
+                  ),
+                ),
+              ),
+          ],
         );
       },
     );
@@ -2606,39 +2767,42 @@ class _LyricsPanelState extends State<_LyricsPanel> {
         return GestureDetector(
           key: _lineKeys[index],
           behavior: HitTestBehavior.opaque,
-          onTap: !_timeline.isSeekable(index)
+          onTap: widget.compact || !_timeline.isSeekable(index)
               ? null
               : () => _seekToLine(index, line),
-          child: AnimatedDefaultTextStyle(
-            duration: synchronized ? _lineStyleDuration : Duration.zero,
-            curve: Curves.easeOutCubic,
-            style: style,
-            textAlign: textAlign,
-            // Read the lerped style so size/opacity actually animate.
-            child: Builder(
-              builder: (context) {
-                final animatedStyle = DefaultTextStyle.of(context).style;
-                if (karaoke) {
-                  return KaraokeLyricText(
+          child: KeyedSubtree(
+            key: widget.compact ? ValueKey('compact-lyrics-line-$index') : null,
+            child: AnimatedDefaultTextStyle(
+              duration: synchronized ? _lineStyleDuration : Duration.zero,
+              curve: Curves.easeOutCubic,
+              style: style,
+              textAlign: textAlign,
+              // Read the lerped style so size/opacity actually animate.
+              child: Builder(
+                builder: (context) {
+                  final animatedStyle = DefaultTextStyle.of(context).style;
+                  if (karaoke) {
+                    return KaraokeLyricText(
+                      line.text,
+                      style: animatedStyle,
+                      textAlign: textAlign,
+                      progressListenable: widget.positionListenable,
+                      progressOf: () => _timeline.cueProgress(
+                        widget.positionOf(),
+                        lineIndex: index,
+                        offset: _offset,
+                      ),
+                      fillColor: primary,
+                      baseColor: primary.withValues(alpha: 0.34),
+                    );
+                  }
+                  return BalancedLyricText(
                     line.text,
                     style: animatedStyle,
                     textAlign: textAlign,
-                    progressListenable: widget.positionListenable,
-                    progressOf: () => _timeline.cueProgress(
-                      widget.positionOf(),
-                      lineIndex: index,
-                      offset: _offset,
-                    ),
-                    fillColor: primary,
-                    baseColor: primary.withValues(alpha: 0.34),
                   );
-                }
-                return BalancedLyricText(
-                  line.text,
-                  style: animatedStyle,
-                  textAlign: textAlign,
-                );
-              },
+                },
+              ),
             ),
           ),
         );

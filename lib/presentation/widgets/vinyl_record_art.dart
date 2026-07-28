@@ -16,6 +16,7 @@ class VinylRecordArt extends StatefulWidget {
     required this.album,
     required this.isPlaying,
     this.isActive = true,
+
     /// Continuous platter spin. When null, falls back to [isPlaying] && [isActive].
     /// Staged by [NowPlayingMotionDirector] so spin starts after cover/arm.
     this.discSpinning,
@@ -64,8 +65,7 @@ class VinylRecordArtState extends State<VinylRecordArt>
     const side = 1.0;
     final discRadius = side * _discFraction / 2;
     final targetRadius = discRadius * _grooveMidRadiusFraction;
-    final outerRadius =
-        discRadius * _VinylDiscPainter.outerSurfaceRadius;
+    final outerRadius = discRadius * _VinylDiscPainter.outerSurfaceRadius;
     final discCenter = Offset(
       side * _discCenterFraction.dx,
       side * _discCenterFraction.dy,
@@ -122,10 +122,7 @@ class VinylRecordArtState extends State<VinylRecordArt>
   @override
   void initState() {
     super.initState();
-    _rotation = AnimationController(
-      vsync: this,
-      duration: _revolutionDuration,
-    );
+    _rotation = AnimationController(vsync: this, duration: _revolutionDuration);
   }
 
   @override
@@ -196,6 +193,7 @@ class VinylRecordArtState extends State<VinylRecordArt>
                 left: discCenter.dx - discDiameter / 2,
                 top: discCenter.dy - discDiameter / 2,
                 child: RotationTransition(
+                  key: const ValueKey('vinyl-record-disc'),
                   turns: _rotation,
                   child: SizedBox.square(
                     dimension: discDiameter,
