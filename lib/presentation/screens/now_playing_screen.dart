@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/foundation.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 
 import '../../core/app_failure.dart';
@@ -36,6 +37,8 @@ import '../widgets/vinyl_record_art.dart';
 /// Windows-only until a Linux native window channel exists.
 bool get _nowPlayingUsesWindowChrome =>
     !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
+
+const _nowPlayingArtworkBrightness = Brightness.dark;
 
 class NowPlayingScreen extends StatelessWidget {
   const NowPlayingScreen({
@@ -121,159 +124,277 @@ class NowPlayingScreen extends StatelessWidget {
     return NowPlayingMotionHost(
       isActive: isActive,
       isPlaying: snapshot.isPlaying,
-      child: Scaffold(
-      backgroundColor: album.palette.last,
-      body: Stack(
-        fit: StackFit.expand,
-        children: [
-          Builder(
-            builder: (context) {
-              final director = NowPlayingMotionScope.maybeOf(context);
-              if (director == null) {
-                return AnimatedArtworkBackground(
-                  album: album,
-                  position: playback.displayPosition,
-                  isPlaying: snapshot.isPlaying,
-                  isActive: isActive,
-                );
-              }
-              return AnimatedBuilder(
-                animation: director,
-                builder: (context, _) => AnimatedArtworkBackground(
-                  album: album,
-                  position: playback.displayPosition,
-                  isPlaying: director.playing,
-                  // Director stages ambient one frame after surface active.
-                  isActive: director.allowAmbientMotion,
-                ),
-              );
-            },
-          ),
-          SafeArea(
-            minimum: EdgeInsets.only(top: context.soundTitlebarInset),
-            child: Column(
-              children: [
-                GestureDetector(
-                  key: const ValueKey('now-playing-drag-handle'),
-                  behavior: HitTestBehavior.translucent,
-                  onVerticalDragStart: onVerticalDragStart,
-                  onVerticalDragUpdate: onVerticalDragUpdate,
-                  onVerticalDragEnd: onVerticalDragEnd,
-                  onVerticalDragCancel: onVerticalDragCancel,
-                  child: Padding(
-                    padding: compactChrome
-                        ? const EdgeInsets.fromLTRB(20, 4, 20, 8)
-                        : foldableChrome
-                        ? const EdgeInsets.fromLTRB(24, 0, 24, 2)
-                        : const EdgeInsets.symmetric(
-                            horizontal: 20,
-                            vertical: 16,
+      child: _NowPlayingArtworkChrome(
+        album: album,
+        isActive: isActive,
+        child: Builder(
+          builder: (context) {
+            final chrome = context.artworkChrome;
+            final topButtonStyle = IconButton.styleFrom(
+              foregroundColor: context.chromePrimaryText,
+            );
+            return AnnotatedRegion<SystemUiOverlayStyle>(
+              value: (chrome?.useLightText ?? context.chromeUseLightText)
+                  ? SystemUiOverlayStyle.light
+                  : SystemUiOverlayStyle.dark,
+              child: Scaffold(
+                backgroundColor: artworkFallbackGradientColors(
+                  album,
+                  _nowPlayingArtworkBrightness,
+                ).last,
+                body: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    Builder(
+                      builder: (context) {
+                        final director = NowPlayingMotionScope.maybeOf(context);
+                        if (director == null) {
+                          return AnimatedArtworkBackground(
+                            album: album,
+                            position: playback.displayPosition,
+                            isPlaying: snapshot.isPlaying,
+                            isActive: isActive,
+                            paletteBrightness: _nowPlayingArtworkBrightness,
+                            staticVerticalGradient: true,
+                          );
+                        }
+                        return AnimatedBuilder(
+                          animation: director,
+                          builder: (context, _) => AnimatedArtworkBackground(
+                            album: album,
+                            position: playback.displayPosition,
+                            isPlaying: director.playing,
+                            // Director stages ambient after surface is active.
+                            isActive: director.allowAmbientMotion,
+                            paletteBrightness: _nowPlayingArtworkBrightness,
+                            staticVerticalGradient: true,
                           ),
-                    child: Row(
-                      children: [
-                        IconButton.filledTonal(
-                          onPressed: () => _close(context),
-                          icon: const Icon(Icons.keyboard_arrow_down_rounded),
-                        ),
-                        // Empty mid-chrome: drag the window on Windows/Linux
-                        // where this route covers the shell title bar.
-                        Expanded(
-                          child: _nowPlayingUsesWindowChrome
-                              ? const _WindowDragSurface(
-                                  key: ValueKey(
-                                    'now-playing-chrome-window-drag',
-                                  ),
-                                  // Row/Column leaves height unbounded; match
-                                  // the shell title bar's fixed-height hit box.
-                                  height: 40,
-                                )
-                              : const SizedBox.shrink(),
-                        ),
-                        if (!wideIntegratedQueue)
-                          IconButton.filledTonal(
-                            onPressed: () => showPlaybackQueueSheet(
-                              context,
-                              playback,
-                              onOpenAlbum: onOpenAlbum,
-                              onOpenArtist: onOpenArtist,
-                            ),
-                            tooltip: '播放队列',
-                            icon: const Icon(Icons.queue_music_rounded),
-                          ),
-                        if (_nowPlayingUsesWindowChrome) ...[
-                          const SizedBox(width: 8),
-                          const _DesktopWindowControls(),
-                        ],
-                      ],
-                    ),
-                  ),
-                ),
-                Expanded(
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      // Open foldables are commonly around 700 logical
-                      // pixels wide. Use that space for a centered
-                      // two-pane player, with the crease falling inside
-                      // the inter-pane gap.
-                      final compact = constraints.maxWidth < 680;
-                      if (compact) {
-                        return _CompactNowPlaying(
-                          album: album,
-                          track: track,
-                          playback: playback,
-                          sleepTimer: sleepTimer,
-                          userState: userState,
-                          style: style,
-                          openLyricsByDefault: openLyricsByDefault,
-                          isActive: isActive,
-                          onOpenAlbum: onOpenAlbum,
-                          onOpenArtist: onOpenArtist,
-                          onVerticalDragStart: onVerticalDragStart,
-                          onVerticalDragUpdate: onVerticalDragUpdate,
-                          onVerticalDragEnd: onVerticalDragEnd,
-                          onVerticalDragCancel: onVerticalDragCancel,
                         );
-                      }
-                      return _WideNowPlaying(
-                        album: album,
-                        track: track,
-                        playback: playback,
-                        sleepTimer: sleepTimer,
-                        userState: userState,
-                        style: style,
-                        isActive: isActive,
-                        onOpenAlbum: onOpenAlbum,
-                        onOpenArtist: onOpenArtist,
-                      );
-                    },
-                  ),
+                      },
+                    ),
+                    SafeArea(
+                      minimum: EdgeInsets.only(top: context.soundTitlebarInset),
+                      child: Column(
+                        children: [
+                          GestureDetector(
+                            key: const ValueKey('now-playing-drag-handle'),
+                            behavior: HitTestBehavior.translucent,
+                            onVerticalDragStart: onVerticalDragStart,
+                            onVerticalDragUpdate: onVerticalDragUpdate,
+                            onVerticalDragEnd: onVerticalDragEnd,
+                            onVerticalDragCancel: onVerticalDragCancel,
+                            child: Padding(
+                              padding: compactChrome
+                                  ? const EdgeInsets.fromLTRB(20, 4, 20, 8)
+                                  : foldableChrome
+                                  ? const EdgeInsets.fromLTRB(24, 0, 24, 2)
+                                  : const EdgeInsets.symmetric(
+                                      horizontal: 20,
+                                      vertical: 16,
+                                    ),
+                              child: Row(
+                                children: [
+                                  IconButton(
+                                    onPressed: () => _close(context),
+                                    style: topButtonStyle,
+                                    icon: const Icon(KaitingIcons.arrowDown),
+                                  ),
+                                  // Empty mid-chrome: drag the window on
+                                  // Windows/Linux where this route covers the
+                                  // shell title bar.
+                                  Expanded(
+                                    child: _nowPlayingUsesWindowChrome
+                                        ? const _WindowDragSurface(
+                                            key: ValueKey(
+                                              'now-playing-chrome-window-drag',
+                                            ),
+                                            height: 40,
+                                          )
+                                        : const SizedBox.shrink(),
+                                  ),
+                                  if (!wideIntegratedQueue)
+                                    IconButton(
+                                      onPressed: () => showPlaybackQueueSheet(
+                                        context,
+                                        playback,
+                                        onOpenAlbum: onOpenAlbum,
+                                        onOpenArtist: onOpenArtist,
+                                      ),
+                                      tooltip: '播放队列',
+                                      style: topButtonStyle,
+                                      icon: const Icon(KaitingIcons.queue),
+                                    ),
+                                  if (_nowPlayingUsesWindowChrome) ...[
+                                    const SizedBox(width: 8),
+                                    const _DesktopWindowControls(),
+                                  ],
+                                ],
+                              ),
+                            ),
+                          ),
+                          Expanded(
+                            child: LayoutBuilder(
+                              builder: (context, constraints) {
+                                // Open foldables are commonly around 700
+                                // logical pixels wide. Use that space for a
+                                // centered two-pane player.
+                                final compact = constraints.maxWidth < 680;
+                                if (compact) {
+                                  return _CompactNowPlaying(
+                                    album: album,
+                                    track: track,
+                                    playback: playback,
+                                    sleepTimer: sleepTimer,
+                                    userState: userState,
+                                    style: style,
+                                    openLyricsByDefault: openLyricsByDefault,
+                                    isActive: isActive,
+                                    onOpenAlbum: onOpenAlbum,
+                                    onOpenArtist: onOpenArtist,
+                                    onVerticalDragStart: onVerticalDragStart,
+                                    onVerticalDragUpdate: onVerticalDragUpdate,
+                                    onVerticalDragEnd: onVerticalDragEnd,
+                                    onVerticalDragCancel: onVerticalDragCancel,
+                                  );
+                                }
+                                return _WideNowPlaying(
+                                  album: album,
+                                  track: track,
+                                  playback: playback,
+                                  sleepTimer: sleepTimer,
+                                  userState: userState,
+                                  style: style,
+                                  isActive: isActive,
+                                  onOpenAlbum: onOpenAlbum,
+                                  onOpenArtist: onOpenArtist,
+                                );
+                              },
+                            ),
+                          ),
+                          if (snapshot.errorMessage case final message?)
+                            _PlaybackErrorBanner(
+                              message: message,
+                              onRetry: playback.toggle,
+                            ),
+                        ],
+                      ),
+                    ),
+                    // Shell title bar is covered by this full-screen route.
+                    // Mirror its drag band on Windows / Linux.
+                    if (_nowPlayingUsesWindowChrome)
+                      Positioned(
+                        top: 0,
+                        left: 0,
+                        right: 0,
+                        height: platformTitleBarHeight,
+                        child: const _WindowDragSurface(
+                          key: ValueKey('now-playing-titlebar-window-drag'),
+                        ),
+                      ),
+                  ],
                 ),
-                if (snapshot.errorMessage case final message?)
-                  _PlaybackErrorBanner(
-                    message: message,
-                    onRetry: playback.toggle,
-                  ),
-              ],
-            ),
-          ),
-          // The shell title bar is covered by this full-screen route. Mirror
-          // its drag band so the reserved title-bar inset stays movable on
-          // Windows / Linux (native HTCAPTION alone is unreliable under the
-          // Flutter child HWND).
-          if (_nowPlayingUsesWindowChrome)
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              height: platformTitleBarHeight,
-              child: const _WindowDragSurface(
-                key: ValueKey('now-playing-titlebar-window-drag'),
               ),
-            ),
-        ],
-      ),
+            );
+          },
+        ),
       ),
     );
+  }
+}
+
+/// Loads cover colors and provides [ArtworkChromeTheme] for NP icons/text.
+class _NowPlayingArtworkChrome extends StatefulWidget {
+  const _NowPlayingArtworkChrome({
+    required this.album,
+    required this.isActive,
+    required this.child,
+  });
+
+  final Album album;
+  final bool isActive;
+  final Widget child;
+
+  @override
+  State<_NowPlayingArtworkChrome> createState() =>
+      _NowPlayingArtworkChromeState();
+}
+
+class _NowPlayingArtworkChromeState extends State<_NowPlayingArtworkChrome> {
+  List<Color> _colors = const [
+    Color(0xFF5E7774),
+    Color(0xFF42514F),
+    Color(0xFF25302F),
+  ];
+  String? _requestKey;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _refresh(_nowPlayingArtworkBrightness);
+  }
+
+  @override
+  void didUpdateWidget(covariant _NowPlayingArtworkChrome oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.album.id != widget.album.id ||
+        oldWidget.album.artworkUri != widget.album.artworkUri ||
+        (!oldWidget.isActive && widget.isActive)) {
+      _refresh(
+        _nowPlayingArtworkBrightness,
+        force: !oldWidget.isActive && widget.isActive,
+      );
+    }
+  }
+
+  void _refresh(Brightness brightness, {bool force = false}) {
+    final album = widget.album;
+    final requestKey = '${album.id}|${album.artworkUri}|${brightness.name}';
+    if (_requestKey == requestKey && !force) return;
+    final changedArtwork = _requestKey != requestKey;
+    _requestKey = requestKey;
+    // Match AnimatedArtworkBackground stops so luminance tracks the real BG.
+    if (changedArtwork) {
+      _colors = artworkFallbackGradientColors(album, brightness);
+    }
+    final artworkUri = album.artworkUri?.trim();
+    if (!widget.isActive) {
+      return;
+    }
+    if (artworkUri == null || artworkUri.isEmpty) {
+      if (mounted) setState(() {});
+      return;
+    }
+    // Let the completed expansion frame reach the screen before image decode
+    // and palette generation begin.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !widget.isActive || _requestKey != requestKey) return;
+      unawaited(_loadScheme(requestKey, brightness));
+    });
+  }
+
+  Future<void> _loadScheme(String requestKey, Brightness brightness) async {
+    try {
+      final scheme = await AnimatedArtworkBackground.colorSchemeForAlbum(
+        album: widget.album,
+        brightness: brightness,
+      );
+      if (!mounted || _requestKey != requestKey) return;
+      final next = scheme == null
+          ? artworkFallbackGradientColors(widget.album, brightness)
+          : artworkGradientColorsFromScheme(scheme, brightness);
+      if (listEquals(next, _colors)) return;
+      setState(() => _colors = next);
+    } catch (error) {
+      if (kDebugMode) {
+        debugPrint('Now-playing chrome palette failed: $error');
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final palette = ArtworkPagePalette.fromBackground(_colors);
+    return ArtworkChromeTheme(palette: palette, child: widget.child);
   }
 }
 
@@ -309,16 +430,16 @@ class _NoTrackPlaying extends StatelessWidget {
                 Positioned(
                   left: 20,
                   top: 10,
-                  child: IconButton.filledTonal(
+                  child: IconButton(
                     onPressed:
                         onClose ?? () => Navigator.of(context).maybePop(),
-                    icon: const Icon(Icons.keyboard_arrow_down_rounded),
+                    icon: const Icon(KaitingIcons.arrowDown),
                   ),
                 ),
                 Center(
                   child: Text(
                     '当前没有正在播放的歌曲',
-                    style: TextStyle(color: context.soundSecondaryText),
+                    style: TextStyle(color: context.chromeSecondaryText),
                   ),
                 ),
               ],
@@ -390,7 +511,7 @@ class _WideNowPlayingState extends State<_WideNowPlaying> {
         final foldableWidth = constraints.maxWidth < 780;
         // Tighter chrome on foldables so the lyrics column keeps more usable
         // width (fewer single-character wraps).
-        final horizontalPadding = foldableWidth ? 16.0 : 44.0;
+        final horizontalPadding = foldableWidth ? 24.0 : 44.0;
         final paneGap = math.max(
           foldableWidth ? 16.0 : 48.0,
           _centerDisplayFeatureGap(context, constraints),
@@ -398,12 +519,17 @@ class _WideNowPlayingState extends State<_WideNowPlaying> {
         // Classic and vinyl share a balanced dual pane; only artwork differs.
         const playerFlex = 1;
         const contentFlex = 1;
+        final playerHorizontalInset = foldableWidth ? 12.0 : 0.0;
         final availableWidth = math.max(
           320.0,
           stageWidth - horizontalPadding * 2 - paneGap,
         );
         final paneWidth =
             availableWidth * playerFlex / (playerFlex + contentFlex);
+        final playerContentWidth = math.max(
+          0.0,
+          paneWidth - playerHorizontalInset * 2,
+        );
         final playerHeight = math.max(0.0, stageHeight - verticalPadding);
         // Foldables (~700px) keep a smaller vinyl so the arm pivot still reads
         // with air above the rim; wide desktops can go larger.
@@ -416,7 +542,7 @@ class _WideNowPlayingState extends State<_WideNowPlaying> {
           NowPlayingStyle.vinyl => foldableWidth ? 400.0 : 480.0,
         };
         final artSize = math.min(
-          math.min(artLimit, paneWidth),
+          math.min(artLimit, playerContentWidth),
           math.max(160.0, playerHeight - playerChromeHeight),
         );
         return Align(
@@ -441,7 +567,13 @@ class _WideNowPlayingState extends State<_WideNowPlaying> {
                   Expanded(
                     flex: playerFlex,
                     child: Padding(
-                      padding: EdgeInsets.only(top: foldableWidth ? 18 : 0),
+                      key: const ValueKey('wide-now-playing-player-padding'),
+                      padding: EdgeInsets.fromLTRB(
+                        playerHorizontalInset,
+                        foldableWidth ? 18 : 0,
+                        playerHorizontalInset,
+                        0,
+                      ),
                       child: Align(
                         key: const ValueKey('wide-now-playing-player'),
                         alignment: Alignment.topCenter,
@@ -473,7 +605,7 @@ class _WideNowPlayingState extends State<_WideNowPlaying> {
                     child: Padding(
                       key: const ValueKey('wide-now-playing-lyrics'),
                       padding: EdgeInsets.fromLTRB(
-                        8,
+                        foldableWidth ? 16 : 8,
                         6,
                         0,
                         foldableWidth ? 24 : 32,
@@ -530,8 +662,7 @@ class _WideNowPlayingPane extends StatelessWidget {
                 track: track,
                 positionListenable: playback.positionListenable,
                 positionOf: () => playback.displayPosition,
-                discontinuityRevision:
-                    playback.positionDiscontinuityRevision,
+                discontinuityRevision: playback.positionDiscontinuityRevision,
                 onSeek: playback.seek,
                 verticalControls: true,
               ),
@@ -594,18 +725,18 @@ class _WidePaneIconSwitch extends StatelessWidget {
         isSelected: selected,
         icon: normalizedIcon(),
         selectedIcon: normalizedIcon(),
-        color: selected ? SoundColors.accent : context.soundMutedText,
+        color: selected ? SoundColors.accent : context.chromeMutedText,
         visualDensity: VisualDensity.compact,
         style: ButtonStyle(
           fixedSize: const WidgetStatePropertyAll(Size.square(40)),
           backgroundColor: const WidgetStatePropertyAll(Colors.transparent),
           overlayColor: WidgetStateProperty.resolveWith((states) {
             if (states.contains(WidgetState.pressed)) {
-              return context.soundTint(0.08);
+              return context.chromePrimaryText.withValues(alpha: 0.12);
             }
             if (states.contains(WidgetState.hovered) ||
                 states.contains(WidgetState.focused)) {
-              return context.soundTint(0.05);
+              return context.chromePrimaryText.withValues(alpha: 0.08);
             }
             return Colors.transparent;
           }),
@@ -620,7 +751,7 @@ class _WidePaneIconSwitch extends StatelessWidget {
           key: const ValueKey('show-wide-lyrics'),
           value: _WideNowPlayingView.lyrics,
           tooltip: '显示歌词',
-          icon: Icons.lyrics_rounded,
+          icon: KaitingIcons.lyrics,
           iconSize: 17.5,
           opticalOffsetY: 1.5,
         ),
@@ -628,7 +759,7 @@ class _WidePaneIconSwitch extends StatelessWidget {
           key: const ValueKey('show-wide-queue'),
           value: _WideNowPlayingView.queue,
           tooltip: '显示播放清单',
-          icon: Icons.queue_music_rounded,
+          icon: KaitingIcons.queue,
           opticalOffsetY: -1,
         ),
       ],
@@ -1011,6 +1142,9 @@ class _PlayerColumn extends StatelessWidget {
   }
 
   Widget _playerColumnBody(BuildContext context, Widget artwork) {
+    final detailsPadding = EdgeInsets.symmetric(
+      horizontal: compactLayout && style == NowPlayingStyle.vinyl ? 12 : 0,
+    );
     return Column(
       mainAxisSize: MainAxisSize.min,
       mainAxisAlignment: MainAxisAlignment.center,
@@ -1026,41 +1160,48 @@ class _PlayerColumn extends StatelessWidget {
         ),
         if (compactLayout) ...[
           // Compact: full-width title + artist; actions sit below transport.
-          _TrackChangeTransition(
-            trackId: track.id,
-            child: SizedBox(
-              key: const ValueKey('now-playing-track-title'),
-              width: double.infinity,
-              child: Text(
-                track.title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 24,
-                  height: 1.08,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: -0.25,
+          Padding(
+            padding: detailsPadding,
+            child: _TrackChangeTransition(
+              trackId: track.id,
+              child: SizedBox(
+                key: const ValueKey('now-playing-track-title'),
+                width: double.infinity,
+                child: Text(
+                  track.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: context.chromePrimaryText,
+                    fontSize: 24,
+                    height: 1.08,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -0.25,
+                  ),
                 ),
               ),
             ),
           ),
           const SizedBox(height: 3),
-          _TrackChangeTransition(
-            trackId: track.id,
-            child: SoundMetadataLine(
-              artist: track.artist,
-              album: track.albumTitle,
-              separator: ' — ',
-              onOpenArtist: onOpenArtist == null
-                  ? null
-                  : () => onOpenArtist!(track.artist),
-              onOpenAlbum: onOpenAlbum == null
-                  ? null
-                  : () => onOpenAlbum!(album),
-              style: TextStyle(
-                color: context.soundSecondaryText,
-                fontSize: 13,
-                height: 1.2,
+          Padding(
+            padding: detailsPadding,
+            child: _TrackChangeTransition(
+              trackId: track.id,
+              child: SoundMetadataLine(
+                artist: track.artist,
+                album: track.albumTitle,
+                separator: ' — ',
+                onOpenArtist: onOpenArtist == null
+                    ? null
+                    : () => onOpenArtist!(track.artist),
+                onOpenAlbum: onOpenAlbum == null
+                    ? null
+                    : () => onOpenAlbum!(album),
+                style: TextStyle(
+                  color: context.chromeSecondaryText,
+                  fontSize: 13,
+                  height: 1.2,
+                ),
               ),
             ),
           ),
@@ -1079,7 +1220,8 @@ class _PlayerColumn extends StatelessWidget {
                     track.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
+                    style: TextStyle(
+                      color: context.chromePrimaryText,
                       fontSize: 24,
                       height: 1.08,
                       fontWeight: FontWeight.w600,
@@ -1111,7 +1253,7 @@ class _PlayerColumn extends StatelessWidget {
                   ? null
                   : () => onOpenAlbum!(album),
               style: TextStyle(
-                color: context.soundSecondaryText,
+                color: context.chromeSecondaryText,
                 fontSize: 13,
                 height: 1.2,
               ),
@@ -1119,22 +1261,28 @@ class _PlayerColumn extends StatelessWidget {
           ),
         ],
         SizedBox(height: compactLayout ? 26 : 20),
-        _PlaybackTimelineAndControls(
-          key: compactLayout
-              ? const ValueKey('compact-cover-playback-controls')
-              : null,
-          playback: playback,
-          sleepTimer: sleepTimer,
+        Padding(
+          padding: detailsPadding,
+          child: _PlaybackTimelineAndControls(
+            key: compactLayout
+                ? const ValueKey('compact-cover-playback-controls')
+                : null,
+            playback: playback,
+            sleepTimer: sleepTimer,
+          ),
         ),
         if (compactLayout) ...[
           const SizedBox(height: 24),
-          _NowPlayingActions(
-            key: const ValueKey('compact-now-playing-secondary-actions'),
-            track: track,
-            userState: userState,
-            lyricsSelected: false,
-            onToggleLyrics: onToggleLyrics,
-            distributed: true,
+          Padding(
+            padding: detailsPadding,
+            child: _NowPlayingActions(
+              key: const ValueKey('compact-now-playing-secondary-actions'),
+              track: track,
+              userState: userState,
+              lyricsSelected: false,
+              onToggleLyrics: onToggleLyrics,
+              distributed: true,
+            ),
           ),
         ],
       ],
@@ -1356,7 +1504,8 @@ class _CompactLyricsPlayerState extends State<_CompactLyricsPlayer> {
                           track.title,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
+                          style: TextStyle(
+                            color: context.chromePrimaryText,
                             fontSize: 17,
                             fontWeight: FontWeight.w600,
                             letterSpacing: -0.15,
@@ -1377,7 +1526,7 @@ class _CompactLyricsPlayerState extends State<_CompactLyricsPlayer> {
                               ? null
                               : () => widget.onOpenAlbum!(album),
                           style: TextStyle(
-                            color: context.soundSecondaryText,
+                            color: context.chromeSecondaryText,
                             fontSize: 12,
                           ),
                         ),
@@ -1431,7 +1580,7 @@ class _CompactLyricsPlayerState extends State<_CompactLyricsPlayer> {
   }
 }
 
-class _PlaybackTimelineAndControls extends StatelessWidget {
+class _PlaybackTimelineAndControls extends StatefulWidget {
   const _PlaybackTimelineAndControls({
     required this.playback,
     this.sleepTimer,
@@ -1440,6 +1589,42 @@ class _PlaybackTimelineAndControls extends StatelessWidget {
 
   final SoundPlaybackController playback;
   final SleepTimerController? sleepTimer;
+
+  @override
+  State<_PlaybackTimelineAndControls> createState() =>
+      _PlaybackTimelineAndControlsState();
+}
+
+class _PlaybackTimelineAndControlsState
+    extends State<_PlaybackTimelineAndControls> {
+  /// Live position while the user drags the bar (labels + remaining).
+  ///
+  /// Engine [displayPosition] does not tick while paused, so labels must
+  /// follow the scrubber preview directly or they stay frozen mid-drag.
+  Duration? _scrubPreview;
+
+  SoundPlaybackController get playback => widget.playback;
+  SleepTimerController? get sleepTimer => widget.sleepTimer;
+
+  void _onScrubPreviewChanged(Duration? preview) {
+    if (_scrubPreview == preview) return;
+    if (!mounted) return;
+    // Keep the field current immediately so a parent rebuild already in
+    // flight can still read the latest scrub time if it re-enters build.
+    _scrubPreview = preview;
+    // ProgressScrubber.didUpdateWidget can emit while our AnimatedBuilder is
+    // mid-build (engine position catch-up). setState then asserts.
+    final phase = SchedulerBinding.instance.schedulerPhase;
+    if (phase == SchedulerPhase.idle ||
+        phase == SchedulerPhase.postFrameCallbacks) {
+      setState(() {});
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      setState(() {});
+    });
+  }
 
   void _cycleMode(BuildContext context) {
     playback.cycleCombinedPlaybackMode();
@@ -1470,7 +1655,7 @@ class _PlaybackTimelineAndControls extends StatelessWidget {
                     Text(
                       '睡眠定时',
                       style: TextStyle(
-                        color: context.soundPrimaryText,
+                        color: context.chromePrimaryText,
                         fontSize: 18,
                         fontWeight: FontWeight.w600,
                         letterSpacing: -0.2,
@@ -1482,7 +1667,7 @@ class _PlaybackTimelineAndControls extends StatelessWidget {
                           ? '当前：${_sleepTimerStatusLabel(timer)}'
                           : '到时后自动暂停播放',
                       style: TextStyle(
-                        color: context.soundSecondaryText,
+                        color: context.chromeSecondaryText,
                         fontSize: 12.5,
                       ),
                     ),
@@ -1544,7 +1729,9 @@ class _PlaybackTimelineAndControls extends StatelessWidget {
     return AnimatedBuilder(
       animation: Listenable.merge([playback, playback.positionListenable]),
       builder: (context, _) {
-        final position = playback.displayPosition;
+        final enginePosition = playback.displayPosition;
+        // Prefer live scrub preview so labels move while paused (no ticks).
+        final position = _scrubPreview ?? enginePosition;
         final duration = playback.displayDuration;
         final visual = PlaybackVisualState.fromSnapshot(
           playback.snapshot,
@@ -1557,6 +1744,22 @@ class _PlaybackTimelineAndControls extends StatelessWidget {
         final mode = playback.playbackMode;
         final modeActive = mode != PlaybackMode.sequential;
         final timerActive = sleepTimer?.isActive ?? false;
+        final transportColor = context.chromePrimaryText.withValues(
+          alpha: 0.72,
+        );
+        final secondaryControlColor = context.chromePrimaryText.withValues(
+          alpha: 0.60,
+        );
+        final sideButtonStyle = IconButton.styleFrom(
+          fixedSize: const Size.square(44),
+          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          padding: EdgeInsets.zero,
+        );
+        final primaryTransportIcon = switch (visual.primaryVisual) {
+          PlaybackPrimaryVisual.play => KaitingIcons.playTransport,
+          PlaybackPrimaryVisual.pause => KaitingIcons.pauseTransport,
+          _ => visual.primaryIcon,
+        };
         return Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1564,9 +1767,12 @@ class _PlaybackTimelineAndControls extends StatelessWidget {
             // Horizontal 0 keeps track edges aligned with title; vertical hit
             // is expanded inside ProgressScrubber (minInteractiveHeight).
             ProgressScrubber(
-              position: position,
+              position: enginePosition,
               duration: duration,
               onSeek: playback.seek,
+              onPreviewChanged: _onScrubPreviewChanged,
+              activeColor: context.chromePrimaryText,
+              inactiveColor: context.chromePrimaryText.withValues(alpha: 0.22),
               padding: EdgeInsets.zero,
               thumbRadius: 7,
               overlayRadius: 22,
@@ -1574,50 +1780,75 @@ class _PlaybackTimelineAndControls extends StatelessWidget {
             ),
             Row(
               children: [
-                Text(formatDuration(position), style: _timeStyle(context)),
+                Text(
+                  key: const ValueKey('now-playing-position-label'),
+                  formatDuration(position),
+                  style: _timeStyle(context),
+                ),
                 const Spacer(),
-                Text(remainingLabel, style: _timeStyle(context)),
+                Text(
+                  key: const ValueKey('now-playing-remaining-label'),
+                  remainingLabel,
+                  style: _timeStyle(context),
+                ),
               ],
             ),
             const SizedBox(height: 18),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 IconButton(
                   key: const ValueKey('now-playing-mode-cycle'),
                   onPressed: () => _cycleMode(context),
                   tooltip: mode.label,
                   icon: Icon(mode.icon),
-                  color: modeActive ? SoundColors.accent : null,
+                  iconSize: 24,
+                  color: modeActive
+                      ? SoundColors.accent
+                      : secondaryControlColor,
+                  style: sideButtonStyle,
                 ),
                 IconButton(
                   onPressed: playback.previous,
-                  icon: const Icon(Icons.skip_previous_rounded),
-                  iconSize: 34,
+                  tooltip: '上一首',
+                  icon: const Icon(KaitingIcons.previousTransport),
+                  iconSize: 30,
+                  color: transportColor,
+                  style: sideButtonStyle,
                 ),
-                IconButton.filled(
+                IconButton(
                   onPressed: visual.primaryEnabled ? playback.toggle : null,
                   tooltip: visual.primaryTooltip,
                   icon: visual.busy && !visual.primaryEnabled
                       ? SizedBox.square(
-                          dimension: 24,
+                          dimension: 26,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            color: context.soundColors.onPrimary,
+                            color: transportColor,
                           ),
                         )
-                      : Icon(visual.primaryIcon),
-                  iconSize: 34,
+                      : Icon(
+                          primaryTransportIcon,
+                          size:
+                              visual.primaryVisual ==
+                                  PlaybackPrimaryVisual.pause
+                              ? 40
+                              : 48,
+                        ),
+                  color: transportColor,
                   style: IconButton.styleFrom(
-                    backgroundColor: context.soundPrimaryText,
-                    foregroundColor: context.soundGlass.canvasHighlight,
-                    fixedSize: const Size.square(52),
+                    fixedSize: const Size.square(56),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    padding: EdgeInsets.zero,
                   ),
                 ),
                 IconButton(
                   onPressed: playback.next,
-                  icon: const Icon(Icons.skip_next_rounded),
-                  iconSize: 34,
+                  tooltip: '下一首',
+                  icon: const Icon(KaitingIcons.nextTransport),
+                  iconSize: 30,
+                  color: transportColor,
+                  style: sideButtonStyle,
                 ),
                 IconButton(
                   key: const ValueKey('now-playing-sleep-timer'),
@@ -1626,9 +1857,13 @@ class _PlaybackTimelineAndControls extends StatelessWidget {
                       ? '睡眠定时：${_sleepTimerStatusLabel(sleepTimer!)}'
                       : '睡眠定时',
                   icon: Icon(
-                    timerActive ? Icons.timer_rounded : Icons.timer_outlined,
+                    timerActive ? KaitingIcons.timerFilled : KaitingIcons.timer,
                   ),
-                  color: timerActive ? SoundColors.accent : null,
+                  iconSize: 24,
+                  color: timerActive
+                      ? SoundColors.accent
+                      : secondaryControlColor,
+                  style: sideButtonStyle,
                 ),
               ],
             ),
@@ -1679,6 +1914,8 @@ class _NowPlayingActions extends StatelessWidget {
   Widget build(BuildContext context) {
     final state = userState;
     final isFavorite = state?.isFavorite(track.id) ?? false;
+    final inactiveColor = context.chromePrimaryText.withValues(alpha: 0.64);
+    final actionIconSize = dense ? 20.0 : 24.0;
     final buttonStyle = dense
         ? IconButton.styleFrom(
             visualDensity: VisualDensity.compact,
@@ -1699,12 +1936,11 @@ class _NowPlayingActions extends StatelessWidget {
             key: ValueKey('favorite-now-playing-${track.id}'),
             onPressed: () => unawaited(state.toggleFavorite(track)),
             tooltip: isFavorite ? '取消收藏' : '收藏歌曲',
-            color: isFavorite ? SoundColors.accent : null,
+            color: isFavorite ? SoundColors.accent : inactiveColor,
+            iconSize: actionIconSize,
             style: buttonStyle,
             icon: Icon(
-              isFavorite
-                  ? Icons.favorite_rounded
-                  : Icons.favorite_border_rounded,
+              isFavorite ? KaitingIcons.favoriteFilled : KaitingIcons.favorite,
             ),
           ),
         if (state != null)
@@ -1713,8 +1949,10 @@ class _NowPlayingActions extends StatelessWidget {
             onPressed: () =>
                 showAddToPlaylistSheet(context, userState: state, track: track),
             tooltip: '添加到播放列表',
+            color: inactiveColor,
+            iconSize: actionIconSize,
             style: buttonStyle,
-            icon: const Icon(Icons.playlist_add_rounded),
+            icon: const Icon(KaitingIcons.playlistAdd),
           ),
         if (onToggleLyrics != null)
           IconButton(
@@ -1725,9 +1963,12 @@ class _NowPlayingActions extends StatelessWidget {
             ),
             onPressed: onToggleLyrics,
             tooltip: lyricsSelected ? '返回封面' : '查看歌词',
-            color: lyricsSelected ? SoundColors.accent : null,
+            color: lyricsSelected ? SoundColors.accent : inactiveColor,
+            iconSize: actionIconSize,
             style: buttonStyle,
-            icon: const Icon(Icons.lyrics_rounded),
+            icon: Icon(
+              lyricsSelected ? KaitingIcons.lyricsFilled : KaitingIcons.lyrics,
+            ),
           ),
       ],
     );
@@ -1758,7 +1999,7 @@ class _PlaybackErrorBanner extends StatelessWidget {
                 width: 30,
                 height: 30,
                 child: Icon(
-                  Icons.error_outline_rounded,
+                  KaitingIcons.error,
                   size: 19,
                   color: context.soundColors.error.withValues(alpha: 0.82),
                 ),
@@ -1774,7 +2015,7 @@ class _PlaybackErrorBanner extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: context.soundPrimaryText,
+                        color: context.chromePrimaryText,
                         fontSize: 13.5,
                         height: 1.15,
                         fontWeight: FontWeight.w600,
@@ -1786,7 +2027,7 @@ class _PlaybackErrorBanner extends StatelessWidget {
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        color: context.soundMutedText,
+                        color: context.chromeMutedText,
                         fontSize: 11.5,
                         height: 1.3,
                       ),
@@ -1822,7 +2063,7 @@ class _PlaybackErrorBanner extends StatelessWidget {
 }
 
 TextStyle _timeStyle(BuildContext context) => TextStyle(
-  color: context.soundSecondaryText,
+  color: context.chromeSecondaryText,
   fontSize: 11.5,
   fontFeatures: const [FontFeature.tabularFigures()],
 );
@@ -1857,6 +2098,7 @@ class _LyricsPanel extends StatefulWidget {
 
 class _LyricsPanelState extends State<_LyricsPanel> {
   static const _offsetStep = Duration(milliseconds: 500);
+
   /// Soft scroll when the singing cue advances (not seeks / first open).
   static const _followDuration = Duration(milliseconds: 380);
   static const _lineStyleDuration = Duration(milliseconds: 260);
@@ -1982,8 +2224,8 @@ class _LyricsPanelState extends State<_LyricsPanel> {
 
   void _scheduleFollowForCurrentActive({bool force = false}) {
     if (!_timeline.isSynchronized) return;
-    final active = _activeIndex ??
-        _timeline.activeLineIndex(_position, offset: _offset);
+    final active =
+        _activeIndex ?? _timeline.activeLineIndex(_position, offset: _offset);
     if (active != null) {
       if (_activeIndex != active) {
         setState(() => _activeIndex = active);
@@ -2121,26 +2363,26 @@ class _LyricsPanelState extends State<_LyricsPanel> {
             value: _LyricsMenuAction.resumeFollow,
             label: '回到当前歌词',
             subtitle: '恢复自动跟随',
-            icon: Icons.my_location_rounded,
+            icon: KaitingIcons.locate,
           ),
         SoundMenuAction(
           value: _LyricsMenuAction.delay,
           label: '歌词延后 0.5 秒',
           subtitle: '当前偏移 $_offsetLabel',
-          icon: Icons.remove_rounded,
+          icon: KaitingIcons.remove,
         ),
         SoundMenuAction(
           value: _LyricsMenuAction.reset,
           label: '重置歌词偏移',
           subtitle: '恢复到 +0.0s',
-          icon: Icons.refresh_rounded,
+          icon: KaitingIcons.refresh,
           enabled: _offset != Duration.zero,
         ),
         SoundMenuAction(
           value: _LyricsMenuAction.advance,
           label: '歌词提前 0.5 秒',
           subtitle: '当前偏移 $_offsetLabel',
-          icon: Icons.add_rounded,
+          icon: KaitingIcons.add,
         ),
       ],
       onSelected: _handleLyricsMenuAction,
@@ -2148,9 +2390,9 @@ class _LyricsPanelState extends State<_LyricsPanel> {
         dimension: 36,
         child: Center(
           child: Icon(
-            Icons.more_horiz_rounded,
+            KaitingIcons.moreHorizontal,
             size: 22,
-            color: context.soundMutedText,
+            color: context.chromeMutedText,
           ),
         ),
       ),
@@ -2167,7 +2409,7 @@ class _LyricsPanelState extends State<_LyricsPanel> {
             '同步\n歌词',
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: context.soundMutedText,
+              color: context.chromeMutedText,
               fontSize: 10.5,
               height: 1.25,
               fontWeight: FontWeight.w600,
@@ -2203,7 +2445,7 @@ class _LyricsPanelState extends State<_LyricsPanel> {
               child: Text(
                 _offsetLabel,
                 style: TextStyle(
-                  color: context.soundMutedText.withValues(
+                  color: context.chromeMutedText.withValues(
                     alpha: _offset == Duration.zero ? 0.56 : 0.86,
                   ),
                   fontSize: 10.5,
@@ -2343,7 +2585,7 @@ class _LyricsPanelState extends State<_LyricsPanel> {
         final fontSize = isActive
             ? (narrow ? 20.0 : 22.0)
             : (narrow ? 18.0 : 20.0);
-        final primary = context.soundPrimaryText;
+        final primary = context.chromePrimaryText;
         final style = TextStyle(
           color: primary.withValues(
             alpha: isActive
@@ -2360,8 +2602,7 @@ class _LyricsPanelState extends State<_LyricsPanel> {
         // Line-level LRC: fill from this cue to the next (karaoke wipe).
         // Karaoke starts the same frame as the cue; size/opacity ease separately.
         final karaoke = isActive && synchronized;
-        final textAlign =
-            widget.compact ? TextAlign.center : TextAlign.start;
+        final textAlign = widget.compact ? TextAlign.center : TextAlign.start;
         return GestureDetector(
           key: _lineKeys[index],
           behavior: HitTestBehavior.opaque,
@@ -2415,7 +2656,7 @@ class _LyricsPanelState extends State<_LyricsPanel> {
           Text(
             '歌词',
             style: TextStyle(
-              color: context.soundSecondaryText,
+              color: context.chromeSecondaryText,
               fontSize: 12,
               fontWeight: FontWeight.w600,
             ),
@@ -2424,7 +2665,7 @@ class _LyricsPanelState extends State<_LyricsPanel> {
             child: Center(
               child: Text(
                 '这首歌曲没有内嵌歌词',
-                style: TextStyle(color: context.soundSecondaryText),
+                style: TextStyle(color: context.chromeSecondaryText),
               ),
             ),
           ),
@@ -2469,7 +2710,7 @@ class _LyricsPanelState extends State<_LyricsPanel> {
             Text(
               synchronized && _timeline.hasTimedContent ? '同步歌词' : '歌词',
               style: TextStyle(
-                color: context.soundSecondaryText,
+                color: context.chromeSecondaryText,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
               ),
@@ -2506,8 +2747,8 @@ class _LyricsPanelState extends State<_LyricsPanel> {
                     _offsetLabel,
                     style: TextStyle(
                       color: _offset == Duration.zero
-                          ? context.soundMutedText
-                          : context.soundSecondaryText,
+                          ? context.chromeMutedText
+                          : context.chromeSecondaryText,
                       fontSize: 11.5,
                       fontFeatures: const [FontFeature.tabularFigures()],
                     ),
@@ -2551,7 +2792,7 @@ class _LyricsOffsetButton extends StatelessWidget {
     return Tooltip(
       message: tooltip,
       child: Material(
-        color: context.soundTint(0.06),
+        color: context.chromeControlSurface,
         borderRadius: BorderRadius.circular(8),
         child: InkWell(
           onTap: onTap,
@@ -2561,7 +2802,7 @@ class _LyricsOffsetButton extends StatelessWidget {
             child: Text(
               label,
               style: TextStyle(
-                color: context.soundSecondaryText,
+                color: context.chromeSecondaryText,
                 fontSize: 11.5,
                 fontWeight: FontWeight.w600,
               ),
@@ -2651,21 +2892,19 @@ class _DesktopWindowControlsState extends State<_DesktopWindowControls> {
       mainAxisSize: MainAxisSize.min,
       children: [
         _WindowDot(
-          icon: Icons.horizontal_rule_rounded,
+          icon: KaitingIcons.minimize,
           tooltip: '最小化',
           onTap: () => unawaited(minimizeWindow()),
         ),
         const SizedBox(width: 8),
         _WindowDot(
-          icon: _maximized
-              ? Icons.filter_none_rounded
-              : Icons.crop_square_rounded,
+          icon: _maximized ? KaitingIcons.restore : KaitingIcons.maximize,
           tooltip: _maximized ? '向下还原' : '最大化',
           onTap: () => unawaited(_toggleMaximize()),
         ),
         const SizedBox(width: 8),
         _WindowDot(
-          icon: Icons.close_rounded,
+          icon: KaitingIcons.close,
           tooltip: '关闭',
           onTap: () => unawaited(closeWindow()),
         ),
@@ -2696,11 +2935,11 @@ class _WindowDot extends StatelessWidget {
           width: 20,
           height: 20,
           decoration: BoxDecoration(
-            color: context.soundTint(0.12),
+            color: context.chromeControlSurface,
             shape: BoxShape.circle,
           ),
           child: Center(
-            child: Icon(icon, size: 11, color: context.soundSecondaryText),
+            child: Icon(icon, size: 11, color: context.chromeSecondaryText),
           ),
         ),
       ),

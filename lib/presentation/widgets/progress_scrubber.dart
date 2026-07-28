@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 
 import '../../core/sound_theme.dart';
 
@@ -29,6 +30,7 @@ class ProgressScrubber extends StatefulWidget {
     required this.position,
     required this.duration,
     required this.onSeek,
+    this.onPreviewChanged,
     this.activeColor,
     this.inactiveColor,
     this.trackHeight = 3,
@@ -43,6 +45,10 @@ class ProgressScrubber extends StatefulWidget {
   final Duration position;
   final Duration duration;
   final FutureOr<void> Function(Duration position) onSeek;
+
+  /// Live scrub position for sibling chrome (time labels). `null` when not
+  /// scrubbing / preview has been released to the engine.
+  final ValueChanged<Duration?>? onPreviewChanged;
   final Color? activeColor;
   final Color? inactiveColor;
   final double trackHeight;
@@ -127,6 +133,12 @@ class _ProgressScrubberState extends State<ProgressScrubber> {
     return box.globalToLocal(global).dx;
   }
 
+  void _emitPreview(double? ms) {
+    final callback = widget.onPreviewChanged;
+    if (callback == null) return;
+    callback(ms == null ? null : Duration(milliseconds: ms.round()));
+  }
+
   void _setFractionFromLocalDx(double dx) {
     if (widget.duration <= Duration.zero) return;
     final box = _hitKey.currentContext?.findRenderObject() as RenderBox?;
@@ -139,6 +151,7 @@ class _ProgressScrubberState extends State<ProgressScrubber> {
       return;
     }
     setState(() => _previewMilliseconds = ms);
+    _emitPreview(ms);
   }
 
   Future<void> _commitSeek(double valueMs) async {
@@ -148,6 +161,7 @@ class _ProgressScrubberState extends State<ProgressScrubber> {
     } else {
       _previewMilliseconds = valueMs;
     }
+    _emitPreview(valueMs);
     try {
       await widget.onSeek(target);
     } finally {
@@ -155,6 +169,7 @@ class _ProgressScrubberState extends State<ProgressScrubber> {
       _settleTimer = Timer(_settleTimeout, () {
         if (mounted && _previewMilliseconds == valueMs && !_dragging) {
           setState(() => _previewMilliseconds = null);
+          _emitPreview(null);
         }
       });
     }
@@ -180,6 +195,9 @@ class _ProgressScrubberState extends State<ProgressScrubber> {
     _notifyInteraction(false);
     if (commit && preview != null && widget.duration > Duration.zero) {
       unawaited(_commitSeek(preview));
+    } else {
+      // Cancelled drag — drop preview so labels fall back to engine.
+      _emitPreview(null);
     }
   }
 
@@ -191,8 +209,30 @@ class _ProgressScrubberState extends State<ProgressScrubber> {
     final engineValue = widget.position.inMilliseconds.toDouble();
     if ((engineValue - preview).abs() <= _settleToleranceMs) {
       _settleTimer?.cancel();
-      setState(() => _previewMilliseconds = null);
+      // Clear field only — build() follows didUpdateWidget. Do not setState
+      // or synchronously notify the parent: ancestors (e.g. AnimatedBuilder)
+      // may already be building when position catches the scrub target.
+      _previewMilliseconds = null;
+      _emitPreviewDeferred(null);
     }
+  }
+
+  /// Notify [onPreviewChanged] after the current frame when we may be inside
+  /// a parent build (didUpdateWidget / dispose).
+  void _emitPreviewDeferred(double? ms) {
+    final callback = widget.onPreviewChanged;
+    if (callback == null) return;
+    final value = ms == null ? null : Duration(milliseconds: ms.round());
+    final phase = SchedulerBinding.instance.schedulerPhase;
+    if (phase == SchedulerPhase.idle ||
+        phase == SchedulerPhase.postFrameCallbacks) {
+      callback(value);
+      return;
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted && ms != null) return;
+      callback(value);
+    });
   }
 
   @override
@@ -204,6 +244,8 @@ class _ProgressScrubberState extends State<ProgressScrubber> {
       _activePointer = null;
       _interactionNotified = false;
     }
+    // Drop parent label preview. Parent handlers must no-op when !mounted.
+    _emitPreview(null);
     super.dispose();
   }
 

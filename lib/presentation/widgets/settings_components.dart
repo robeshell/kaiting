@@ -97,7 +97,7 @@ class SoundSettingsPageHeader extends StatelessWidget {
                 key: backButtonKey,
                 onPressed: onBack,
                 tooltip: '返回设置',
-                icon: const Icon(Icons.arrow_back_rounded),
+                icon: const Icon(KaitingIcons.back),
               ),
               const SizedBox(width: 8),
             ],

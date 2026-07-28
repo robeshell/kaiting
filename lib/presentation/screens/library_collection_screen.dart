@@ -77,8 +77,7 @@ class _LibraryCollectionScreenState extends State<LibraryCollectionScreen> {
   @override
   void didUpdateWidget(LibraryCollectionScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final oldArtwork =
-        oldWidget.collection.representativeAlbum?.artworkUri;
+    final oldArtwork = oldWidget.collection.representativeAlbum?.artworkUri;
     final newArtwork = widget.collection.representativeAlbum?.artworkUri;
     if (oldWidget.collection.id != widget.collection.id ||
         oldArtwork != newArtwork) {
@@ -155,10 +154,12 @@ class _LibraryCollectionScreenState extends State<LibraryCollectionScreen> {
     final playQueue = _sortTracks(collection.tracks);
     // Artist pages are album-first: hide the song list when albums exist.
     // Keep tracks only for genres, or featured-only artists with no albums.
-    final showTrackList = collection.kind != LibraryCollectionKind.artist ||
+    final showTrackList =
+        collection.kind != LibraryCollectionKind.artist ||
         collection.albums.isEmpty;
-    final primaryTracks =
-        showTrackList ? _sortTracks(collection.primaryTracks) : const <Track>[];
+    final primaryTracks = showTrackList
+        ? _sortTracks(collection.primaryTracks)
+        : const <Track>[];
     final featuredTracks = showTrackList
         ? _sortTracks(collection.featuredTracks)
         : const <Track>[];
@@ -180,8 +181,9 @@ class _LibraryCollectionScreenState extends State<LibraryCollectionScreen> {
         final pagePalette = immersiveArtist
             ? ArtworkPagePalette.fromBackground(_backgroundColors)
             : null;
-        final albumGridBottom =
-            showTrackList ? (compact ? 20.0 : 28.0) : bottomPadding;
+        final albumGridBottom = showTrackList
+            ? (compact ? 20.0 : 28.0)
+            : bottomPadding;
         final listGutter = context.soundListGutter;
         final scrollView = CustomScrollView(
           key: PageStorageKey<String>(
@@ -201,8 +203,7 @@ class _LibraryCollectionScreenState extends State<LibraryCollectionScreen> {
                       ),
                 onShuffle: playQueue.isEmpty
                     ? null
-                    : () =>
-                          unawaited(widget.playback.playShuffled(playQueue)),
+                    : () => unawaited(widget.playback.playShuffled(playQueue)),
                 onQueue: playQueue.isEmpty
                     ? null
                     : () {
@@ -244,11 +245,12 @@ class _LibraryCollectionScreenState extends State<LibraryCollectionScreen> {
                   builder: (context, constraints) {
                     final spacing = compact ? 12.0 : 16.0;
                     final maxCardWidth = compact ? 180.0 : 210.0;
-                    final columnCount =
-                        ((constraints.crossAxisExtent + spacing) /
-                                (maxCardWidth + spacing))
-                            .ceil()
-                            .clamp(1, 12);
+                    final columnCount = soundAlbumGridColumnCount(
+                      crossAxisExtent: constraints.crossAxisExtent,
+                      compact: compact,
+                      spacing: spacing,
+                      maxCardWidth: maxCardWidth,
+                    );
                     final cardWidth =
                         (constraints.crossAxisExtent -
                             spacing * (columnCount - 1)) /
@@ -430,8 +432,7 @@ class _LibraryCollectionScreenState extends State<LibraryCollectionScreen> {
               track: track,
               album: album,
               favorite: widget.userState?.isFavorite(track.id) ?? false,
-              onTap: () =>
-                  widget.playback.playTrack(track, queue: playQueue),
+              onTap: () => widget.playback.playTrack(track, queue: playQueue),
               onPlayNext: () => widget.playback.playNext(track),
               onToggleFavorite: widget.userState == null
                   ? null
@@ -466,8 +467,7 @@ List<Color> _collectionFallbackColors(
   LibraryCollection collection,
   Brightness brightness,
 ) {
-  final album =
-      collection.representativeAlbum ?? collection.albums.firstOrNull;
+  final album = collection.representativeAlbum ?? collection.albums.firstOrNull;
   if (album != null) return artworkFallbackGradientColors(album, brightness);
   final first = collection.palette.first;
   final last = collection.palette.last;
@@ -520,7 +520,7 @@ class _CollectionTrackHeader extends StatelessWidget {
                 SoundMenuAction(
                   value: option,
                   label: option.label,
-                  icon: Icons.sort_rounded,
+                  icon: KaitingIcons.sort,
                   selected: option == sort,
                 ),
             ],
@@ -541,7 +541,7 @@ class _CollectionTrackHeader extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(
-                      Icons.sort_rounded,
+                      KaitingIcons.sort,
                       size: 17,
                       color: pagePalette?.primaryText,
                     ),
@@ -556,7 +556,7 @@ class _CollectionTrackHeader extends StatelessWidget {
                     ),
                     const SizedBox(width: 5),
                     Icon(
-                      Icons.arrow_drop_down_rounded,
+                      KaitingIcons.caretDown,
                       size: 18,
                       color: pagePalette?.primaryText,
                     ),
@@ -571,9 +571,7 @@ class _CollectionTrackHeader extends StatelessWidget {
 }
 
 String _collectionStatsLine(LibraryCollection collection) {
-  final parts = <String>[
-    '${collection.albums.length} 张专辑',
-  ];
+  final parts = <String>['${collection.albums.length} 张专辑'];
   final primaryCount = collection.primaryTracks.length;
   final featuredCount = collection.featuredTracks.length;
   if (featuredCount > 0) {
@@ -649,7 +647,7 @@ class _CollectionHero extends StatelessWidget {
             SizedBox(height: compact ? 14 : 20),
             FilledButton.icon(
               onPressed: onPlay,
-              icon: const Icon(Icons.play_arrow_rounded),
+              icon: const Icon(KaitingIcons.play),
               label: const Text('播放全部'),
               style: FilledButton.styleFrom(
                 minimumSize: Size(0, compact ? 40 : 44),
@@ -700,7 +698,7 @@ class _CollectionHero extends StatelessWidget {
             children: [
               IconButton(
                 onPressed: onBack,
-                icon: const Icon(Icons.arrow_back_rounded),
+                icon: const Icon(KaitingIcons.back),
                 style: compact
                     ? IconButton.styleFrom(
                         minimumSize: const Size.square(40),
@@ -765,7 +763,7 @@ class _CollectionHero extends StatelessWidget {
             child: IconButton(
               onPressed: onBack,
               tooltip: '返回',
-              icon: const Icon(Icons.arrow_back_rounded),
+              icon: const Icon(KaitingIcons.back),
               style: IconButton.styleFrom(
                 foregroundColor: palette.primaryText,
                 minimumSize: const Size.square(40),
@@ -804,7 +802,7 @@ class _CollectionHero extends StatelessWidget {
             children: [
               _CollectionImmersiveAction(
                 tooltip: '随机播放',
-                icon: Icons.shuffle_rounded,
+                icon: KaitingIcons.shuffle,
                 onPressed: onShuffle,
                 palette: palette,
               ),
@@ -812,7 +810,7 @@ class _CollectionHero extends StatelessWidget {
               _CollectionImmersiveAction(
                 key: const ValueKey('mobile-artist-play'),
                 tooltip: '播放全部',
-                icon: Icons.play_arrow_rounded,
+                icon: KaitingIcons.play,
                 onPressed: onPlay,
                 palette: palette,
                 dimension: 60,
@@ -822,7 +820,7 @@ class _CollectionHero extends StatelessWidget {
               const Spacer(),
               _CollectionImmersiveAction(
                 tooltip: '接下来播放全部歌曲',
-                icon: Icons.queue_music_rounded,
+                icon: KaitingIcons.queue,
                 onPressed: onQueue,
                 palette: palette,
               ),
@@ -865,14 +863,14 @@ class _CollectionHero extends StatelessWidget {
                 key: const ValueKey('desktop-artist-back'),
                 onPressed: onBack,
                 tooltip: '返回',
-                icon: const Icon(Icons.arrow_back_rounded),
+                icon: const Icon(KaitingIcons.back),
               ),
               const Spacer(),
               SoundMenuButton<String>(
                 key: const ValueKey('desktop-artist-actions'),
                 enabled: onPlay != null,
                 tooltip: '更多艺人操作',
-                icon: const Icon(Icons.more_horiz_rounded),
+                icon: const Icon(KaitingIcons.moreHorizontal),
                 onSelected: (value) {
                   if (value == 'play') onPlay?.call();
                   if (value == 'shuffle') onShuffle?.call();
@@ -881,12 +879,12 @@ class _CollectionHero extends StatelessWidget {
                   SoundMenuAction(
                     value: 'play',
                     label: '播放全部',
-                    icon: Icons.play_arrow_rounded,
+                    icon: KaitingIcons.play,
                   ),
                   SoundMenuAction(
                     value: 'shuffle',
                     label: '随机播放',
-                    icon: Icons.shuffle_rounded,
+                    icon: KaitingIcons.shuffle,
                   ),
                 ],
               ),
@@ -932,14 +930,14 @@ class _CollectionHero extends StatelessWidget {
                           final playButton = _DesktopCollectionActionButton(
                             key: const ValueKey('desktop-artist-play'),
                             label: '播放全部',
-                            icon: Icons.play_arrow_rounded,
+                            icon: KaitingIcons.play,
                             showIcon: !condensed,
                             onPressed: onPlay,
                           );
                           final shuffleButton = _DesktopCollectionActionButton(
                             key: const ValueKey('desktop-artist-shuffle'),
                             label: '随机播放',
-                            icon: Icons.shuffle_rounded,
+                            icon: KaitingIcons.shuffle,
                             showIcon: !condensed,
                             onPressed: onShuffle,
                           );
@@ -1208,7 +1206,7 @@ class _CollectionTrackRow extends StatelessWidget {
       menuTitle: track.title,
       padding: EdgeInsets.zero,
       icon: Icon(
-        compact ? Icons.more_horiz_rounded : Icons.more_vert_rounded,
+        compact ? KaitingIcons.moreHorizontal : KaitingIcons.moreVertical,
         size: compact ? 21 : 20,
         color: compact ? pagePalette?.primaryText : null,
       ),
@@ -1222,27 +1220,27 @@ class _CollectionTrackRow extends StatelessWidget {
         const SoundMenuAction(
           value: 'play-next',
           label: '下一首播放',
-          icon: Icons.playlist_play_rounded,
+          icon: KaitingIcons.playNext,
         ),
         const SoundMenuAction(
           value: 'open-album',
           label: '打开专辑',
-          icon: Icons.album_outlined,
+          icon: KaitingIcons.album,
         ),
         if (onToggleFavorite != null)
           SoundMenuAction(
             value: 'favorite',
             label: favorite ? '取消收藏' : '收藏歌曲',
             icon: favorite
-                ? Icons.favorite_rounded
-                : Icons.favorite_border_rounded,
+                ? KaitingIcons.favoriteFilled
+                : KaitingIcons.favorite,
             selected: favorite,
           ),
         if (onAddToPlaylist != null)
           const SoundMenuAction(
             value: 'playlist',
             label: '添加到播放列表',
-            icon: Icons.playlist_add_rounded,
+            icon: KaitingIcons.playlistAdd,
           ),
       ],
     );

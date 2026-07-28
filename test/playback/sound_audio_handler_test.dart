@@ -19,9 +19,7 @@ void main() {
     'Android media notification permission is requested only once',
     () async {
       debugDefaultTargetPlatformOverride = TargetPlatform.android;
-      const channel = MethodChannel(
-        'com.kaiting.player/system_media',
-      );
+      const channel = MethodChannel('com.kaiting.player/system_media');
       var calls = 0;
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (call) async {
@@ -168,6 +166,14 @@ void main() {
     expect(
       handler.playbackState.value.controls.first.androidIcon,
       'drawable/ic_notification_shuffle_on',
+    );
+
+    controller.cycleRepeatMode();
+    expect(controller.repeatMode, PlaybackRepeatMode.one);
+    expect(handler.playbackState.value.repeatMode, AudioServiceRepeatMode.one);
+    expect(
+      handler.playbackState.value.shuffleMode,
+      AudioServiceShuffleMode.all,
     );
 
     expect(favorites.isFavorite(first.id), isFalse);

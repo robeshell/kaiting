@@ -175,6 +175,8 @@ class SoundAudioHandler extends BaseAudioHandler {
       snapshot.errorMessage,
       controller.queueIndex,
       controller.playbackMode.name,
+      controller.isShuffleEnabled,
+      controller.repeatMode.name,
       favorite,
     ].join('\n');
     final expectedPosition = _lastStatePlaying && _lastStateAt != null

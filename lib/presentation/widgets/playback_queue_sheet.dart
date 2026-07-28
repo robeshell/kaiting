@@ -114,7 +114,7 @@ class PlaybackQueuePanel extends StatelessWidget {
                     IconButton(
                       onPressed: onClose,
                       tooltip: '关闭播放队列',
-                      icon: const Icon(Icons.close_rounded),
+                      icon: const Icon(KaitingIcons.close),
                     ),
                 ],
               ),
@@ -202,7 +202,7 @@ class PlaybackQueuePanel extends StatelessWidget {
                                 key: ValueKey('queue-track-row-${track.id}'),
                                 leading: active
                                     ? Icon(
-                                        Icons.graphic_eq_rounded,
+                                        KaitingIcons.playing,
                                         color: SoundColors.accent,
                                         size: 18,
                                       )
@@ -237,7 +237,7 @@ class PlaybackQueuePanel extends StatelessWidget {
                                       tooltip: '更多操作 ${track.title}',
                                       padding: EdgeInsets.zero,
                                       icon: const Icon(
-                                        Icons.more_horiz_rounded,
+                                        KaitingIcons.moreHorizontal,
                                         size: 21,
                                       ),
                                       menuTitle: track.title,
@@ -250,7 +250,7 @@ class PlaybackQueuePanel extends StatelessWidget {
                                         SoundMenuAction(
                                           value: 'remove',
                                           label: '从队列移除',
-                                          icon: Icons.playlist_remove_rounded,
+                                          icon: KaitingIcons.playlistRemove,
                                           destructive: true,
                                         ),
                                       ],
@@ -260,7 +260,7 @@ class PlaybackQueuePanel extends StatelessWidget {
                                       child: Padding(
                                         padding: const EdgeInsets.all(8),
                                         child: Icon(
-                                          Icons.drag_handle_rounded,
+                                          KaitingIcons.dragHandle,
                                           size: 20,
                                           color: context.soundMutedText,
                                         ),
@@ -280,7 +280,7 @@ class PlaybackQueuePanel extends StatelessWidget {
                             width: 30,
                             child: active
                                 ? Icon(
-                                    Icons.graphic_eq_rounded,
+                                    KaitingIcons.playing,
                                     color: SoundColors.accent,
                                   )
                                 : Center(
@@ -316,14 +316,14 @@ class PlaybackQueuePanel extends StatelessWidget {
                                 onPressed: () =>
                                     playback.removeQueueItemAt(index),
                                 tooltip: '从队列移除 ${track.title}',
-                                icon: const Icon(Icons.close_rounded),
+                                icon: const Icon(KaitingIcons.close),
                               ),
                               ReorderableDragStartListener(
                                 index: index,
                                 child: Padding(
                                   padding: const EdgeInsets.all(12),
                                   child: Icon(
-                                    Icons.drag_handle_rounded,
+                                    KaitingIcons.dragHandle,
                                     color: context.soundMutedText,
                                   ),
                                 ),
@@ -342,8 +342,8 @@ class PlaybackQueuePanel extends StatelessWidget {
 }
 
 IconData _playbackModeIcon(PlaybackMode mode) => switch (mode) {
-  PlaybackMode.sequential => Icons.arrow_forward_rounded,
-  PlaybackMode.repeatOne => Icons.repeat_one_rounded,
-  PlaybackMode.repeatAll => Icons.repeat_rounded,
-  PlaybackMode.shuffle => Icons.shuffle_rounded,
+  PlaybackMode.sequential => KaitingIcons.forward,
+  PlaybackMode.repeatOne => KaitingIcons.repeatOne,
+  PlaybackMode.repeatAll => KaitingIcons.repeatAll,
+  PlaybackMode.shuffle => KaitingIcons.shuffle,
 };

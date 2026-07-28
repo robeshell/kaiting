@@ -24,9 +24,9 @@ extension LibraryUserBrowseModePresentation on LibraryUserBrowseMode {
   };
 
   IconData get icon => switch (this) {
-    LibraryUserBrowseMode.favorites => Icons.favorite_rounded,
-    LibraryUserBrowseMode.recent => Icons.history_toggle_off_rounded,
-    LibraryUserBrowseMode.playlists => Icons.queue_music_rounded,
+    LibraryUserBrowseMode.favorites => KaitingIcons.favoriteFilled,
+    LibraryUserBrowseMode.recent => KaitingIcons.history,
+    LibraryUserBrowseMode.playlists => KaitingIcons.queue,
   };
 }
 
@@ -136,7 +136,7 @@ class _LibraryUserScreenState extends State<LibraryUserScreen> {
                 SliverFillRemaining(
                   hasScrollBody: false,
                   child: _UserLibraryMessage(
-                    icon: Icons.error_outline_rounded,
+                    icon: KaitingIcons.error,
                     title: '无法读取我的音乐',
                     message: message,
                   ),
@@ -188,7 +188,7 @@ class _LibraryUserScreenState extends State<LibraryUserScreen> {
             SliverFillRemaining(
               hasScrollBody: false,
               child: _UserLibraryMessage(
-                icon: Icons.error_outline_rounded,
+                icon: KaitingIcons.error,
                 title: '无法读取播放列表',
                 message: message,
               ),
@@ -197,7 +197,7 @@ class _LibraryUserScreenState extends State<LibraryUserScreen> {
             const SliverFillRemaining(
               hasScrollBody: false,
               child: _UserLibraryMessage(
-                icon: Icons.queue_music_rounded,
+                icon: KaitingIcons.queue,
                 title: '还没有播放列表',
                 message: '新建一个播放列表，或从任意歌曲的操作菜单中直接添加。',
               ),
@@ -284,7 +284,7 @@ class _LibraryUserScreenState extends State<LibraryUserScreen> {
           SliverFillRemaining(
             hasScrollBody: false,
             child: _UserLibraryMessage(
-              icon: Icons.music_note_rounded,
+              icon: KaitingIcons.musicFilled,
               title: missingCount == 0 ? '播放列表是空的' : '歌曲来源暂不可用',
               message: missingCount == 0
                   ? '从资料库、搜索或播放页面把歌曲添加到这里。'
@@ -473,17 +473,17 @@ class _LibraryUserScreenState extends State<LibraryUserScreen> {
   _UserLibraryMessage _emptyMessage(LibraryUserBrowseMode mode) {
     return switch (mode) {
       LibraryUserBrowseMode.favorites => const _UserLibraryMessage(
-        icon: Icons.favorite_border_rounded,
+        icon: KaitingIcons.favorite,
         title: '还没有收藏歌曲',
         message: '在专辑、播放页面或迷你播放器中点按爱心，歌曲会出现在这里。',
       ),
       LibraryUserBrowseMode.recent => const _UserLibraryMessage(
-        icon: Icons.history_toggle_off_rounded,
+        icon: KaitingIcons.history,
         title: '还没有最近播放',
         message: '开始播放资料库中的歌曲后，最近播放会自动更新。',
       ),
       LibraryUserBrowseMode.playlists => const _UserLibraryMessage(
-        icon: Icons.queue_music_rounded,
+        icon: KaitingIcons.queue,
         title: '还没有播放列表',
         message: '新建一个播放列表，或从任意歌曲的操作菜单中直接添加。',
       ),
@@ -537,13 +537,13 @@ class _PlaylistOverviewHeader extends StatelessWidget {
               IconButton(
                 onPressed: onBack,
                 tooltip: '返回资料库',
-                icon: const Icon(Icons.arrow_back_rounded),
+                icon: const Icon(KaitingIcons.back),
               ),
             const Spacer(),
             FilledButton.icon(
               key: const ValueKey('create-playlist'),
               onPressed: onCreate,
-              icon: const Icon(Icons.add_rounded),
+              icon: const Icon(KaitingIcons.add),
               label: const Text('新建'),
             ),
           ],
@@ -604,7 +604,7 @@ class _PlaylistTile extends StatelessWidget {
               SizedBox(
                 width: 28,
                 child: Icon(
-                  Icons.queue_music_rounded,
+                  KaitingIcons.queue,
                   size: 18,
                   color: SoundColors.accent.withValues(alpha: 0.78),
                 ),
@@ -646,7 +646,7 @@ class _PlaylistTile extends StatelessWidget {
                 key: ValueKey('playlist-actions-${playlist.id}'),
                 tooltip: '播放列表操作',
                 menuTitle: playlist.name,
-                icon: const Icon(Icons.more_horiz_rounded, size: 20),
+                icon: const Icon(KaitingIcons.moreHorizontal, size: 20),
                 onSelected: (value) {
                   if (value == 'play') onPlay();
                   if (value == 'rename') onRename();
@@ -657,17 +657,17 @@ class _PlaylistTile extends StatelessWidget {
                     value: 'play',
                     enabled: trackCount > missingTrackCount,
                     label: '播放',
-                    icon: Icons.play_arrow_rounded,
+                    icon: KaitingIcons.play,
                   ),
                   const SoundMenuAction(
                     value: 'rename',
                     label: '重命名',
-                    icon: Icons.edit_outlined,
+                    icon: KaitingIcons.edit,
                   ),
                   const SoundMenuAction(
                     value: 'delete',
                     label: '删除',
-                    icon: Icons.delete_outline_rounded,
+                    icon: KaitingIcons.delete,
                     destructive: true,
                     dividerBefore: true,
                   ),
@@ -713,7 +713,7 @@ class _PlaylistDetailHeader extends StatelessWidget {
           key: const ValueKey('back-to-playlists'),
           onPressed: onBack,
           tooltip: '返回播放列表',
-          icon: const Icon(Icons.arrow_back_rounded),
+          icon: const Icon(KaitingIcons.back),
         ),
         const SizedBox(height: 14),
         Text(
@@ -734,19 +734,19 @@ class _PlaylistDetailHeader extends StatelessWidget {
             FilledButton.icon(
               key: const ValueKey('play-playlist'),
               onPressed: onPlay,
-              icon: const Icon(Icons.play_arrow_rounded),
+              icon: const Icon(KaitingIcons.play),
               label: const Text('播放'),
             ),
             OutlinedButton.icon(
               key: const ValueKey('rename-playlist'),
               onPressed: onRename,
-              icon: const Icon(Icons.edit_outlined),
+              icon: const Icon(KaitingIcons.edit),
               label: const Text('重命名'),
             ),
             TextButton.icon(
               key: const ValueKey('delete-playlist'),
               onPressed: onDelete,
-              icon: const Icon(Icons.delete_outline_rounded),
+              icon: const Icon(KaitingIcons.delete),
               label: const Text('删除'),
               style: context.soundDestructiveButtonStyle,
             ),
@@ -840,7 +840,7 @@ class _PlaylistTrackRow extends StatelessWidget {
                   child: Padding(
                     padding: EdgeInsets.all(compact ? 8 : 10),
                     child: Icon(
-                      Icons.drag_handle_rounded,
+                      KaitingIcons.dragHandle,
                       size: compact ? 20 : 24,
                       color: context.soundMutedText,
                     ),
@@ -859,7 +859,7 @@ class _PlaylistTrackRow extends StatelessWidget {
       key: ValueKey('playlist-track-actions-${track.id}'),
       tooltip: '歌曲操作',
       menuTitle: track.title,
-      icon: const Icon(Icons.more_horiz_rounded, size: 21),
+      icon: const Icon(KaitingIcons.moreHorizontal, size: 21),
       onSelected: (value) {
         if (value == 'play-next') onPlayNext();
         if (value == 'favorite') onToggleFavorite();
@@ -871,30 +871,30 @@ class _PlaylistTrackRow extends StatelessWidget {
         const SoundMenuAction(
           value: 'play-next',
           label: '下一首播放',
-          icon: Icons.playlist_play_rounded,
+          icon: KaitingIcons.playNext,
         ),
         SoundMenuAction(
           value: 'favorite',
           label: favorite ? '取消收藏' : '收藏歌曲',
           icon: favorite
-              ? Icons.favorite_rounded
-              : Icons.favorite_border_rounded,
+              ? KaitingIcons.favoriteFilled
+              : KaitingIcons.favorite,
           selected: favorite,
         ),
         const SoundMenuAction(
           value: 'add',
           label: '添加到其他播放列表',
-          icon: Icons.playlist_add_rounded,
+          icon: KaitingIcons.playlistAdd,
         ),
         const SoundMenuAction(
           value: 'album',
           label: '打开专辑',
-          icon: Icons.album_outlined,
+          icon: KaitingIcons.album,
         ),
         const SoundMenuAction(
           value: 'remove',
           label: '从此列表移除',
-          icon: Icons.playlist_remove_rounded,
+          icon: KaitingIcons.playlistRemove,
           destructive: true,
           dividerBefore: true,
         ),
@@ -978,13 +978,13 @@ class _UserLibraryHeader extends StatelessWidget {
                 IconButton(
                   onPressed: onBack,
                   tooltip: '返回资料库',
-                  icon: const Icon(Icons.arrow_back_rounded),
+                  icon: const Icon(KaitingIcons.back),
                 ),
               const Spacer(),
               if (onClearHistory != null)
                 TextButton.icon(
                   onPressed: onClearHistory,
-                  icon: const Icon(Icons.delete_outline_rounded),
+                  icon: const Icon(KaitingIcons.delete),
                   label: const Text('清除历史'),
                   style: context.soundDestructiveButtonStyle,
                 ),
@@ -1061,19 +1061,19 @@ class _UserTrackRow extends StatelessWidget {
             tooltip: favorite ? '取消收藏 ${track.title}' : '收藏 ${track.title}',
             color: favorite ? SoundColors.accent : null,
             icon: Icon(
-              favorite ? Icons.favorite_rounded : Icons.favorite_border_rounded,
+              favorite ? KaitingIcons.favoriteFilled : KaitingIcons.favorite,
             ),
           ),
           IconButton(
             key: ValueKey('add-user-${track.id}-to-playlist'),
             onPressed: onAddToPlaylist,
             tooltip: '将 ${track.title} 添加到播放列表',
-            icon: const Icon(Icons.playlist_add_rounded),
+            icon: const Icon(KaitingIcons.playlistAdd),
           ),
           IconButton(
             onPressed: onOpenAlbum,
             tooltip: '打开专辑 ${album.title}',
-            icon: const Icon(Icons.chevron_right_rounded),
+            icon: const Icon(KaitingIcons.chevronRight),
           ),
         ],
       ),
@@ -1081,7 +1081,7 @@ class _UserTrackRow extends StatelessWidget {
         key: ValueKey('user-track-actions-${track.id}'),
         tooltip: '更多操作 ${track.title}',
         menuTitle: track.title,
-        icon: const Icon(Icons.more_horiz_rounded, size: 21),
+        icon: const Icon(KaitingIcons.moreHorizontal, size: 21),
         onSelected: (value) {
           if (value == 'favorite') onToggleFavorite();
           if (value == 'playlist') onAddToPlaylist();
@@ -1092,19 +1092,19 @@ class _UserTrackRow extends StatelessWidget {
             value: 'favorite',
             label: favorite ? '取消收藏' : '收藏',
             icon: favorite
-                ? Icons.favorite_rounded
-                : Icons.favorite_border_rounded,
+                ? KaitingIcons.favoriteFilled
+                : KaitingIcons.favorite,
             selected: favorite,
           ),
           const SoundMenuAction(
             value: 'playlist',
             label: '添加到播放列表',
-            icon: Icons.playlist_add_rounded,
+            icon: KaitingIcons.playlistAdd,
           ),
           const SoundMenuAction(
             value: 'album',
             label: '打开专辑',
-            icon: Icons.album_outlined,
+            icon: KaitingIcons.album,
           ),
         ],
       ),

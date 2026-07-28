@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/kaiting_icons.dart';
 import '../../domain/library_models.dart';
 
 class LibrarySourceFilter {
@@ -13,8 +14,7 @@ class LibrarySourceFilter {
 
   String get label => source == null ? '全部来源' : source!.label;
 
-  IconData get icon =>
-      source == null ? Icons.library_music_outlined : source!.icon;
+  IconData get icon => source == null ? KaitingIcons.library : source!.icon;
 
   bool matches(SourceKind candidate) => source == null || source == candidate;
 

@@ -158,7 +158,7 @@ class _AddToPlaylistSheet extends StatelessWidget {
                       IconButton(
                         tooltip: '关闭',
                         onPressed: () => Navigator.of(context).pop(),
-                        icon: const Icon(Icons.close_rounded),
+                        icon: const Icon(KaitingIcons.close),
                       ),
                     ],
                   ),
@@ -215,7 +215,7 @@ class _AddToPlaylistSheet extends StatelessWidget {
                     child: FilledButton.icon(
                       key: const ValueKey('create-playlist-from-track'),
                       onPressed: () => _createAndAdd(context),
-                      icon: const Icon(Icons.add_rounded),
+                      icon: const Icon(KaitingIcons.add),
                       label: const Text('新建播放列表'),
                     ),
                   ),

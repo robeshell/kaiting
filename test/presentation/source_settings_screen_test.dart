@@ -90,8 +90,8 @@ void main() {
                 scanDirectories: (_, _) async =>
                     const SourceScanSummary(indexedTracks: 0),
                 color: SoundColors.webDav,
-                connectionIcon: Icons.cloud_outlined,
-                catalogIcon: Icons.folder_outlined,
+                connectionIcon: KaitingIcons.cloud,
+                catalogIcon: KaitingIcons.folder,
               ),
             ],
           ),

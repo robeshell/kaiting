@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
-"""Generate every platform icon and launch mark from the 开听 v8 master.
+"""Generate every platform icon and launch mark from the 开听 v9 master.
 
-v8 is a flat “listening pulse” mark (center disc + open ripple arcs) on a
-coral field — no emboss, no letter monogram. The supplied artwork is
-full-bleed. System-masked platforms consume that composition directly, while
-adaptive and unmasked platforms use extracted foreground/background layers
-with platform-specific optical margins.
+v9 is a flat abstract music note: a rounded note-head ring flows into an
+upward stroke and a restrained lower branch subtly suggests a K. The artwork
+is built from deterministic vector geometry on a coral-to-orange field.
+System-masked platforms consume the full-bleed composition directly, while
+adaptive and unmasked platforms use foreground/background layers with
+platform-specific optical margins.
 """
 
 from __future__ import annotations
@@ -18,73 +19,44 @@ from pathlib import Path
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
-
 ROOT = Path(__file__).resolve().parents[1]
 BRANDING = ROOT / "assets" / "branding"
 LAYERS = BRANDING / "app_icon_layers"
-MASTER = BRANDING / "app_icon_master-v8.png"
+MASTER = BRANDING / "app_icon_master-v9.png"
+VECTOR_MASTER = BRANDING / "app_icon_master-v9.svg"
+MARK_SOURCE = BRANDING / "app_icon_mark-v9.png"
 
 CANVAS = 1024
 # Coral accent — matches kai-brand-design / products/kaiting default #FF5A4D
 BRAND_RED = (255, 90, 77)
+GRADIENT_START = (241, 79, 75)
+GRADIENT_END = (247, 99, 52)
 LAUNCH_TITLE = "开听"
 LAUNCH_TAGLINE = "听自己的音乐"
 LAUNCH_TITLE_COLOR = (28, 28, 34, 255)
 LAUNCH_SUBTITLE_COLOR = (112, 112, 122, 255)
 
 
-def smoothstep(low: float, high: float, values: np.ndarray) -> np.ndarray:
-    values = np.clip((values - low) / (high - low), 0.0, 1.0)
-    return values * values * (3.0 - 2.0 * values)
-
-
 def extract_mark() -> Image.Image:
-    source = np.asarray(Image.open(MASTER).convert("RGBA"), dtype=np.float32)
-    red, green, blue, source_alpha = np.moveaxis(source, -1, 0)
-
-    # Flat v8 artwork: warm cream mark on a coral field. Minimum RGB separates
-    # the neutral cream pulse from the saturated coral background.
-    whiteness = np.minimum(np.minimum(red, green), blue)
-    neutrality = 255.0 - (np.maximum(np.maximum(red, green), blue) - whiteness)
-    alpha = (
-        smoothstep(142.0, 220.0, whiteness)
-        * smoothstep(190.0, 244.0, neutrality)
-        * (source_alpha / 255.0)
-    )
-    # Drop faint anti-alias fringe and import artifacts (hairline edges).
-    alpha = np.where(alpha < 0.12, 0.0, alpha)
-
-    # Brand marks are centered. Reject cream-like pixels far from the strong
-    # mark centroid so export hairlines at the canvas edge cannot leak in.
-    strong = alpha > 0.5
-    if strong.any():
-        ys_s, xs_s = np.where(strong)
-        cy = float(ys_s.mean())
-        cx = float(xs_s.mean())
-    else:
-        cy = source.shape[0] / 2.0
-        cx = source.shape[1] / 2.0
-    yy, xx = np.ogrid[0 : source.shape[0], 0 : source.shape[1]]
-    radius = max(source.shape[0], source.shape[1]) * 0.48
-    alpha = np.where((yy - cy) ** 2 + (xx - cx) ** 2 <= radius**2, alpha, 0.0)
-
-    ys, xs = np.where(alpha > 0.12)
+    """Crop the approved single-silhouette mark used by every raster target."""
+    mark = Image.open(MARK_SOURCE).convert("RGBA")
+    alpha = np.asarray(mark.getchannel("A"))
+    ys, xs = np.where(alpha > 8)
     if not len(xs):
-        raise RuntimeError("Could not isolate the 开听 mark from the master")
-
-    pad = 3
-    left = max(0, int(xs.min()) - pad)
-    top = max(0, int(ys.min()) - pad)
-    right = min(source.shape[1], int(xs.max()) + pad + 1)
-    bottom = min(source.shape[0], int(ys.max()) + pad + 1)
-    alpha = alpha[top:bottom, left:right]
-
-    color = source[top:bottom, left:right, :3]
-    rgba = np.concatenate((color, (alpha * 255.0)[..., None]), axis=2)
-    return Image.fromarray(np.clip(rgba, 0, 255).astype(np.uint8), "RGBA")
+        raise RuntimeError("Could not read the 开听 v9 mark source")
+    pad = 4
+    bounds = (
+        max(0, int(xs.min()) - pad),
+        max(0, int(ys.min()) - pad),
+        min(mark.width, int(xs.max()) + pad + 1),
+        min(mark.height, int(ys.max()) + pad + 1),
+    )
+    return mark.crop(bounds)
 
 
-def contain(image: Image.Image, box: tuple[int, int], canvas: tuple[int, int]) -> Image.Image:
+def contain(
+    image: Image.Image, box: tuple[int, int], canvas: tuple[int, int]
+) -> Image.Image:
     ratio = min(box[0] / image.width, box[1] / image.height)
     size = (round(image.width * ratio), round(image.height * ratio))
     resized = image.resize(size, Image.Resampling.LANCZOS)
@@ -97,57 +69,29 @@ def contain(image: Image.Image, box: tuple[int, int], canvas: tuple[int, int]) -
 
 
 def gradient_background(size: int) -> Image.Image:
-    """Rebuild the source's smooth background without its baked white mark."""
-    source = np.asarray(Image.open(MASTER).convert("RGB"), dtype=np.float32)
-    height, width, _ = source.shape
-    step = max(1, min(height, width) // 96)
-    ys, xs = np.mgrid[0:height:step, 0:width:step]
-    samples = source[::step, ::step]
-    x = (xs.astype(np.float32) / max(1, width - 1)) * 2.0 - 1.0
-    y = (ys.astype(np.float32) / max(1, height - 1)) * 2.0 - 1.0
-
-    # Fit only the outer frame. It contains uninterrupted background and is
-    # enough to reproduce the gentle two-dimensional coral gradient.
-    frame = (np.abs(x) > 0.72) | (np.abs(y) > 0.72)
-    x_fit = x[frame]
-    y_fit = y[frame]
-    design = np.stack(
-        (
-            np.ones_like(x_fit),
-            x_fit,
-            y_fit,
-            x_fit * y_fit,
-            x_fit**2,
-            y_fit**2,
-            x_fit**3,
-            y_fit**3,
-        ),
-        axis=1,
-    )
-    coefficients = np.linalg.lstsq(design, samples[frame], rcond=None)[0]
-
+    """Render the v9 diagonal coral-to-orange field."""
     out_y, out_x = np.mgrid[0:size, 0:size]
-    out_x = (out_x.astype(np.float32) / max(1, size - 1)) * 2.0 - 1.0
-    out_y = (out_y.astype(np.float32) / max(1, size - 1)) * 2.0 - 1.0
-    output_design = np.stack(
-        (
-            np.ones_like(out_x),
-            out_x,
-            out_y,
-            out_x * out_y,
-            out_x**2,
-            out_y**2,
-            out_x**3,
-            out_y**3,
-        ),
-        axis=-1,
-    )
-    pixels = output_design @ coefficients
+    progress = (out_x + out_y).astype(np.float32) / (2.0 * max(1, size - 1))
+    start = np.asarray(GRADIENT_START, dtype=np.float32)
+    end = np.asarray(GRADIENT_END, dtype=np.float32)
+    pixels = start + (end - start) * progress[..., None]
     alpha = np.full((size, size, 1), 255.0, dtype=np.float32)
     return Image.fromarray(
         np.clip(np.concatenate((pixels, alpha), axis=2), 0, 255).astype(np.uint8),
         "RGBA",
     )
+
+
+def write_raster_master() -> None:
+    if not VECTOR_MASTER.is_file():
+        raise RuntimeError(f"Missing editable vector master: {VECTOR_MASTER}")
+    size = 2048
+    master = gradient_background(size)
+    mark = Image.open(MARK_SOURCE).convert("RGBA")
+    if mark.size != (size, size):
+        mark = mark.resize((size, size), Image.Resampling.LANCZOS)
+    master.alpha_composite(mark)
+    master.convert("RGB").save(MASTER, optimize=True)
 
 
 def monochrome(mark_layer: Image.Image, color: tuple[int, int, int]) -> Image.Image:
@@ -185,13 +129,17 @@ def rounded_plate(
 # Hiragino Sans GB: 0 light/reg · 2–3 heavier. Avoid STHeiti Light (thin/dated).
 _LAUNCH_TITLE_FACES: tuple[tuple[str, int], ...] = (
     (
-        "/System/Library/AssetsV2/com_apple_MobileAsset_Font8/"
-        "86ba2c91f017a3749571a82f2c6d890ac7ffb2fb.asset/AssetData/PingFang.ttc",
+        (
+            "/System/Library/AssetsV2/com_apple_MobileAsset_Font8/"
+            "86ba2c91f017a3749571a82f2c6d890ac7ffb2fb.asset/AssetData/PingFang.ttc"
+        ),
         8,
     ),
     (
-        "/System/Library/AssetsV2/com_apple_MobileAsset_Font8/"
-        "86ba2c91f017a3749571a82f2c6d890ac7ffb2fb.asset/AssetData/PingFang.ttc",
+        (
+            "/System/Library/AssetsV2/com_apple_MobileAsset_Font8/"
+            "86ba2c91f017a3749571a82f2c6d890ac7ffb2fb.asset/AssetData/PingFang.ttc"
+        ),
         4,
     ),
     ("/System/Library/Fonts/Hiragino Sans GB.ttc", 2),
@@ -207,8 +155,10 @@ _LAUNCH_TITLE_FACES: tuple[tuple[str, int], ...] = (
 
 _LAUNCH_BODY_FACES: tuple[tuple[str, int], ...] = (
     (
-        "/System/Library/AssetsV2/com_apple_MobileAsset_Font8/"
-        "86ba2c91f017a3749571a82f2c6d890ac7ffb2fb.asset/AssetData/PingFang.ttc",
+        (
+            "/System/Library/AssetsV2/com_apple_MobileAsset_Font8/"
+            "86ba2c91f017a3749571a82f2c6d890ac7ffb2fb.asset/AssetData/PingFang.ttc"
+        ),
         0,
     ),
     ("/System/Library/Fonts/Hiragino Sans GB.ttc", 0),
@@ -322,7 +272,9 @@ def launch_lockup(mark: Image.Image, scale: int) -> Image.Image:
 def png_data_uri(image: Image.Image) -> str:
     buffer = io.BytesIO()
     image.save(buffer, "PNG", optimize=True)
-    return "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode("ascii")
+    return "data:image/png;base64," + base64.b64encode(buffer.getvalue()).decode(
+        "ascii"
+    )
 
 
 def write_linux_svg(full_color: Image.Image, symbolic_mask: Image.Image) -> None:
@@ -352,14 +304,14 @@ def write_linux_svg(full_color: Image.Image, symbolic_mask: Image.Image) -> None
 </svg>
 '''
     (linux_dir / "kaiting-symbolic.svg").write_text(symbolic_svg, encoding="utf-8")
-    (symbolic_apps / "kaiting-symbolic.svg").write_text(
-        symbolic_svg, encoding="utf-8"
-    )
+    (symbolic_apps / "kaiting-symbolic.svg").write_text(symbolic_svg, encoding="utf-8")
 
 
 def source_icon(size: int = CANVAS) -> Image.Image:
-    return Image.open(MASTER).convert("RGBA").resize(
-        (size, size), Image.Resampling.LANCZOS
+    return (
+        Image.open(MASTER)
+        .convert("RGBA")
+        .resize((size, size), Image.Resampling.LANCZOS)
     )
 
 
@@ -382,6 +334,7 @@ def write_apple_catalog(catalog: Path, icon: Image.Image) -> None:
 
 def main() -> None:
     LAYERS.mkdir(parents=True, exist_ok=True)
+    write_raster_master()
     mark = extract_mark()
     launch_source = monochrome(mark, BRAND_RED)
 
@@ -391,7 +344,9 @@ def main() -> None:
     launch_mark.save(BRANDING / "launch_mark.png", optimize=True)
     launch_mark.save(ROOT / "web" / "icons" / "LaunchMark.png", optimize=True)
 
-    ios_launch_dir = ROOT / "ios" / "Runner" / "Assets.xcassets" / "LaunchImage.imageset"
+    ios_launch_dir = (
+        ROOT / "ios" / "Runner" / "Assets.xcassets" / "LaunchImage.imageset"
+    )
     for filename, size in (
         ("LaunchImage.png", 144),
         ("LaunchImage@2x.png", 288),
@@ -449,7 +404,7 @@ def main() -> None:
     apple_mark.save(LAYERS / "foreground.png", optimize=True)
     apple_monochrome.save(LAYERS / "monochrome.png", optimize=True)
 
-    # Preserve the supplied artwork exactly on system-masked Apple surfaces.
+    # Use the full-bleed v9 artwork directly on system-masked Apple surfaces.
     ios = source_icon()
     ios.convert("RGB").save(BRANDING / "app_icon_ios.png", optimize=True)
     ios_catalog = ROOT / "ios" / "Runner" / "Assets.xcassets" / "AppIcon.appiconset"
@@ -465,9 +420,7 @@ def main() -> None:
     (composer_dir / "icon.json").write_text(
         json.dumps(
             {
-                "fill": {
-                    "solid": "extended-srgb:1.00000,0.35294,0.30196,1.00000"
-                },
+                "fill": {"solid": "extended-srgb:1.00000,0.35294,0.30196,1.00000"},
                 "groups": [
                     {
                         "layers": [
@@ -492,7 +445,7 @@ def main() -> None:
     )
 
     # Keep all distinctive parts inside Android's 66/108 dp guaranteed safe
-    # zone. The extra breathing room also protects the thin wave tips.
+    # zone. The extra breathing room protects the note's rounded terminals.
     android_mark = contain(mark, (236, 236), (432, 432))
     android_background = gradient_background(432)
     android_mark.save(BRANDING / "app_icon_android_foreground.png", optimize=True)
@@ -521,9 +474,9 @@ def main() -> None:
             (android_mark, "ic_launcher_foreground.png"),
             (monochrome(android_mark, (255, 255, 255)), "ic_launcher_monochrome.png"),
         ):
-            image.resize(
-                (adaptive_size, adaptive_size), Image.Resampling.LANCZOS
-            ).save(drawable / filename, optimize=True)
+            image.resize((adaptive_size, adaptive_size), Image.Resampling.LANCZOS).save(
+                drawable / filename, optimize=True
+            )
 
         legacy_size = round(48 * scale)
         mipmap = android_res / f"mipmap-{density}"
@@ -552,6 +505,7 @@ def main() -> None:
     web_standard.resize((64, 64), Image.Resampling.LANCZOS).save(
         ROOT / "website" / "assets" / "favicon.png", optimize=True
     )
+    source_icon(1024).save(ROOT / "website" / "assets" / "app-icon.png", optimize=True)
 
     # Windows and Linux don't impose a consistent system mask. Keep a branded
     # plate with enough outer transparency for taskbars, launchers, and docks.
@@ -581,9 +535,7 @@ def main() -> None:
     macos_mark = contain(mark, (520, 520), (CANVAS, CANVAS))
     macos = rounded_plate(macos_mark, inset=92, radius=210)
     macos.save(BRANDING / "app_icon_macos.png", optimize=True)
-    macos_catalog = (
-        ROOT / "macos" / "Runner" / "Assets.xcassets" / "AppIcon.appiconset"
-    )
+    macos_catalog = ROOT / "macos" / "Runner" / "Assets.xcassets" / "AppIcon.appiconset"
     write_apple_catalog(macos_catalog, macos)
 
     # GNOME expects app icons to leave space within the 128 px canvas and asks

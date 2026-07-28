@@ -335,7 +335,7 @@ class _Hero extends StatelessWidget {
                     IconButton(
                       onPressed: onBack,
                       tooltip: '返回',
-                      icon: const Icon(Icons.arrow_back_rounded),
+                      icon: const Icon(KaitingIcons.back),
                       style: IconButton.styleFrom(
                         foregroundColor: palette.primaryText,
                         minimumSize: const Size.square(40),
@@ -351,11 +351,11 @@ class _Hero extends StatelessWidget {
                         ),
                         tooltip: offlineLabel,
                         icon: downloading
-                            ? const Icon(Icons.close_rounded)
+                            ? const Icon(KaitingIcons.close)
                             : Icon(
                                 allOffline
-                                    ? Icons.cloud_done_rounded
-                                    : Icons.download_for_offline_outlined,
+                                    ? KaitingIcons.cloudSynced
+                                    : KaitingIcons.downloadOffline,
                               ),
                         style: IconButton.styleFrom(
                           foregroundColor: palette.primaryText,
@@ -425,7 +425,7 @@ class _Hero extends StatelessWidget {
                   children: [
                     _ImmersiveAlbumAction(
                       tooltip: '随机播放',
-                      icon: Icons.shuffle_rounded,
+                      icon: KaitingIcons.shuffle,
                       onPressed: album.tracks.isEmpty
                           ? null
                           : () =>
@@ -436,7 +436,7 @@ class _Hero extends StatelessWidget {
                     _ImmersiveAlbumAction(
                       key: const ValueKey('album-detail-play'),
                       tooltip: '播放整张专辑',
-                      icon: Icons.play_arrow_rounded,
+                      icon: KaitingIcons.play,
                       onPressed: album.tracks.isEmpty
                           ? null
                           : () => playback.playTrack(
@@ -451,7 +451,7 @@ class _Hero extends StatelessWidget {
                     const Spacer(),
                     _ImmersiveAlbumAction(
                       tooltip: '接下来播放整张专辑',
-                      icon: Icons.queue_music_rounded,
+                      icon: KaitingIcons.queue,
                       onPressed: album.tracks.isEmpty
                           ? null
                           : () {
@@ -495,7 +495,7 @@ class _Hero extends StatelessWidget {
                     key: const ValueKey('desktop-album-back'),
                     onPressed: onBack,
                     tooltip: '返回',
-                    icon: const Icon(Icons.arrow_back_rounded),
+                    icon: const Icon(KaitingIcons.back),
                   ),
                   const Spacer(),
                   if (supportedTracks.isNotEmpty)
@@ -506,11 +506,11 @@ class _Hero extends StatelessWidget {
                       ),
                       tooltip: offlineLabel,
                       icon: downloading
-                          ? const Icon(Icons.close_rounded)
+                          ? const Icon(KaitingIcons.close)
                           : Icon(
                               allOffline
-                                  ? Icons.cloud_done_rounded
-                                  : Icons.download_for_offline_outlined,
+                                  ? KaitingIcons.cloudSynced
+                                  : KaitingIcons.downloadOffline,
                             ),
                     ),
                   const SizedBox(width: 8),
@@ -518,7 +518,7 @@ class _Hero extends StatelessWidget {
                     key: const ValueKey('desktop-album-actions'),
                     tooltip: '更多专辑操作',
                     menuTitle: album.title,
-                    icon: const Icon(Icons.more_horiz_rounded),
+                    icon: const Icon(KaitingIcons.moreHorizontal),
                     onSelected: (value) {
                       if (value == 'shuffle' && album.tracks.isNotEmpty) {
                         unawaited(playback.playShuffled(album.tracks));
@@ -533,15 +533,15 @@ class _Hero extends StatelessWidget {
                       const SoundMenuAction(
                         value: 'shuffle',
                         label: '随机播放',
-                        icon: Icons.shuffle_rounded,
+                        icon: KaitingIcons.shuffle,
                       ),
                       if (supportedTracks.isNotEmpty)
                         SoundMenuAction(
                           value: 'offline',
                           label: offlineLabel,
                           icon: allOffline
-                              ? Icons.cloud_done_rounded
-                              : Icons.download_for_offline_outlined,
+                              ? KaitingIcons.cloudSynced
+                              : KaitingIcons.downloadOffline,
                         ),
                     ],
                   ),
@@ -614,7 +614,7 @@ class _Hero extends StatelessWidget {
                               final playButton = _DesktopAlbumActionButton(
                                 key: const ValueKey('desktop-album-play'),
                                 label: '播放',
-                                icon: Icons.play_arrow_rounded,
+                                icon: KaitingIcons.play,
                                 showIcon: !condensed,
                                 onPressed: album.tracks.isEmpty
                                     ? null
@@ -626,7 +626,7 @@ class _Hero extends StatelessWidget {
                               final shuffleButton = _DesktopAlbumActionButton(
                                 key: const ValueKey('desktop-album-shuffle'),
                                 label: '随机播放',
-                                icon: Icons.shuffle_rounded,
+                                icon: KaitingIcons.shuffle,
                                 showIcon: !condensed,
                                 onPressed: album.tracks.isEmpty
                                     ? null
@@ -839,7 +839,7 @@ class _TrackRow extends StatelessWidget {
             ? SoundCompactMediaRow(
                 leading: active
                     ? Icon(
-                        Icons.graphic_eq_rounded,
+                        KaitingIcons.playing,
                         color: SoundColors.accent,
                         size: 18,
                       )
@@ -877,7 +877,7 @@ class _TrackRow extends StatelessWidget {
                     width: 48,
                     child: active
                         ? Icon(
-                            Icons.graphic_eq_rounded,
+                            KaitingIcons.playing,
                             color: SoundColors.accent,
                             size: 18,
                           )
@@ -941,7 +941,7 @@ class _TrackRow extends StatelessWidget {
       tooltip: '更多操作 ${track.title}',
       menuTitle: track.title,
       padding: EdgeInsets.zero,
-      icon: Icon(Icons.more_horiz_rounded, size: 21, color: iconColor),
+      icon: Icon(KaitingIcons.moreHorizontal, size: 21, color: iconColor),
       onSelected: (value) {
         if (value == 'play-next') onPlayNext();
         if (value == 'favorite') onToggleFavorite?.call();
@@ -952,22 +952,22 @@ class _TrackRow extends StatelessWidget {
         const SoundMenuAction(
           value: 'play-next',
           label: '下一首播放',
-          icon: Icons.playlist_play_rounded,
+          icon: KaitingIcons.playNext,
         ),
         if (onToggleFavorite != null)
           SoundMenuAction(
             value: 'favorite',
             label: favorite ? '取消收藏' : '收藏',
             icon: favorite
-                ? Icons.favorite_rounded
-                : Icons.favorite_border_rounded,
+                ? KaitingIcons.favoriteFilled
+                : KaitingIcons.favorite,
             selected: favorite,
           ),
         if (onAddToPlaylist != null)
           const SoundMenuAction(
             value: 'playlist',
             label: '添加到播放列表',
-            icon: Icons.playlist_add_rounded,
+            icon: KaitingIcons.playlistAdd,
           ),
         if (onToggleOffline != null)
           SoundMenuAction(
@@ -980,12 +980,12 @@ class _TrackRow extends StatelessWidget {
                 ? '重试下载'
                 : '离线保存',
             icon: downloading
-                ? Icons.close_rounded
+                ? KaitingIcons.close
                 : offline!.isPinned(track)
-                ? Icons.cloud_off_outlined
+                ? KaitingIcons.cloudOff
                 : failed
-                ? Icons.refresh_rounded
-                : Icons.download_for_offline_outlined,
+                ? KaitingIcons.refresh
+                : KaitingIcons.downloadOffline,
             destructive: downloading || offline!.isPinned(track),
             dividerBefore: true,
           ),
@@ -1012,14 +1012,14 @@ class _TrackOfflineIndicator extends StatelessWidget {
     }
     if (task?.state == OfflineDownloadTaskState.failed) {
       return Icon(
-        Icons.error_outline_rounded,
+        KaitingIcons.error,
         size: 16,
         color: context.soundColors.error,
       );
     }
     if (offline.isPinned(track)) {
       return const Icon(
-        Icons.cloud_done_rounded,
+        KaitingIcons.cloudSynced,
         size: 16,
         color: SoundColors.webDav,
       );

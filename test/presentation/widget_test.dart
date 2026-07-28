@@ -192,7 +192,7 @@ void main() {
       find.byWidgetPredicate(
         (widget) =>
             widget is Icon &&
-            widget.icon == Icons.graphic_eq_rounded &&
+            widget.icon == KaitingIcons.playing &&
             widget.size == 18,
       ),
       findsOneWidget,
@@ -248,16 +248,17 @@ void main() {
       final compactGrid = tester.widget<SliverGrid>(find.byType(SliverGrid));
       final compactDelegate =
           compactGrid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
+      expect(compactDelegate.crossAxisCount, 2);
       expect(compactDelegate.mainAxisExtent, lessThan(220));
       expect(compactDelegate.mainAxisSpacing, 12);
 
       await tester.tap(find.byKey(const ValueKey('library-mode-artists')));
       await tester.pumpAndSettle();
-      final artistGrid = tester.widget<SliverGrid>(find.byType(SliverGrid));
-      final artistDelegate =
-          artistGrid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
-      expect(artistDelegate.mainAxisExtent, lessThan(220));
-      expect(artistDelegate.mainAxisSpacing, 12);
+      expect(find.byType(SliverGrid), findsNothing);
+      expect(
+        find.byKey(const ValueKey('library-collection-artist:test artist')),
+        findsOneWidget,
+      );
 
       await tester.tap(find.byKey(const ValueKey('library-mode-songs')));
       await tester.pumpAndSettle();
@@ -322,24 +323,19 @@ void main() {
       tester
           .getSize(find.byKey(const ValueKey('collection-detail-artwork')))
           .width,
-      inInclusiveRange(280, 420),
+      inInclusiveRange(152, 200),
     );
     await tester.drag(
       find.byKey(const ValueKey('collection-detail-hero')),
       const Offset(0, -420),
     );
     await tester.pumpAndSettle();
-    expect(find.text('Test Track'), findsOneWidget);
+    expect(find.text('Test Album'), findsWidgets);
+    expect(find.text('Test Track'), findsNothing);
     expect(
       find.byKey(const ValueKey('library-collection-track-sort-menu')),
-      findsOneWidget,
+      findsNothing,
     );
-    await tester.tap(
-      find.byKey(const ValueKey('library-collection-track-sort-menu')),
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('专辑与曲序'));
-    await tester.pumpAndSettle();
     await tester.ensureVisible(
       find.byKey(const ValueKey('desktop-artist-play')),
     );
@@ -360,7 +356,7 @@ void main() {
       tester
           .getSize(find.byKey(const ValueKey('collection-detail-artwork')))
           .width,
-      inInclusiveRange(204, 244),
+      inInclusiveRange(112, 136),
     );
     expect(
       tester
@@ -374,19 +370,16 @@ void main() {
     final compactCollectionDelegate =
         compactCollectionGrid.gridDelegate
             as SliverGridDelegateWithFixedCrossAxisCount;
+    expect(compactCollectionDelegate.crossAxisCount, 2);
     expect(compactCollectionDelegate.mainAxisExtent, lessThan(220));
     expect(compactCollectionDelegate.mainAxisSpacing, 12);
     expect(
-      tester
-          .getSize(
-            find.byKey(const ValueKey('collection-track-row-track:test')),
-          )
-          .height,
-      64,
+      find.byKey(const ValueKey('collection-track-row-track:test')),
+      findsNothing,
     );
     expect(
       find.byKey(const ValueKey('collection-track-actions-track:test')),
-      findsOneWidget,
+      findsNothing,
     );
     expect(tester.takeException(), isNull);
 
@@ -821,7 +814,7 @@ void main() {
     expect(restoredProgress.position, const Duration(milliseconds: 60000));
     expect(restoredProgress.duration, const Duration(milliseconds: 180000));
     expect(restoredProgress.interactive, isFalse);
-    expect(find.byIcon(Icons.play_arrow_rounded), findsOneWidget);
+    expect(find.byIcon(KaitingIcons.playMini), findsOneWidget);
 
     await _unmountAndFlush(tester);
   });
@@ -928,6 +921,9 @@ void main() {
       tester.widget<NowPlayingScreen>(find.byType(NowPlayingScreen)).isActive,
       isFalse,
     );
+    // First frame mounts the compact player; its post-frame callback starts
+    // the expansion animation.
+    await tester.pump();
     await tester.pump(const Duration(milliseconds: 400));
     expect(find.byType(NowPlayingScreen), findsOneWidget);
     expect(
@@ -1355,7 +1351,7 @@ void main() {
     expect(find.byType(SoundNavigationBar), findsOneWidget);
     expect(tester.takeException(), isNull);
 
-    await tester.tap(find.byIcon(Icons.settings_outlined));
+    await tester.tap(find.byIcon(KaitingIcons.settings));
     await tester.pumpAndSettle();
     expect(find.text('设置'), findsWidgets);
     expect(find.text('开发版本'), findsNothing);
@@ -1375,7 +1371,7 @@ void main() {
         )
         .map((icon) => icon.icon)
         .toSet();
-    expect(compactSettingsIcons, {Icons.chevron_right_rounded});
+    expect(compactSettingsIcons, {KaitingIcons.chevronRight});
     expect(
       tester.widget<Text>(find.text('设置队列结束和切歌方式')).style?.color,
       SoundGlassTheme.light.secondaryText,
@@ -1491,7 +1487,7 @@ void main() {
         )
         .map((icon) => icon.icon)
         .toSet();
-    expect(compactOptionIcons, {Icons.check_rounded});
+    expect(compactOptionIcons, {KaitingIcons.check});
     await tester.tap(
       find.byKey(const ValueKey('settings-playback-mode-shuffle')),
     );
@@ -1677,6 +1673,72 @@ void main() {
     await _unmountAndFlush(tester);
   });
 
+  testWidgets(
+    'scrubber onPreviewChanged updates sibling labels while engine is frozen',
+    (tester) async {
+      // Mirrors paused playback: engine position stays put while the finger
+      // drags; time labels must follow onPreviewChanged, not displayPosition.
+      const enginePosition = Duration(seconds: 10);
+      Duration? scrubPreview;
+      Duration? sought;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: StatefulBuilder(
+              builder: (context, setState) {
+                final shown = scrubPreview ?? enginePosition;
+                return Column(
+                  children: [
+                    ProgressScrubber(
+                      position: enginePosition,
+                      duration: const Duration(seconds: 100),
+                      onSeek: (target) => sought = target,
+                      onPreviewChanged: (preview) {
+                        setState(() => scrubPreview = preview);
+                      },
+                    ),
+                    Text(
+                      key: const ValueKey('scrub-preview-label'),
+                      formatDuration(shown),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ),
+      );
+
+      expect(find.text('0:10'), findsOneWidget);
+
+      final hit = find.byKey(const ValueKey('progress-scrubber-hit-target'));
+      final start = tester.getTopLeft(hit);
+      final size = tester.getSize(hit);
+      await tester.timedDragFrom(
+        start + Offset(size.width * 0.1, size.height / 2),
+        Offset(size.width * 0.6, 0),
+        const Duration(milliseconds: 250),
+      );
+      await tester.pump();
+
+      expect(sought, isNotNull);
+      expect(
+        sought!.inMilliseconds,
+        greaterThan(enginePosition.inMilliseconds),
+      );
+      // Label must have left the frozen engine time while (or after) the drag.
+      expect(find.text('0:10'), findsNothing);
+      final label = tester.widget<Text>(
+        find.byKey(const ValueKey('scrub-preview-label')),
+      );
+      expect(label.data, isNot(equals('0:10')));
+      expect(tester.takeException(), isNull);
+
+      await _unmountAndFlush(tester);
+    },
+  );
+
   testWidgets('vinyl style renders the record art on phone and desktop', (
     tester,
   ) async {
@@ -1690,6 +1752,20 @@ void main() {
     await playback.playTrack(_testTrack, queue: const [_testTrack]);
 
     await tester.pumpWidget(
+      MaterialApp(home: NowPlayingScreen(playback: playback)),
+    );
+    await tester.pump();
+    final classicTitle = tester.getRect(
+      find.byKey(const ValueKey('now-playing-track-title')),
+    );
+    final classicControls = tester.getRect(
+      find.byKey(const ValueKey('compact-cover-playback-controls')),
+    );
+    final classicActions = tester.getRect(
+      find.byKey(const ValueKey('compact-now-playing-secondary-actions')),
+    );
+
+    await tester.pumpWidget(
       MaterialApp(
         home: NowPlayingScreen(
           playback: playback,
@@ -1700,6 +1776,21 @@ void main() {
     await tester.pump();
 
     expect(find.byKey(const ValueKey('vinyl-record-art')), findsOneWidget);
+    final vinylTitle = tester.getRect(
+      find.byKey(const ValueKey('now-playing-track-title')),
+    );
+    final vinylControls = tester.getRect(
+      find.byKey(const ValueKey('compact-cover-playback-controls')),
+    );
+    final vinylActions = tester.getRect(
+      find.byKey(const ValueKey('compact-now-playing-secondary-actions')),
+    );
+    expect(vinylTitle.left, closeTo(classicTitle.left, 0.5));
+    expect(vinylTitle.right, closeTo(classicTitle.right, 0.5));
+    expect(vinylControls.left, closeTo(classicControls.left, 0.5));
+    expect(vinylControls.right, closeTo(classicControls.right, 0.5));
+    expect(vinylActions.left, closeTo(classicActions.left, 0.5));
+    expect(vinylActions.right, closeTo(classicActions.right, 0.5));
     expect(tester.takeException(), isNull);
 
     tester.view.physicalSize = const Size(1100, 800);

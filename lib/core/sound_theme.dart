@@ -1,6 +1,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+export 'kaiting_icons.dart';
+
 import 'brand_tokens.g.dart';
 
 bool get soundUsesDesktopPlatform =>
@@ -12,6 +14,22 @@ const soundMacOSTitlebarInset = KaiBrandLayout.macOSTitlebarInset;
 const soundWindowsTitlebarHeight = KaiBrandLayout.windowsTitlebarInset;
 const soundChromeSurfaceTransparency = 0.20;
 const soundChromeSurfaceOpacity = 1 - soundChromeSurfaceTransparency;
+
+/// Keeps phone album covers comfortably tappable instead of adding a third
+/// narrow column when a wide phone crosses a fractional breakpoint.
+int soundAlbumGridColumnCount({
+  required double crossAxisExtent,
+  required bool compact,
+  required double spacing,
+  required double maxCardWidth,
+}) {
+  if (crossAxisExtent <= 0) return 1;
+  if (compact) return crossAxisExtent >= 280 ? 2 : 1;
+  return ((crossAxisExtent + spacing) / (maxCardWidth + spacing)).ceil().clamp(
+    1,
+    12,
+  );
+}
 
 extension SoundThemeContext on BuildContext {
   ThemeData get soundTheme => Theme.of(this);

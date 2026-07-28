@@ -8,6 +8,18 @@ import 'package:flutter/services.dart';
 import '../../core/sound_theme.dart';
 import '../../core/brand_tokens.g.dart';
 
+@visibleForTesting
+bool soundBackdropBlurEnabled({
+  required bool requested,
+  required bool usesMobileShell,
+  required bool keyboardVisible,
+}) {
+  // Keep the full glass treatment on every phone class. During keyboard
+  // resize only, skip the live filter so UIKit and Flutter do not redraw and
+  // refilter the scene on the same frames; it returns when the inset settles.
+  return requested && !(usesMobileShell && keyboardVisible);
+}
+
 /// Shared translucent surface used by the application shell and overlays.
 ///
 /// Backdrop blur is intentionally optional: floating surfaces use it, while
@@ -45,6 +57,11 @@ class SoundGlassSurface extends StatelessWidget {
   Widget build(BuildContext context) {
     final glass = context.soundGlass;
     final effects = context.soundSkinEffects;
+    final useBackdropBlur = soundBackdropBlurEnabled(
+      requested: blur,
+      usesMobileShell: context.soundUsesMobileShell,
+      keyboardVisible: MediaQuery.viewInsetsOf(context).bottom > 0,
+    );
     final surface = DecoratedBox(
       decoration: BoxDecoration(
         color: color ?? (strong ? glass.strongSurface : glass.surface),
@@ -55,15 +72,17 @@ class SoundGlassSurface extends StatelessWidget {
     );
     final clipped = ClipRRect(
       borderRadius: borderRadius,
-      child: blur
-          ? BackdropFilter(
-              filter: ImageFilter.blur(
-                sigmaX: strong ? glass.strongBlur : glass.blur,
-                sigmaY: strong ? glass.strongBlur : glass.blur,
-              ),
-              child: surface,
-            )
-          : surface,
+      // Keep this node in the tree when keyboard insets change. Swapping the
+      // wrapper out remounts any descendant TextField, drops its focus, and
+      // makes Android immediately hide the keyboard it just opened.
+      child: BackdropFilter(
+        enabled: useBackdropBlur,
+        filter: ImageFilter.blur(
+          sigmaX: strong ? glass.strongBlur : glass.blur,
+          sigmaY: strong ? glass.strongBlur : glass.blur,
+        ),
+        child: surface,
+      ),
     );
     if (!showShadow) return clipped;
     return DecoratedBox(
@@ -640,7 +659,7 @@ class SoundEmptyState extends StatelessWidget {
                 const SizedBox(height: 20),
                 FilledButton.tonalIcon(
                   onPressed: onAction,
-                  icon: const Icon(Icons.arrow_forward_rounded, size: 17),
+                  icon: const Icon(KaitingIcons.forward, size: 17),
                   label: Text(actionLabel!),
                 ),
               ],
@@ -895,7 +914,7 @@ class SoundMenuButton<T> extends StatelessWidget {
     required this.tooltip,
     this.menuTitle,
     this.child,
-    this.icon = const Icon(Icons.more_horiz_rounded, size: 21),
+    this.icon = const Icon(KaitingIcons.moreHorizontal, size: 21),
     this.padding = EdgeInsets.zero,
     this.enabled = true,
     super.key,
@@ -1217,7 +1236,7 @@ class _SoundMenuActionRow<T> extends StatelessWidget {
                   if (action.selected) ...[
                     SizedBox(width: compact ? 12 : 10),
                     Icon(
-                      Icons.check_rounded,
+                      KaitingIcons.check,
                       size: compact ? 18 : 16,
                       color: SoundColors.accent,
                     ),
@@ -1371,9 +1390,7 @@ class SoundCheckRow extends StatelessWidget {
         selected: value,
         onTap: enabled ? () => onChanged(!value) : null,
         leading: Icon(
-          value
-              ? Icons.check_box_rounded
-              : Icons.check_box_outline_blank_rounded,
+          value ? KaitingIcons.checkboxChecked : KaitingIcons.checkbox,
           size: 20,
           color: value ? SoundColors.accent : context.soundMutedText,
         ),

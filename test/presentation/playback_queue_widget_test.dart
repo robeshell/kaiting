@@ -111,6 +111,9 @@ void main() {
 
     await tester.tap(find.byKey(const ValueKey('show-now-playing-lyrics')));
     await tester.pump(const Duration(milliseconds: 300));
+    // The compact lyrics header picks up its panel-owned menu after the
+    // panel's first post-frame callback.
+    await tester.pump();
     expect(find.byKey(const ValueKey('compact-lyrics')), findsOneWidget);
     expect(
       find.byKey(const ValueKey('compact-lyrics-artwork')),
@@ -142,7 +145,14 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('return-now-playing-cover')));
     await tester.pump(const Duration(milliseconds: 300));
     expect(find.byKey(const ValueKey('compact-player')), findsOneWidget);
-    await tester.tap(find.byTooltip('随机播放').last);
+    await tester.tap(
+      find.byKey(const ValueKey('now-playing-mode-cycle')).last,
+    );
+    await tester.pump();
+    expect(playback.playbackMode, PlaybackMode.repeatOne);
+    await tester.tap(
+      find.byKey(const ValueKey('now-playing-mode-cycle')).last,
+    );
     await tester.pump();
     expect(playback.playbackMode, PlaybackMode.shuffle);
 

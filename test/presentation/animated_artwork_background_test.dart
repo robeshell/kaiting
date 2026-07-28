@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math' as math;
 import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
@@ -63,6 +64,49 @@ void main() {
     }
   });
 
+  test('artwork foreground follows the background hue with safe contrast', () {
+    const blueBackground = [
+      Color(0xFFB9C9F5),
+      Color(0xFFC7D4F2),
+      Color(0xFFA6BAEB),
+    ];
+    const warmBackground = [
+      Color(0xFFF0CAB4),
+      Color(0xFFF4D8C4),
+      Color(0xFFE6B593),
+    ];
+    final blue = ArtworkPagePalette.fromBackground(blueBackground);
+    final warm = ArtworkPagePalette.fromBackground(warmBackground);
+    final blueSample = _paletteSample(blueBackground);
+    final warmSample = _paletteSample(warmBackground);
+
+    expect(blue.useLightText, isFalse);
+    expect(warm.useLightText, isFalse);
+    expect(
+      _hueDistance(
+        HSLColor.fromColor(blue.primaryText).hue,
+        HSLColor.fromColor(blueSample).hue,
+      ),
+      lessThan(1.5),
+    );
+    expect(
+      _hueDistance(
+        HSLColor.fromColor(warm.primaryText).hue,
+        HSLColor.fromColor(warmSample).hue,
+      ),
+      lessThan(1.5),
+    );
+    expect(
+      _hueDistance(
+        HSLColor.fromColor(blue.primaryText).hue,
+        HSLColor.fromColor(warm.primaryText).hue,
+      ),
+      greaterThan(60),
+    );
+    expect(_contrastRatio(blue.primaryText, blueSample), greaterThan(4.5));
+    expect(_contrastRatio(warm.primaryText, warmSample), greaterThan(4.5));
+  });
+
   testWidgets('now-playing background uses album colors and moves', (
     tester,
   ) async {
@@ -105,6 +149,109 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
     final moved = _backgroundPainter(tester);
     expect(moved.phase, isNot(initialPhase));
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('artwork background can stay dark in a light app theme', (
+    tester,
+  ) async {
+    final album = Album(
+      id: 'forced-dark-album',
+      title: 'Forced Dark Album',
+      artist: 'Artist',
+      source: SourceKind.local,
+      palette: const [Color(0xFFE8D7A4), Color(0xFFA7DDE2)],
+      tracks: const [],
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: SoundTheme.light,
+        home: Scaffold(
+          body: AnimatedArtworkBackground(
+            album: album,
+            position: Duration.zero,
+            isPlaying: false,
+            paletteBrightness: Brightness.dark,
+          ),
+        ),
+      ),
+    );
+
+    final painter = _backgroundPainter(tester);
+    expect(painter.brightness, Brightness.dark);
+    final backgroundLightness = painter.colors
+        .map((color) => HSLColor.fromColor(color).lightness)
+        .toList();
+    expect(
+      backgroundLightness,
+      everyElement(inInclusiveRange(0.135, 0.27)),
+    );
+    final palette = ArtworkPagePalette.fromBackground(painter.colors);
+    final sample = _paletteSample(painter.colors);
+    final primaryHsl = HSLColor.fromColor(palette.primaryText);
+    final secondaryHsl = HSLColor.fromColor(palette.secondaryText);
+    final mutedHsl = HSLColor.fromColor(palette.mutedText);
+    expect(palette.useLightText, isTrue);
+    expect(
+      _hueDistance(
+        primaryHsl.hue,
+        HSLColor.fromColor(sample).hue,
+      ),
+      lessThanOrEqualTo(15),
+    );
+    expect(secondaryHsl.saturation, greaterThan(primaryHsl.saturation));
+    expect(mutedHsl.saturation, greaterThan(secondaryHsl.saturation));
+    expect(primaryHsl.lightness, greaterThan(secondaryHsl.lightness));
+    expect(secondaryHsl.lightness, greaterThan(mutedHsl.lightness));
+    expect(_contrastRatio(palette.primaryText, sample), greaterThan(4.5));
+    expect(tester.takeException(), isNull);
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('static artwork background is a top-to-bottom gradient', (
+    tester,
+  ) async {
+    final album = Album(
+      id: 'static-gradient-album',
+      title: 'Static Gradient Album',
+      artist: 'Artist',
+      source: SourceKind.local,
+      palette: const [Color(0xFFB85C4D), Color(0xFF437C78)],
+      tracks: const [],
+    );
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: SoundTheme.light,
+        home: Scaffold(
+          body: AnimatedArtworkBackground(
+            album: album,
+            position: Duration.zero,
+            isPlaying: true,
+            paletteBrightness: Brightness.dark,
+            staticVerticalGradient: true,
+          ),
+        ),
+      ),
+    );
+
+    expect(
+      find.byKey(const ValueKey('now-playing-background-base')),
+      findsNothing,
+    );
+    final box = tester.widget<DecoratedBox>(
+      find.byKey(const ValueKey('now-playing-background-static')),
+    );
+    final decoration = box.decoration as BoxDecoration;
+    final gradient = decoration.gradient! as LinearGradient;
+    expect(gradient.begin, Alignment.topCenter);
+    expect(gradient.end, Alignment.bottomCenter);
+    expect(
+      gradient.colors.first.computeLuminance(),
+      greaterThan(gradient.colors.last.computeLuminance()),
+    );
+
+    await tester.pump(const Duration(seconds: 2));
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox.shrink());
   });
@@ -261,6 +408,27 @@ ArtworkGradientPainter _backgroundPainter(WidgetTester tester) {
     find.byKey(const ValueKey('now-playing-background-base')),
   );
   return paint.painter! as ArtworkGradientPainter;
+}
+
+Color _paletteSample(List<Color> colors) {
+  return Color.lerp(
+    Color.lerp(colors.first, colors[1], 0.58),
+    colors.last,
+    0.24,
+  )!;
+}
+
+double _contrastRatio(Color foreground, Color background) {
+  final composited = Color.alphaBlend(foreground, background);
+  final lighter = math.max(
+    composited.computeLuminance(),
+    background.computeLuminance(),
+  );
+  final darker = math.min(
+    composited.computeLuminance(),
+    background.computeLuminance(),
+  );
+  return (lighter + 0.05) / (darker + 0.05);
 }
 
 double _hueDistance(double first, double second) {

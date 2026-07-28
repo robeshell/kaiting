@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 
-/// Combined playback mode used for session persistence and exclusive mode
-/// pickers (for example the queue sheet).
+import '../core/kaiting_icons.dart';
+
+/// Combined playback mode used by exclusive mode pickers (for example the
+/// queue sheet and the now-playing single mode button).
 ///
-/// Runtime control is orthogonal: [SoundPlaybackController.isShuffleEnabled]
-/// plus [SoundPlaybackController.repeatMode]. [PlaybackMode.shuffle] in a
-/// session means "shuffle was on"; the underlying repeat preference is not
-/// stored separately yet and restores as [PlaybackRepeatMode.all].
+/// Runtime state and persistence use [PlaybackPolicy], where shuffle order and
+/// repeat behavior are explicit independent axes.
 enum PlaybackMode { sequential, repeatOne, repeatAll, shuffle }
 
 /// List-loop behaviour independent of shuffle.
@@ -22,10 +22,10 @@ extension PlaybackModeLabel on PlaybackMode {
 
   /// Icon for the combined mode control on now-playing.
   IconData get icon => switch (this) {
-    PlaybackMode.sequential => Icons.arrow_forward_rounded,
-    PlaybackMode.repeatOne => Icons.repeat_one_rounded,
-    PlaybackMode.repeatAll => Icons.repeat_rounded,
-    PlaybackMode.shuffle => Icons.shuffle_rounded,
+    PlaybackMode.sequential => KaitingIcons.forward,
+    PlaybackMode.repeatOne => KaitingIcons.repeatOne,
+    PlaybackMode.repeatAll => KaitingIcons.repeatAll,
+    PlaybackMode.shuffle => KaitingIcons.shuffle,
   };
 }
 
