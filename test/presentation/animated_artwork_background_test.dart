@@ -90,7 +90,11 @@ void main() {
     final initial = _backgroundPainter(tester);
     final initialPhase = initial.phase;
     expect(initial.colors, hasLength(3));
-    expect(initial.motionStrength, SoundSkinEffects.standard.motionStrength);
+    // Playing boosts motion so the breath is readable (~1.15× skin base).
+    expect(
+      initial.motionStrength,
+      closeTo(SoundSkinEffects.standard.motionStrength * 1.15, 0.01),
+    );
     expect(
       initial.primaryGlowOpacity,
       SoundSkinEffects.standard.primaryGlowOpacity,
@@ -128,7 +132,8 @@ void main() {
     );
 
     final painter = _backgroundPainter(tester);
-    expect(painter.motionStrength, SoundSkins.pure.effects.motionStrength);
+    // Quiet skins are floored so breath remains visible on ProMotion displays.
+    expect(painter.motionStrength, greaterThan(SoundSkins.pure.effects.motionStrength));
     expect(
       painter.primaryGlowOpacity,
       SoundSkins.pure.effects.primaryGlowOpacity,

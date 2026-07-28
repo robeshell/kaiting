@@ -96,11 +96,11 @@ class _AnimatedArtworkBackgroundState extends State<AnimatedArtworkBackground>
       Brightness.light,
     );
     _fromColors = List<Color>.of(_targetColors);
+    // Drift loop (~12s). Breath uses a higher harmonic so one inhale/exhale
+    // is about 4–5s — slow enough to feel calm, fast enough to notice.
     _motionController = AnimationController(
       vsync: this,
-      // Long base loop; painter layers use incommensurate sines so it never
-      // reads as a single mechanical rotation.
-      duration: const Duration(seconds: 22),
+      duration: const Duration(seconds: 12),
       value: 0,
     );
     _motionController.value = _positionPhase(widget.position);
@@ -118,10 +118,10 @@ class _AnimatedArtworkBackgroundState extends State<AnimatedArtworkBackground>
     final effects = context.soundSkinEffects;
     final reduceMotion = MediaQuery.disableAnimationsOf(context);
     _reduceMotion = reduceMotion;
-    // Stretch skin duration slightly so drift stays unhurried.
+    // Keep a readable pace even when a skin asks for a very long period.
     final baseMs = effects.motionDuration.inMilliseconds;
     _motionController.duration = Duration(
-      milliseconds: (baseMs * 1.45).round().clamp(12000, 36000),
+      milliseconds: baseMs.clamp(10000, 18000),
     );
     _paletteController.duration = effects.paletteTransitionDuration;
     if (_brightness != brightness) {
@@ -257,7 +257,12 @@ class _AnimatedArtworkBackgroundState extends State<AnimatedArtworkBackground>
     final brightness = _brightness ?? Theme.of(context).brightness;
     final effects = context.soundSkinEffects;
 
-    final playEnergy = widget.isPlaying ? 1.0 : 0.42;
+    // Floor strength so quiet skins still show a clear pulse; pause softens.
+    final strengthScale = widget.isPlaying ? 1.15 : 0.55;
+    final motionStrength =
+        (effects.motionStrength.clamp(0.45, 1.0) * strengthScale)
+            .clamp(0.35, 1.25)
+            .toDouble();
     return RepaintBoundary(
       key: const ValueKey('now-playing-artwork-background'),
       child: AnimatedBuilder(
@@ -269,7 +274,7 @@ class _AnimatedArtworkBackgroundState extends State<AnimatedArtworkBackground>
             motion: _motionController,
             reduceMotion: _reduceMotion,
             brightness: brightness,
-            motionStrength: effects.motionStrength * playEnergy,
+            motionStrength: motionStrength,
             primaryGlowOpacity: effects.primaryGlowOpacity,
             secondaryGlowOpacity: effects.secondaryGlowOpacity,
             lightVeilOpacity: effects.lightVeilOpacity,
@@ -320,115 +325,116 @@ class ArtworkGradientPainter extends CustomPainter {
   /// Linear loop phase in radians (tests assert this advances while playing).
   double get phase => reduceMotion ? 0 : motion.value * math.pi * 2;
 
-  /// Soft multi-harmonic wander — avoids the constant-speed "spin" feel.
+  /// Soft multi-harmonic wander — not a single constant-speed orbit.
   static double _drift(double radians) {
-    return math.sin(radians) * 0.62 +
-        math.sin(radians * 1.73 + 0.9) * 0.28 +
-        math.sin(radians * 0.41 + 2.1) * 0.16;
+    return math.sin(radians) * 0.70 +
+        math.sin(radians * 1.61 + 0.85) * 0.22 +
+        math.sin(radians * 0.47 + 2.0) * 0.12;
   }
 
-  /// 0…1 breath envelope (ease in / ease out).
+  /// 0…1 ease-in-out breath.
   static double _breath(double radians) => 0.5 + 0.5 * math.sin(radians);
 
   @override
   void paint(Canvas canvas, Size size) {
     final rect = Offset.zero & size;
-    final s = reduceMotion ? 0.0 : motionStrength.clamp(0.0, 1.2);
+    final s = reduceMotion ? 0.0 : motionStrength.clamp(0.0, 1.3);
     final t = phase;
 
-    // Slow inhale/exhale (~0.55 cycles per full loop) + offset second lung.
-    final breathA = _breath(t * 0.55);
-    final breathB = _breath(t * 0.37 + 1.25);
-    final breathC = _breath(t * 0.29 + 2.4);
+    // ~2.4 breaths per drift loop → about 4–5s inhale+exhale at 12s loop.
+    final breathA = _breath(t * 2.4);
+    final breathB = _breath(t * 2.05 + 1.3);
+    final breathC = _breath(t * 1.7 + 2.5);
 
-    // Base wash drifts gently; amplitude stays modest so it never "sweeps".
+    // Base wash: visible color shift + drifting axis.
     final base = LinearGradient(
       begin: Alignment(
-        -0.78 + _drift(t * 0.33) * 0.18 * s,
-        -0.88 + _drift(t * 0.27 + 0.8) * 0.12 * s,
+        -0.85 + _drift(t * 0.55) * 0.32 * s,
+        -0.92 + _drift(t * 0.48 + 0.7) * 0.22 * s,
       ),
       end: Alignment(
-        0.80 + _drift(t * 0.31 + 1.4) * 0.16 * s,
-        0.86 + _drift(t * 0.25 + 2.2) * 0.12 * s,
+        0.88 + _drift(t * 0.52 + 1.5) * 0.30 * s,
+        0.90 + _drift(t * 0.44 + 2.1) * 0.22 * s,
       ),
       colors: [
-        Color.lerp(colors[0], colors[1], breathA * 0.12 * s)!,
-        colors[1],
-        Color.lerp(colors[2], colors[1], breathB * 0.10 * s)!,
+        Color.lerp(colors[0], colors[2], breathA * 0.34 * s)!,
+        Color.lerp(colors[1], colors[0], breathB * 0.22 * s)!,
+        Color.lerp(colors[2], colors[1], breathC * 0.28 * s)!,
       ],
       stops: [
         0.0,
-        0.48 + (breathA - 0.5) * 0.06 * s,
+        (0.42 + (breathA - 0.5) * 0.14 * s).clamp(0.28, 0.58),
         1.0,
       ],
     );
     canvas.drawRect(rect, Paint()..shader = base.createShader(rect));
 
-    // Primary glow: larger + softer on the inhale.
+    // Primary glow: radius and opacity swing hard enough to read as "breath".
     final primaryAlpha =
-        (primaryGlowOpacity * (0.52 + breathA * 0.48)).clamp(0.0, 1.0);
+        (primaryGlowOpacity * (0.38 + breathA * 0.72)).clamp(0.12, 1.0);
     final first = RadialGradient(
       center: Alignment(
-        -0.42 + _drift(t * 0.47) * 0.28 * s,
-        -0.46 + _drift(t * 0.39 + 1.1) * 0.24 * s,
+        -0.40 + _drift(t * 0.72) * 0.42 * s,
+        -0.48 + _drift(t * 0.61 + 1.0) * 0.36 * s,
       ),
-      radius: 0.70 + breathA * 0.32 * s,
+      radius: 0.58 + breathA * 0.48 * s,
       colors: [
         colors[2].withValues(alpha: primaryAlpha),
-        colors[2].withValues(alpha: primaryAlpha * 0.22),
+        colors[2].withValues(alpha: primaryAlpha * 0.35),
         colors[2].withValues(alpha: 0),
       ],
-      stops: const [0.0, 0.42, 1.0],
+      stops: const [0.0, 0.38, 1.0],
     );
     canvas.drawRect(rect, Paint()..shader = first.createShader(rect));
 
-    // Secondary glow, opposite phase so the field "breathes" across the canvas.
+    // Secondary glow, offset phase — light "flows" across the field.
     final secondaryAlpha =
-        (secondaryGlowOpacity * (0.48 + breathB * 0.52)).clamp(0.0, 1.0);
+        (secondaryGlowOpacity * (0.32 + breathB * 0.78)).clamp(0.10, 1.0);
     final second = RadialGradient(
       center: Alignment(
-        0.48 + _drift(t * 0.43 + 2.0) * 0.26 * s,
-        0.38 + _drift(t * 0.51 + 0.4) * 0.28 * s,
+        0.46 + _drift(t * 0.68 + 2.0) * 0.40 * s,
+        0.40 + _drift(t * 0.76 + 0.5) * 0.38 * s,
       ),
-      radius: 0.78 + breathB * 0.30 * s,
+      radius: 0.62 + breathB * 0.46 * s,
       colors: [
         colors[0].withValues(alpha: secondaryAlpha),
-        colors[0].withValues(alpha: secondaryAlpha * 0.18),
+        colors[0].withValues(alpha: secondaryAlpha * 0.32),
         colors[0].withValues(alpha: 0),
       ],
-      stops: const [0.0, 0.45, 1.0],
+      stops: const [0.0, 0.40, 1.0],
     );
     canvas.drawRect(rect, Paint()..shader = second.createShader(rect));
 
-    // Quiet mid glow for depth — very low amplitude, slower orbit.
-    final mid = colors[1];
-    final midAlpha = (0.18 + breathC * 0.14) * s * (brightness == Brightness.light ? 0.55 : 0.85);
-    if (midAlpha > 0.02) {
+    // Mid bloom for depth.
+    final midAlpha = (0.22 + breathC * 0.28) *
+        s *
+        (brightness == Brightness.light ? 0.65 : 1.0);
+    if (midAlpha > 0.04) {
       final third = RadialGradient(
         center: Alignment(
-          _drift(t * 0.21 + 3.0) * 0.20 * s,
-          0.08 + _drift(t * 0.19 + 1.7) * 0.22 * s,
+          _drift(t * 0.38 + 3.1) * 0.34 * s,
+          0.05 + _drift(t * 0.34 + 1.8) * 0.32 * s,
         ),
-        radius: 0.95 + breathC * 0.18 * s,
+        radius: 0.82 + breathC * 0.30 * s,
         colors: [
-          mid.withValues(alpha: midAlpha.clamp(0.0, 0.35)),
-          mid.withValues(alpha: 0),
+          colors[1].withValues(alpha: midAlpha.clamp(0.0, 0.48)),
+          colors[1].withValues(alpha: 0),
         ],
       );
       canvas.drawRect(rect, Paint()..shader = third.createShader(rect));
     }
 
-    // Soft veil, slightly brighter on the exhale so the whole field pulses.
-    final veilBoost = 1.0 + (breathA - 0.5) * 0.16 * s;
+    // Whole-screen veil pulse — the easiest "breath" to notice.
+    final veilBoost = 1.0 + (breathA - 0.5) * 0.55 * s;
     canvas.drawRect(
       rect,
       Paint()
         ..color = brightness == Brightness.light
             ? Colors.white.withValues(
-                alpha: (lightVeilOpacity * veilBoost).clamp(0.0, 0.12),
+                alpha: (lightVeilOpacity * 1.6 * veilBoost).clamp(0.0, 0.16),
               )
             : Colors.black.withValues(
-                alpha: (darkVeilOpacity * veilBoost).clamp(0.0, 0.22),
+                alpha: (darkVeilOpacity * 1.35 * veilBoost).clamp(0.0, 0.28),
               ),
     );
   }
