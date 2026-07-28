@@ -5,5 +5,3 @@ targets:
         options:
           databases:
             sound_library: lib/library/persistence/library_database.dart
-          schema_dir: drift_schemas/
-          test_dir: test/generated_migrations/

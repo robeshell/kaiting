@@ -197,9 +197,9 @@ retry that reloads the current track.
   migration from the older Documents location). They can be shared across
   Flutter isolates. The development Web build uses the matching SQLite WASM
   module and Drift worker committed under `web/`.
-- `drift_schemas/sound_library/` stores the versioned schema baseline. After
-  every schema change, increment `schemaVersion` and run
-  `dart run drift_dev make-migrations` before editing the generated migration.
+- Schema evolution lives in `LibraryDatabase.migration` only. Cross-version
+  schema snapshot tests (`drift_schemas/` / `make-migrations`) are not used;
+  early installs may wipe or rescan if the on-disk schema cannot upgrade.
 
 Regenerate the type-safe database code and Web worker with:
 
@@ -217,7 +217,9 @@ The `web/sqlite3.wasm` binary must match the `sqlite3` version resolved in
   catalog, fake source, fake playlist, fake lyric, or fake current track.
 - Empty, loading, unavailable, and error cases are explicit UI states. Missing
   content is never hidden by plausible-looking sample content.
-- Deterministic fixtures and simulated playback belong under `test/`.
+- Deterministic fixtures and simulated playback belong under `test/`,
+  mirrored by module (`test/library/`, `test/playback/`, …). See
+  [`../test/README.md`](../test/README.md).
   Developer playback validation may exist in production sources only behind
   `kDebugMode` or explicit `SOUND_VALIDATION_*` build definitions.
 - Visual artwork fallbacks may derive color and typography from real album
