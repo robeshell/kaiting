@@ -1796,6 +1796,11 @@ class _LyricsPanelState extends State<_LyricsPanel> {
         ? _timeline.activeLineIndex(_position, offset: _offset)
         : null;
     widget.positionListenable.addListener(_onPositionTick);
+    // Keys exist only after the first frame; follow must not rely on build().
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _scheduleFollowForCurrentActive(force: true);
+    });
   }
 
   @override
@@ -1810,7 +1815,7 @@ class _LyricsPanelState extends State<_LyricsPanel> {
       _offset = Duration.zero;
       _activeIndex = null;
       _lastFollowedCue = null;
-      _snapNextFollow = false;
+      _snapNextFollow = true;
       _showingPreamble = true;
       _autoFollowPaused = false;
       _lineKeys = _keysFor(track.lyrics.length);
@@ -1820,13 +1825,23 @@ class _LyricsPanelState extends State<_LyricsPanel> {
       _activeIndex = _timeline.isSynchronized
           ? _timeline.activeLineIndex(_position, offset: _offset)
           : null;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _scheduleFollowForCurrentActive(force: true);
+      });
     } else if (!identical(oldWidget.track.lyrics, track.lyrics)) {
+      // Lyrics often hydrate after the panel mounts — must re-follow.
       _lineKeys = _keysFor(track.lyrics.length);
       _timeline = LyricsTimeline.forTrack(track);
       _lastFollowedCue = null;
+      _snapNextFollow = true;
       _activeIndex = _timeline.isSynchronized
           ? _timeline.activeLineIndex(_position, offset: _offset)
           : null;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        _scheduleFollowForCurrentActive(force: true);
+      });
     } else if (widget.discontinuityRevision !=
         oldWidget.discontinuityRevision) {
       // Seeks and repeat-one wraps cancel any old follow animation.
@@ -1861,31 +1876,55 @@ class _LyricsPanelState extends State<_LyricsPanel> {
   void _syncActiveFromClock({bool forceFollow = false}) {
     if (!_timeline.isSynchronized) return;
     final next = _timeline.activeLineIndex(_position, offset: _offset);
-    if (next == _activeIndex && !forceFollow) return;
-    setState(() => _activeIndex = next);
+    final changed = next != _activeIndex;
+    if (!changed && !forceFollow) return;
+    if (changed) {
+      setState(() => _activeIndex = next);
+    }
     if (next != null) {
-      _followActiveLine(next);
+      _followActiveLine(next, force: forceFollow || changed);
     } else {
-      _followPreamble();
+      _followPreamble(force: forceFollow);
+    }
+  }
+
+  void _scheduleFollowForCurrentActive({bool force = false}) {
+    if (!_timeline.isSynchronized) return;
+    final active = _activeIndex ??
+        _timeline.activeLineIndex(_position, offset: _offset);
+    if (active != null) {
+      if (_activeIndex != active) {
+        setState(() => _activeIndex = active);
+      }
+      _followActiveLine(active, force: force);
+    } else {
+      _followPreamble(force: force);
     }
   }
 
   List<GlobalKey> _keysFor(int length) =>
       List.generate(length, (index) => GlobalKey(debugLabel: 'lyric-$index'));
 
-  void _followActiveLine(int active) {
+  void _followActiveLine(int active, {bool force = false}) {
     final cueStart = _timeline.cueStartIndex(active);
-    if (_autoFollowPaused || _lastFollowedCue == cueStart) return;
+    if (_autoFollowPaused) return;
+    if (!force && _lastFollowedCue == cueStart) return;
     _showingPreamble = false;
-    final snap = _snapNextFollow;
+    final snap = force || _snapNextFollow;
     _snapNextFollow = false;
+    // Mark intent now; clear on failure so a later tick can retry.
     _lastFollowedCue = cueStart;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || _autoFollowPaused || cueStart >= _lineKeys.length) {
         return;
       }
       final lineContext = _lineKeys[cueStart].currentContext;
-      if (lineContext == null) return;
+      if (lineContext == null) {
+        if (_lastFollowedCue == cueStart) {
+          _lastFollowedCue = null;
+        }
+        return;
+      }
       Scrollable.ensureVisible(
         lineContext,
         alignment: 0.40,
@@ -1895,8 +1934,9 @@ class _LyricsPanelState extends State<_LyricsPanel> {
     });
   }
 
-  void _followPreamble() {
-    if (_autoFollowPaused || _showingPreamble) return;
+  void _followPreamble({bool force = false}) {
+    if (_autoFollowPaused) return;
+    if (!force && _showingPreamble) return;
     _showingPreamble = true;
     _lastFollowedCue = null;
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1931,6 +1971,7 @@ class _LyricsPanelState extends State<_LyricsPanel> {
       _snapNextFollow = true;
       _lastFollowedCue = null;
     });
+    _syncActiveFromClock(forceFollow: true);
   }
 
   void _changeOffset(Duration delta) {
@@ -1962,6 +2003,7 @@ class _LyricsPanelState extends State<_LyricsPanel> {
           _lastFollowedCue = null;
           _snapNextFollow = true;
         });
+        _syncActiveFromClock(forceFollow: true);
         return;
       case _LyricsMenuAction.advance:
         _changeOffset(_offsetStep);
@@ -2051,11 +2093,14 @@ class _LyricsPanelState extends State<_LyricsPanel> {
             child: GestureDetector(
               onTap: _offset == Duration.zero
                   ? null
-                  : () => setState(() {
-                      _offset = Duration.zero;
-                      _lastFollowedCue = null;
-                      _snapNextFollow = true;
-                    }),
+                  : () {
+                      setState(() {
+                        _offset = Duration.zero;
+                        _lastFollowedCue = null;
+                        _snapNextFollow = true;
+                      });
+                      _syncActiveFromClock(forceFollow: true);
+                    },
               child: Text(
                 _offsetLabel,
                 style: TextStyle(
@@ -2289,11 +2334,14 @@ class _LyricsPanelState extends State<_LyricsPanel> {
                 child: GestureDetector(
                   onTap: _offset == Duration.zero
                       ? null
-                      : () => setState(() {
-                          _offset = Duration.zero;
-                          _lastFollowedCue = null;
-                          _snapNextFollow = true;
-                        }),
+                      : () {
+                          setState(() {
+                            _offset = Duration.zero;
+                            _lastFollowedCue = null;
+                            _snapNextFollow = true;
+                          });
+                          _syncActiveFromClock(forceFollow: true);
+                        },
                   child: Text(
                     _offsetLabel,
                     style: TextStyle(
