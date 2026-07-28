@@ -1015,51 +1015,28 @@ class _PlayerColumn extends StatelessWidget {
               ),
             ),
           ),
-        ] else
-          // Desktop: favorite / playlist (etc.) center against title+artist.
+        ] else ...[
+          // Desktop:
+          // [ title                    ] [♥] [＋]
+          // [ artist — album           ]
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _TrackChangeTransition(
-                      trackId: track.id,
-                      child: Text(
-                        key: const ValueKey('now-playing-track-title'),
-                        track.title,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 24,
-                          height: 1.08,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: -0.25,
-                        ),
-                      ),
+                child: _TrackChangeTransition(
+                  trackId: track.id,
+                  child: Text(
+                    key: const ValueKey('now-playing-track-title'),
+                    track.title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 24,
+                      height: 1.08,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: -0.25,
                     ),
-                    const SizedBox(height: 3),
-                    _TrackChangeTransition(
-                      trackId: track.id,
-                      child: SoundMetadataLine(
-                        artist: track.artist,
-                        album: track.albumTitle,
-                        separator: ' — ',
-                        onOpenArtist: onOpenArtist == null
-                            ? null
-                            : () => onOpenArtist!(track.artist),
-                        onOpenAlbum: onOpenAlbum == null
-                            ? null
-                            : () => onOpenAlbum!(album),
-                        style: TextStyle(
-                          color: context.soundSecondaryText,
-                          fontSize: 13,
-                          height: 1.2,
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ),
               _NowPlayingActions(
@@ -1071,6 +1048,27 @@ class _PlayerColumn extends StatelessWidget {
               ),
             ],
           ),
+          const SizedBox(height: 3),
+          _TrackChangeTransition(
+            trackId: track.id,
+            child: SoundMetadataLine(
+              artist: track.artist,
+              album: track.albumTitle,
+              separator: ' — ',
+              onOpenArtist: onOpenArtist == null
+                  ? null
+                  : () => onOpenArtist!(track.artist),
+              onOpenAlbum: onOpenAlbum == null
+                  ? null
+                  : () => onOpenAlbum!(album),
+              style: TextStyle(
+                color: context.soundSecondaryText,
+                fontSize: 13,
+                height: 1.2,
+              ),
+            ),
+          ),
+        ],
         SizedBox(height: compactLayout ? 26 : 20),
         _PlaybackTimelineAndControls(
           key: compactLayout
