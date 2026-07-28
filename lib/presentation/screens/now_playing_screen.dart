@@ -2172,31 +2172,45 @@ class _LyricsPanelState extends State<_LyricsPanel> {
           ),
         );
         // Soft top/bottom edge so lines dissolve instead of hard-clipping.
-        return ShaderMask(
-          blendMode: BlendMode.dstIn,
-          shaderCallback: (bounds) {
-            final h = bounds.height;
-            if (h <= 1) {
-              return const LinearGradient(
-                colors: [Colors.black, Colors.black],
+        // ClipRect prevents 1px mask leaks; multi-stop top fade is longer.
+        return ClipRect(
+          child: ShaderMask(
+            blendMode: BlendMode.dstIn,
+            shaderCallback: (bounds) {
+              final h = bounds.height;
+              if (h <= 1) {
+                return const LinearGradient(
+                  colors: [Colors.black, Colors.black],
+                ).createShader(bounds);
+              }
+              // Top: wider dissolve (reads as “into the void” above the cue).
+              // Bottom: shorter so chrome under the list stays clean.
+              final topPx = math.min(h * 0.22, 110.0).clamp(48.0, 120.0);
+              final bottomPx = math.min(h * 0.12, 64.0).clamp(28.0, 72.0);
+              final t1 = (topPx * 0.35 / h).clamp(0.02, 0.12);
+              final t2 = (topPx * 0.70 / h).clamp(0.06, 0.20);
+              final t3 = (topPx / h).clamp(0.10, 0.28);
+              final b3 = (1.0 - bottomPx / h).clamp(0.72, 0.92);
+              final b2 = (1.0 - bottomPx * 0.55 / h).clamp(0.82, 0.96);
+              final b1 = (1.0 - bottomPx * 0.22 / h).clamp(0.90, 0.985);
+              return LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: const [
+                  Color(0x00000000),
+                  Color(0x00000000),
+                  Color(0x66000000),
+                  Color(0xFF000000),
+                  Color(0xFF000000),
+                  Color(0x99000000),
+                  Color(0x00000000),
+                  Color(0x00000000),
+                ],
+                stops: [0.0, t1, t2, t3, b3, b2, b1, 1.0],
               ).createShader(bounds);
-            }
-            final fadePx = math.min(52.0, h * 0.12).clamp(20.0, 64.0);
-            final top = (fadePx / h).clamp(0.04, 0.22);
-            final bottom = (1.0 - fadePx / h).clamp(0.78, 0.96);
-            return LinearGradient(
-              begin: Alignment.topCenter,
-              end: Alignment.bottomCenter,
-              colors: const [
-                Color(0x00000000),
-                Color(0xFF000000),
-                Color(0xFF000000),
-                Color(0x00000000),
-              ],
-              stops: [0, top, bottom, 1],
-            ).createShader(bounds);
-          },
-          child: scroller,
+            },
+            child: scroller,
+          ),
         );
       },
     );
