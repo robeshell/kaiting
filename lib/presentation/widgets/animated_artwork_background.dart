@@ -178,6 +178,7 @@ class _AnimatedArtworkBackgroundState extends State<AnimatedArtworkBackground>
     }
     if (oldWidget.isActive != widget.isActive) {
       _syncMotion();
+      if (widget.isActive) _loadArtworkColors();
     }
     if (oldWidget.staticVerticalGradient != widget.staticVerticalGradient) {
       _syncMotion();
@@ -263,6 +264,7 @@ class _AnimatedArtworkBackgroundState extends State<AnimatedArtworkBackground>
       _targetColors = List<Color>.of(fallback);
       _paletteController.value = 1;
     }
+    if (!widget.isActive) return;
 
     try {
       final scheme = await AnimatedArtworkBackground.colorSchemeForAlbum(

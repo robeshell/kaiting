@@ -126,6 +126,7 @@ class NowPlayingScreen extends StatelessWidget {
       isPlaying: snapshot.isPlaying,
       child: _NowPlayingArtworkChrome(
         album: album,
+        isActive: isActive,
         child: Builder(
           builder: (context) {
             final chrome = context.artworkChrome;
@@ -305,10 +306,12 @@ class NowPlayingScreen extends StatelessWidget {
 class _NowPlayingArtworkChrome extends StatefulWidget {
   const _NowPlayingArtworkChrome({
     required this.album,
+    required this.isActive,
     required this.child,
   });
 
   final Album album;
+  final bool isActive;
   final Widget child;
 
   @override
@@ -334,25 +337,40 @@ class _NowPlayingArtworkChromeState extends State<_NowPlayingArtworkChrome> {
   void didUpdateWidget(covariant _NowPlayingArtworkChrome oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.album.id != widget.album.id ||
-        oldWidget.album.artworkUri != widget.album.artworkUri) {
-      _refresh(_nowPlayingArtworkBrightness);
+        oldWidget.album.artworkUri != widget.album.artworkUri ||
+        (!oldWidget.isActive && widget.isActive)) {
+      _refresh(
+        _nowPlayingArtworkBrightness,
+        force: !oldWidget.isActive && widget.isActive,
+      );
     }
   }
 
-  void _refresh(Brightness brightness) {
+  void _refresh(Brightness brightness, {bool force = false}) {
     final album = widget.album;
     final requestKey =
         '${album.id}|${album.artworkUri}|${brightness.name}';
-    if (_requestKey == requestKey) return;
+    if (_requestKey == requestKey && !force) return;
+    final changedArtwork = _requestKey != requestKey;
     _requestKey = requestKey;
     // Match AnimatedArtworkBackground stops so luminance tracks the real BG.
-    _colors = artworkFallbackGradientColors(album, brightness);
+    if (changedArtwork) {
+      _colors = artworkFallbackGradientColors(album, brightness);
+    }
     final artworkUri = album.artworkUri?.trim();
+    if (!widget.isActive) {
+      return;
+    }
     if (artworkUri == null || artworkUri.isEmpty) {
       if (mounted) setState(() {});
       return;
     }
-    unawaited(_loadScheme(requestKey, brightness));
+    // Let the completed expansion frame reach the screen before image decode
+    // and palette generation begin.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !widget.isActive || _requestKey != requestKey) return;
+      unawaited(_loadScheme(requestKey, brightness));
+    });
   }
 
   Future<void> _loadScheme(String requestKey, Brightness brightness) async {
