@@ -1,12 +1,14 @@
+import 'dart:ui' as ui;
+
 import 'package:flutter/material.dart';
 
 import 'balanced_lyric_text.dart';
 
 /// Lyric line with left-to-right karaoke color fill driven by [progressListenable].
 ///
-/// Layout (break balancing) is cached and only recomputed when text / width /
-/// style change. Position ticks only update the clip fraction so the rest of
-/// the lyrics list does not rebuild.
+/// Fill follows **visual line order**: each wrapped line is filled left→right
+/// before the next line starts. A simple full-width [ClipRect] is wrong for
+/// multi-line / centered text.
 class KaraokeLyricText extends StatefulWidget {
   const KaraokeLyricText(
     this.text, {
@@ -36,7 +38,10 @@ class _KaraokeLyricTextState extends State<KaraokeLyricText> {
   double? _layoutWidth;
   TextStyle? _layoutStyle;
   String? _layoutText;
+  TextAlign? _layoutAlign;
   double _progress = 0;
+  List<ui.LineMetrics> _metrics = const [];
+  double _textHeight = 0;
 
   @override
   void initState() {
@@ -54,9 +59,11 @@ class _KaraokeLyricTextState extends State<KaraokeLyricText> {
     }
     if (oldWidget.text != widget.text ||
         oldWidget.style != widget.style ||
+        oldWidget.textAlign != widget.textAlign ||
         oldWidget.fillColor != widget.fillColor ||
         oldWidget.baseColor != widget.baseColor) {
       _balanced = null;
+      _metrics = const [];
     }
     _progress = widget.progressOf().clamp(0.0, 1.0);
   }
@@ -79,7 +86,8 @@ class _KaraokeLyricTextState extends State<KaraokeLyricText> {
     if (_balanced != null &&
         _layoutWidth == maxWidth &&
         _layoutStyle == widget.style &&
-        _layoutText == widget.text) {
+        _layoutText == widget.text &&
+        _layoutAlign == widget.textAlign) {
       return _balanced!;
     }
     final balanced = (!maxWidth.isFinite || maxWidth <= 0)
@@ -94,56 +102,132 @@ class _KaraokeLyricTextState extends State<KaraokeLyricText> {
     _layoutWidth = maxWidth;
     _layoutStyle = widget.style;
     _layoutText = widget.text;
+    _layoutAlign = widget.textAlign;
+    _layoutMetrics(balanced, maxWidth, scaler);
     return balanced;
+  }
+
+  void _layoutMetrics(String balanced, double maxWidth, TextScaler scaler) {
+    if (!maxWidth.isFinite || maxWidth <= 0) {
+      _metrics = const [];
+      _textHeight = 0;
+      return;
+    }
+    final painter = TextPainter(
+      text: TextSpan(text: balanced, style: widget.style),
+      textAlign: widget.textAlign,
+      textDirection: TextDirection.ltr,
+      textScaler: scaler,
+    )..layout(maxWidth: maxWidth);
+    _metrics = painter.computeLineMetrics();
+    _textHeight = painter.height;
   }
 
   @override
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final balanced = _balancedFor(
-          constraints.maxWidth,
-          MediaQuery.textScalerOf(context),
-        );
+        final maxWidth = constraints.maxWidth;
+        final scaler = MediaQuery.textScalerOf(context);
+        final balanced = _balancedFor(maxWidth, scaler);
+        // Rebuild metrics if width changed after a progress-only setState.
+        if (_metrics.isEmpty && balanced.isNotEmpty && maxWidth.isFinite) {
+          _layoutMetrics(balanced, maxWidth, scaler);
+        }
         final baseStyle = widget.style.copyWith(color: widget.baseColor);
         final fillStyle = widget.style.copyWith(color: widget.fillColor);
         final align = widget.textAlign;
         final p = _progress;
+
         if (p <= 0.001) {
           return Text(balanced, style: baseStyle, textAlign: align);
         }
         if (p >= 0.999) {
           return Text(balanced, style: fillStyle, textAlign: align);
         }
-        return Stack(
-          alignment: align == TextAlign.center
-              ? Alignment.topCenter
-              : Alignment.topLeft,
-          children: [
-            Text(balanced, style: baseStyle, textAlign: align),
-            ClipRect(
-              clipper: _LeadingFractionClipper(p),
-              child: Text(balanced, style: fillStyle, textAlign: align),
-            ),
-          ],
+
+        final height = _textHeight > 0 ? _textHeight : null;
+        return SizedBox(
+          width: maxWidth.isFinite ? maxWidth : null,
+          height: height,
+          child: Stack(
+            alignment: align == TextAlign.center
+                ? Alignment.topCenter
+                : Alignment.topLeft,
+            children: [
+              Text(balanced, style: baseStyle, textAlign: align),
+              ClipPath(
+                clipper: _KaraokeLineProgressClipper(
+                  progress: p,
+                  metrics: _metrics,
+                ),
+                child: Text(balanced, style: fillStyle, textAlign: align),
+              ),
+            ],
+          ),
         );
       },
     );
   }
 }
 
-class _LeadingFractionClipper extends CustomClipper<Rect> {
-  const _LeadingFractionClipper(this.fraction);
+/// Clips the fill layer so progress walks each wrapped line LTR in order.
+class _KaraokeLineProgressClipper extends CustomClipper<Path> {
+  const _KaraokeLineProgressClipper({
+    required this.progress,
+    required this.metrics,
+  });
 
-  final double fraction;
+  final double progress;
+  final List<ui.LineMetrics> metrics;
 
   @override
-  Rect getClip(Size size) {
-    return Rect.fromLTWH(0, 0, size.width * fraction, size.height);
+  Path getClip(Size size) {
+    final path = Path();
+    if (metrics.isEmpty) {
+      // Fallback: single-block LTR wipe (legacy behaviour).
+      path.addRect(Rect.fromLTWH(0, 0, size.width * progress.clamp(0.0, 1.0), size.height));
+      return path;
+    }
+
+    var totalWidth = 0.0;
+    for (final line in metrics) {
+      totalWidth += line.width;
+    }
+    if (totalWidth <= 0) {
+      path.addRect(Rect.fromLTWH(0, 0, size.width * progress.clamp(0.0, 1.0), size.height));
+      return path;
+    }
+
+    var remaining = progress.clamp(0.0, 1.0) * totalWidth;
+    for (final line in metrics) {
+      if (remaining <= 0) break;
+      final lineWidth = line.width;
+      if (lineWidth <= 0) continue;
+      final fillWidth = remaining >= lineWidth ? lineWidth : remaining;
+      final top = line.baseline - line.ascent;
+      final height = line.height > 0 ? line.height : (line.ascent + line.descent);
+      // [LineMetrics.left] already accounts for textAlign (e.g. centered lines).
+      path.addRect(Rect.fromLTWH(line.left, top, fillWidth, height));
+      remaining -= lineWidth;
+    }
+    return path;
   }
 
   @override
-  bool shouldReclip(covariant _LeadingFractionClipper oldClipper) {
-    return oldClipper.fraction != fraction;
+  bool shouldReclip(covariant _KaraokeLineProgressClipper oldClipper) {
+    if (oldClipper.progress != progress) return true;
+    if (oldClipper.metrics.length != metrics.length) return true;
+    for (var i = 0; i < metrics.length; i++) {
+      final a = oldClipper.metrics[i];
+      final b = metrics[i];
+      if (a.width != b.width ||
+          a.left != b.left ||
+          a.baseline != b.baseline ||
+          a.height != b.height) {
+        return true;
+      }
+    }
+    return false;
   }
 }
