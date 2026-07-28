@@ -140,7 +140,7 @@ class _AddToPlaylistSheet extends StatelessWidget {
                               '添加到播放列表',
                               style: TextStyle(
                                 fontSize: 20,
-                                fontWeight: FontWeight.w800,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
                             const SizedBox(height: 3),

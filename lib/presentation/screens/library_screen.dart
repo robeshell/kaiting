@@ -1037,7 +1037,7 @@ class _SongFastIndexState extends State<_SongFastIndex> {
                           style: TextStyle(
                             color: SoundColors.accent,
                             fontSize: 15,
-                            fontWeight: FontWeight.w800,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                       ),
@@ -1478,7 +1478,7 @@ class _SongHeader extends StatelessWidget {
       children: [
         Text(
           '$trackCount 首歌曲',
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800),
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
         ),
         const Spacer(),
         FilledButton.icon(

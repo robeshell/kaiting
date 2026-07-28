@@ -130,7 +130,7 @@ class _ArtworkPlaceholder extends StatelessWidget {
                   color: Colors.white,
                   fontSize: 18,
                   height: 1.05,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w700,
                   letterSpacing: -0.4,
                 ),
               ),

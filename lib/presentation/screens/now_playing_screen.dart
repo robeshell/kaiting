@@ -1355,8 +1355,8 @@ class _PlaybackTimelineAndControls extends StatelessWidget {
                       style: TextStyle(
                         color: context.soundPrimaryText,
                         fontSize: 18,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.25,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: -0.2,
                       ),
                     ),
                     const SizedBox(height: 4),
@@ -2081,7 +2081,7 @@ class _LyricsPanelState extends State<_LyricsPanel> {
             style: TextStyle(
               color: context.soundSecondaryText,
               fontSize: 12,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w700,
             ),
           ),
           Expanded(
@@ -2153,7 +2153,7 @@ class _LyricsPanelState extends State<_LyricsPanel> {
               style: TextStyle(
                 color: context.soundSecondaryText,
                 fontSize: 12,
-                fontWeight: FontWeight.w800,
+                fontWeight: FontWeight.w700,
               ),
             ),
             if (synchronized && _timeline.hasTimedContent) ...[

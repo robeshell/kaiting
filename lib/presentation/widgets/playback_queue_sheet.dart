@@ -91,7 +91,7 @@ class PlaybackQueuePanel extends StatelessWidget {
                           embedded ? '播放清单' : '播放队列',
                           style: TextStyle(
                             fontSize: embedded ? 16 : 22,
-                            fontWeight: FontWeight.w800,
+                            fontWeight: FontWeight.w700,
                           ),
                         ),
                         const SizedBox(height: 3),

@@ -1836,8 +1836,8 @@ class _Sidebar extends StatelessWidget {
                         style: TextStyle(
                           color: context.soundPrimaryText,
                           fontSize: 17,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.35,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.25,
                         ),
                       ),
                     ],
@@ -1897,7 +1897,7 @@ class _SidebarHeading extends StatelessWidget {
         style: TextStyle(
           color: context.soundMutedText,
           fontSize: 10.5,
-          fontWeight: FontWeight.w800,
+          fontWeight: FontWeight.w700,
           letterSpacing: 0.8,
         ),
       ),
@@ -2065,7 +2065,7 @@ class _KeyboardShortcutDialog extends StatelessWidget {
                       padding: const EdgeInsets.fromLTRB(0, 7, 22, 7),
                       child: Text(
                         shortcut,
-                        style: const TextStyle(fontWeight: FontWeight.w800),
+                        style: const TextStyle(fontWeight: FontWeight.w700),
                       ),
                     ),
                     Padding(

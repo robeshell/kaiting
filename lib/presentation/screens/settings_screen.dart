@@ -399,8 +399,8 @@ class _CompactSettingsSheet extends StatelessWidget {
               style: TextStyle(
                 color: _settingsPrimaryText(context),
                 fontSize: 20,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.3,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.2,
               ),
             ),
             const SizedBox(height: 4),

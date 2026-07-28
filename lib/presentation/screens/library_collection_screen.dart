@@ -227,7 +227,7 @@ class _LibraryCollectionScreenState extends State<LibraryCollectionScreen> {
                     style: TextStyle(
                       color: pagePalette?.primaryText,
                       fontSize: compact ? 17 : 20,
-                      fontWeight: FontWeight.w800,
+                      fontWeight: FontWeight.w700,
                     ),
                   ),
                 ),
@@ -505,7 +505,7 @@ class _CollectionTrackHeader extends StatelessWidget {
           style: TextStyle(
             color: pagePalette?.primaryText,
             fontSize: compact ? 17 : 20,
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w700,
           ),
         ),
         if (showSort)
@@ -624,7 +624,7 @@ class _CollectionHero extends StatelessWidget {
                 style: TextStyle(
                   color: collection.palette.first,
                   fontSize: 11.5,
-                  fontWeight: FontWeight.w800,
+                  fontWeight: FontWeight.w700,
                   letterSpacing: 0.8,
                 ),
               ),
@@ -633,10 +633,10 @@ class _CollectionHero extends StatelessWidget {
             Text(
               collection.title,
               style: TextStyle(
-                fontSize: compact ? 24 : 34,
-                height: 1.05,
-                fontWeight: FontWeight.w800,
-                letterSpacing: -0.8,
+                fontSize: compact ? 24 : 28,
+                height: 1.1,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.3,
               ),
             ),
             SizedBox(height: compact ? 6 : 10),
@@ -781,10 +781,10 @@ class _CollectionHero extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(
               color: palette.primaryText,
-              fontSize: 28,
-              height: 1.06,
-              fontWeight: FontWeight.w800,
-              letterSpacing: -0.55,
+              fontSize: 24,
+              height: 1.1,
+              fontWeight: FontWeight.w700,
+              letterSpacing: -0.25,
             ),
           ),
           const SizedBox(height: 9),
@@ -907,10 +907,10 @@ class _CollectionHero extends StatelessWidget {
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(
-                          fontSize: 38,
-                          height: 1.04,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -0.8,
+                          fontSize: 28,
+                          height: 1.1,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: -0.3,
                         ),
                       ),
                       const SizedBox(height: 14),
@@ -1080,7 +1080,7 @@ class _CollectionAlbumCard extends StatelessWidget {
             style: TextStyle(
               color: pagePalette?.primaryText,
               fontSize: 13.5,
-              fontWeight: FontWeight.w800,
+              fontWeight: FontWeight.w700,
             ),
           ),
           const SizedBox(height: 2),
