@@ -386,7 +386,7 @@ class _Hero extends StatelessWidget {
                     color: palette.primaryText,
                     fontSize: 24,
                     height: 1.12,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                     letterSpacing: -0.25,
                   ),
                 ),
@@ -571,7 +571,7 @@ class _Hero extends StatelessWidget {
                             style: const TextStyle(
                               fontSize: 28,
                               height: 1.1,
-                              fontWeight: FontWeight.w700,
+                              fontWeight: FontWeight.w600,
                               letterSpacing: -0.3,
                             ),
                           ),
@@ -602,7 +602,7 @@ class _Hero extends StatelessWidget {
                             style: TextStyle(
                               color: context.soundMutedText,
                               fontSize: 14,
-                              fontWeight: FontWeight.w700,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
                           const Spacer(),

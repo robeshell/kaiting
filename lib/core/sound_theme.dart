@@ -643,22 +643,22 @@ abstract final class SoundTheme {
     ).textTheme.apply(bodyColor: foreground, displayColor: foreground);
     final textTheme = baseTextTheme.copyWith(
       headlineLarge: baseTextTheme.headlineLarge?.copyWith(
-        fontWeight: FontWeight.w700,
+        fontWeight: FontWeight.w600,
         letterSpacing: -0.25,
       ),
       headlineMedium: baseTextTheme.headlineMedium?.copyWith(
-        fontWeight: FontWeight.w700,
+        fontWeight: FontWeight.w600,
         letterSpacing: -0.15,
       ),
       titleLarge: baseTextTheme.titleLarge?.copyWith(
-        fontWeight: FontWeight.w700,
+        fontWeight: FontWeight.w600,
         letterSpacing: -0.1,
       ),
       titleMedium: baseTextTheme.titleMedium?.copyWith(
-        fontWeight: FontWeight.w600,
+        fontWeight: FontWeight.w500,
       ),
       labelLarge: baseTextTheme.labelLarge?.copyWith(
-        fontWeight: FontWeight.w600,
+        fontWeight: FontWeight.w500,
         letterSpacing: 0,
       ),
       bodySmall: baseTextTheme.bodySmall?.copyWith(color: secondary),
@@ -689,7 +689,7 @@ abstract final class SoundTheme {
       ),
       shape: const WidgetStatePropertyAll(StadiumBorder()),
       textStyle: WidgetStatePropertyAll(
-        textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w600),
+        textTheme.labelMedium?.copyWith(fontWeight: FontWeight.w500),
       ),
       iconSize: const WidgetStatePropertyAll(17),
       elevation: const WidgetStatePropertyAll(0),
@@ -827,8 +827,8 @@ abstract final class SoundTheme {
           return TextStyle(
             fontSize: 10.5,
             fontWeight: states.contains(WidgetState.selected)
-                ? FontWeight.w800
-                : FontWeight.w600,
+                ? FontWeight.w600
+                : FontWeight.w500,
             color: states.contains(WidgetState.selected)
                 ? foreground
                 : secondary,
@@ -846,9 +846,9 @@ abstract final class SoundTheme {
           borderRadius: BorderRadius.circular(SoundRadii.menu),
           side: BorderSide(color: border),
         ),
-        textStyle: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+        textStyle: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
         labelTextStyle: WidgetStatePropertyAll(
-          textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+          textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
         ),
       ),
       menuTheme: MenuThemeData(
@@ -912,10 +912,10 @@ abstract final class SoundTheme {
         focusedErrorBorder: inputBorder.copyWith(
           borderSide: BorderSide(color: scheme.error, width: 2),
         ),
-        labelStyle: TextStyle(color: secondary, fontWeight: FontWeight.w600),
+        labelStyle: TextStyle(color: secondary, fontWeight: FontWeight.w500),
         floatingLabelStyle: TextStyle(
           color: SoundColors.accent,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w600,
         ),
         hintStyle: TextStyle(color: secondary.withValues(alpha: 0.7)),
         prefixIconColor: secondary,
@@ -1069,11 +1069,11 @@ abstract final class SoundTheme {
         ),
         labelStyle: textTheme.labelMedium?.copyWith(
           color: secondary,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w500,
         ),
         secondaryLabelStyle: textTheme.labelMedium?.copyWith(
           color: SoundColors.accent,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w600,
         ),
         iconTheme: IconThemeData(size: 16, color: secondary),
         padding: const EdgeInsets.symmetric(horizontal: 5),

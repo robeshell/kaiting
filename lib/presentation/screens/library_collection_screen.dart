@@ -227,7 +227,7 @@ class _LibraryCollectionScreenState extends State<LibraryCollectionScreen> {
                     style: TextStyle(
                       color: pagePalette?.primaryText,
                       fontSize: compact ? 14 : 15,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w600,
                       letterSpacing: -0.1,
                     ),
                   ),
@@ -506,7 +506,7 @@ class _CollectionTrackHeader extends StatelessWidget {
           style: TextStyle(
             color: pagePalette?.primaryText,
             fontSize: compact ? 14 : 15,
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w600,
             letterSpacing: -0.1,
           ),
         ),
@@ -626,7 +626,7 @@ class _CollectionHero extends StatelessWidget {
                 style: TextStyle(
                   color: collection.palette.first,
                   fontSize: 11.5,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w600,
                   letterSpacing: 0.8,
                 ),
               ),
@@ -637,7 +637,7 @@ class _CollectionHero extends StatelessWidget {
               style: TextStyle(
                 fontSize: compact ? 24 : 28,
                 height: 1.1,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w600,
                 letterSpacing: -0.3,
               ),
             ),
@@ -785,7 +785,7 @@ class _CollectionHero extends StatelessWidget {
               color: palette.primaryText,
               fontSize: 24,
               height: 1.1,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w600,
               letterSpacing: -0.25,
             ),
           ),
@@ -911,7 +911,7 @@ class _CollectionHero extends StatelessWidget {
                         style: const TextStyle(
                           fontSize: 28,
                           height: 1.1,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w600,
                           letterSpacing: -0.3,
                         ),
                       ),
@@ -921,7 +921,7 @@ class _CollectionHero extends StatelessWidget {
                         style: TextStyle(
                           color: context.soundMutedText,
                           fontSize: 14,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       const Spacer(),
@@ -1082,7 +1082,7 @@ class _CollectionAlbumCard extends StatelessWidget {
             style: TextStyle(
               color: pagePalette?.primaryText,
               fontSize: 13.5,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 2),
@@ -1176,7 +1176,7 @@ class _CollectionTrackRow extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: const TextStyle(
                       fontSize: 14,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   subtitle: metadata,

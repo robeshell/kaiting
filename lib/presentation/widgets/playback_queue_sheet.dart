@@ -91,7 +91,7 @@ class PlaybackQueuePanel extends StatelessWidget {
                           embedded ? '播放清单' : '播放队列',
                           style: TextStyle(
                             fontSize: embedded ? 16 : 22,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                         const SizedBox(height: 3),
@@ -298,8 +298,8 @@ class PlaybackQueuePanel extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               fontWeight: active
-                                  ? FontWeight.w800
-                                  : FontWeight.w600,
+                                  ? FontWeight.w600
+                                  : FontWeight.w500,
                             ),
                           ),
                           subtitle: SoundMetadataLine(

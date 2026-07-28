@@ -589,7 +589,7 @@ class _AlbumHitCard extends StatelessWidget {
               style: const TextStyle(
                 fontSize: 12,
                 height: 1.15,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w600,
               ),
             ),
             Text(

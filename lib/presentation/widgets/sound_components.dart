@@ -263,7 +263,7 @@ class SoundCompactMediaRow extends StatelessWidget {
                   style: TextStyle(
                     color: titleColor,
                     fontSize: 14,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                   ),
                 ),
                 if (subtitleChild != null) ...[
@@ -398,7 +398,7 @@ class _SoundChoiceButton<T> extends StatelessWidget {
                   style: TextStyle(
                     color: foreground,
                     fontSize: 12,
-                    fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
                   ),
                 ),
               ],
@@ -531,7 +531,7 @@ class SoundTrackListRow extends StatelessWidget {
                             alpha: context.soundPrimaryText.a * 0.92,
                           ),
                           fontSize: 13.5,
-                          fontWeight: FontWeight.w600,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
                       const SizedBox(height: 3),
@@ -1055,7 +1055,7 @@ class _SoundAnchoredMenu<T> extends StatelessWidget {
 
 /// Content-hugging width for anchored menus (min 160 / max 280).
 double _anchoredMenuWidth<T>(List<SoundMenuAction<T>> actions) {
-  const labelStyle = TextStyle(fontSize: 13.5, fontWeight: FontWeight.w600);
+  const labelStyle = TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500);
   const subtitleStyle = TextStyle(fontSize: 11.5);
   final painter = TextPainter(textDirection: TextDirection.ltr);
   var maxLabel = 0.0;
@@ -1310,7 +1310,7 @@ class SoundListRow extends StatelessWidget {
                                     alpha: 0.38,
                                   ),
                             fontSize: 13.5,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.w500,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
@@ -1480,7 +1480,7 @@ class _SoundNavigationButton extends StatelessWidget {
                 color: foreground,
                 fontSize: 10.5,
                 height: 1,
-                fontWeight: selected ? FontWeight.w800 : FontWeight.w600,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
               ),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,

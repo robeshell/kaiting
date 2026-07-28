@@ -720,7 +720,7 @@ class _PlaylistDetailHeader extends StatelessWidget {
           playlist.name,
           style: TextStyle(
             fontSize: context.soundPageTitleSize,
-            fontWeight: FontWeight.w700,
+            fontWeight: FontWeight.w600,
             letterSpacing: -0.3,
           ),
         ),

@@ -618,7 +618,7 @@ class _TrackIdentity extends StatelessWidget {
             style: TextStyle(
               color: context.soundPrimaryText,
               fontSize: prominent ? 15 : 13,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 2),

@@ -989,7 +989,7 @@ class _PlayerColumn extends StatelessWidget {
                 style: const TextStyle(
                   fontSize: 24,
                   height: 1.08,
-                  fontWeight: FontWeight.w700,
+                  fontWeight: FontWeight.w600,
                   letterSpacing: -0.25,
                 ),
               ),
@@ -1033,7 +1033,7 @@ class _PlayerColumn extends StatelessWidget {
                     style: const TextStyle(
                       fontSize: 24,
                       height: 1.08,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w600,
                       letterSpacing: -0.25,
                     ),
                   ),
@@ -1278,7 +1278,7 @@ class _CompactLyricsPlayer extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: const TextStyle(
                             fontSize: 17,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w600,
                             letterSpacing: -0.15,
                           ),
                         ),
@@ -1389,7 +1389,7 @@ class _PlaybackTimelineAndControls extends StatelessWidget {
                       style: TextStyle(
                         color: context.soundPrimaryText,
                         fontSize: 18,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w600,
                         letterSpacing: -0.2,
                       ),
                     ),
@@ -1691,7 +1691,7 @@ class _PlaybackErrorBanner extends StatelessWidget {
                         color: context.soundPrimaryText,
                         fontSize: 13.5,
                         height: 1.15,
-                        fontWeight: FontWeight.w700,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 2),
@@ -1719,7 +1719,7 @@ class _PlaybackErrorBanner extends StatelessWidget {
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   textStyle: const TextStyle(
                     fontSize: 12,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                   ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(9),
@@ -1981,7 +1981,7 @@ class _LyricsPanelState extends State<_LyricsPanel> {
               color: context.soundMutedText,
               fontSize: 10.5,
               height: 1.25,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 10),
@@ -2136,7 +2136,7 @@ class _LyricsPanelState extends State<_LyricsPanel> {
             style: TextStyle(
               color: context.soundSecondaryText,
               fontSize: 12,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w600,
             ),
           ),
           Expanded(
@@ -2208,7 +2208,7 @@ class _LyricsPanelState extends State<_LyricsPanel> {
               style: TextStyle(
                 color: context.soundSecondaryText,
                 fontSize: 12,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w600,
               ),
             ),
             if (synchronized && _timeline.hasTimedContent) ...[
@@ -2297,7 +2297,7 @@ class _LyricsOffsetButton extends StatelessWidget {
               style: TextStyle(
                 color: context.soundSecondaryText,
                 fontSize: 11.5,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),

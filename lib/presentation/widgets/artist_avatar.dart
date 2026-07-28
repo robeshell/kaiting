@@ -131,7 +131,7 @@ class _MonogramFace extends StatelessWidget {
           style: TextStyle(
             color: Colors.white.withValues(alpha: 0.94),
             fontSize: fontSize,
-            fontWeight: FontWeight.w800,
+            fontWeight: FontWeight.w600,
             height: 1,
             letterSpacing: -0.4,
           ),

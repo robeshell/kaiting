@@ -1012,8 +1012,8 @@ class _SongFastIndexState extends State<_SongFastIndex> {
                                     : 9.5,
                                 height: 1,
                                 fontWeight: index == activeIndex
-                                    ? FontWeight.w800
-                                    : FontWeight.w600,
+                                    ? FontWeight.w600
+                                    : FontWeight.w500,
                               ),
                             ),
                         ],
@@ -1046,7 +1046,7 @@ class _SongFastIndexState extends State<_SongFastIndex> {
                           style: TextStyle(
                             color: SoundColors.accent,
                             fontSize: 15,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w600,
                           ),
                         ),
                       ),
@@ -1290,7 +1290,7 @@ class _CompactLibraryModeItem extends StatelessWidget {
             mode.label,
             style: TextStyle(
               fontSize: 14,
-              fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+              fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
               color: selected ? SoundColors.accent : context.soundSecondaryText,
             ),
           ),
@@ -1469,7 +1469,7 @@ class _CompactPlayAllButton extends StatelessWidget {
         minimumSize: const Size(0, 40),
         padding: const EdgeInsets.symmetric(horizontal: 8),
         foregroundColor: SoundColors.accent,
-        textStyle: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w700),
+        textStyle: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
       ),
     );
   }
@@ -1487,7 +1487,7 @@ class _SongHeader extends StatelessWidget {
       children: [
         Text(
           '$trackCount 首歌曲',
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w700),
+          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
         ),
         const Spacer(),
         FilledButton.icon(
@@ -1524,7 +1524,7 @@ class _AlbumCard extends StatelessWidget {
             album.title,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w700),
+            style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500),
           ),
           const SizedBox(height: 2),
           Text(
@@ -1560,7 +1560,7 @@ class _ArtistListRow extends StatelessWidget {
     // Same tier as song/album list titles (brand rowTitle 13.5–14).
     final titleStyle = TextStyle(
       fontSize: 13.5,
-      fontWeight: FontWeight.w600,
+      fontWeight: FontWeight.w500,
       letterSpacing: -0.1,
       height: 1.25,
       color: context.soundPrimaryText.withValues(

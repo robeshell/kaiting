@@ -399,7 +399,7 @@ class _CompactSettingsSheet extends StatelessWidget {
               style: TextStyle(
                 color: _settingsPrimaryText(context),
                 fontSize: 20,
-                fontWeight: FontWeight.w700,
+                fontWeight: FontWeight.w600,
                 letterSpacing: -0.2,
               ),
             ),
@@ -474,7 +474,7 @@ class _CompactSettingsOption extends StatelessWidget {
                       color: foreground,
                       fontSize: 14,
                       fontWeight: selected || destructive
-                          ? FontWeight.w700
+                          ? FontWeight.w600
                           : FontWeight.w600,
                     ),
                   ),
@@ -737,7 +737,7 @@ class _OfflineStorageOverview extends StatelessWidget {
                       color: _settingsPrimaryText(context),
                       fontSize: 24,
                       height: 1.1,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w600,
                       letterSpacing: -0.45,
                     ),
                   ),
@@ -1316,7 +1316,7 @@ class _AboutBrandHeader extends StatelessWidget {
             style: TextStyle(
               color: _settingsPrimaryText(context),
               fontSize: 15,
-              fontWeight: FontWeight.w700,
+              fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 3),
@@ -1463,7 +1463,7 @@ class _PlaybackModeChoice extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     fontSize: 12,
-                    fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                    fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
                     color: selected
                         ? SoundColors.accent
                         : _settingsSecondaryText(context),
@@ -1736,7 +1736,7 @@ class _NowPlayingStyleCard extends StatelessWidget {
                               ? SoundColors.accent
                               : _settingsPrimaryText(context),
                           fontSize: 12,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
                     ),
@@ -1887,7 +1887,7 @@ class _SkinPresetCard extends StatelessWidget {
                       ? SoundColors.accent
                       : _settingsSecondaryText(context),
                   fontSize: 12,
-                  fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
                 ),
               ),
             ],

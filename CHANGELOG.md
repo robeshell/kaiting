@@ -11,7 +11,8 @@
 
 ### Changed
 
-- 设计锁升级至 **Kai Design 0.4.4**（标题 w700 通用规则、ChoiceStrip 选中 accent+w700、token digest 对齐）
+- **精致字重**：全局去掉 w700/w800；标题 / 选中封顶 **w600**；行标题与按钮 **w500**；歌词当前 w600 / 其余 w400
+- 设计锁升级至 **Kai Design 0.4.5**
 
 ---
 

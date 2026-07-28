@@ -1481,7 +1481,7 @@ class _AppFailureBanner extends StatelessWidget {
                       color: context.soundPrimaryText,
                       fontSize: 13.5,
                       height: 1.15,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w600,
                     ),
                   ),
                   const SizedBox(height: 3),
@@ -1511,7 +1511,7 @@ class _AppFailureBanner extends StatelessWidget {
                   tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   textStyle: const TextStyle(
                     fontSize: 12,
-                    fontWeight: FontWeight.w700,
+                    fontWeight: FontWeight.w600,
                   ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(9),
@@ -1824,7 +1824,7 @@ class _Sidebar extends StatelessWidget {
                   child: Row(
                     children: [
                       Image.asset(
-                        'assets/branding/app_icon_master-v8.png',
+                        'assets/branding/app_icon_master-v9.png',
                         width: 28,
                         height: 28,
                         filterQuality: FilterQuality.high,
@@ -1836,7 +1836,7 @@ class _Sidebar extends StatelessWidget {
                         style: TextStyle(
                           color: context.soundPrimaryText,
                           fontSize: 17,
-                          fontWeight: FontWeight.w700,
+                          fontWeight: FontWeight.w600,
                           letterSpacing: -0.25,
                         ),
                       ),
@@ -1897,7 +1897,7 @@ class _SidebarHeading extends StatelessWidget {
         style: TextStyle(
           color: context.soundMutedText,
           fontSize: 10.5,
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w600,
           letterSpacing: 0.8,
         ),
       ),
@@ -1937,7 +1937,7 @@ class _SidebarRow extends StatelessWidget {
         style: TextStyle(
           color: active ? context.soundPrimaryText : context.soundSecondaryText,
           fontSize: 13.5,
-          fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+          fontWeight: active ? FontWeight.w600 : FontWeight.w500,
         ),
       ),
       onTap: onTap,
@@ -2065,7 +2065,7 @@ class _KeyboardShortcutDialog extends StatelessWidget {
                       padding: const EdgeInsets.fromLTRB(0, 7, 22, 7),
                       child: Text(
                         shortcut,
-                        style: const TextStyle(fontWeight: FontWeight.w700),
+                        style: const TextStyle(fontWeight: FontWeight.w600),
                       ),
                     ),
                     Padding(

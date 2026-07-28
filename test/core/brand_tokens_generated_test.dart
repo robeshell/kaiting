@@ -4,7 +4,7 @@ import 'package:kaiting/core/sound_theme.dart';
 
 void main() {
   test('runtime theme consumes generated brand tokens', () {
-    expect(kaiBrandSpecVersion, '0.4.4');
+    expect(kaiBrandSpecVersion, '0.4.5');
     expect(SoundRadii.card, KaiBrandRadii.card);
     expect(SoundSkins.standard.canvas, KaiBrandDefaultSkin.canvas);
     expect(
