@@ -986,16 +986,17 @@ class _PlayerColumn extends StatelessWidget {
               track.title,
               maxLines: compactLayout ? 2 : 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 24,
-                height: compactLayout ? 1.12 : 1.15,
+                height: 1.08,
                 fontWeight: FontWeight.w700,
                 letterSpacing: -0.25,
               ),
             ),
           ),
         ),
-        SizedBox(height: compactLayout ? 8 : 5),
+        // Keep title ↔ artist tight; desktop actions must not inflate this gap.
+        const SizedBox(height: 3),
         if (compactLayout)
           _TrackChangeTransition(
             trackId: track.id,
@@ -1012,11 +1013,13 @@ class _PlayerColumn extends StatelessWidget {
               style: TextStyle(
                 color: context.soundSecondaryText,
                 fontSize: 13,
+                height: 1.2,
               ),
             ),
           )
         else
           Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Expanded(
                 child: _TrackChangeTransition(
@@ -1034,6 +1037,7 @@ class _PlayerColumn extends StatelessWidget {
                     style: TextStyle(
                       color: context.soundSecondaryText,
                       fontSize: 13,
+                      height: 1.2,
                     ),
                   ),
                 ),
@@ -1043,6 +1047,7 @@ class _PlayerColumn extends StatelessWidget {
                 userState: userState,
                 lyricsSelected: false,
                 onToggleLyrics: onToggleLyrics,
+                dense: true,
               ),
             ],
           ),
@@ -1552,6 +1557,7 @@ class _NowPlayingActions extends StatelessWidget {
     required this.lyricsSelected,
     required this.onToggleLyrics,
     this.distributed = false,
+    this.dense = false,
     super.key,
   });
 
@@ -1561,10 +1567,22 @@ class _NowPlayingActions extends StatelessWidget {
   final VoidCallback? onToggleLyrics;
   final bool distributed;
 
+  /// Compact hit targets for the desktop title/meta row so action buttons
+  /// do not pull the artist line far below the track title.
+  final bool dense;
+
   @override
   Widget build(BuildContext context) {
     final state = userState;
     final isFavorite = state?.isFavorite(track.id) ?? false;
+    final buttonStyle = dense
+        ? IconButton.styleFrom(
+            visualDensity: VisualDensity.compact,
+            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            minimumSize: const Size(36, 36),
+            padding: const EdgeInsets.all(6),
+          )
+        : null;
     return Row(
       mainAxisSize: distributed ? MainAxisSize.max : MainAxisSize.min,
       mainAxisAlignment: distributed
@@ -1578,6 +1596,7 @@ class _NowPlayingActions extends StatelessWidget {
             onPressed: () => unawaited(state.toggleFavorite(track)),
             tooltip: isFavorite ? '取消收藏' : '收藏歌曲',
             color: isFavorite ? SoundColors.accent : null,
+            style: buttonStyle,
             icon: Icon(
               isFavorite
                   ? Icons.favorite_rounded
@@ -1590,6 +1609,7 @@ class _NowPlayingActions extends StatelessWidget {
             onPressed: () =>
                 showAddToPlaylistSheet(context, userState: state, track: track),
             tooltip: '添加到播放列表',
+            style: buttonStyle,
             icon: const Icon(Icons.playlist_add_rounded),
           ),
         if (onToggleLyrics != null)
@@ -1602,6 +1622,7 @@ class _NowPlayingActions extends StatelessWidget {
             onPressed: onToggleLyrics,
             tooltip: lyricsSelected ? '返回封面' : '查看歌词',
             color: lyricsSelected ? SoundColors.accent : null,
+            style: buttonStyle,
             icon: const Icon(Icons.lyrics_rounded),
           ),
       ],
