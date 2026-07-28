@@ -138,10 +138,15 @@ class _ProgressScrubberState extends State<ProgressScrubber> {
       );
     }
 
+    // Material insets the painted track by overlay/thumb radius when
+    // [SliderThemeData.padding] is null. Always supply a padding (callers
+    // may pass [EdgeInsets.zero]) so the track spans the parent width and
+    // lines up with title / time labels on the same column.
+    final resolvedPadding = widget.padding ?? EdgeInsets.zero;
     final slider = Slider(
       value: displayValue,
       max: _durationMs,
-      padding: widget.padding,
+      padding: resolvedPadding,
       activeColor: widget.activeColor ?? context.soundPrimaryText,
       onChanged: enabled
           ? (value) => setState(() => _previewMilliseconds = value)
@@ -160,6 +165,8 @@ class _ProgressScrubberState extends State<ProgressScrubber> {
           overlayRadius: widget.overlayRadius,
         ),
         inactiveTrackColor: widget.inactiveColor ?? context.soundTint(0.14),
+        // Keep padding non-null so BaseSliderTrackShape uses full width.
+        padding: resolvedPadding,
       ),
       child: Listener(
         behavior: HitTestBehavior.translucent,

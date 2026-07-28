@@ -975,22 +975,43 @@ class _PlayerColumn extends StatelessWidget {
               ? (compactLayout ? 40.0 : 36.0)
               : (compactLayout ? 26.0 : 24.0),
         ),
+        // Title always full-width so its edges share the same vertical rail as
+        // the progress track / time labels below (no trailing action cluster).
+        _TrackChangeTransition(
+          trackId: track.id,
+          child: SizedBox(
+            key: const ValueKey('now-playing-track-title'),
+            width: double.infinity,
+            child: Text(
+              track.title,
+              maxLines: compactLayout ? 2 : 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: 24,
+                height: compactLayout ? 1.12 : 1.15,
+                fontWeight: FontWeight.w700,
+                letterSpacing: -0.25,
+              ),
+            ),
+          ),
+        ),
+        SizedBox(height: compactLayout ? 8 : 5),
         if (compactLayout)
           _TrackChangeTransition(
             trackId: track.id,
-            child: SizedBox(
-              key: const ValueKey('now-playing-track-title'),
-              width: double.infinity,
-              child: Text(
-                track.title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 24,
-                  height: 1.12,
-                  fontWeight: FontWeight.w700,
-                  letterSpacing: -0.25,
-                ),
+            child: SoundMetadataLine(
+              artist: track.artist,
+              album: track.albumTitle,
+              separator: ' — ',
+              onOpenArtist: onOpenArtist == null
+                  ? null
+                  : () => onOpenArtist!(track.artist),
+              onOpenAlbum: onOpenAlbum == null
+                  ? null
+                  : () => onOpenAlbum!(album),
+              style: TextStyle(
+                color: context.soundSecondaryText,
+                fontSize: 13,
               ),
             ),
           )
@@ -1000,15 +1021,19 @@ class _PlayerColumn extends StatelessWidget {
               Expanded(
                 child: _TrackChangeTransition(
                   trackId: track.id,
-                  child: Text(
-                    key: const ValueKey('now-playing-track-title'),
-                    track.title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 24,
-                      fontWeight: FontWeight.w700,
-                      letterSpacing: -0.25,
+                  child: SoundMetadataLine(
+                    artist: track.artist,
+                    album: track.albumTitle,
+                    separator: ' — ',
+                    onOpenArtist: onOpenArtist == null
+                        ? null
+                        : () => onOpenArtist!(track.artist),
+                    onOpenAlbum: onOpenAlbum == null
+                        ? null
+                        : () => onOpenAlbum!(album),
+                    style: TextStyle(
+                      color: context.soundSecondaryText,
+                      fontSize: 13,
                     ),
                   ),
                 ),
@@ -1021,20 +1046,6 @@ class _PlayerColumn extends StatelessWidget {
               ),
             ],
           ),
-        SizedBox(height: compactLayout ? 8 : 5),
-        _TrackChangeTransition(
-          trackId: track.id,
-          child: SoundMetadataLine(
-            artist: track.artist,
-            album: track.albumTitle,
-            separator: ' — ',
-            onOpenArtist: onOpenArtist == null
-                ? null
-                : () => onOpenArtist!(track.artist),
-            onOpenAlbum: onOpenAlbum == null ? null : () => onOpenAlbum!(album),
-            style: TextStyle(color: context.soundSecondaryText, fontSize: 13),
-          ),
-        ),
         SizedBox(height: compactLayout ? 26 : 20),
         _PlaybackTimelineAndControls(
           key: compactLayout
@@ -1442,11 +1453,15 @@ class _PlaybackTimelineAndControls extends StatelessWidget {
         final timerActive = sleepTimer?.isActive ?? false;
         return Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // Non-null padding (even horizontal 0) makes Material draw the
+            // track edge-to-edge; null padding insets by overlay radius (~14).
             ProgressScrubber(
               position: position,
               duration: duration,
               onSeek: playback.seek,
+              padding: const EdgeInsets.symmetric(vertical: 8),
             ),
             Row(
               children: [
