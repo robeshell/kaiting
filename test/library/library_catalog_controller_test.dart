@@ -160,64 +160,69 @@ void main() {
     ]);
   });
 
-  test('refresh batches lyrics and caches the flattened track list', () async {
-    final now = DateTime.utc(2026, 7, 13);
-    final repository = _CountingLibraryRepository(
-      LibraryDatabase(NativeDatabase.memory()),
-    );
-    await repository.upsertSource(
-      LibrarySourceRecord(
-        id: 'source',
-        type: LibrarySourceType.local,
-        displayName: 'Music',
-        rootUri: 'file:///music/',
-        status: LibrarySourceStatus.available,
-        createdAt: now,
-        updatedAt: now,
-      ),
-    );
-    await repository.replaceSourceScan(
-      LibraryScanBatch(
-        sourceId: 'source',
-        completedAt: now,
-        albums: const [
-          LibraryAlbumRecord(
-            id: 'album',
-            sourceId: 'source',
-            title: 'Album',
-            sortTitle: 'album',
-            albumArtist: 'Artist',
-          ),
-        ],
-        tracks: [
-          LibraryTrackRecord(
-            id: 'track',
-            sourceId: 'source',
-            albumId: 'album',
-            relativePath: 'track.flac',
-            mediaUri: 'file:///music/track.flac',
-            title: 'Track',
-            artistName: 'Artist',
-            albumTitle: 'Album',
-            durationMs: 1000,
-            modifiedAt: now,
-          ),
-        ],
-      ),
-    );
-    final catalog = LibraryCatalogController(repository: repository);
+  test(
+    'refresh skips lyrics load and caches the flattened track list',
+    () async {
+      final now = DateTime.utc(2026, 7, 13);
+      final repository = _CountingLibraryRepository(
+        LibraryDatabase(NativeDatabase.memory()),
+      );
+      await repository.upsertSource(
+        LibrarySourceRecord(
+          id: 'source',
+          type: LibrarySourceType.local,
+          displayName: 'Music',
+          rootUri: 'file:///music/',
+          status: LibrarySourceStatus.available,
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
+      await repository.replaceSourceScan(
+        LibraryScanBatch(
+          sourceId: 'source',
+          completedAt: now,
+          albums: const [
+            LibraryAlbumRecord(
+              id: 'album',
+              sourceId: 'source',
+              title: 'Album',
+              sortTitle: 'album',
+              albumArtist: 'Artist',
+            ),
+          ],
+          tracks: [
+            LibraryTrackRecord(
+              id: 'track',
+              sourceId: 'source',
+              albumId: 'album',
+              relativePath: 'track.flac',
+              mediaUri: 'file:///music/track.flac',
+              title: 'Track',
+              artistName: 'Artist',
+              albumTitle: 'Album',
+              durationMs: 1000,
+              modifiedAt: now,
+            ),
+          ],
+        ),
+      );
+      final catalog = LibraryCatalogController(repository: repository);
 
-    await catalog.refresh();
+      await catalog.refresh();
 
-    expect(repository.allLyricsCalls, 1);
-    expect(repository.singleTrackLyricCalls, 0);
-    expect(catalog.tracks.single.id, 'track');
-    expect(identical(catalog.tracks, catalog.tracks), isTrue);
+      // Browse catalog no longer loads lyrics; hydrate paths use scoped queries.
+      expect(repository.allLyricsCalls, 0);
+      expect(repository.singleTrackLyricCalls, 0);
+      expect(catalog.tracks.single.id, 'track');
+      expect(catalog.tracks.single.lyrics, isEmpty);
+      expect(identical(catalog.tracks, catalog.tracks), isTrue);
 
-    catalog.dispose();
-    await Future<void>.delayed(Duration.zero);
-    await repository.close();
-  });
+      catalog.dispose();
+      await Future<void>.delayed(Duration.zero);
+      await repository.close();
+    },
+  );
 
   test(
     'initial snapshot is ready synchronously and skips the duplicate watch read',

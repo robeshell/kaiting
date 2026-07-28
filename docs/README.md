@@ -11,6 +11,7 @@
 | [WEBDAV_FIXTURE.md](./WEBDAV_FIXTURE.md) | 本地 WebDAV 测试夹具 |
 | [../packaging/windows/README.md](../packaging/windows/README.md) | Windows 安装包 |
 | [../benchmark/README.md](../benchmark/README.md) | 大库性能微基准 |
+| [../test/README.md](../test/README.md) | 单元/组件测试目录（按 lib 模块镜像） |
 | [../website/README.md](../website/README.md) | GitHub Pages |
 
 设计事实源：[`kai-brand-design`](https://github.com/robeshell/kai-brand-design)（品牌层 + `products/kaiting/`）。本仓不再维护独立的设置 / 移动 / 浮层长篇设计稿。

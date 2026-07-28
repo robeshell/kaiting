@@ -16,7 +16,7 @@ import 'package:kaiting/sources/webdav/webdav_credentials.dart';
 import 'package:kaiting/sources/webdav/webdav_discovery.dart';
 import 'package:kaiting/sources/webdav/webdav_folder_scanner.dart';
 
-import '../tool/webdav_fixture_server.dart';
+import '../../../tool/webdav_fixture_server.dart';
 
 void main() {
   late Directory root;

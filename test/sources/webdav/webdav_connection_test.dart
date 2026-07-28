@@ -13,7 +13,7 @@ import 'package:kaiting/sources/webdav/webdav_credentials.dart';
 import 'package:kaiting/sources/webdav/webdav_discovery.dart';
 import 'package:kaiting/sources/webdav/webdav_source_connection_provider.dart';
 
-import '../tool/webdav_fixture_server.dart';
+import '../../../tool/webdav_fixture_server.dart';
 
 void main() {
   // ---------------------------------------------------------------------------
@@ -771,6 +771,11 @@ class FakeLibraryRepository implements LibraryRepository {
 
   @override
   Future<Map<String, List<LibraryLyricRecord>>> getAllLyrics() async => {};
+
+  @override
+  Future<Map<String, List<LibraryLyricRecord>>> getLyricsForTrackIds(
+    Iterable<String> trackIds,
+  ) async => {};
 
   @override
   Future<List<LibraryFavoriteTrackRecord>> getFavoriteTracks() async => [];

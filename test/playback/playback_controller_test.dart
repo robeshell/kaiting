@@ -1041,21 +1041,105 @@ void main() {
       },
     );
 
-    test('shuffle and repeat controls cycle through their modes', () {
+    test(
+      'enabling shuffle reloads the native playlist in shuffled order',
+      () async {
+        final engine = ManualPlaylistPlaybackEngine();
+        // Fisher–Yates on the two remaining tracks: nextInt(2)==0 swaps them.
+        final controller = SoundPlaybackController(
+          engine: engine,
+          random: _SequenceRandom([0]),
+        );
+        addTearDown(controller.dispose);
+        addTearDown(engine.dispose);
+
+        await controller.playTrack(
+          _firstTrack,
+          queue: [_firstTrack, _secondTrack, _thirdTrack],
+        );
+        expect(engine.loadedQueue.map((track) => track.id), [
+          _firstTrack.id,
+          _secondTrack.id,
+          _thirdTrack.id,
+        ]);
+
+        controller.toggleShuffle();
+        await Future<void>.delayed(Duration.zero);
+
+        expect(controller.isShuffleEnabled, isTrue);
+        expect(controller.queue.map((track) => track.id).toList(), [
+          _firstTrack.id,
+          _thirdTrack.id,
+          _secondTrack.id,
+        ]);
+        expect(engine.loadedQueue.map((track) => track.id).toList(), [
+          _firstTrack.id,
+          _thirdTrack.id,
+          _secondTrack.id,
+        ]);
+        expect(engine.loadQueueCalls, greaterThan(1));
+      },
+    );
+
+    test('playShuffled starts on a non-first track for a fixed seed', () async {
+      final engine = ManualPlaybackEngine();
+      // nextInt(3)==1 picks the second track as the shuffle start.
+      final controller = SoundPlaybackController(
+        engine: engine,
+        random: _SequenceRandom([1, 0, 0, 0]),
+      );
+      addTearDown(controller.dispose);
+      addTearDown(engine.dispose);
+
+      final tracks = [_firstTrack, _secondTrack, _thirdTrack];
+      await controller.playShuffled(tracks);
+
+      expect(controller.isShuffleEnabled, isTrue);
+      expect(controller.currentTrack, same(_secondTrack));
+      expect(controller.queue.first, same(_secondTrack));
+      expect(controller.queue.map((track) => track.id).toSet(), {
+        _firstTrack.id,
+        _secondTrack.id,
+        _thirdTrack.id,
+      });
+    });
+
+    test('shuffle and repeat controls stay independent', () {
       final engine = ManualPlaybackEngine();
       final controller = SoundPlaybackController(engine: engine);
       addTearDown(controller.dispose);
       addTearDown(engine.dispose);
 
       expect(controller.playbackMode, PlaybackMode.repeatAll);
+      expect(controller.isShuffleEnabled, isFalse);
+      expect(controller.repeatMode, PlaybackRepeatMode.all);
+
       controller.cycleRepeatMode();
+      expect(controller.repeatMode, PlaybackRepeatMode.one);
       expect(controller.playbackMode, PlaybackMode.repeatOne);
+
       controller.cycleRepeatMode();
+      expect(controller.repeatMode, PlaybackRepeatMode.off);
       expect(controller.playbackMode, PlaybackMode.sequential);
+
+      controller.cycleRepeatMode();
+      expect(controller.repeatMode, PlaybackRepeatMode.all);
+      expect(controller.playbackMode, PlaybackMode.repeatAll);
+
+      // Shuffle must not clear the list-loop preference.
       controller.toggleShuffle();
+      expect(controller.isShuffleEnabled, isTrue);
+      expect(controller.repeatMode, PlaybackRepeatMode.all);
       expect(controller.playbackMode, PlaybackMode.shuffle);
+
+      controller.cycleRepeatMode();
+      expect(controller.isShuffleEnabled, isTrue);
+      expect(controller.repeatMode, PlaybackRepeatMode.one);
+
       controller.toggleShuffle();
-      expect(controller.playbackMode, PlaybackMode.sequential);
+      expect(controller.isShuffleEnabled, isFalse);
+      expect(controller.repeatMode, PlaybackRepeatMode.one);
+      expect(controller.playbackMode, PlaybackMode.repeatOne);
     });
 
     test(
@@ -1530,4 +1614,28 @@ class _PendingLoad {
   final Track track;
   final int sessionId;
   final Completer<void> ready = Completer<void>();
+}
+
+/// Deterministic [Random] for shuffle tests (Fisher–Yates / start index).
+class _SequenceRandom implements Random {
+  _SequenceRandom(this._values);
+
+  final List<int> _values;
+  int _index = 0;
+
+  @override
+  int nextInt(int max) {
+    if (max <= 0) {
+      throw ArgumentError.value(max, 'max', 'Must be positive');
+    }
+    final value = _values[_index % _values.length] % max;
+    _index++;
+    return value;
+  }
+
+  @override
+  bool nextBool() => nextInt(2) == 0;
+
+  @override
+  double nextDouble() => nextInt(1 << 20) / (1 << 20);
 }
