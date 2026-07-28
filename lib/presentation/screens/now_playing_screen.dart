@@ -1034,13 +1034,12 @@ class _PlaybackResponsiveAlbumArtState
 
   /// How much the artwork shrinks when paused.
   ///
-  /// 1.0 = full size, 0.0 = fully collapsed. 0.88 gives a noticeable but
-  /// tasteful contraction that subtly signals the paused state.
-  static const _pausedScale = 0.88;
+  /// Keep the delta small so play/pause does not compete with lyrics attach
+  /// or vinyl spin on the same frames.
+  static const _pausedScale = 0.94;
 
-  /// Matches the play/pause button's interaction timing so the artwork
-  /// arrives at its final scale simultaneously with the button feedback.
-  static const _transitionDuration = Duration(milliseconds: 260);
+  /// Slightly longer than the primary button so scale eases in after the tap.
+  static const _transitionDuration = Duration(milliseconds: 340);
 
   @override
   void initState() {

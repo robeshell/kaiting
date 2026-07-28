@@ -147,17 +147,22 @@ class VinylRecordArtState extends State<VinylRecordArt>
     final shouldSpin = widget.isPlaying && widget.isActive && !_reduceMotion;
     if (shouldSpin) {
       if (_rotation.isAnimating) return;
-      // Start after the expand/open frame so rotation does not jank the route.
+      // Two frames after play so arm settle + lyrics hydrate do not share the
+      // same busy frames as starting a continuous disc ticker.
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
-        if (widget.isPlaying &&
-            widget.isActive &&
-            !_reduceMotion &&
-            !_rotation.isAnimating) {
-          _rotation.repeat();
-        }
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted) return;
+          if (widget.isPlaying &&
+              widget.isActive &&
+              !_reduceMotion &&
+              !_rotation.isAnimating) {
+            _rotation.repeat();
+          }
+        });
       });
     } else {
+      // Preserve disc angle; only stop the ticker (no snap back).
       _rotation.stop();
     }
   }
@@ -225,8 +230,10 @@ class VinylRecordArtState extends State<VinylRecordArt>
                 top: armPivot.dy - armBox / 2,
                 child: AnimatedRotation(
                   turns: widget.isPlaying ? _armPlayTurns : 0,
-                  duration: armDuration,
-                  curve: Curves.easeOutCubic,
+                  // Slightly softer than the previous arm so play does not
+                  // spike layout work with the cover scale / lyrics panel.
+                  duration: armDuration + const Duration(milliseconds: 80),
+                  curve: Curves.easeInOutCubic,
                   child: CustomPaint(
                     size: Size.square(armBox),
                     painter: const _TonearmPainter(),

@@ -255,6 +255,10 @@ class SoundPlaybackController extends ChangeNotifier {
         _snapshot = _snapshot.copyWith(track: _queue[index]);
       }
     }
+    // Defer structural notify so play/pause artwork + vinyl animations are not
+    // fighting a full now-playing rebuild on the same frames as lyrics attach.
+    await Future<void>.delayed(const Duration(milliseconds: 320));
+    if (_disposed || token != _lyricsHydrationGeneration) return;
     notifyListeners();
   }
 

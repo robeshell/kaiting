@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/foundation.dart';
@@ -89,6 +90,8 @@ class _AnimatedArtworkBackgroundState extends State<AnimatedArtworkBackground>
   late List<Color> _targetColors;
   late final AnimationController _motionController;
   late final AnimationController _paletteController;
+  /// 0 = quiet ambient, 1 = full playback energy. Never snap — avoids jumps.
+  late final AnimationController _energyController;
   Brightness? _brightness;
   String? _requestKey;
   bool _reduceMotion = false;
@@ -114,6 +117,11 @@ class _AnimatedArtworkBackgroundState extends State<AnimatedArtworkBackground>
       duration: const Duration(milliseconds: 420),
       value: 1,
     );
+    _energyController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 520),
+      value: widget.isPlaying ? 1.0 : 0.0,
+    );
   }
 
   @override
@@ -125,15 +133,19 @@ class _AnimatedArtworkBackgroundState extends State<AnimatedArtworkBackground>
     _reduceMotion = reduceMotion;
     // Keep a readable pace even when a skin asks for a very long period.
     final baseMs = effects.motionDuration.inMilliseconds;
-    _motionController.duration = Duration(
-      milliseconds: baseMs.clamp(10000, 18000),
-    );
+    final nextDuration = Duration(milliseconds: baseMs.clamp(10000, 18000));
+    if (_motionController.duration != nextDuration) {
+      final kept = _motionController.value;
+      _motionController.duration = nextDuration;
+      _motionController.value = kept;
+    }
     _paletteController.duration = effects.paletteTransitionDuration;
     if (_brightness != brightness) {
       _brightness = brightness;
       _loadArtworkColors();
     }
     _syncMotion();
+    _syncEnergy();
   }
 
   @override
@@ -143,8 +155,10 @@ class _AnimatedArtworkBackgroundState extends State<AnimatedArtworkBackground>
         oldWidget.album.id != widget.album.id) {
       _loadArtworkColors();
     }
-    if (oldWidget.isPlaying != widget.isPlaying ||
-        oldWidget.isActive != widget.isActive) {
+    if (oldWidget.isPlaying != widget.isPlaying) {
+      _syncEnergy();
+    }
+    if (oldWidget.isActive != widget.isActive) {
       _syncMotion();
     }
   }
@@ -155,14 +169,30 @@ class _AnimatedArtworkBackgroundState extends State<AnimatedArtworkBackground>
     _loadArtworkColors();
   }
 
-  void _syncMotion() {
-    if (_reduceMotion || !widget.isActive) {
-      _motionController.stop();
-      if (_reduceMotion) _motionController.value = 0;
+  void _syncEnergy() {
+    if (_reduceMotion) {
+      _energyController.value = widget.isPlaying ? 1.0 : 0.0;
       return;
     }
-    // Defer the continuous ticker one frame so the first open / expand layout
-    // can settle before we start painting every display refresh.
+    if (widget.isPlaying) {
+      unawaited(_energyController.forward());
+    } else {
+      unawaited(_energyController.reverse());
+    }
+  }
+
+  void _syncMotion() {
+    if (_reduceMotion) {
+      _motionController.stop();
+      _motionController.value = 0;
+      return;
+    }
+    if (!widget.isActive) {
+      // Keep phase so re-open does not jump; only freeze the ticker.
+      _motionController.stop();
+      return;
+    }
+    // Defer continuous painting one frame after the surface becomes active.
     if (_motionController.isAnimating) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || _reduceMotion || !widget.isActive) return;
@@ -278,31 +308,37 @@ class _AnimatedArtworkBackgroundState extends State<AnimatedArtworkBackground>
   Widget build(BuildContext context) {
     final brightness = _brightness ?? Theme.of(context).brightness;
     final effects = context.soundSkinEffects;
+    final baseStrength = effects.motionStrength.clamp(0.45, 1.0).toDouble();
 
-    // Floor strength so quiet skins still show a clear pulse; pause softens.
-    final strengthScale = widget.isPlaying ? 1.15 : 0.55;
-    final motionStrength =
-        (effects.motionStrength.clamp(0.45, 1.0) * strengthScale)
-            .clamp(0.35, 1.25)
-            .toDouble();
     return RepaintBoundary(
       key: const ValueKey('now-playing-artwork-background'),
       child: AnimatedBuilder(
-        animation: Listenable.merge([_paletteController, _motionController]),
-        builder: (context, _) => CustomPaint(
-          key: const ValueKey('now-playing-background-base'),
-          painter: ArtworkGradientPainter(
-            colors: _interpolatedColors,
-            motion: _motionController,
-            reduceMotion: _reduceMotion,
-            brightness: brightness,
-            motionStrength: motionStrength,
-            primaryGlowOpacity: effects.primaryGlowOpacity,
-            secondaryGlowOpacity: effects.secondaryGlowOpacity,
-            lightVeilOpacity: effects.lightVeilOpacity,
-            darkVeilOpacity: effects.darkVeilOpacity,
-          ),
-        ),
+        animation: Listenable.merge([
+          _paletteController,
+          _motionController,
+          _energyController,
+        ]),
+        builder: (context, _) {
+          // Quiet ambient ↔ full breath: smooth blend, never a hard cut.
+          final energy = Curves.easeInOut.transform(_energyController.value);
+          final strengthScale = 0.55 + energy * 0.60; // 0.55 … 1.15
+          final motionStrength =
+              (baseStrength * strengthScale).clamp(0.35, 1.25).toDouble();
+          return CustomPaint(
+            key: const ValueKey('now-playing-background-base'),
+            painter: ArtworkGradientPainter(
+              colors: _interpolatedColors,
+              motion: _motionController,
+              reduceMotion: _reduceMotion,
+              brightness: brightness,
+              motionStrength: motionStrength,
+              primaryGlowOpacity: effects.primaryGlowOpacity,
+              secondaryGlowOpacity: effects.secondaryGlowOpacity,
+              lightVeilOpacity: effects.lightVeilOpacity,
+              darkVeilOpacity: effects.darkVeilOpacity,
+            ),
+          );
+        },
       ),
     );
   }
@@ -311,6 +347,7 @@ class _AnimatedArtworkBackgroundState extends State<AnimatedArtworkBackground>
   void dispose() {
     _motionController.dispose();
     _paletteController.dispose();
+    _energyController.dispose();
     super.dispose();
   }
 }
