@@ -707,6 +707,7 @@ class _CompactNowPlayingState extends State<_CompactNowPlaying> {
   double? _coverLastGlobalDy;
   bool _coverDismissGestureActive = false;
   bool _scrubInteractionActive = false;
+  int? _scrubPointer;
 
   @override
   void initState() {
@@ -725,14 +726,25 @@ class _CompactNowPlayingState extends State<_CompactNowPlaying> {
     }
   }
 
+  bool _isScrubPointer(int pointer) =>
+      _scrubInteractionActive || _scrubPointer == pointer;
+
+  void _abortCoverDismissForScrub() {
+    if (_coverDismissGestureActive) {
+      _coverDismissGestureActive = false;
+      widget.onVerticalDragCancel?.call();
+    }
+    _coverPointer = null;
+    _coverLastGlobalDy = null;
+  }
+
   void _handleCoverPointerDown(PointerDownEvent event) {
     // The scrubber dispatches its notification from a descendant Listener
     // during this same pointer-down, so by the time this callback runs the
     // flag already reflects whether the touch started on the scrubber. A
     // scrub with a vertical component must not arm the dismiss gesture.
-    if (_scrubInteractionActive) {
-      _coverPointer = null;
-      _coverLastGlobalDy = null;
+    if (_isScrubPointer(event.pointer)) {
+      _abortCoverDismissForScrub();
       return;
     }
     _coverPointer = event.pointer;
@@ -741,6 +753,12 @@ class _CompactNowPlayingState extends State<_CompactNowPlaying> {
   }
 
   void _handleCoverPointerMove(PointerMoveEvent event) {
+    // Scrub may claim the pointer after down, or vertical noise during a
+    // horizontal scrub must never slide the page shut.
+    if (_isScrubPointer(event.pointer)) {
+      _abortCoverDismissForScrub();
+      return;
+    }
     if (_coverPointer != event.pointer || _coverLastGlobalDy == null) return;
     final delta = event.position.dy - _coverLastGlobalDy!;
     _coverLastGlobalDy = event.position.dy;
@@ -769,7 +787,16 @@ class _CompactNowPlayingState extends State<_CompactNowPlaying> {
     );
   }
 
-  void _finishCoverPointer() {
+  void _finishCoverPointer(PointerEvent event) {
+    if (_isScrubPointer(event.pointer)) {
+      _abortCoverDismissForScrub();
+      return;
+    }
+    if (_coverPointer != null &&
+        event is PointerUpEvent &&
+        _coverPointer != event.pointer) {
+      return;
+    }
     if (_coverDismissGestureActive) {
       _coverDismissGestureActive = false;
       widget.onVerticalDragEnd?.call(DragEndDetails());
@@ -779,6 +806,10 @@ class _CompactNowPlayingState extends State<_CompactNowPlaying> {
   }
 
   void _cancelCoverPointer(PointerCancelEvent event) {
+    if (_isScrubPointer(event.pointer)) {
+      _abortCoverDismissForScrub();
+      return;
+    }
     if (_coverDismissGestureActive) {
       _coverDismissGestureActive = false;
       widget.onVerticalDragCancel?.call();
@@ -791,6 +822,10 @@ class _CompactNowPlayingState extends State<_CompactNowPlaying> {
     ProgressScrubInteractionNotification notification,
   ) {
     _scrubInteractionActive = notification.active;
+    _scrubPointer = notification.active ? notification.pointer : null;
+    if (notification.active) {
+      _abortCoverDismissForScrub();
+    }
     return false;
   }
 
@@ -833,7 +868,7 @@ class _CompactNowPlayingState extends State<_CompactNowPlaying> {
                 behavior: HitTestBehavior.translucent,
                 onPointerDown: _handleCoverPointerDown,
                 onPointerMove: _handleCoverPointerMove,
-                onPointerUp: (_) => _finishCoverPointer(),
+                onPointerUp: _finishCoverPointer,
                 onPointerCancel: _cancelCoverPointer,
                 child: SingleChildScrollView(
                   key: const ValueKey('compact-player'),

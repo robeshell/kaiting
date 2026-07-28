@@ -11,9 +11,15 @@ import '../../core/sound_theme.dart';
 /// gesture arena, so ancestors can suppress competing dismiss gestures even
 /// when the user's scrub has a noticeable vertical component.
 class ProgressScrubInteractionNotification extends Notification {
-  const ProgressScrubInteractionNotification({required this.active});
+  const ProgressScrubInteractionNotification({
+    required this.active,
+    this.pointer,
+  });
 
   final bool active;
+
+  /// Pointer that owns the scrub, when [active] is true.
+  final int? pointer;
 }
 
 /// Thin progress track with a large, direct pointer hit target.
@@ -77,11 +83,15 @@ class _ProgressScrubberState extends State<ProgressScrubber> {
   double get _fraction =>
       widget.duration > Duration.zero ? (_displayMs / _durationMs).clamp(0.0, 1.0) : 0.0;
 
-  void _notifyInteraction(bool active) {
-    if (_interactionNotified == active) return;
+  void _notifyInteraction(bool active, {int? pointer}) {
+    final boundPointer = active ? (pointer ?? _activePointer) : null;
+    if (_interactionNotified == active && !active) return;
     _interactionNotified = active;
     if (!mounted) return;
-    ProgressScrubInteractionNotification(active: active).dispatch(context);
+    ProgressScrubInteractionNotification(
+      active: active,
+      pointer: boundPointer,
+    ).dispatch(context);
   }
 
   void _setFractionFromLocalDx(double dx) {
@@ -113,7 +123,9 @@ class _ProgressScrubberState extends State<ProgressScrubber> {
   void _beginDrag(int pointer, double localDx) {
     _activePointer = pointer;
     _dragging = true;
-    _notifyInteraction(true);
+    // Notify first so ancestor cover-dismiss handlers see the flag on the
+    // same pointer-down (child listeners run before parents).
+    _notifyInteraction(true, pointer: pointer);
     _setFractionFromLocalDx(localDx);
   }
 
@@ -123,7 +135,7 @@ class _ProgressScrubberState extends State<ProgressScrubber> {
   }
 
   void _endDrag(int pointer, {required bool commit}) {
-    if (_activePointer != pointer && pointer != -1) return;
+    if (_activePointer != null && _activePointer != pointer) return;
     final preview = _previewMilliseconds;
     _activePointer = null;
     _dragging = false;
