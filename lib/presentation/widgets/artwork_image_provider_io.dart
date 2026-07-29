@@ -3,21 +3,17 @@ import 'dart:io';
 import 'package:flutter/painting.dart';
 
 import '../../library/scanning/image_bytes.dart';
+import '../../library/scanning/artwork_uri.dart';
 
 ImageProvider<Object>? artworkImageProvider(String? value) {
-  final uri = Uri.tryParse(value ?? '');
+  final uri = resolveArtworkUri(value);
   if (uri == null) return null;
   if (uri.scheme == 'file') {
-    // Prefer File.fromUri so Application%20Support decodes correctly.
     final file = File.fromUri(uri);
-    // Missing or truncated caches (deleted after a bad WebDAV pass, etc.)
-    // must not create a FileImage that later crashes precacheImage.
-    // Validity is cached so album grids do not re-open the same file every
-    // layout pass.
-    if (!artworkFileLooksValid(uri.toString())) {
-      return null;
+    if (artworkFileLooksValid(uri.toString())) {
+      return FileImage(file);
     }
-    return FileImage(file);
+    return null;
   }
   if (uri.scheme == 'http' || uri.scheme == 'https') {
     return NetworkImage(uri.toString());

@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kaiting/domain/library_models.dart';
+import 'package:kaiting/library/scanning/artwork_uri.dart';
 import 'package:kaiting/playback/media_favorite_controller.dart';
 import 'package:kaiting/playback/media_notification_permission.dart';
 import 'package:kaiting/playback/playback_controller.dart';
@@ -41,6 +42,7 @@ void main() {
   );
 
   test('system media commands stay synchronized with the controller', () async {
+    await initArtworkUriResolver(cacheDirectory: '/tmp/kaiting-artwork-test');
     final engine = _HandlerEngine();
     const first = Track(
       id: 'first',
@@ -50,6 +52,7 @@ void main() {
       duration: Duration(minutes: 3),
       source: SourceKind.local,
       mediaUri: '/music/first.mp3',
+      artworkUri: 'cover.jpg',
     );
     const second = Track(
       id: 'second',
@@ -82,6 +85,10 @@ void main() {
 
     expect(controller.currentTrack, first);
     expect(handler.mediaItem.value?.title, 'First');
+    expect(
+      handler.mediaItem.value?.artUri,
+      Uri.file('/tmp/kaiting-artwork-test/cover.jpg'),
+    );
     expect(handler.queue.value.map((item) => item.id), ['first', 'second']);
     expect(handler.playbackState.value.playing, isTrue);
     expect(

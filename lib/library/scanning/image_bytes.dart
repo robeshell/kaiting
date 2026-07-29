@@ -1,6 +1,8 @@
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'artwork_uri.dart';
+
 /// Lightweight container checks for embedded / downloaded artwork bytes.
 ///
 /// Some FLAC/WebDAV paths can produce a buffer whose *declared* picture length
@@ -33,16 +35,31 @@ bool artworkFileLooksValid(String? artworkUri) {
   final cached = _artworkValidityCache[artworkUri];
   if (cached != null) return cached;
   final valid = _artworkFileLooksValidUncached(artworkUri);
-  if (_artworkValidityCache.length >= _artworkValidityCacheLimit) {
-    _artworkValidityCache.remove(_artworkValidityCache.keys.first);
+  // Cache only successful checks so scrolling the grid is fast. A failed
+  // check during the first cold-start frame (when dozens of cells all read
+  // from the filesystem at once) must not be stored permanently — retry on
+  // the next rebuild.
+  if (valid) {
+    if (_artworkValidityCache.length >= _artworkValidityCacheLimit) {
+      _artworkValidityCache.remove(_artworkValidityCache.keys.first);
+    }
+    _artworkValidityCache[artworkUri] = valid;
   }
-  _artworkValidityCache[artworkUri] = valid;
   return valid;
 }
 
 bool _artworkFileLooksValidUncached(String artworkUri) {
-  final uri = Uri.tryParse(artworkUri);
-  if (uri == null || uri.scheme != 'file') return true;
+  final uri = resolveArtworkUri(artworkUri);
+  if (uri == null) {
+    // Custom providers may own non-file schemes that this package cannot
+    // resolve locally. Preserve their keys; only local cache keys are checked
+    // against the filesystem here.
+    final unresolved = Uri.tryParse(artworkUri);
+    return unresolved != null &&
+        unresolved.hasScheme &&
+        unresolved.scheme != 'file';
+  }
+  if (uri.scheme != 'file') return true;
   try {
     final file = File.fromUri(uri);
     if (!file.existsSync()) return false;

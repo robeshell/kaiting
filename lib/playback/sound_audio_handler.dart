@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:audio_service/audio_service.dart';
 
 import '../domain/library_models.dart';
+import '../library/scanning/artwork_uri.dart';
 import 'media_favorite_controller.dart';
 import 'media_notification_permission.dart';
 import 'playback_controller.dart';
@@ -273,8 +274,7 @@ class SoundAudioHandler extends BaseAudioHandler {
   }
 
   Uri? _supportedArtUri(String? value) {
-    if (value == null || value.trim().isEmpty) return null;
-    final uri = Uri.tryParse(value);
+    final uri = resolveArtworkUri(value);
     if (uri == null) return null;
     return switch (uri.scheme) {
       'http' || 'https' || 'file' || 'content' => uri,
