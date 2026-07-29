@@ -110,6 +110,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         SourceSettingsScreen(
           localSources: widget.localSources,
           scanner: widget.scanner,
+          playback: widget.playback,
           webDavService: widget.webDavService,
           onBack: () =>
               setState(() => _destination = SettingsDestination.overview),
@@ -480,11 +481,7 @@ class _CompactSettingsOption extends StatelessWidget {
                   ),
                 ),
                 if (selected)
-                  Icon(
-                    KaitingIcons.check,
-                    size: 20,
-                    color: SoundColors.accent,
-                  ),
+                  Icon(KaitingIcons.check, size: 20, color: SoundColors.accent),
               ],
             ),
           ),
@@ -1285,9 +1282,7 @@ class _SettingsRow extends StatelessWidget {
                 if (onTap != null) ...[
                   const SizedBox(width: 10),
                   Icon(
-                    expanded
-                        ? KaitingIcons.arrowUp
-                        : KaitingIcons.chevronRight,
+                    expanded ? KaitingIcons.arrowUp : KaitingIcons.chevronRight,
                     size: 19,
                     color: _settingsSecondaryText(context),
                   ),

@@ -8,6 +8,7 @@ import 'package:path/path.dart' as p;
 import '../../library/library_records.dart';
 import '../../library/scanning/embedded_lyrics_parser.dart';
 import '../../library/scanning/scan_cancellation.dart';
+import '../source_provider.dart';
 import '../../library/library_repository.dart';
 import '../../library/scanning/album_artist_resolver.dart';
 import '../../library/scanning/album_grouping.dart';
@@ -77,6 +78,7 @@ class WebDavFolderScanner {
     required WebDavCredentials credentials,
     bool allowBadCertificate = false,
     String? existingSourceId,
+    void Function(ScanProgress progress)? onProgress,
   }) async {
     if (existingSourceId != null && folderUrls.length != 1) {
       throw ArgumentError.value(
@@ -139,6 +141,9 @@ class WebDavFolderScanner {
           discovery: effectiveDiscovery,
           cancellationToken: cancellationToken,
         );
+        onProgress?.call(
+          ScanProgress(totalFiles: files.length, currentPath: folderPath),
+        );
 
         final build = await _buildBatch(
           sourceId,
@@ -147,6 +152,7 @@ class WebDavFolderScanner {
           completedAt: DateTime.now().toUtc(),
           allowBadCertificate: allowBadCertificate,
           cancellationToken: cancellationToken,
+          onProgress: onProgress,
         );
 
         cancellationToken.throwIfCancelled();
@@ -322,6 +328,7 @@ class WebDavFolderScanner {
     required DateTime completedAt,
     required ScanCancellationToken cancellationToken,
     bool allowBadCertificate = false,
+    void Function(ScanProgress progress)? onProgress,
   }) async {
     final existingTracks = await repository.getTracks(sourceId: sourceId);
     final existingAlbums = await repository.getAlbums(sourceId: sourceId);
@@ -362,6 +369,15 @@ class WebDavFolderScanner {
           return existing == null || !_shouldReuseRemoteTrack(existing, file);
         })
         .toList(growable: false);
+    var metadataFilesCompleted = files.length - filesNeedingMetadata.length;
+    if (metadataFilesCompleted > 0) {
+      onProgress?.call(
+        ScanProgress(
+          filesScanned: metadataFilesCompleted,
+          totalFiles: files.length,
+        ),
+      );
+    }
     final httpClient = HttpClient()
       ..connectionTimeout = const Duration(seconds: 15)
       ..maxConnectionsPerHost = 4;
@@ -376,6 +392,7 @@ class WebDavFolderScanner {
             maxConcurrency: 4,
             task: (file) async {
               cancellationToken.throwIfCancelled();
+              late final _RemoteMetadataReadResult result;
               try {
                 final metadata = await _readRemoteMetadata(
                   file,
@@ -383,13 +400,22 @@ class WebDavFolderScanner {
                   httpClient: httpClient,
                 );
                 cancellationToken.throwIfCancelled();
-                return _RemoteMetadataReadResult.success(metadata);
+                result = _RemoteMetadataReadResult.success(metadata);
               } on _RejectedRemoteAudioException {
-                return const _RemoteMetadataReadResult.rejected();
+                result = const _RemoteMetadataReadResult.rejected();
               } catch (error, stackTrace) {
                 if (error is ScanCancelledException) rethrow;
-                return _RemoteMetadataReadResult.failure(error, stackTrace);
+                result = _RemoteMetadataReadResult.failure(error, stackTrace);
               }
+              metadataFilesCompleted++;
+              onProgress?.call(
+                ScanProgress(
+                  filesScanned: metadataFilesCompleted,
+                  totalFiles: files.length,
+                  currentPath: p.basename(Uri.parse(file.url).path),
+                ),
+              );
+              return result;
             },
           );
       final metadataByUrl = <String, _RemoteMetadataReadResult>{
@@ -397,8 +423,20 @@ class WebDavFolderScanner {
           filesNeedingMetadata[index].url: metadataReads[index],
       };
 
-      for (final file in files) {
+      for (var idx = 0; idx < files.length; idx++) {
+        final file = files[idx];
         cancellationToken.throwIfCancelled();
+        if (idx % 10 == 0) {
+          onProgress?.call(
+            ScanProgress(
+              filesScanned: files.length,
+              totalFiles: files.length,
+              tracksFound: tracks.length,
+              albumsFound: albums.length,
+              currentPath: p.basename(Uri.parse(file.url).path),
+            ),
+          );
+        }
         final existing = existingTracksByUrl[file.url];
         if (existing != null && _shouldReuseRemoteTrack(existing, file)) {
           final reused = _reuseRemoteTrack(existing, file);
@@ -641,8 +679,8 @@ class WebDavFolderScanner {
         final hasTags = _hasUsableRemoteTags(attempt);
         // Extractor already drops zero-padded/truncated art; treat null as
         // "need a larger prefix" rather than "file has no cover".
-        final hasArt = attempt.artworkBytes != null &&
-            attempt.artworkBytes!.isNotEmpty;
+        final hasArt =
+            attempt.artworkBytes != null && attempt.artworkBytes!.isNotEmpty;
         if (hasTags && hasArt) break;
         if (hasTags && headerSize == headerSizes.last) break;
         if (hasTags && !hasArt) continue;
@@ -810,10 +848,7 @@ bool _sameRemoteFingerprint(LibraryTrackRecord track, _RemoteAudioFile file) {
 
 /// Same recovery rule as local scans: re-read 未知 identity rows, missing art,
 /// and cached art files that fail a lightweight completeness check.
-bool _shouldReuseRemoteTrack(
-  LibraryTrackRecord track,
-  _RemoteAudioFile file,
-) {
+bool _shouldReuseRemoteTrack(LibraryTrackRecord track, _RemoteAudioFile file) {
   if (!_sameRemoteFingerprint(track, file)) return false;
   if (track.artistName == '未知艺人' && track.albumTitle == '未知专辑') {
     return false;

@@ -114,6 +114,9 @@ class _SubsonicScanner implements SourceScanProvider {
   bool isScanning(String sourceId) => false;
 
   @override
+  Stream<ScanProgress> watchProgress(String sourceId) => const Stream.empty();
+
+  @override
   Future<SourceScanSummary> rescan(String sourceId) async {
     return const SourceScanSummary(indexedTracks: 1, addedTracks: 1);
   }

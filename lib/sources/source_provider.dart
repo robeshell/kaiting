@@ -1,4 +1,49 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
+
 import '../library/library_records.dart';
+
+@immutable
+class ScanProgress {
+  const ScanProgress({
+    this.filesScanned = 0,
+    this.totalFiles = 0,
+    this.tracksFound = 0,
+    this.albumsFound = 0,
+    this.currentPath,
+  });
+
+  final int filesScanned;
+  final int totalFiles;
+  final int tracksFound;
+  final int albumsFound;
+  final String? currentPath;
+
+  /// A value in [0, 1] suitable for [LinearProgressIndicator.value], or null
+  /// when the total is unknown (indeterminate).
+  double? get fraction {
+    if (totalFiles <= 0) return null;
+    if (filesScanned <= 0) return 0;
+    final v = filesScanned / totalFiles;
+    return v.clamp(0.0, 1.0);
+  }
+
+  @override
+  String toString() {
+    final parts = <String>[];
+    if (tracksFound > 0) parts.add('$tracksFound 首歌曲');
+    if (albumsFound > 0) parts.add('$albumsFound 张专辑');
+    if (totalFiles > 0) {
+      parts.add('扫描 $filesScanned / $totalFiles 个文件');
+    } else if (filesScanned > 0) {
+      parts.add('扫描 $filesScanned 个文件');
+    }
+    if (currentPath != null) parts.add(currentPath!);
+    if (parts.isEmpty) return '正在扫描...';
+    return parts.join(' · ');
+  }
+}
 
 enum SourceProviderCapability {
   directorySelection,
@@ -82,6 +127,9 @@ abstract interface class SourceScanProvider {
   bool cancel(String sourceId);
 
   Future<SourceScanSummary> rescan(String sourceId);
+
+  /// Stream that emits progress updates during [rescan].
+  Stream<ScanProgress> watchProgress(String sourceId);
 }
 
 class SourceScanProviderRegistry {

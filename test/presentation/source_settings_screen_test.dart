@@ -7,6 +7,8 @@ import 'package:kaiting/library/persistence/drift_library_repository.dart';
 import 'package:kaiting/library/persistence/library_database.dart';
 import 'package:kaiting/library/scanning/local_library_scanner.dart';
 import 'package:kaiting/library/scanning/unsupported_local_media_catalog.dart';
+import 'package:kaiting/playback/playback_controller.dart';
+import 'package:kaiting/playback/simulated_playback_engine.dart';
 import 'package:kaiting/presentation/screens/source_settings_screen.dart';
 import 'package:kaiting/sources/local/local_source_service.dart';
 import 'package:kaiting/sources/local/unsupported_local_directory_access.dart';
@@ -63,6 +65,8 @@ void main() {
       repository: repository,
       catalog: const UnsupportedLocalMediaCatalog(),
     );
+    final engine = SimulatedPlaybackEngine();
+    final playback = SoundPlaybackController(engine: engine);
 
     await tester.pumpWidget(
       MaterialApp(
@@ -71,6 +75,7 @@ void main() {
           body: SourceSettingsScreen(
             localSources: localSources,
             scanner: scanner,
+            playback: playback,
             remoteAdapters: [
               RemoteSourceSettingsAdapter(
                 definition: const SourceProviderDefinition(
@@ -125,6 +130,8 @@ void main() {
 
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pump(const Duration(milliseconds: 1));
+    playback.dispose();
+    engine.dispose();
     await repository.close();
   });
 }
@@ -181,6 +188,9 @@ class _Scanner implements SourceScanProvider {
 
   @override
   bool isScanning(String sourceId) => false;
+
+  @override
+  Stream<ScanProgress> watchProgress(String sourceId) => const Stream.empty();
 
   @override
   Future<SourceScanSummary> rescan(String sourceId) async =>

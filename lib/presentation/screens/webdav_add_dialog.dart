@@ -135,7 +135,7 @@ class _WebDavAddDialogState extends State<WebDavAddDialog> {
             ),
             keyboardType: TextInputType.url,
             textInputAction: TextInputAction.next,
-            autofillHints: const [AutofillHints.url],
+            enableSuggestions: false,
             validator: (value) {
               if (value == null || value.trim().isEmpty) {
                 return '请输入服务器地址';
@@ -170,7 +170,7 @@ class _WebDavAddDialogState extends State<WebDavAddDialog> {
             enabled: !_loadingCredentials,
             decoration: const InputDecoration(labelText: '用户名'),
             textInputAction: TextInputAction.next,
-            autofillHints: const [AutofillHints.username],
+            enableSuggestions: false,
           ),
           const SizedBox(height: 16),
           TextFormField(
@@ -180,17 +180,15 @@ class _WebDavAddDialogState extends State<WebDavAddDialog> {
               labelText: _editing ? '密码（留空则保持不变）' : '密码',
               suffixIcon: IconButton(
                 icon: Icon(
-                  _obscurePassword
-                      ? KaitingIcons.hide
-                      : KaitingIcons.show,
+                  _obscurePassword ? KaitingIcons.hide : KaitingIcons.show,
                 ),
                 onPressed: () =>
                     setState(() => _obscurePassword = !_obscurePassword),
               ),
             ),
             obscureText: _obscurePassword,
+            enableSuggestions: false,
             textInputAction: TextInputAction.done,
-            autofillHints: const [AutofillHints.password],
             onFieldSubmitted: (_) => _submit(),
           ),
           const SizedBox(height: 12),
