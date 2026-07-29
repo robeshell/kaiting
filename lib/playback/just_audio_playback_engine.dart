@@ -11,6 +11,21 @@ import 'playback_engine.dart';
 import 'playback_media_provider.dart';
 import 'request_header_policy.dart';
 
+@visibleForTesting
+bool shouldUseAppManagedHttpStream({
+  required PlaybackMediaResource resource,
+  required TargetPlatform platform,
+  required bool platformRequiresProxy,
+}) {
+  return resource.allowBadCertificate ||
+      platformRequiresProxy ||
+      (platform == TargetPlatform.iOS && resource.headers.isNotEmpty);
+}
+
+@visibleForTesting
+bool isDarwinMediaServicesResetError(Object error) =>
+    error is just_audio.PlayerException && error.code == -11819;
+
 /// Production adapter backed by each platform's just_audio implementation
 /// (ExoPlayer on Android and AVPlayer on Apple platforms).
 ///
@@ -39,35 +54,42 @@ class JustAudioPlaybackEngine
     PlaybackMediaProviderRegistry? mediaProviders,
   }) : _mediaProviders =
            mediaProviders ?? PlaybackMediaProviderRegistry.direct(),
-       _player =
-           player ??
-           just_audio.AudioPlayer(
-             // Android and Apple platforms send headers through their native
-             // data sources. Windows needs just_audio's loopback proxy because
-             // its WinRT implementation does not expose request headers.
-             useProxyForRequestHeaders: useProxyForPlaybackRequestHeaders,
-           ) {
+       _ownsPlayer = player == null,
+       _player = player ?? _createPlayer() {
     _configuration = _configurePlayer(_player);
-    _subscriptions.addAll([
-      _player
+    _listenToPlayer(_player);
+  }
+
+  static just_audio.AudioPlayer _createPlayer() {
+    return just_audio.AudioPlayer(
+      // Windows needs just_audio's loopback proxy because its WinRT
+      // implementation does not expose request headers.
+      useProxyForRequestHeaders: useProxyForPlaybackRequestHeaders,
+    );
+  }
+
+  void _listenToPlayer(just_audio.AudioPlayer player) {
+    _playerSubscriptions.addAll([
+      player
           .createPositionStream(
             minPeriod: _positionUpdatePeriod,
             maxPeriod: _positionUpdatePeriod,
           )
           .listen(_onPosition),
-      _player.playerEventStream.listen(_onPlayerEvent),
-      _player.errorStream.listen(_onError),
-      _player.volumeStream.listen((v) => _volume = v),
+      player.playerEventStream.listen(_onPlayerEvent),
+      player.errorStream.listen(_onError),
+      player.volumeStream.listen((v) => _volume = v),
     ]);
   }
 
-  final just_audio.AudioPlayer _player;
+  just_audio.AudioPlayer _player;
+  final bool _ownsPlayer;
   final PlaybackMediaProviderRegistry _mediaProviders;
-  late final Future<void> _configuration;
+  late Future<void> _configuration;
 
   final StreamController<PlaybackSnapshot> _snapshots =
       StreamController<PlaybackSnapshot>.broadcast(sync: true);
-  final List<StreamSubscription<Object?>> _subscriptions = [];
+  final List<StreamSubscription<Object?>> _playerSubscriptions = [];
   final Map<String, Timer> _cacheDownloadTimers = {};
   final NativePositionGate _positionGate = NativePositionGate();
 
@@ -83,6 +105,8 @@ class JustAudioPlaybackEngine
   bool _playing = false;
   double _volume = 1.0;
   bool _disposed = false;
+  bool _playerNeedsRecreation = false;
+  Future<void>? _playerRecreation;
   PlaybackPhase? _lastTracedPhase;
   int? _lastTracedSecond;
   Future<void> _queueMutation = Future<void>.value();
@@ -132,6 +156,7 @@ class JustAudioPlaybackEngine
     if (tracks.isEmpty || initialIndex < 0 || initialIndex >= tracks.length) {
       throw ArgumentError('The playback queue and initial index are invalid.');
     }
+    _cancelPendingCacheDownloads();
     final track = tracks[initialIndex];
     _sessionId = sessionId;
     _queue = List.of(tracks);
@@ -153,6 +178,8 @@ class JustAudioPlaybackEngine
 
     final operationSession = sessionId;
     try {
+      await _recreatePlayerIfNeeded();
+      if (_disposed || operationSession != _sessionId) return;
       await _configuration;
       final prepared = <_PreparedAudioSource>[];
       for (var index = 0; index < tracks.length; index++) {
@@ -189,6 +216,7 @@ class JustAudioPlaybackEngine
       _scheduleCurrentTrackCacheDownload();
       _publish(PlaybackPhase.ready);
     } catch (error) {
+      _notePlayerFailure(error);
       if (_disposed || operationSession != _sessionId) return;
       _loading = false;
       _publish(PlaybackPhase.error, errorMessage: _readableError(error));
@@ -255,8 +283,18 @@ class JustAudioPlaybackEngine
       // WebDAV FLAC) and can crash in detachSocket via an HTTP/0.9 fallback.
       final useHttpStream =
           !kIsWeb &&
-          (resource.allowBadCertificate || useProxyForPlaybackRequestHeaders);
+          shouldUseAppManagedHttpStream(
+            resource: resource,
+            platform: defaultTargetPlatform,
+            platformRequiresProxy: useProxyForPlaybackRequestHeaders,
+          );
       if (useHttpStream) {
+        _traceMediaTransport(
+          track,
+          transport: 'app-http-stream',
+          authenticated: resource.headers.isNotEmpty,
+          allowBadCertificate: resource.allowBadCertificate,
+        );
         return _PreparedAudioSource(
           HttpStreamAudioSource(
             uri: uri,
@@ -267,6 +305,12 @@ class JustAudioPlaybackEngine
           deferredCache: _deferredCache(resource),
         );
       }
+      _traceMediaTransport(
+        track,
+        transport: 'native-uri',
+        authenticated: resource.headers.isNotEmpty,
+        allowBadCertificate: resource.allowBadCertificate,
+      );
       return _PreparedAudioSource(
         _progressiveAudioSource(uri, headers: resource.headers, tag: track.id),
         deferredCache: _deferredCache(resource),
@@ -378,6 +422,7 @@ class JustAudioPlaybackEngine
       }
       await _player.play();
     } catch (error) {
+      _notePlayerFailure(error);
       if (_track != null &&
           operationSession == _sessionId &&
           operationTrackId == _track?.id) {
@@ -409,8 +454,8 @@ class JustAudioPlaybackEngine
       _player.position,
       duration: _duration,
     );
-    _position = confirmed ??
-        _positionGate.forceConfirm(clamped, duration: _duration);
+    _position =
+        confirmed ?? _positionGate.forceConfirm(clamped, duration: _duration);
     _publish(_resolvedPhase);
   }
 
@@ -421,6 +466,7 @@ class JustAudioPlaybackEngine
     try {
       await _player.pause();
     } catch (error) {
+      _notePlayerFailure(error);
       if (operationSession == _sessionId) {
         _publish(PlaybackPhase.error, errorMessage: _readableError(error));
       }
@@ -455,6 +501,7 @@ class JustAudioPlaybackEngine
       }
       _publish(_resolvedPhase);
     } catch (error) {
+      _notePlayerFailure(error);
       if (operationSession == _sessionId) {
         _positionGate.cancelSeek();
         _publish(PlaybackPhase.error, errorMessage: _readableError(error));
@@ -522,14 +569,9 @@ class JustAudioPlaybackEngine
   }
 
   void _onError(just_audio.PlayerException error) {
+    _notePlayerFailure(error);
     if (_track == null || _loading) return;
-    final message = error.message?.trim();
-    _publish(
-      PlaybackPhase.error,
-      errorMessage: message == null || message.isEmpty
-          ? error.toString()
-          : message,
-    );
+    _publish(PlaybackPhase.error, errorMessage: _readableError(error));
   }
 
   PlaybackPhase get _resolvedPhase => switch (_processingState) {
@@ -584,8 +626,80 @@ class JustAudioPlaybackEngine
   }
 
   String _readableError(Object error) {
+    if (isDarwinMediaServicesResetError(error)) {
+      return 'Apple 媒体服务已重新启动，请重试播放（-11819）。';
+    }
     final message = error.toString().trim();
     return message.isEmpty ? '播放引擎发生未知错误。' : message;
+  }
+
+  void _notePlayerFailure(Object error) {
+    if (!isDarwinMediaServicesResetError(error)) return;
+    _playerNeedsRecreation = true;
+    _cancelPendingCacheDownloads();
+    if (_traceEnabled) {
+      debugPrint(
+        'SOUND_PLAYBACK_RECOVERY mediaServicesReset=true '
+        'recreateOnNextLoad=$_ownsPlayer',
+      );
+    }
+  }
+
+  Future<void> _recreatePlayerIfNeeded() {
+    final active = _playerRecreation;
+    if (active != null) return active;
+    if (!_playerNeedsRecreation || !_ownsPlayer || _disposed) {
+      return Future<void>.value();
+    }
+    late final Future<void> operation;
+    operation = _performPlayerRecreation().whenComplete(() {
+      if (identical(_playerRecreation, operation)) {
+        _playerRecreation = null;
+      }
+    });
+    _playerRecreation = operation;
+    return operation;
+  }
+
+  Future<void> _performPlayerRecreation() async {
+    _playerNeedsRecreation = false;
+    final previous = _player;
+    final desiredVolume = _volume;
+    final subscriptions = List.of(_playerSubscriptions);
+    _playerSubscriptions.clear();
+    for (final subscription in subscriptions) {
+      await subscription.cancel();
+    }
+    await previous.dispose();
+    if (_disposed) return;
+
+    final replacement = _createPlayer();
+    _player = replacement;
+    _configuration = _configurePlayer(replacement);
+    await _configuration;
+    if (!_validationMuted) {
+      await replacement.setVolume(desiredVolume);
+      _volume = desiredVolume;
+    }
+    _listenToPlayer(replacement);
+    if (_traceEnabled) {
+      debugPrint('SOUND_PLAYBACK_RECOVERY playerRecreated=true');
+    }
+  }
+
+  void _traceMediaTransport(
+    Track track, {
+    required String transport,
+    required bool authenticated,
+    required bool allowBadCertificate,
+  }) {
+    if (!_traceEnabled) return;
+    debugPrint(
+      'SOUND_PLAYBACK_SOURCE track=${track.id} '
+      'transport=$transport '
+      'authenticated=$authenticated '
+      'allowBadCertificate=$allowBadCertificate',
+    );
   }
 
   void _scheduleCurrentTrackCacheDownload() {
@@ -605,7 +719,7 @@ class JustAudioPlaybackEngine
   void _scheduleCacheDownload(_DeferredMediaCache deferred) {
     // Defer to avoid competing with the playback stream for bandwidth.
     _cacheDownloadTimers.putIfAbsent(deferred.key, () {
-      return Timer(const Duration(seconds: 2), () {
+      return Timer(const Duration(seconds: 30), () {
         _cacheDownloadTimers.remove(deferred.key);
         if (_disposed) return;
         unawaited(
@@ -618,6 +732,13 @@ class JustAudioPlaybackEngine
         );
       });
     });
+  }
+
+  void _cancelPendingCacheDownloads() {
+    for (final timer in _cacheDownloadTimers.values) {
+      timer.cancel();
+    }
+    _cacheDownloadTimers.clear();
   }
 
   @override
@@ -635,13 +756,11 @@ class JustAudioPlaybackEngine
   void dispose() {
     if (_disposed) return;
     _disposed = true;
-    for (final timer in _cacheDownloadTimers.values) {
-      timer.cancel();
-    }
-    _cacheDownloadTimers.clear();
-    for (final subscription in _subscriptions) {
+    _cancelPendingCacheDownloads();
+    for (final subscription in _playerSubscriptions) {
       unawaited(subscription.cancel());
     }
+    _playerSubscriptions.clear();
     unawaited(_player.dispose());
     unawaited(_snapshots.close());
   }

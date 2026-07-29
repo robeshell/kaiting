@@ -103,6 +103,9 @@ class AppFailure {
       'connection closed',
       'socketexception',
       'clientexception',
+      '-11819',
+      'media services were reset',
+      '媒体服务已重新启动',
       '服务器不可用',
       '无法连接',
     ])) {
