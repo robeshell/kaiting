@@ -20,6 +20,11 @@ void main() {
       AppFailure.fromMessage('HTTP 503').kind,
       AppFailureKind.serverUnavailable,
     );
+    final mediaReset = AppFailure.fromMessage(
+      'Apple 媒体服务已重新启动，请重试播放（-11819）。',
+    );
+    expect(mediaReset.kind, AppFailureKind.serverUnavailable);
+    expect(mediaReset.isTransient, isTrue);
     expect(
       AppFailure.fromMessage('Unsupported format decoder').kind,
       AppFailureKind.damagedMedia,

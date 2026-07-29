@@ -333,6 +333,7 @@ class _Hero extends StatelessWidget {
                 Row(
                   children: [
                     IconButton(
+                      key: const ValueKey('mobile-album-back'),
                       onPressed: onBack,
                       tooltip: '返回',
                       icon: const Icon(KaitingIcons.back),

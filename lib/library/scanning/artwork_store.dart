@@ -27,15 +27,18 @@ class FileArtworkStore implements ArtworkStore {
     required String mimeType,
   }) async {
     if (bytes.isEmpty) return null;
-    // Reject truncated WebDAV/FLAC picture buffers (header present, body
-    // zero-padded) before they land in the cache and crash precacheImage.
     if (!looksLikeCompleteImageBytes(bytes)) return null;
     final root = await _rootDirectory();
     await root.create(recursive: true);
     final digest = sha1.convert(albumId.codeUnits).toString();
-    final file = File(path.join(root.path, '$digest.${_extension(mimeType)}'));
+    final ext = _extension(mimeType);
+    final filename = '$digest.$ext';
+    final file = File(path.join(root.path, filename));
     await file.writeAsBytes(bytes, flush: true);
-    return file.uri.toString();
+    // Store only the filename so the artwork survives a container-UUID
+    // change across Xcode reinstalls. Relative paths are resolved at load
+    // time against the current ApplicationSupport directory.
+    return filename;
   }
 }
 

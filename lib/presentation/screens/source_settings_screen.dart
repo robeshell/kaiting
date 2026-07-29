@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/sound_theme.dart';
 import '../../library/library_records.dart';
+import '../../playback/playback_controller.dart';
 import '../../library/scanning/local_library_scanner.dart';
 import '../../library/scanning/scan_cancellation.dart';
 import '../../sources/local/local_source_scan_provider.dart';
@@ -62,6 +63,7 @@ class SourceSettingsScreen extends StatefulWidget {
   const SourceSettingsScreen({
     required this.localSources,
     required this.scanner,
+    required this.playback,
     this.webDavService,
     this.sourceProviders,
     this.remoteAdapters,
@@ -71,6 +73,7 @@ class SourceSettingsScreen extends StatefulWidget {
 
   final LocalSourceService localSources;
   final LocalLibraryScanner scanner;
+  final SoundPlaybackController playback;
   final WebDavConnectionService? webDavService;
   final SourceProviderRegistry? sourceProviders;
   final List<RemoteSourceSettingsAdapter>? remoteAdapters;
@@ -83,6 +86,8 @@ class SourceSettingsScreen extends StatefulWidget {
 class _SourceSettingsScreenState extends State<SourceSettingsScreen> {
   bool _addingSource = false;
   final Set<String> _scanningSourceIds = {};
+  final Map<String, ScanProgress> _scanProgress = {};
+  final Map<String, StreamSubscription<ScanProgress>> _scanProgressSubs = {};
   late final LocalSourceScanProvider _localScanProvider;
   late final WebDavSourceScanProvider? _webDavScanProvider;
   late final WebDavSourceConnectionProvider? _webDavConnectionProvider;
@@ -157,6 +162,15 @@ class _SourceSettingsScreenState extends State<SourceSettingsScreen> {
     unawaited(widget.localSources.restoreLocalFolders());
   }
 
+  @override
+  void dispose() {
+    for (final subscription in _scanProgressSubs.values) {
+      unawaited(subscription.cancel());
+    }
+    _scanProgressSubs.clear();
+    super.dispose();
+  }
+
   Future<void> _addLocalSource() async {
     if (_addingSource) return;
     setState(() => _addingSource = true);
@@ -174,8 +188,10 @@ class _SourceSettingsScreenState extends State<SourceSettingsScreen> {
   }
 
   Future<void> _removeLocalSource(LibrarySourceRecord source) async {
+    final shouldClearQueue = _queueContainsAnySource({source.id});
     try {
       await widget.localSources.removeLocalFolder(source);
+      if (shouldClearQueue) await widget.playback.clearQueue();
     } catch (error) {
       if (!mounted) return;
       showSoundSnackBar(context, '无法移除文件夹：$error');
@@ -184,11 +200,14 @@ class _SourceSettingsScreenState extends State<SourceSettingsScreen> {
 
   Future<void> _scanSource(LibrarySourceType type, String sourceId) async {
     if (!_scanningSourceIds.add(sourceId)) return;
+    final provider = _scanProviders.requireProvider(type);
+    _scanProgressSubs[sourceId]?.cancel();
+    _scanProgressSubs[sourceId] = provider.watchProgress(sourceId).listen((p) {
+      if (mounted) setState(() => _scanProgress[sourceId] = p);
+    });
     setState(() {});
     try {
-      final report = await _scanProviders
-          .requireProvider(type)
-          .rescan(sourceId);
+      final report = await provider.rescan(sourceId);
       if (!mounted) return;
       final skipped = report.skippedFiles == 0
           ? ''
@@ -215,6 +234,8 @@ class _SourceSettingsScreenState extends State<SourceSettingsScreen> {
       showSoundSnackBar(context, '扫描失败：$error');
     } finally {
       _scanningSourceIds.remove(sourceId);
+      _scanProgress.remove(sourceId);
+      _scanProgressSubs.remove(sourceId)?.cancel();
       if (mounted) setState(() {});
     }
   }
@@ -272,14 +293,44 @@ class _SourceSettingsScreenState extends State<SourceSettingsScreen> {
     );
     if (confirmed == true) {
       try {
+        final affectedSourceIds = await _affectedSourceIds(adapter, resource);
+        final shouldClearQueue = _queueContainsAnySource(affectedSourceIds);
         await _connectionProviders
             .requireProvider(resource.type)
             .remove(resource.id);
+        if (shouldClearQueue) await widget.playback.clearQueue();
       } catch (error) {
         if (!mounted) return;
         showSoundSnackBar(context, '移除失败：$error');
       }
     }
+  }
+
+  bool _queueContainsAnySource(Set<String> sourceIds) {
+    if (sourceIds.isEmpty) return false;
+    final displaySourceId = widget.playback.displayTrack?.sourceId;
+    return (displaySourceId != null && sourceIds.contains(displaySourceId)) ||
+        widget.playback.queue.any(
+          (track) =>
+              track.sourceId != null && sourceIds.contains(track.sourceId),
+        );
+  }
+
+  Future<Set<String>> _affectedSourceIds(
+    RemoteSourceSettingsAdapter adapter,
+    SourceManagedResource resource,
+  ) async {
+    final sourceIds = <String>{resource.id};
+    if (resource.kind != SourceManagedResourceKind.connection) {
+      return sourceIds;
+    }
+    final resources = await adapter.connections.watchResources().first;
+    sourceIds.addAll(
+      resources
+          .where((candidate) => candidate.parentConnectionId == resource.id)
+          .map((candidate) => candidate.id),
+    );
+    return sourceIds;
   }
 
   Future<void> _editWebDavSource(SourceManagedResource resource) async {
@@ -506,10 +557,13 @@ class _SourceSettingsScreenState extends State<SourceSettingsScreen> {
         _scanningSourceIds.contains(source.id) ||
         adapter.scanner.isScanning(source.id);
     final path = formatSourceLocation(source.location);
-    return _SourceRow(
+    final progress = _scanProgress[source.id];
+    final row = _SourceRow(
       key: ValueKey('source-directory-${source.id}'),
       title: preferredSourceTitle(source.displayName, path),
-      subtitle: _catalogSubtitle(source, path),
+      subtitle: scanning && progress != null
+          ? progress.toString()
+          : _catalogSubtitle(source, path),
       emphasis: _statusEmphasis(source.status),
       nested: true,
       primaryActionLabel: scanning ? '取消扫描' : '重新扫描',
@@ -519,6 +573,16 @@ class _SourceSettingsScreenState extends State<SourceSettingsScreen> {
           : () => _scanSource(source.type, source.id),
       onRemove: scanning ? null : () => _removeRemoteSource(adapter, source),
     );
+    if (scanning) {
+      return Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          row,
+          LinearProgressIndicator(minHeight: 2, value: progress?.fraction),
+        ],
+      );
+    }
+    return row;
   }
 
   String _connectionSubtitle(
@@ -617,13 +681,16 @@ class _SourceSettingsScreenState extends State<SourceSettingsScreen> {
                                 final path = formatSourceLocation(
                                   source.rootUri,
                                 );
-                                return _SourceRow(
+                                final progress = _scanProgress[source.id];
+                                final row = _SourceRow(
                                   key: ValueKey('local-source-${source.id}'),
                                   title: preferredSourceTitle(
                                     source.displayName,
                                     path,
                                   ),
-                                  subtitle: _localSubtitle(source, path),
+                                  subtitle: scanning && progress != null
+                                      ? progress.toString()
+                                      : _localSubtitle(source, path),
                                   emphasis: _localEmphasis(source),
                                   primaryActionLabel: scanning
                                       ? '取消扫描'
@@ -640,6 +707,19 @@ class _SourceSettingsScreenState extends State<SourceSettingsScreen> {
                                       ? null
                                       : () => _removeLocalSource(source),
                                 );
+                                if (scanning) {
+                                  return Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      row,
+                                      LinearProgressIndicator(
+                                        minHeight: 2,
+                                        value: progress?.fraction,
+                                      ),
+                                    ],
+                                  );
+                                }
+                                return row;
                               },
                             ),
                         ],

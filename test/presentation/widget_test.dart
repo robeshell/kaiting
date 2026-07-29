@@ -112,6 +112,7 @@ void main() {
   testWidgets('shows repository albums instead of production demo data', (
     tester,
   ) async {
+    _simulatePlatform(TargetPlatform.macOS);
     tester.view.physicalSize = const Size(1200, 800);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -186,8 +187,35 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('1 首歌'), findsOneWidget);
 
+    final backButton = find.byKey(const ValueKey('desktop-album-back'));
+    final titleBarAction = find.byKey(const ValueKey('desktop-search-action'));
+    expect(backButton, findsOneWidget);
+    expect(
+      tester.getRect(backButton).top,
+      greaterThanOrEqualTo(tester.getRect(titleBarAction).bottom),
+    );
+
+    await tester.tap(backButton);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('album-detail-background')), findsNothing);
+
+    await tester.tap(find.text('Test Album').first);
+    await tester.pumpAndSettle();
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('album-detail-background')), findsNothing);
+
+    _simulatePlatform(TargetPlatform.iOS);
+    tester.view.physicalSize = const Size(1194, 834);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Test Album').first);
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Test Track'));
     await tester.pump();
+    expect(
+      find.byKey(const ValueKey('mini-player-condensed-content-padding')),
+      findsOneWidget,
+    );
     expect(
       find.byWidgetPredicate(
         (widget) =>
@@ -201,89 +229,287 @@ void main() {
     await _unmountAndFlush(tester);
   });
 
-  testWidgets(
-    'library navigation is not repeated beside a persistent sidebar',
-    (tester) async {
-      _simulatePlatform(TargetPlatform.iOS);
-      tester.view.physicalSize = const Size(1200, 800);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      final repository = await _repositoryWithAlbum();
-      addTearDown(repository.close);
+  testWidgets('touch navigation stays available across iPad rotation', (
+    tester,
+  ) async {
+    _simulatePlatform(TargetPlatform.iOS);
+    tester.view.physicalSize = const Size(1200, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final repository = await _repositoryWithAlbum();
+    addTearDown(repository.close);
 
-      await tester.pumpWidget(
-        SoundApp(
-          engine: SimulatedPlaybackEngine(),
-          repository: repository,
-          sessionStore: PlaybackSessionStore.memory(),
+    await tester.pumpWidget(
+      SoundApp(
+        engine: SimulatedPlaybackEngine(),
+        repository: repository,
+        sessionStore: PlaybackSessionStore.memory(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.byKey(const ValueKey('compact-library-navigation')),
+      findsOneWidget,
+    );
+    expect(find.byType(SoundNavigationBar), findsOneWidget);
+
+    tester.view.physicalSize = const Size(390, 844);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('library-mode-albums')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('compact-library-navigation')),
+      findsOneWidget,
+    );
+    expect(
+      tester
+          .getSize(find.byKey(const ValueKey('compact-library-navigation')))
+          .height,
+      34,
+    );
+    expect(
+      find.byKey(const ValueKey('mobile-library-user-menu')),
+      findsOneWidget,
+    );
+    expect(find.byType(ChoiceChip), findsNothing);
+    expect(
+      tester.getSize(find.byKey(const ValueKey('compact-library-toolbar'))),
+      const Size(358, 40),
+    );
+    final compactGrid = tester.widget<SliverGrid>(find.byType(SliverGrid));
+    final compactDelegate =
+        compactGrid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
+    expect(compactDelegate.crossAxisCount, 2);
+    expect(compactDelegate.mainAxisExtent, lessThan(220));
+    expect(compactDelegate.mainAxisSpacing, 12);
+
+    await tester.tap(find.byKey(const ValueKey('library-mode-artists')));
+    await tester.pumpAndSettle();
+    expect(find.byType(SliverGrid), findsNothing);
+    expect(
+      find.byKey(const ValueKey('library-collection-artist:test artist')),
+      findsOneWidget,
+    );
+
+    await tester.tap(find.byKey(const ValueKey('library-mode-songs')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('compact-library-play-all')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('library-track-actions-track:test')),
+      findsOneWidget,
+    );
+    expect(
+      tester
+          .getSize(find.byKey(const ValueKey('library-track-row-track:test')))
+          .height,
+      64,
+    );
+    expect(
+      find.byKey(const ValueKey('favorite-library-track:test')),
+      findsNothing,
+    );
+
+    await _unmountAndFlush(tester);
+  });
+
+  testWidgets('iPad landscape back and navigation react on first tap', (
+    tester,
+  ) async {
+    _simulatePlatform(TargetPlatform.iOS);
+    tester.view.physicalSize = const Size(1194, 834);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final repository = await _repositoryWithAlbum();
+    final snapshot = await loadLibraryCatalogSnapshot(repository);
+    final engine = SimulatedPlaybackEngine();
+    final playback = SoundPlaybackController(engine: engine);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AppShell(
+          playback: playback,
+          libraryRepository: repository,
+          initialCatalog: snapshot,
         ),
-      );
-      await tester.pumpAndSettle();
+      ),
+    );
+    await tester.pumpAndSettle();
 
-      expect(find.byKey(const ValueKey('library-mode-albums')), findsNothing);
+    expect(find.byType(SoundNavigationBar), findsOneWidget);
+    await tester.tap(
+      find.byKey(const ValueKey('library-album-art-album:test')),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('desktop-album-back')), findsOneWidget);
 
-      tester.view.physicalSize = const Size(390, 844);
-      await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('library-mode-albums')), findsOneWidget);
-      expect(
-        find.byKey(const ValueKey('compact-library-navigation')),
-        findsOneWidget,
-      );
-      expect(
-        tester
-            .getSize(find.byKey(const ValueKey('compact-library-navigation')))
-            .height,
-        34,
-      );
-      expect(
-        find.byKey(const ValueKey('mobile-library-user-menu')),
-        findsOneWidget,
-      );
-      expect(find.byType(ChoiceChip), findsNothing);
-      expect(
-        tester.getSize(find.byKey(const ValueKey('compact-library-toolbar'))),
-        const Size(358, 40),
-      );
-      final compactGrid = tester.widget<SliverGrid>(find.byType(SliverGrid));
-      final compactDelegate =
-          compactGrid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
-      expect(compactDelegate.crossAxisCount, 2);
-      expect(compactDelegate.mainAxisExtent, lessThan(220));
-      expect(compactDelegate.mainAxisSpacing, 12);
+    await tester.tap(find.byKey(const ValueKey('desktop-album-back')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('desktop-album-back')), findsNothing);
 
-      await tester.tap(find.byKey(const ValueKey('library-mode-artists')));
-      await tester.pumpAndSettle();
-      expect(find.byType(SliverGrid), findsNothing);
-      expect(
-        find.byKey(const ValueKey('library-collection-artist:test artist')),
-        findsOneWidget,
-      );
+    final navigation = find.byType(SoundNavigationBar);
+    await tester.tap(
+      find.descendant(
+        of: navigation,
+        matching: find.byIcon(KaitingIcons.settings),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('设置'), findsWidgets);
+    expect(
+      find.descendant(
+        of: navigation,
+        matching: find.byIcon(KaitingIcons.settingsFilled),
+      ),
+      findsOneWidget,
+    );
 
-      await tester.tap(find.byKey(const ValueKey('library-mode-songs')));
-      await tester.pumpAndSettle();
-      expect(
-        find.byKey(const ValueKey('compact-library-play-all')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const ValueKey('library-track-actions-track:test')),
-        findsOneWidget,
-      );
-      expect(
-        tester
-            .getSize(find.byKey(const ValueKey('library-track-row-track:test')))
-            .height,
-        64,
-      );
-      expect(
-        find.byKey(const ValueKey('favorite-library-track:test')),
-        findsNothing,
-      );
+    await _unmountAndFlush(tester);
+    playback.dispose();
+    engine.dispose();
+    await repository.close();
+  });
 
-      await _unmountAndFlush(tester);
-    },
-  );
+  testWidgets('swiping the library pager switches browse mode', (tester) async {
+    _simulatePlatform(TargetPlatform.iOS);
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final repository = await _repositoryWithAlbum();
+    addTearDown(repository.close);
+
+    await tester.pumpWidget(
+      SoundApp(
+        engine: SimulatedPlaybackEngine(),
+        repository: repository,
+        sessionStore: PlaybackSessionStore.memory(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // The touch shell browses via a horizontal pager; 专辑 is the first page.
+    expect(find.byKey(const ValueKey('library-mode-pager')), findsOneWidget);
+    expect(find.byType(SliverGrid), findsOneWidget);
+
+    // Swipe left to reveal the 艺人 page. Visited pages stay alive offscreen,
+    // so assert on what is actually hittable in the viewport.
+    await tester.drag(
+      find.byKey(const ValueKey('library-mode-pager')),
+      const Offset(-400, 0),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('library-album-art-album:test')).hitTestable(),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey('library-collection-artist:test artist')),
+      findsOneWidget,
+    );
+
+    // Swipe right to return to 专辑.
+    await tester.drag(
+      find.byKey(const ValueKey('library-mode-pager')),
+      const Offset(400, 0),
+    );
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('library-album-art-album:test')).hitTestable(),
+      findsOneWidget,
+    );
+    expect(
+      find
+          .byKey(const ValueKey('library-collection-artist:test artist'))
+          .hitTestable(),
+      findsNothing,
+    );
+
+    await _unmountAndFlush(tester);
+  });
+
+  testWidgets('empty library still swipes between browse modes', (
+    tester,
+  ) async {
+    _simulatePlatform(TargetPlatform.iOS);
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final repository = _repository();
+    addTearDown(repository.close);
+
+    await tester.pumpWidget(
+      SoundApp(
+        engine: SimulatedPlaybackEngine(),
+        repository: repository,
+        sessionStore: PlaybackSessionStore.memory(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // With nothing indexed the pager still mounts, so a swipe never
+    // dead-ends on the empty-state page.
+    expect(find.byKey(const ValueKey('library-mode-pager')), findsOneWidget);
+    expect(find.text('资料库还是空的').hitTestable(), findsOneWidget);
+
+    await tester.drag(
+      find.byKey(const ValueKey('library-mode-pager')),
+      const Offset(-400, 0),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('资料库还是空的').hitTestable(), findsOneWidget);
+
+    await _unmountAndFlush(tester);
+  });
+
+  testWidgets('foldable library keeps the compact toolbar row on every tab', (
+    tester,
+  ) async {
+    _simulatePlatform(TargetPlatform.android);
+    // Opened foldable inner display: medium window class, mobile shell.
+    tester.view.physicalSize = const Size(700, 840);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final repository = await _repositoryWithAlbum();
+    addTearDown(repository.close);
+
+    await tester.pumpWidget(
+      SoundApp(
+        engine: SimulatedPlaybackEngine(),
+        repository: repository,
+        sessionStore: PlaybackSessionStore.memory(),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    // Same right-aligned toolbar row as a phone, on every tab.
+    expect(
+      find.byKey(const ValueKey('compact-library-navigation')),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(const ValueKey('compact-library-toolbar')),
+      findsOneWidget,
+    );
+
+    // Songs tab carries play-all in the toolbar row; the desktop in-list
+    // header must not duplicate it.
+    await tester.tap(find.byKey(const ValueKey('library-mode-songs')));
+    await tester.pumpAndSettle();
+    expect(
+      find.byKey(const ValueKey('compact-library-play-all')),
+      findsOneWidget,
+    );
+    expect(find.text('播放全部'), findsOneWidget);
+
+    await _unmountAndFlush(tester);
+  });
 
   testWidgets('browses real artists without debug tools', (tester) async {
     _simulatePlatform(TargetPlatform.iOS);
@@ -576,19 +802,25 @@ void main() {
     await tester.tap(find.text('Test Track'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byTooltip('收藏歌曲'));
+    await tester.tap(find.byKey(const ValueKey('track-actions-track:test')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('收藏').last);
     await tester.pumpAndSettle();
     expect((await repository.getFavoriteTracks()).single.trackId, 'track:test');
     expect((await repository.getPlayHistory()).single.trackId, 'track:test');
 
-    await tester.tap(find.text('收藏').first);
+    await tester.tap(find.byKey(const ValueKey('desktop-album-back')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('mobile-library-user-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('收藏').last);
     await tester.pumpAndSettle();
     expect(
       find.byKey(const ValueKey('user-library-track-favorites-track:test')),
       findsOneWidget,
     );
 
-    await tester.tap(find.text('最近播放').first);
+    await tester.tap(find.byKey(const ValueKey('user-library-mode-recent')));
     await tester.pumpAndSettle();
     expect(
       find.byKey(const ValueKey('user-library-track-recent-track:test')),
@@ -686,7 +918,9 @@ void main() {
     await tester.tap(find.byTooltip('关闭'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('播放列表').first);
+    await tester.tap(find.byKey(const ValueKey('mobile-library-user-menu')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('播放列表').last);
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('playlist-1')), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('playlist-1')));
@@ -1169,7 +1403,7 @@ void main() {
     );
 
     await tester.tap(find.text('艺人').first);
-    await tester.pump();
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Test Artist').first);
     await tester.pump();
     expect(
@@ -1350,7 +1584,58 @@ void main() {
     },
   );
 
-  testWidgets('shell adapts between full iPad and split-view widths', (
+  testWidgets('android tablets and foldables pick the shell by aspect', (
+    tester,
+  ) async {
+    _simulatePlatform(TargetPlatform.android);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final repository = _repository();
+    final engine = SimulatedPlaybackEngine();
+    final playback = SoundPlaybackController(engine: engine);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: AppShell(playback: playback, libraryRepository: repository),
+      ),
+    );
+
+    Future<void> expectShell({required bool mobile}) async {
+      await tester.pumpAndSettle();
+      expect(find.text('开听'), mobile ? findsNothing : findsOneWidget);
+      expect(
+        find.byType(SoundNavigationBar),
+        mobile ? findsOneWidget : findsNothing,
+      );
+      expect(tester.takeException(), isNull);
+    }
+
+    // 10" Android tablet: portrait is touch-first, landscape promotes.
+    tester.view.physicalSize = const Size(800, 1280);
+    await expectShell(mobile: true);
+    tester.view.physicalSize = const Size(1280, 800);
+    await expectShell(mobile: false);
+
+    // Budget tablets can report a landscape width below 1000 - aspect ratio,
+    // not width, decides. 960x600 is 16:10, so it still promotes.
+    tester.view.physicalSize = const Size(960, 600);
+    await expectShell(mobile: false);
+
+    // Foldable inner display: near-square in both orientations, so it keeps
+    // touch-first navigation even turned sideways.
+    tester.view.physicalSize = const Size(840, 700);
+    await expectShell(mobile: true);
+    tester.view.physicalSize = const Size(700, 840);
+    await expectShell(mobile: true);
+
+    await _unmountAndFlush(tester);
+    playback.dispose();
+    engine.dispose();
+    await repository.close();
+  });
+
+  testWidgets('iPad keeps touch navigation across rotation and split view', (
     tester,
   ) async {
     _simulatePlatform(TargetPlatform.iOS);
@@ -1369,10 +1654,19 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('开听'), findsOneWidget);
-    expect(find.byType(SoundNavigationBar), findsNothing);
+    // Portrait iPad keeps touch-first navigation like a phone.
+    expect(find.text('开听'), findsNothing);
+    expect(find.byType(SoundNavigationBar), findsOneWidget);
     expect(tester.takeException(), isNull);
 
+    // Landscape keeps the same touch navigation; only content layout changes.
+    tester.view.physicalSize = const Size(1194, 834);
+    await tester.pumpAndSettle();
+    expect(find.text('开听'), findsNothing);
+    expect(find.byType(SoundNavigationBar), findsOneWidget);
+    expect(tester.takeException(), isNull);
+
+    // Split view drops back to the mobile shell.
     tester.view.physicalSize = const Size(600, 1024);
     await tester.pumpAndSettle();
 
@@ -1591,7 +1885,20 @@ void main() {
 
     tester.view.physicalSize = const Size(834, 1194);
     await tester.pump();
+    // Portrait iPad keeps the compact single-column player, matching the
+    // mobile shell.
+    expect(
+      find.byKey(const ValueKey('compact-visual-to-lyrics')),
+      findsOneWidget,
+    );
+    expect(find.byKey(const ValueKey('wide-now-playing-lyrics')), findsNothing);
+    expect(tester.takeException(), isNull);
 
+    // Landscape iPad promotes to the wide two-pane player via the sidebar
+    // shell. This test places NowPlayingScreen outside the shell, so we
+    // simulate the same dimensions directly.
+    tester.view.physicalSize = const Size(1194, 834);
+    await tester.pump();
     expect(
       find.byKey(const ValueKey('wide-now-playing-lyrics')),
       findsOneWidget,

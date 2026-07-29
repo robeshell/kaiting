@@ -74,8 +74,20 @@ class AnimatedArtworkBackground extends StatefulWidget {
     );
   }
 
-  @visibleForTesting
-  static bool debugHasPrewarmed({
+  /// Returns a completed palette without scheduling image work. This lets a
+  /// prewarmed now-playing surface paint the real cover colors on its first
+  /// frame instead of briefly showing a fallback.
+  static ColorScheme? cachedColorSchemeForAlbum({
+    required Album album,
+    required Brightness brightness,
+  }) {
+    final artworkUri = album.artworkUri?.trim();
+    if (artworkUri == null || artworkUri.isEmpty) return null;
+    return _AnimatedArtworkBackgroundState
+        ._resolvedSchemeCache['$artworkUri|${brightness.name}'];
+  }
+
+  static bool hasPrewarmedPalette({
     required Album album,
     required Brightness brightness,
   }) {
@@ -86,6 +98,14 @@ class AnimatedArtworkBackground extends StatefulWidget {
     );
   }
 
+  @visibleForTesting
+  static bool debugHasPrewarmed({
+    required Album album,
+    required Brightness brightness,
+  }) {
+    return hasPrewarmedPalette(album: album, brightness: brightness);
+  }
+
   @override
   State<AnimatedArtworkBackground> createState() =>
       _AnimatedArtworkBackgroundState();
@@ -94,6 +114,7 @@ class AnimatedArtworkBackground extends StatefulWidget {
 class _AnimatedArtworkBackgroundState extends State<AnimatedArtworkBackground>
     with TickerProviderStateMixin {
   static final Map<String, Future<ColorScheme>> _schemeCache = {};
+  static final Map<String, ColorScheme> _resolvedSchemeCache = {};
   static const _cacheLimit = 64;
 
   late List<Color> _fromColors;
@@ -110,8 +131,7 @@ class _AnimatedArtworkBackgroundState extends State<AnimatedArtworkBackground>
   @override
   void initState() {
     super.initState();
-    _targetColors = artworkFallbackGradientColors(
-      widget.album,
+    _targetColors = _initialColors(
       widget.paletteBrightness ?? Brightness.light,
     );
     _fromColors = List<Color>.of(_targetColors);
@@ -183,6 +203,7 @@ class _AnimatedArtworkBackgroundState extends State<AnimatedArtworkBackground>
     if (oldWidget.staticVerticalGradient != widget.staticVerticalGradient) {
       _syncMotion();
       _syncEnergy();
+      _loadArtworkColors();
     }
   }
 
@@ -242,7 +263,7 @@ class _AnimatedArtworkBackgroundState extends State<AnimatedArtworkBackground>
     final brightness =
         _brightness ?? widget.paletteBrightness ?? Theme.of(context).brightness;
     final artworkUri = widget.album.artworkUri?.trim();
-    final fallback = artworkFallbackGradientColors(widget.album, brightness);
+    final fallback = _fallbackColors(brightness);
     final requestKey = '${artworkUri ?? widget.album.id}|${brightness.name}';
     _requestKey = requestKey;
 
@@ -251,18 +272,14 @@ class _AnimatedArtworkBackgroundState extends State<AnimatedArtworkBackground>
       return;
     }
 
-    // Always paint fallback first; palette extraction is expensive and must
-    // not block the first now-playing frame after a reload.
-    if (!listEquals(_targetColors, fallback) &&
-        !AnimatedArtworkBackground.debugHasPrewarmed(
-          album: widget.album,
-          brightness: brightness,
-        )) {
-      _fromColors = List<Color>.of(fallback);
-      _targetColors = List<Color>.of(fallback);
-      _paletteController.value = 1;
-    }
-    if (!widget.isActive) return;
+    // Keep the current rendered palette while the next cover is being decoded.
+    // If mini-player warmup is already in flight, it is safe to await that same
+    // future while the route is expanding; no new image work is started here.
+    final hasPrewarm = AnimatedArtworkBackground.hasPrewarmedPalette(
+      album: widget.album,
+      brightness: brightness,
+    );
+    if (!widget.isActive && !hasPrewarm) return;
 
     try {
       final scheme = await AnimatedArtworkBackground.colorSchemeForAlbum(
@@ -274,7 +291,11 @@ class _AnimatedArtworkBackgroundState extends State<AnimatedArtworkBackground>
         return;
       }
       if (!mounted || _requestKey != requestKey) return;
-      _transitionTo(artworkGradientColorsFromScheme(scheme, brightness));
+      _transitionTo(
+        widget.staticVerticalGradient
+            ? artworkNowPlayingGradientColorsFromScheme(scheme, brightness)
+            : artworkGradientColorsFromScheme(scheme, brightness),
+      );
     } catch (error) {
       // Broken, unavailable, or unsupported artwork keeps the deterministic
       // album fallback. Playback should never fail because palette extraction
@@ -300,6 +321,23 @@ class _AnimatedArtworkBackgroundState extends State<AnimatedArtworkBackground>
     }
   }
 
+  List<Color> _fallbackColors(Brightness brightness) {
+    return widget.staticVerticalGradient
+        ? artworkNowPlayingFallbackGradientColors(widget.album, brightness)
+        : artworkFallbackGradientColors(widget.album, brightness);
+  }
+
+  List<Color> _initialColors(Brightness brightness) {
+    final scheme = AnimatedArtworkBackground.cachedColorSchemeForAlbum(
+      album: widget.album,
+      brightness: brightness,
+    );
+    if (scheme == null) return _fallbackColors(brightness);
+    return widget.staticVerticalGradient
+        ? artworkNowPlayingGradientColorsFromScheme(scheme, brightness)
+        : artworkGradientColorsFromScheme(scheme, brightness);
+  }
+
   List<Color> get _interpolatedColors {
     final progress = Curves.easeOutCubic.transform(_paletteController.value);
     return List<Color>.generate(
@@ -318,11 +356,19 @@ class _AnimatedArtworkBackgroundState extends State<AnimatedArtworkBackground>
     ImageProvider<Object> provider,
     Brightness brightness,
   ) async {
+    final resolved = _resolvedSchemeCache[key];
+    if (resolved != null) return resolved;
     final cached = _schemeCache[key];
-    if (cached != null) return cached;
+    if (cached != null) {
+      final scheme = await cached;
+      _resolvedSchemeCache[key] = scheme;
+      return scheme;
+    }
 
     if (_schemeCache.length >= _cacheLimit) {
-      _schemeCache.remove(_schemeCache.keys.first);
+      final oldestKey = _schemeCache.keys.first;
+      _schemeCache.remove(oldestKey);
+      _resolvedSchemeCache.remove(oldestKey);
     }
     final future = ColorScheme.fromImageProvider(
       provider: provider,
@@ -331,9 +377,12 @@ class _AnimatedArtworkBackgroundState extends State<AnimatedArtworkBackground>
     );
     _schemeCache[key] = future;
     try {
-      return await future;
+      final scheme = await future;
+      _resolvedSchemeCache[key] = scheme;
+      return scheme;
     } catch (_) {
       _schemeCache.remove(key);
+      _resolvedSchemeCache.remove(key);
       rethrow;
     }
   }
@@ -412,8 +461,17 @@ List<Color> artworkVerticalGradientColors(List<Color> colors) {
       ? const [Color(0xFF3D514E), Color(0xFF212C2A), Color(0xFF526E69)]
       : colors;
   final primary = safeColors.first;
-  final shadow = safeColors.length > 1 ? safeColors[1] : primary;
-  final highlight = safeColors.length > 2 ? safeColors[2] : primary;
+  final accents = safeColors.skip(1);
+  final shadow = accents.isEmpty
+      ? primary
+      : accents.reduce(
+          (a, b) => a.computeLuminance() <= b.computeLuminance() ? a : b,
+        );
+  final highlight = accents.isEmpty
+      ? primary
+      : accents.reduce(
+          (a, b) => a.computeLuminance() >= b.computeLuminance() ? a : b,
+        );
   return [Color.lerp(primary, highlight, 0.22)!, primary, shadow];
 }
 
@@ -600,6 +658,25 @@ List<Color> artworkGradientColorsFromScheme(
   ];
 }
 
+/// Keeps the player immersive in light skins without making it as deep as the
+/// dedicated dark skin. Both variants remain dark enough for artwork-tinted
+/// light chrome.
+List<Color> artworkNowPlayingGradientColorsFromScheme(
+  ColorScheme scheme,
+  Brightness brightness,
+) {
+  if (brightness == Brightness.dark) {
+    return artworkGradientColorsFromScheme(scheme, brightness);
+  }
+  final blended = Color.lerp(scheme.primary, scheme.secondary, 0.48)!;
+  final analogous = _shiftHue(scheme.primary, 24);
+  return [
+    _tone(scheme.primary, saturation: 0.50, lightness: 0.28),
+    _tone(blended, saturation: 0.32, lightness: 0.24),
+    _tone(analogous, saturation: 0.50, lightness: 0.36),
+  ];
+}
+
 Color _shiftHue(Color color, double degrees) {
   final hsl = HSLColor.fromColor(color);
   return hsl.withHue((hsl.hue + degrees) % 360).toColor();
@@ -623,6 +700,26 @@ List<Color> artworkFallbackGradientColors(Album album, Brightness brightness) {
     _tone(first, saturation: 0.34, lightness: 0.18),
     _tone(middle, saturation: 0.22, lightness: 0.14),
     _tone(last, saturation: 0.38, lightness: 0.26),
+  ];
+}
+
+List<Color> artworkNowPlayingFallbackGradientColors(
+  Album album,
+  Brightness brightness,
+) {
+  if (brightness == Brightness.dark) {
+    return artworkFallbackGradientColors(album, brightness);
+  }
+  final palette = album.palette.isEmpty
+      ? const [Color(0xFF5E7774), Color(0xFF25302F)]
+      : album.palette;
+  final first = palette.first;
+  final last = palette.last;
+  final middle = Color.lerp(first, last, 0.42)!;
+  return [
+    _tone(first, saturation: 0.34, lightness: 0.28),
+    _tone(middle, saturation: 0.22, lightness: 0.24),
+    _tone(last, saturation: 0.38, lightness: 0.36),
   ];
 }
 

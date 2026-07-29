@@ -116,11 +116,51 @@ class _LibraryScreenState extends State<LibraryScreen> {
   LibrarySourceFilter _sourceFilter = LibrarySourceFilter.all;
   final _LibraryDerivedLists _derived = _LibraryDerivedLists();
 
+  // Horizontal pager for swiping between 专辑 / 艺人 / 歌曲 on touch shells.
+  late final PageController _pageController;
+  bool _pagerAttached = false;
+  // True while a swipe-driven page change is propagating to the parent, so
+  // didUpdateWidget does not fight the in-flight gesture with its own animation.
+  bool _swipeDrivenModeChange = false;
+
   LibrarySortOrder get _sortOrder => _sortByMode[widget.mode]!;
   ScrollController get _scrollController => _scrollControllers[widget.mode]!;
 
   @override
+  void initState() {
+    super.initState();
+    _pageController = PageController(initialPage: widget.mode.index);
+  }
+
+  @override
+  void didUpdateWidget(covariant LibraryScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.mode == oldWidget.mode) return;
+    if (_swipeDrivenModeChange) {
+      // The pager already moved to this page; let the gesture settle on its own.
+      _swipeDrivenModeChange = false;
+      return;
+    }
+    // External change (tab tap / sidebar) - slide the pager to the new mode.
+    if (_pageController.hasClients) {
+      _pageController.animateToPage(
+        widget.mode.index,
+        duration: const Duration(milliseconds: 220),
+        curve: Curves.easeOutCubic,
+      );
+    }
+  }
+
+  void _onPageChanged(int index) {
+    final mode = LibraryBrowseMode.values[index];
+    if (mode == widget.mode) return;
+    _swipeDrivenModeChange = true;
+    widget.onModeChanged(mode);
+  }
+
+  @override
   void dispose() {
+    _pageController.dispose();
     for (final controller in _scrollControllers.values) {
       controller.dispose();
     }
@@ -218,11 +258,9 @@ class _LibraryScreenState extends State<LibraryScreen> {
     return AnimatedBuilder(
       animation: Listenable.merge([widget.catalog, ?widget.userState]),
       builder: (context, _) {
-        final compact = context.soundIsCompact;
         final mobileShell = context.soundUsesMobileShell;
         // One content inset for 专辑 / 艺人 / 歌曲 so tabs share the same edge.
         final gutter = context.soundListGutter;
-        final bottomPadding = context.soundContentBottomPadding;
         final allAlbums = widget.catalog.albums;
         final status = widget.catalog.status;
 
@@ -246,10 +284,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 widget.mode == LibraryBrowseMode.songs
             ? _sortedTracksCached(allAlbums)
             : const <Track>[];
-        final albumByTrackId = widget.mode == LibraryBrowseMode.songs
-            ? _albumByTrackIdCached(allAlbums)
-            : const <String, Album>{};
-
         final sourceOptions = LibrarySourceFilter.options(
           allAlbums.map((album) => album.source),
         );
@@ -258,12 +292,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
           LibraryBrowseMode.artists => artists.length,
           LibraryBrowseMode.songs => tracks.length,
         };
-        final songIndexEntries = widget.mode == LibraryBrowseMode.songs
-            ? _songIndexCached(tracks)
-            : const <_SongIndexEntry>[];
-        final showSongIndex =
-            songIndexEntries.length > 1 && tracks.length >= (compact ? 8 : 12);
-
         final hasCatalogBody =
             status == LibraryCatalogStatus.ready && allAlbums.isNotEmpty;
 
@@ -282,11 +310,12 @@ class _LibraryScreenState extends State<LibraryScreen> {
             ),
           if (hasCatalogBody)
             Padding(
+              // The A–Z rail overlays only the songs page body below, so the
+              // toolbar keeps the same right edge on all three pages.
               padding: EdgeInsets.fromLTRB(
                 gutter,
                 mobileShell ? 0 : 24,
-                // Keep play-all / sort / filter clear of the A–Z rail.
-                gutter + (showSongIndex ? _songFastIndexContentInset : 0),
+                gutter,
                 12,
               ),
               child: _LibraryToolbar(
@@ -306,111 +335,198 @@ class _LibraryScreenState extends State<LibraryScreen> {
             ),
         ];
 
-        final body = CustomScrollView(
-          // Keep the historical PageStorage bucket name so mobile detail
-          // navigation restores the same scroll offset as before.
-          key: PageStorageKey<String>('library-${widget.mode.name}'),
-          controller: _scrollController,
-          slivers: [
-            if (status == LibraryCatalogStatus.loading)
-              const SliverFillRemaining(
-                hasScrollBody: false,
-                child: SoundEmptyState(
-                  icon: KaitingIcons.library,
-                  title: '正在读取资料库',
-                  message: '正在加载已索引的专辑和歌曲。',
-                  loading: true,
-                ),
-              )
-            else if (status == LibraryCatalogStatus.error)
-              SliverFillRemaining(
-                hasScrollBody: false,
-                child: SoundEmptyState(
-                  icon: KaitingIcons.error,
-                  title: '无法读取资料库',
-                  message: widget.catalog.errorMessage ?? '无法读取资料库。',
-                  actionLabel: '重试',
-                  onAction: widget.catalog.refresh,
-                ),
-              )
-            else if (allAlbums.isEmpty)
-              SliverFillRemaining(
-                hasScrollBody: false,
-                child: SoundEmptyState(
-                  icon: KaitingIcons.newFolder,
-                  title: '资料库还是空的',
-                  message: kIsWeb
-                      ? '添加一个 WebDAV 音乐源，扫描完成后歌曲会显示在这里。'
-                      : '添加一个本地音乐文件夹，扫描完成后歌曲会显示在这里。',
-                  actionLabel: '管理音乐来源',
-                  onAction: widget.onManageSources,
-                ),
-              )
-            else if (filtered.isEmpty)
-              const SliverFillRemaining(
-                hasScrollBody: false,
-                child: SoundEmptyState(
-                  icon: KaitingIcons.filterOff,
-                  title: '当前筛选没有内容',
-                  message: '这个来源中没有已索引的音乐，可以切换到其他来源继续浏览。',
-                ),
-              )
-            else
-              ...switch (widget.mode) {
-                LibraryBrowseMode.albums => _albumSlivers(
-                  albums,
-                  gutter,
-                  bottomPadding,
-                  compact: compact,
-                ),
-                LibraryBrowseMode.artists => _collectionSlivers(
-                  artists,
-                  gutter: gutter,
-                  bottomPadding: bottomPadding,
-                  emptyMessage: '资料库中没有可浏览的艺人。',
-                  compact: compact,
-                ),
-                LibraryBrowseMode.songs => _songSlivers(
-                  tracks,
-                  albumByTrackId,
-                  gutter,
-                  bottomPadding,
-                  compact: compact,
-                  reserveFastIndex: showSongIndex,
-                ),
-              },
-          ],
-        );
+        // Touch shells browse 专辑 / 艺人 / 歌曲 as a horizontally swipeable
+        // pager - even while the catalog is loading or empty, so a swipe
+        // never dead-ends on a state page. Desktop keeps a single scroll
+        // body driven by the sidebar.
+        final usePager = mobileShell;
+        if (usePager && status == LibraryCatalogStatus.ready) {
+          // Derive every mode (and the A–Z index) up front, outside the swipe
+          // gesture: building a page for the first time mid-fling would
+          // otherwise sort the full track list on the UI thread and drop
+          // frames. The caches make repeat builds cheap.
+          _sortedAlbumsCached(allAlbums);
+          _sortedArtistsCached(allAlbums);
+          _songIndexCached(_sortedTracksCached(allAlbums));
+        }
+        if (usePager && !_pagerAttached) {
+          _pagerAttached = true;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (!mounted || !_pageController.hasClients) return;
+            // Correct any mode drift that happened while the pager was
+            // detached (e.g. tapping a tab during catalog load).
+            if ((_pageController.page?.round() ?? 0) != widget.mode.index) {
+              _pageController.jumpToPage(widget.mode.index);
+            }
+          });
+        } else if (!usePager) {
+          _pagerAttached = false;
+        }
 
-        // Index rail only overlays the list body — never the mode nav /
-        // toolbar where compact 「播放全部」 lives.
+        final body = usePager
+            ? PageView.builder(
+                key: const ValueKey('library-mode-pager'),
+                controller: _pageController,
+                itemCount: LibraryBrowseMode.values.length,
+                onPageChanged: _onPageChanged,
+                // Build the adjacent page into the viewport cache before the
+                // gesture starts; otherwise the first swipe to a page builds
+                // it mid-fling and the drag feels like it has resistance.
+                allowImplicitScrolling: true,
+                itemBuilder: (context, index) => RepaintBoundary(
+                  // Let the compositor translate the whole page as one layer
+                  // instead of re-rasterizing both pages every pan frame.
+                  child: _KeepAlivePage(
+                    child: _modeBody(LibraryBrowseMode.values[index]),
+                  ),
+                ),
+              )
+            : _modeBody(widget.mode);
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             ...header,
-            Expanded(
-              child: showSongIndex
-                  ? Stack(
-                      children: [
-                        Positioned.fill(child: body),
-                        Positioned(
-                          top: 0,
-                          right: compact ? 0 : 6,
-                          bottom: compact ? 12 : 20,
-                          child: _SongFastIndex(
-                            entries: songIndexEntries,
-                            onSelected: (entry) =>
-                                _jumpToSongIndex(entry, compact),
-                          ),
-                        ),
-                      ],
-                    )
-                  : body,
-            ),
+            Expanded(child: body),
           ],
         );
       },
     );
+  }
+
+  /// Builds one browse mode's scroll body.
+  ///
+  /// The touch pager renders one of these per mode so each keeps its own scroll
+  /// offset and A–Z index state; desktop renders only the active mode.
+  Widget _modeBody(LibraryBrowseMode pageMode) {
+    final compact = context.soundIsCompact;
+    final gutter = context.soundListGutter;
+    final bottomPadding = context.soundContentBottomPadding;
+    final allAlbums = widget.catalog.albums;
+    final status = widget.catalog.status;
+    final filtered = status == LibraryCatalogStatus.ready
+        ? _filteredAlbumsCached(allAlbums)
+        : const <Album>[];
+
+    // The A–Z fast index overlays only the songs page - never the mode nav /
+    // toolbar where compact 「播放全部」 lives.
+    final tracksForIndex =
+        pageMode == LibraryBrowseMode.songs &&
+            status == LibraryCatalogStatus.ready &&
+            allAlbums.isNotEmpty &&
+            filtered.isNotEmpty
+        ? _sortedTracksCached(allAlbums)
+        : null;
+    final fastIndexEntries = tracksForIndex != null
+        ? _songIndexCached(tracksForIndex)
+        : const <_SongIndexEntry>[];
+    final showFastIndex =
+        fastIndexEntries.length > 1 &&
+        (tracksForIndex?.length ?? 0) >= (compact ? 8 : 12);
+
+    List<Widget> slivers;
+    if (status == LibraryCatalogStatus.loading) {
+      slivers = [
+        const SliverFillRemaining(
+          hasScrollBody: false,
+          child: SoundEmptyState(
+            icon: KaitingIcons.library,
+            title: '正在读取资料库',
+            message: '正在加载已索引的专辑和歌曲。',
+            loading: true,
+          ),
+        ),
+      ];
+    } else if (status == LibraryCatalogStatus.error) {
+      slivers = [
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: SoundEmptyState(
+            icon: KaitingIcons.error,
+            title: '无法读取资料库',
+            message: widget.catalog.errorMessage ?? '无法读取资料库。',
+            actionLabel: '重试',
+            onAction: widget.catalog.refresh,
+          ),
+        ),
+      ];
+    } else if (allAlbums.isEmpty) {
+      slivers = [
+        SliverFillRemaining(
+          hasScrollBody: false,
+          child: SoundEmptyState(
+            icon: KaitingIcons.newFolder,
+            title: '资料库还是空的',
+            message: kIsWeb
+                ? '添加一个 WebDAV 音乐源，扫描完成后歌曲会显示在这里。'
+                : '添加一个本地音乐文件夹，扫描完成后歌曲会显示在这里。',
+            actionLabel: '管理音乐来源',
+            onAction: widget.onManageSources,
+          ),
+        ),
+      ];
+    } else if (filtered.isEmpty) {
+      slivers = [
+        const SliverFillRemaining(
+          hasScrollBody: false,
+          child: SoundEmptyState(
+            icon: KaitingIcons.filterOff,
+            title: '当前筛选没有内容',
+            message: '这个来源中没有已索引的音乐，可以切换到其他来源继续浏览。',
+          ),
+        ),
+      ];
+    } else {
+      slivers = switch (pageMode) {
+        LibraryBrowseMode.albums => _albumSlivers(
+          _sortedAlbumsCached(allAlbums),
+          gutter,
+          bottomPadding,
+          compact: compact,
+        ),
+        LibraryBrowseMode.artists => _collectionSlivers(
+          _sortedArtistsCached(allAlbums),
+          gutter: gutter,
+          bottomPadding: bottomPadding,
+          emptyMessage: '资料库中没有可浏览的艺人。',
+          compact: compact,
+        ),
+        LibraryBrowseMode.songs => _songSlivers(
+          _sortedTracksCached(allAlbums),
+          _albumByTrackIdCached(allAlbums),
+          gutter,
+          bottomPadding,
+          showHeader: !context.soundUsesMobileShell,
+          reserveFastIndex: showFastIndex,
+        ),
+      };
+    }
+
+    final scroll = CustomScrollView(
+      // Keep the historical PageStorage bucket name so mobile detail
+      // navigation restores the same scroll offset as before.
+      key: PageStorageKey<String>('library-${pageMode.name}'),
+      controller: _scrollControllers[pageMode]!,
+      slivers: slivers,
+    );
+
+    if (showFastIndex) {
+      return Stack(
+        children: [
+          Positioned.fill(child: scroll),
+          Positioned(
+            top: 0,
+            right: compact ? 0 : 6,
+            bottom: compact ? 12 : 20,
+            child: _SongFastIndex(
+              entries: fastIndexEntries,
+              onSelected: (entry) => _jumpToSongIndex(entry, compact),
+            ),
+          ),
+        ],
+      );
+    }
+    return scroll;
   }
 
   void _changeSortOrder(LibrarySortOrder value) {
@@ -761,12 +877,14 @@ class _LibraryScreenState extends State<LibraryScreen> {
     Map<String, Album> albumByTrackId,
     double gutter,
     double bottomPadding, {
-    required bool compact,
+    required bool showHeader,
     required bool reserveFastIndex,
   }) {
     final indexInset = reserveFastIndex ? _songFastIndexContentInset : 0.0;
     return [
-      if (!compact)
+      // Desktop shows count + play-all inside the list; the mobile shell
+      // already carries them in the toolbar row above.
+      if (showHeader)
         SliverPadding(
           padding: EdgeInsets.fromLTRB(gutter, 12, gutter + indexInset, 12),
           sliver: SliverToBoxAdapter(
@@ -870,6 +988,29 @@ class _SongIndexEntry {
 
   final String label;
   final int itemIndex;
+}
+
+/// Keeps a visited pager page alive so swiping back to it repaints instead of
+/// rebuilding the whole sliver body (scroll offset included).
+class _KeepAlivePage extends StatefulWidget {
+  const _KeepAlivePage({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_KeepAlivePage> createState() => _KeepAlivePageState();
+}
+
+class _KeepAlivePageState extends State<_KeepAlivePage>
+    with AutomaticKeepAliveClientMixin {
+  @override
+  bool get wantKeepAlive => true;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    return widget.child;
+  }
 }
 
 class _SongFastIndex extends StatefulWidget {
@@ -1330,7 +1471,10 @@ class _LibraryToolbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (context.soundIsCompact) {
+    // Mobile shell (phones and foldables alike) uses the right-aligned row so
+    // every tab's toolbar shares one edge; only the desktop sidebar shell
+    // falls back to the wrap layout.
+    if (context.soundUsesMobileShell) {
       return SizedBox(
         key: const ValueKey('compact-library-toolbar'),
         height: 40,

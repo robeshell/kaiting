@@ -3,12 +3,13 @@ import 'dart:io';
 
 import 'package:audio_service/audio_service.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/widgets.dart';
 import 'package:path_provider/path_provider.dart';
 
 import 'app/sound_app.dart';
 import 'app/kaiting_launch_screen.dart';
+import 'presentation/widgets/artwork_image_provider.dart';
 import 'app/theme_preferences.dart';
 import 'core/sound_theme.dart';
 import 'library/persistence/drift_library_repository.dart';
@@ -62,16 +63,88 @@ class _KaitingBootstrap extends StatefulWidget {
 class _KaitingBootstrapState extends State<_KaitingBootstrap> {
   late final Future<_KaitingBootstrapResult> _initialization =
       _initializeKaiting();
+  _KaitingBootstrapResult? _result;
+  bool _ready = false;
 
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<_KaitingBootstrapResult>(
       future: _initialization,
       builder: (context, snapshot) {
+        final error = snapshot.error;
+        if (error != null) {
+          return _KaitingBootstrapErrorApp(
+            error: error,
+            stackTrace: snapshot.stackTrace,
+          );
+        }
         final result = snapshot.data;
         if (result == null) return const KaitingLaunchApp();
-        return _readyKaitingApp(result);
+        // Defer the heavy first frame by one postFrameCallback so the
+        // launch screen renders cleanly before building the full widget
+        // tree. Without this the screen flashes white/blank between the
+        // two MaterialApp instances while Dart compiles + builds.
+        if (!_ready) {
+          _result = result;
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) setState(() => _ready = true);
+          });
+          return const KaitingLaunchApp();
+        }
+        return _readyKaitingApp(_result!);
       },
+    );
+  }
+}
+
+class _KaitingBootstrapErrorApp extends StatelessWidget {
+  const _KaitingBootstrapErrorApp({required this.error, this.stackTrace});
+
+  final Object error;
+  final StackTrace? stackTrace;
+
+  @override
+  Widget build(BuildContext context) {
+    return MaterialApp(
+      debugShowCheckedModeBanner: false,
+      home: Scaffold(
+        backgroundColor: kaitingLaunchBackground,
+        body: SafeArea(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 28),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Spacer(),
+                const Text(
+                  '启动失败',
+                  style: TextStyle(
+                    color: kaitingLaunchTitleColor,
+                    fontSize: 20,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Expanded(
+                  child: SingleChildScrollView(
+                    child: Text(
+                      kDebugMode
+                          ? '$error\n\n$stackTrace'
+                          : '请重新启动开听。如果问题持续出现，请更新到最新版本后重试。',
+                      style: const TextStyle(
+                        color: kaitingLaunchSubtitleColor,
+                        fontSize: 12,
+                        height: 1.4,
+                      ),
+                    ),
+                  ),
+                ),
+                const Spacer(),
+              ],
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -97,6 +170,7 @@ Widget _readyKaitingApp(_KaitingBootstrapResult result) {
 }
 
 Future<_KaitingBootstrapResult> _initializeKaiting() async {
+  _bootstrapCheckpoint('theme preferences');
   ThemePreferences? themePreferences;
   var initialAccent = SoundColors.defaultAccentPreset;
   try {
@@ -114,6 +188,7 @@ Future<_KaitingBootstrapResult> _initializeKaiting() async {
   }
   initialAccent.apply();
 
+  _bootstrapCheckpoint('library repository');
   final libraryRepository = DriftLibraryRepository.defaults();
   final initialCatalogFuture = loadLibraryCatalogSnapshot(libraryRepository)
       .then<LibraryCatalogSnapshot?>((snapshot) => snapshot)
@@ -129,6 +204,7 @@ Future<_KaitingBootstrapResult> _initializeKaiting() async {
         return null;
       });
 
+  _bootstrapCheckpoint('audio service');
   final audioHandler = await AudioService.init(
     builder: SoundAudioHandler.new,
     config: AudioServiceConfig(
@@ -152,6 +228,7 @@ Future<_KaitingBootstrapResult> _initializeKaiting() async {
     ),
   );
 
+  _bootstrapCheckpoint('webdav cache');
   WebDavCache? cache;
   if (!kIsWeb) {
     final cacheDir = Directory(
@@ -160,9 +237,14 @@ Future<_KaitingBootstrapResult> _initializeKaiting() async {
     cache = WebDavCache(cacheDir: cacheDir);
     await cache.init();
   }
+  _bootstrapCheckpoint('artwork provider');
+  await initArtworkProvider();
+  _bootstrapCheckpoint('catalog snapshot');
   final initialCatalog = await initialCatalogFuture;
+  _bootstrapCheckpoint('playback session');
   final playbackSessionStore = await _createPlaybackSessionStore();
   final initialPlaybackSession = await playbackSessionStore.load();
+  _bootstrapCheckpoint('done');
 
   return _KaitingBootstrapResult(
     themePreferences: themePreferences,
@@ -173,6 +255,15 @@ Future<_KaitingBootstrapResult> _initializeKaiting() async {
     playbackSessionStore: playbackSessionStore,
     initialPlaybackSession: initialPlaybackSession,
   );
+}
+
+/// Debug-only breadcrumb so a hung bootstrap localizes to the step that
+/// never completed (the launch surface only appears when init stalls).
+void _bootstrapCheckpoint(String step) {
+  assert(() {
+    debugPrint('kaiting bootstrap: $step');
+    return true;
+  }());
 }
 
 class _KaitingBootstrapResult {

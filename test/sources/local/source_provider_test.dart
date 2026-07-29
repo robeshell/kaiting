@@ -102,6 +102,9 @@ class _FakeScanProvider implements SourceScanProvider {
   bool isScanning(String sourceId) => false;
 
   @override
+  Stream<ScanProgress> watchProgress(String sourceId) => const Stream.empty();
+
+  @override
   Future<SourceScanSummary> rescan(String sourceId) async {
     lastSourceId = sourceId;
     return const SourceScanSummary(indexedTracks: 1);

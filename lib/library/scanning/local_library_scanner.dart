@@ -3,6 +3,8 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:path/path.dart' as path;
 
+import '../../sources/source_provider.dart';
+
 import '../library_records.dart';
 import '../library_repository.dart';
 import 'album_artist_resolver.dart';
@@ -74,6 +76,7 @@ class LocalLibraryScanner {
   Future<LocalScanReport> scan(
     LibrarySourceRecord source, {
     ScanCancellationToken? cancellationToken,
+    void Function(ScanProgress progress)? onProgress,
   }) async {
     if (source.type != LibrarySourceType.local) {
       throw ArgumentError.value(source.type, 'source.type', 'Expected local.');
@@ -97,6 +100,7 @@ class LocalLibraryScanner {
                 !isSystemMetadataPath(file.relativePath),
           )
           .toList(growable: false);
+      onProgress?.call(ScanProgress(totalFiles: files.length));
       token.throwIfCancelled();
       final existingTracks = await repository.getTracks(sourceId: source.id);
       final existingAlbums = await repository.getAlbums(sourceId: source.id);
@@ -139,19 +143,51 @@ class LocalLibraryScanner {
                 !_shouldReuseLocalTrack(existing, audioFile);
           })
           .toList(growable: false);
+      var metadataFilesCompleted = files.length - filesNeedingMetadata.length;
+      if (metadataFilesCompleted > 0) {
+        onProgress?.call(
+          ScanProgress(
+            filesScanned: metadataFilesCompleted,
+            totalFiles: files.length,
+          ),
+        );
+      }
       final metadataReads =
           await mapScanTasks<LocalAudioFile, _LocalMetadataReadResult>(
             filesNeedingMetadata,
             maxConcurrency: 2,
-            task: (audioFile) => _readLocalMetadata(audioFile, token),
+            task: (audioFile) async {
+              final result = await _readLocalMetadata(audioFile, token);
+              metadataFilesCompleted++;
+              onProgress?.call(
+                ScanProgress(
+                  filesScanned: metadataFilesCompleted,
+                  totalFiles: files.length,
+                  currentPath: audioFile.relativePath,
+                ),
+              );
+              return result;
+            },
           );
       final metadataByPath = <String, _LocalMetadataReadResult>{
         for (var index = 0; index < filesNeedingMetadata.length; index++)
           filesNeedingMetadata[index].relativePath: metadataReads[index],
       };
 
-      for (final audioFile in files) {
+      for (var index = 0; index < files.length; index++) {
+        final audioFile = files[index];
         token.throwIfCancelled();
+        if (index % 20 == 0) {
+          onProgress?.call(
+            ScanProgress(
+              filesScanned: files.length,
+              totalFiles: files.length,
+              tracksFound: tracks.length,
+              albumsFound: albums.length,
+              currentPath: audioFile.relativePath,
+            ),
+          );
+        }
         final existing = existingTracksByPath[audioFile.relativePath];
         if (existing != null && _shouldReuseLocalTrack(existing, audioFile)) {
           final reused = _reuseTrack(existing, audioFile);

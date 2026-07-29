@@ -256,6 +256,42 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
+  test('static vertical gradient keeps a darker bottom in both themes', () {
+    final light = artworkNowPlayingGradientColorsFromScheme(
+      ColorScheme.fromSeed(
+        seedColor: const Color(0xFFB85C4D),
+        brightness: Brightness.light,
+        dynamicSchemeVariant: DynamicSchemeVariant.fidelity,
+      ),
+      Brightness.light,
+    );
+    final dark = artworkGradientColorsFromScheme(
+      ColorScheme.fromSeed(
+        seedColor: const Color(0xFFB85C4D),
+        brightness: Brightness.dark,
+        dynamicSchemeVariant: DynamicSchemeVariant.fidelity,
+      ),
+      Brightness.dark,
+    );
+
+    final lightVertical = artworkVerticalGradientColors(light);
+    final darkVertical = artworkVerticalGradientColors(dark);
+
+    expect(
+      lightVertical.first.computeLuminance(),
+      greaterThan(lightVertical.last.computeLuminance()),
+    );
+    expect(
+      darkVertical.first.computeLuminance(),
+      greaterThan(darkVertical.last.computeLuminance()),
+    );
+    expect(
+      lightVertical[1].computeLuminance(),
+      greaterThan(darkVertical[1].computeLuminance()),
+    );
+    expect(ArtworkPagePalette.fromBackground(light).useLightText, isTrue);
+  });
+
   testWidgets('artwork background consumes skin material and motion tokens', (
     tester,
   ) async {
@@ -320,6 +356,86 @@ void main() {
       ),
       isTrue,
     );
+    expect(
+      AnimatedArtworkBackground.cachedColorSchemeForAlbum(
+        album: album,
+        brightness: Brightness.light,
+      ),
+      isNotNull,
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: SoundTheme.light,
+        home: Scaffold(
+          body: AnimatedArtworkBackground(
+            album: album,
+            position: Duration.zero,
+            isPlaying: false,
+            paletteBrightness: Brightness.light,
+            staticVerticalGradient: true,
+          ),
+        ),
+      ),
+    );
+    final scheme = AnimatedArtworkBackground.cachedColorSchemeForAlbum(
+      album: album,
+      brightness: Brightness.light,
+    )!;
+    final expected = artworkVerticalGradientColors(
+      artworkNowPlayingGradientColorsFromScheme(scheme, Brightness.light),
+    );
+    expect(_staticBackgroundColors(tester), orderedEquals(expected));
+  });
+
+  testWidgets('uncached track change does not jump to its fallback palette', (
+    tester,
+  ) async {
+    final firstAlbum = Album(
+      id: 'cached-static-album',
+      title: 'Cached Album',
+      artist: 'Artist',
+      source: SourceKind.local,
+      palette: const [Color(0xFF1B8F78), Color(0xFF102A25)],
+      tracks: const [],
+      artworkUri: artwork.uri.toString(),
+    );
+    final nextAlbum = Album(
+      id: 'uncached-static-album',
+      title: 'Uncached Album',
+      artist: 'Artist',
+      source: SourceKind.local,
+      palette: const [Color(0xFFAA4F37), Color(0xFF482116)],
+      tracks: const [],
+      artworkUri: 'unsupported://next-cover',
+    );
+
+    await tester.runAsync(
+      () => AnimatedArtworkBackground.prewarm(
+        album: firstAlbum,
+        brightness: Brightness.light,
+      ),
+    );
+
+    Widget player(Album album) => MaterialApp(
+      theme: SoundTheme.light,
+      home: Scaffold(
+        body: AnimatedArtworkBackground(
+          album: album,
+          position: Duration.zero,
+          isPlaying: false,
+          paletteBrightness: Brightness.light,
+          staticVerticalGradient: true,
+        ),
+      ),
+    );
+
+    await tester.pumpWidget(player(firstAlbum));
+    final initial = _staticBackgroundColors(tester);
+
+    await tester.pumpWidget(player(nextAlbum));
+    expect(_staticBackgroundColors(tester), orderedEquals(initial));
+    await tester.pumpWidget(const SizedBox.shrink());
   });
 
   testWidgets('track changes blend from the current background palette', (
@@ -408,6 +524,14 @@ ArtworkGradientPainter _backgroundPainter(WidgetTester tester) {
     find.byKey(const ValueKey('now-playing-background-base')),
   );
   return paint.painter! as ArtworkGradientPainter;
+}
+
+List<Color> _staticBackgroundColors(WidgetTester tester) {
+  final box = tester.widget<DecoratedBox>(
+    find.byKey(const ValueKey('now-playing-background-static')),
+  );
+  final decoration = box.decoration as BoxDecoration;
+  return (decoration.gradient! as LinearGradient).colors;
 }
 
 Color _paletteSample(List<Color> colors) {

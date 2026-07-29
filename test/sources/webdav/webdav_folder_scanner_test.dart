@@ -9,6 +9,7 @@ import 'package:kaiting/library/library_records.dart';
 import 'package:kaiting/library/persistence/drift_library_repository.dart';
 import 'package:kaiting/library/persistence/library_database.dart';
 import 'package:kaiting/library/scanning/artwork_store.dart';
+import 'package:kaiting/library/scanning/artwork_uri.dart';
 import 'package:kaiting/library/scanning/audio_metadata_extractor.dart';
 import 'package:kaiting/library/scanning/scan_cancellation.dart';
 import 'package:kaiting/sources/webdav/webdav_connection_service.dart';
@@ -263,6 +264,7 @@ void main() {
         'http://127.0.0.1:${server.port}/dav/music/02-cover.mp3',
       ]),
     );
+    await initArtworkUriResolver(cacheDirectory: artworkRoot.path);
 
     final result = await scanner.scan(
       connectionId: connectionId,
@@ -288,7 +290,9 @@ void main() {
       'Fixture/BetaXY',
     });
     expect(albums.single.artworkKey, isNotNull);
-    final artworkFile = File(Uri.parse(albums.single.artworkKey!).toFilePath());
+    final artworkFile = File.fromUri(
+      resolveArtworkUri(albums.single.artworkKey!)!,
+    );
     expect(await artworkFile.exists(), isTrue);
     expect(await artworkFile.length(), greaterThan(0));
   });

@@ -511,61 +511,39 @@ void main() {
     engine.dispose();
   });
 
-  testWidgets(
-    'foldable and tablet share the integrated lyrics and queue pane',
-    (tester) async {
-      debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
-      addTearDown(() => debugDefaultTargetPlatformOverride = null);
-      tester.view.physicalSize = const Size(720, 900);
-      tester.view.devicePixelRatio = 1;
-      addTearDown(tester.view.resetPhysicalSize);
-      addTearDown(tester.view.resetDevicePixelRatio);
-      final engine = SimulatedPlaybackEngine();
-      final playback = SoundPlaybackController(engine: engine);
-      await playback.playTrack(_second, queue: const [_first, _second, _third]);
+  testWidgets('portrait foldable and tablet keep a reachable mobile queue', (
+    tester,
+  ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
+    tester.view.physicalSize = const Size(720, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final engine = SimulatedPlaybackEngine();
+    final playback = SoundPlaybackController(engine: engine);
+    await playback.playTrack(_second, queue: const [_first, _second, _third]);
 
-      await tester.pumpWidget(
-        MaterialApp(home: NowPlayingScreen(playback: playback)),
-      );
-      await tester.pump();
+    await tester.pumpWidget(
+      MaterialApp(home: NowPlayingScreen(playback: playback)),
+    );
+    await tester.pump();
 
-      expect(
-        find.byKey(const ValueKey('wide-now-playing-player')),
-        findsOneWidget,
-      );
-      expect(
-        find.byKey(const ValueKey('now-playing-view-switch')),
-        findsOneWidget,
-      );
-      expect(find.byTooltip('播放队列'), findsNothing);
-      expect(find.text('同步\n歌词'), findsOneWidget);
-      final foldablePlayerTop = tester
-          .getTopLeft(find.byKey(const ValueKey('wide-now-playing-player')))
-          .dy;
-      final foldableLyricsTop = tester
-          .getTopLeft(find.byKey(const ValueKey('wide-now-playing-lyrics')))
-          .dy;
-      expect(foldablePlayerTop, greaterThan(foldableLyricsTop + 8));
+    expect(find.byKey(const ValueKey('compact-player')), findsOneWidget);
+    expect(find.byKey(const ValueKey('now-playing-view-switch')), findsNothing);
+    expect(find.byTooltip('播放队列'), findsOneWidget);
 
-      await tester.tap(find.byKey(const ValueKey('show-wide-queue')));
-      await tester.pump();
-      expect(find.byKey(const ValueKey('wide-playback-queue')), findsOneWidget);
+    tester.view.physicalSize = const Size(834, 1194);
+    await tester.pump();
+    expect(find.byKey(const ValueKey('compact-player')), findsOneWidget);
+    expect(find.byTooltip('播放队列'), findsOneWidget);
+    expect(tester.takeException(), isNull);
 
-      tester.view.physicalSize = const Size(834, 1194);
-      await tester.pump();
-      expect(
-        find.byKey(const ValueKey('now-playing-view-switch')),
-        findsOneWidget,
-      );
-      expect(find.byTooltip('播放队列'), findsNothing);
-      expect(tester.takeException(), isNull);
-
-      await tester.pumpWidget(const SizedBox.shrink());
-      debugDefaultTargetPlatformOverride = null;
-      playback.dispose();
-      engine.dispose();
-    },
-  );
+    await tester.pumpWidget(const SizedBox.shrink());
+    debugDefaultTargetPlatformOverride = null;
+    playback.dispose();
+    engine.dispose();
+  });
 
   testWidgets('album track menu inserts a song as next', (tester) async {
     tester.view.physicalSize = const Size(900, 800);

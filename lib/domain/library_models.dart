@@ -47,6 +47,7 @@ class Track {
     required this.albumTitle,
     required this.duration,
     required this.source,
+    this.sourceId,
     this.trackNumber = 1,
     this.discNumber = 0,
     this.lyrics = const [],
@@ -62,6 +63,7 @@ class Track {
   final String albumTitle;
   final Duration duration;
   final SourceKind source;
+  final String? sourceId;
   final int trackNumber;
   final int discNumber;
   final List<LyricLine> lyrics;
@@ -79,6 +81,7 @@ class Track {
     String? albumTitle,
     Duration? duration,
     SourceKind? source,
+    String? sourceId,
     int? trackNumber,
     int? discNumber,
     List<LyricLine>? lyrics,
@@ -94,6 +97,7 @@ class Track {
       albumTitle: albumTitle ?? this.albumTitle,
       duration: duration ?? this.duration,
       source: source ?? this.source,
+      sourceId: sourceId ?? this.sourceId,
       trackNumber: trackNumber ?? this.trackNumber,
       discNumber: discNumber ?? this.discNumber,
       lyrics: lyrics ?? this.lyrics,

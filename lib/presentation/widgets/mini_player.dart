@@ -54,28 +54,15 @@ class MiniPlayer extends StatelessWidget {
           compact: compact,
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final wide = docked || (!compact && constraints.maxWidth >= 900);
               final height = docked
                   ? 76.0
                   : (compact
                         ? (embedded ? 66.0 : 72.0)
-                        : (wide ? 58.0 : (embedded ? 70.0 : 82.0)));
+                        : (embedded ? 70.0 : 82.0));
               final content = SizedBox(
                 height: height,
                 child: docked
                     ? _DockedMiniPlayer(
-                        track: track,
-                        album: album,
-                        visual: visual,
-                        playback: playback,
-                        userState: userState,
-                        onOpen: onOpen,
-                        onOpenQueue: onOpenQueue,
-                        position: position,
-                        duration: duration,
-                      )
-                    : wide
-                    ? _WideMiniPlayer(
                         track: track,
                         album: album,
                         visual: visual,
@@ -241,109 +228,6 @@ class _NowPlayingArtworkWarmupState extends State<_NowPlayingArtworkWarmup> {
     return KeyedSubtree(
       key: const ValueKey('now-playing-artwork-warmup'),
       child: widget.child,
-    );
-  }
-}
-
-class _WideMiniPlayer extends StatelessWidget {
-  const _WideMiniPlayer({
-    required this.track,
-    required this.album,
-    required this.visual,
-    required this.playback,
-    required this.userState,
-    required this.onOpen,
-    required this.onOpenQueue,
-    required this.position,
-    required this.duration,
-  });
-
-  final Track track;
-  final Album album;
-  final PlaybackVisualState visual;
-  final SoundPlaybackController playback;
-  final LibraryUserStateController? userState;
-  final VoidCallback onOpen;
-  final VoidCallback? onOpenQueue;
-  final Duration position;
-  final Duration duration;
-
-  @override
-  Widget build(BuildContext context) {
-    // Blank chrome opens now-playing; transport / action buttons keep their
-    // own handlers and win the gesture arena.
-    return GestureDetector(
-      key: const ValueKey('mini-player-open-now-playing'),
-      behavior: HitTestBehavior.opaque,
-      onTap: onOpen,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16),
-        child: Row(
-          children: [
-            _MiniArtwork(album: album, dimension: 58),
-            const SizedBox(width: 13),
-            Expanded(
-              flex: 34,
-              child: _TrackIdentity(
-                track: track,
-                visual: visual,
-                prominent: true,
-              ),
-            ),
-            const SizedBox(width: 22),
-            Expanded(
-              flex: 42,
-              child: Align(
-                alignment: Alignment.bottomCenter,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    _TransportControls(playback: playback, visual: visual),
-                    _MiniProgressRow(
-                      playback: playback,
-                      position: position,
-                      duration: duration,
-                    ),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(width: 18),
-            Container(width: 1, height: 38, color: context.soundDivider),
-            const SizedBox(width: 9),
-            SizedBox(
-              width: 158,
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  if (userState case final state?)
-                    _MiniIconButton(
-                      icon: state.isFavorite(track.id)
-                          ? KaitingIcons.favoriteFilled
-                          : KaitingIcons.favorite,
-                      color: state.isFavorite(track.id)
-                          ? SoundColors.accent
-                          : null,
-                      tooltip: state.isFavorite(track.id) ? '取消收藏' : '收藏歌曲',
-                      onTap: () => unawaited(state.toggleFavorite(track)),
-                    ),
-                  _VolumeControl(playback: playback),
-                  _MiniIconButton(
-                    icon: KaitingIcons.lyrics,
-                    tooltip: '打开歌词',
-                    onTap: onOpen,
-                  ),
-                  _MiniIconButton(
-                    icon: KaitingIcons.queue,
-                    tooltip: '打开播放队列',
-                    onTap: onOpenQueue ?? onOpen,
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 }
@@ -721,64 +605,6 @@ Offset _miniPrimaryOpticalOffset(PlaybackVisualState visual) {
       : Offset.zero;
 }
 
-class _MiniProgressRow extends StatelessWidget {
-  const _MiniProgressRow({
-    required this.playback,
-    required this.position,
-    required this.duration,
-  });
-
-  final SoundPlaybackController playback;
-  final Duration position;
-  final Duration duration;
-
-  @override
-  Widget build(BuildContext context) {
-    final remaining = duration - position;
-    final remainingLabel = duration > Duration.zero
-        ? '-${formatDuration(remaining.isNegative ? Duration.zero : remaining)}'
-        : '0:00';
-    return SizedBox(
-      height: 4,
-      child: Row(
-        children: [
-          SizedBox(
-            width: 38,
-            child: Align(
-              alignment: Alignment.center,
-              child: Text(formatDuration(position), style: _timeStyle(context)),
-            ),
-          ),
-          Expanded(
-            child: ProgressScrubber(
-              key: const ValueKey('mini-player-progress'),
-              position: position,
-              duration: duration,
-              onSeek: playback.seek,
-              activeColor: context.soundPrimaryText,
-              inactiveColor: context.soundTint(0.12),
-              trackHeight: 3,
-              padding: EdgeInsets.zero,
-              interactive: false,
-            ),
-          ),
-          SizedBox(
-            width: 42,
-            child: Align(
-              alignment: Alignment.center,
-              child: Text(
-                remainingLabel,
-                textAlign: TextAlign.end,
-                style: _timeStyle(context),
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
 class _MiniIconButton extends StatelessWidget {
   const _MiniIconButton({
     required this.icon,
@@ -843,12 +669,6 @@ class _MiniIconButton extends StatelessWidget {
     );
   }
 }
-
-TextStyle _timeStyle(BuildContext context) => TextStyle(
-  color: context.soundMutedText,
-  fontSize: 10,
-  fontFeatures: const [FontFeature.tabularFigures()],
-);
 
 class _VolumeControl extends StatefulWidget {
   const _VolumeControl({required this.playback});

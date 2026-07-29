@@ -37,8 +37,6 @@ import '../widgets/vinyl_record_art.dart';
 bool get _nowPlayingUsesWindowChrome =>
     !kIsWeb && defaultTargetPlatform == TargetPlatform.windows;
 
-const _nowPlayingArtworkBrightness = Brightness.dark;
-
 class NowPlayingScreen extends StatelessWidget {
   const NowPlayingScreen({
     required this.playback,
@@ -118,14 +116,21 @@ class NowPlayingScreen extends StatelessWidget {
     final album = albumForTrack(track);
     final snapshot = playback.snapshot;
     final compactChrome = context.soundIsCompact;
-    final foldableChrome = context.soundUsesMobileShell && !compactChrome;
-    final wideIntegratedQueue = MediaQuery.sizeOf(context).width >= 680;
+    final usesMobileShell = context.soundUsesMobileShell;
+    final foldableChrome = usesMobileShell && !compactChrome;
+    final mediaSize = MediaQuery.sizeOf(context);
+    final artworkBrightness = Theme.of(context).brightness;
+    // Keep touch navigation on iPad, but still use the space-efficient
+    // two-pane player when a full-height tablet is in landscape.
+    final usesWidePlayer = soundUsesWideContentForSize(mediaSize);
+    final wideIntegratedQueue = usesWidePlayer && mediaSize.width >= 680;
     return NowPlayingMotionHost(
       isActive: isActive,
       isPlaying: snapshot.isPlaying,
       child: _NowPlayingArtworkChrome(
         album: album,
         isActive: isActive,
+        brightness: artworkBrightness,
         child: Builder(
           builder: (context) {
             final chrome = context.artworkChrome;
@@ -137,9 +142,9 @@ class NowPlayingScreen extends StatelessWidget {
                   ? SystemUiOverlayStyle.light
                   : SystemUiOverlayStyle.dark,
               child: Scaffold(
-                backgroundColor: artworkFallbackGradientColors(
+                backgroundColor: artworkNowPlayingFallbackGradientColors(
                   album,
-                  _nowPlayingArtworkBrightness,
+                  artworkBrightness,
                 ).last,
                 body: Stack(
                   fit: StackFit.expand,
@@ -153,7 +158,7 @@ class NowPlayingScreen extends StatelessWidget {
                             position: playback.displayPosition,
                             isPlaying: snapshot.isPlaying,
                             isActive: isActive,
-                            paletteBrightness: _nowPlayingArtworkBrightness,
+                            paletteBrightness: artworkBrightness,
                             staticVerticalGradient: true,
                           );
                         }
@@ -165,7 +170,7 @@ class NowPlayingScreen extends StatelessWidget {
                             isPlaying: director.playing,
                             // Director stages ambient after surface is active.
                             isActive: director.allowAmbientMotion,
-                            paletteBrightness: _nowPlayingArtworkBrightness,
+                            paletteBrightness: artworkBrightness,
                             staticVerticalGradient: true,
                           ),
                         );
@@ -234,11 +239,10 @@ class NowPlayingScreen extends StatelessWidget {
                           Expanded(
                             child: LayoutBuilder(
                               builder: (context, constraints) {
-                                // Open foldables are commonly around 700
-                                // logical pixels wide. Use that space for a
-                                // centered two-pane player.
-                                final compact = constraints.maxWidth < 680;
-                                if (compact) {
+                                // Navigation and content adapt independently:
+                                // iPad keeps touch navigation while landscape
+                                // can still use the two-pane player.
+                                if (!usesWidePlayer) {
                                   return _CompactNowPlaying(
                                     album: album,
                                     track: track,
@@ -306,11 +310,13 @@ class _NowPlayingArtworkChrome extends StatefulWidget {
   const _NowPlayingArtworkChrome({
     required this.album,
     required this.isActive,
+    required this.brightness,
     required this.child,
   });
 
   final Album album;
   final bool isActive;
+  final Brightness brightness;
   final Widget child;
 
   @override
@@ -318,18 +324,33 @@ class _NowPlayingArtworkChrome extends StatefulWidget {
       _NowPlayingArtworkChromeState();
 }
 
-class _NowPlayingArtworkChromeState extends State<_NowPlayingArtworkChrome> {
-  List<Color> _colors = const [
-    Color(0xFF5E7774),
-    Color(0xFF42514F),
-    Color(0xFF25302F),
-  ];
+class _NowPlayingArtworkChromeState extends State<_NowPlayingArtworkChrome>
+    with SingleTickerProviderStateMixin {
+  late List<Color> _fromColors;
+  late List<Color> _targetColors;
+  late final AnimationController _paletteController;
   String? _requestKey;
+  bool _reduceMotion = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _targetColors = _initialColors(widget.album, widget.brightness);
+    _fromColors = List<Color>.of(_targetColors);
+    _paletteController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 420),
+      value: 1,
+    );
+  }
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _refresh(_nowPlayingArtworkBrightness);
+    _paletteController.duration =
+        context.soundSkinEffects.paletteTransitionDuration;
+    _reduceMotion = MediaQuery.disableAnimationsOf(context);
+    _refresh(widget.brightness);
   }
 
   @override
@@ -337,9 +358,10 @@ class _NowPlayingArtworkChromeState extends State<_NowPlayingArtworkChrome> {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.album.id != widget.album.id ||
         oldWidget.album.artworkUri != widget.album.artworkUri ||
+        oldWidget.brightness != widget.brightness ||
         (!oldWidget.isActive && widget.isActive)) {
       _refresh(
-        _nowPlayingArtworkBrightness,
+        widget.brightness,
         force: !oldWidget.isActive && widget.isActive,
       );
     }
@@ -349,40 +371,47 @@ class _NowPlayingArtworkChromeState extends State<_NowPlayingArtworkChrome> {
     final album = widget.album;
     final requestKey = '${album.id}|${album.artworkUri}|${brightness.name}';
     if (_requestKey == requestKey && !force) return;
-    final changedArtwork = _requestKey != requestKey;
     _requestKey = requestKey;
-    // Match AnimatedArtworkBackground stops so luminance tracks the real BG.
-    if (changedArtwork) {
-      _colors = artworkFallbackGradientColors(album, brightness);
-    }
     final artworkUri = album.artworkUri?.trim();
-    if (!widget.isActive) {
+    if (artworkUri == null || artworkUri.isEmpty) {
+      _transitionTo(artworkNowPlayingFallbackGradientColors(album, brightness));
       return;
     }
-    if (artworkUri == null || artworkUri.isEmpty) {
-      if (mounted) setState(() {});
+
+    final hasPrewarm = AnimatedArtworkBackground.hasPrewarmedPalette(
+      album: album,
+      brightness: brightness,
+    );
+    if (hasPrewarm) {
+      unawaited(_loadScheme(requestKey, brightness, album));
+      return;
+    }
+    if (!widget.isActive) {
       return;
     }
     // Let the completed expansion frame reach the screen before image decode
     // and palette generation begin.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted || !widget.isActive || _requestKey != requestKey) return;
-      unawaited(_loadScheme(requestKey, brightness));
+      unawaited(_loadScheme(requestKey, brightness, album));
     });
   }
 
-  Future<void> _loadScheme(String requestKey, Brightness brightness) async {
+  Future<void> _loadScheme(
+    String requestKey,
+    Brightness brightness,
+    Album album,
+  ) async {
     try {
       final scheme = await AnimatedArtworkBackground.colorSchemeForAlbum(
-        album: widget.album,
+        album: album,
         brightness: brightness,
       );
       if (!mounted || _requestKey != requestKey) return;
       final next = scheme == null
-          ? artworkFallbackGradientColors(widget.album, brightness)
-          : artworkGradientColorsFromScheme(scheme, brightness);
-      if (listEquals(next, _colors)) return;
-      setState(() => _colors = next);
+          ? artworkNowPlayingFallbackGradientColors(album, brightness)
+          : artworkNowPlayingGradientColorsFromScheme(scheme, brightness);
+      _transitionTo(next);
     } catch (error) {
       if (kDebugMode) {
         debugPrint('Now-playing chrome palette failed: $error');
@@ -390,10 +419,59 @@ class _NowPlayingArtworkChromeState extends State<_NowPlayingArtworkChrome> {
     }
   }
 
+  void _transitionTo(List<Color> colors) {
+    if (listEquals(_targetColors, colors)) return;
+    final currentColors = _interpolatedColors;
+    setState(() {
+      _fromColors = currentColors;
+      _targetColors = List<Color>.of(colors);
+    });
+    if (_reduceMotion) {
+      _paletteController.value = 1;
+    } else {
+      _paletteController.forward(from: 0);
+    }
+  }
+
+  List<Color> _initialColors(Album album, Brightness brightness) {
+    final scheme = AnimatedArtworkBackground.cachedColorSchemeForAlbum(
+      album: album,
+      brightness: brightness,
+    );
+    return scheme == null
+        ? artworkNowPlayingFallbackGradientColors(album, brightness)
+        : artworkNowPlayingGradientColorsFromScheme(scheme, brightness);
+  }
+
+  List<Color> get _interpolatedColors {
+    final progress = Curves.easeOutCubic.transform(_paletteController.value);
+    return List<Color>.generate(
+      _targetColors.length,
+      (index) => Color.lerp(
+        _fromColors[index.clamp(0, _fromColors.length - 1)],
+        _targetColors[index],
+        progress,
+      )!,
+      growable: false,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final palette = ArtworkPagePalette.fromBackground(_colors);
-    return ArtworkChromeTheme(palette: palette, child: widget.child);
+    return AnimatedBuilder(
+      animation: _paletteController,
+      child: widget.child,
+      builder: (context, child) {
+        final palette = ArtworkPagePalette.fromBackground(_interpolatedColors);
+        return ArtworkChromeTheme(palette: palette, child: child!);
+      },
+    );
+  }
+
+  @override
+  void dispose() {
+    _paletteController.dispose();
+    super.dispose();
   }
 }
 
@@ -759,7 +837,8 @@ class _WidePaneIconSwitch extends StatelessWidget {
 
 double _compactVisualStageHeight(BuildContext context) {
   final size = MediaQuery.sizeOf(context);
-  return (size.height * 0.45).clamp(320.0, 370.0);
+  final maxClamp = context.soundIsCompact ? 370.0 : 500.0;
+  return (size.height * 0.45).clamp(320.0, maxClamp);
 }
 
 double _compactArtworkTopInset(NowPlayingStyle style) =>
@@ -771,8 +850,9 @@ double _compactVisualArtSize(
 }) {
   final size = MediaQuery.sizeOf(context);
   final horizontalInset = style == NowPlayingStyle.vinyl ? 24.0 : 56.0;
+  final widthMax = context.soundIsCompact ? 420.0 : 520.0;
   return math.min(
-    (size.width - horizontalInset).clamp(240.0, 420.0),
+    (size.width - horizontalInset).clamp(240.0, widthMax),
     _compactVisualStageHeight(context) - _compactArtworkTopInset(style),
   );
 }
@@ -994,10 +1074,17 @@ class _CompactNowPlayingState extends State<_CompactNowPlaying> {
               : const AlwaysScrollableScrollPhysics(
                   parent: ClampingScrollPhysics(),
                 ),
-          padding: const EdgeInsets.fromLTRB(28, 8, 28, 32),
+          padding: EdgeInsets.fromLTRB(
+            28,
+            context.soundIsCompact ? 8 : 48,
+            28,
+            32,
+          ),
           child: Center(
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 430),
+              constraints: BoxConstraints(
+                maxWidth: context.soundIsCompact ? 430 : 540,
+              ),
               child: _PlayerColumn(
                 album: widget.album,
                 track: widget.track,
