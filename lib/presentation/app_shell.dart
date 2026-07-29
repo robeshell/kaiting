@@ -47,6 +47,11 @@ import 'widgets/sound_components.dart';
 
 enum AppSection { library, search, settings }
 
+double get _effectiveDesktopTitleBarHeight {
+  final platformHeight = platformTitleBarHeight;
+  return platformHeight > 0 ? platformHeight : 38.0;
+}
+
 /// Presents application-wide failures above the root Navigator, including
 /// modal routes and their barriers.
 class AppFailureOverlayController extends ChangeNotifier {
@@ -653,7 +658,7 @@ class _AppShellState extends State<AppShell>
       await Future.wait([
         AnimatedArtworkBackground.prewarm(
           album: album,
-          brightness: Brightness.dark,
+          brightness: Theme.of(context).brightness,
         ),
         for (final extent in extents)
           if (artworkImageProvider(
@@ -960,10 +965,9 @@ class _AppShellState extends State<AppShell>
             if (constraints.maxWidth <= 0 || constraints.maxHeight <= 0) {
               return const SizedBox.shrink();
             }
-            // Foldable inner displays use a medium content density while
-            // retaining touch-first navigation. Only sufficiently wide tablet
-            // windows and native desktop platforms promote to the sidebar.
-            final desktop = !context.soundUsesMobileShell;
+            final shellSize = Size(constraints.maxWidth, constraints.maxHeight);
+            final mobileShell = soundUsesMobileShellForSize(shellSize);
+            final desktop = !mobileShell;
             final sidebarWidth = context.soundSidebarWidth;
             final mobileContentIdentity = _selectedAlbum != null
                 ? 'album:${_selectedAlbum!.id}'
@@ -1103,7 +1107,7 @@ class _AppShellState extends State<AppShell>
                                   right: false,
                                   bottom: false,
                                   minimum: EdgeInsets.only(
-                                    top: context.soundTitlebarInset,
+                                    top: _effectiveDesktopTitleBarHeight,
                                   ),
                                   child: content,
                                 ),
@@ -1226,23 +1230,36 @@ class _AppShellState extends State<AppShell>
                       onOpenQueue: _openQueue,
                     ),
             );
-            if (desktop) return shell;
+            // Broadcast one mode so every screen below flips on the same frame.
+            final shellWithMode = SoundShellModeOverride(
+              mobileShell: mobileShell,
+              child: shell,
+            );
             final handlesInternalBack =
                 _mobileNowPlayingPresented ||
                 _selectedAlbum != null ||
                 _selectedCollection != null ||
                 _selectedPlaylistId != null ||
                 _libraryUserMode != null;
-            return PopScope<void>(
-              canPop: !handlesInternalBack,
-              onPopInvokedWithResult: (didPop, result) {
-                if (!didPop && handlesInternalBack) {
-                  _navigateBackWithinApp();
-                }
-              },
-              child: Stack(
+            Widget withInternalBackHandling(Widget child) {
+              return PopScope<void>(
+                canPop: !handlesInternalBack,
+                onPopInvokedWithResult: (didPop, result) {
+                  if (!didPop && handlesInternalBack) {
+                    _navigateBackWithinApp();
+                  }
+                },
+                child: child,
+              );
+            }
+
+            if (desktop) {
+              return withInternalBackHandling(shellWithMode);
+            }
+            return withInternalBackHandling(
+              Stack(
                 children: [
-                  Positioned.fill(child: shell),
+                  Positioned.fill(child: shellWithMode),
                   if (_mobileNowPlayingPresented)
                     Positioned.fill(
                       child: _MobileNowPlayingOverlay(
@@ -1622,8 +1639,11 @@ class _DesktopTitleBarState extends State<_DesktopTitleBar> {
   @override
   Widget build(BuildContext context) {
     final isMacOS = defaultTargetPlatform == TargetPlatform.macOS;
-    final titleBarHeight = platformTitleBarHeight;
     final customChrome = _usesCustomWindowChrome;
+    // Tablets and Linux report no custom titlebar height, but the action
+    // buttons still need a real box - a zero-height SizedBox lets them
+    // overflow and paints them over the content.
+    final titleBarHeight = _effectiveDesktopTitleBarHeight;
 
     return SizedBox(
       height: titleBarHeight,
@@ -1641,8 +1661,9 @@ class _DesktopTitleBarState extends State<_DesktopTitleBar> {
                   child: SizedBox(height: titleBarHeight),
                 ),
               ),
-            // macOS: spacer to push buttons to the right of the traffic lights.
-            if (isMacOS) const Spacer(),
+            // Everywhere else, pin the action buttons to the trailing edge
+            // (macOS: right of the traffic lights; tablets/Linux: top-right).
+            if (!customChrome) const Spacer(),
             // App action buttons (search + settings).
             _TitleBarAction(
               key: const ValueKey('desktop-search-action'),
@@ -1784,7 +1805,7 @@ class _Sidebar extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: SafeArea(
-          minimum: EdgeInsets.only(top: context.soundTitlebarInset),
+          minimum: EdgeInsets.only(top: _effectiveDesktopTitleBarHeight),
           child: Padding(
             padding: const EdgeInsets.fromLTRB(10, 12, 10, 12),
             child: Column(

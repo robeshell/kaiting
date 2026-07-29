@@ -169,6 +169,21 @@ void main() {
     await tester.pump();
     final firstFocus = FocusManager.instance.primaryFocus;
     expect(firstFocus, isNotNull);
+
+    final searchAction = find.byKey(const ValueKey('desktop-search-action'));
+    final searchRect = tester.getRect(searchAction);
+    var tabCount = 0;
+    while (!(FocusManager.instance.primaryFocus?.rect.overlaps(searchRect) ??
+            false) &&
+        tabCount < 10) {
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pump();
+      tabCount++;
+    }
+    expect(
+      FocusManager.instance.primaryFocus?.rect.overlaps(searchRect),
+      isTrue,
+    );
     expect(FocusManager.instance.highlightMode, FocusHighlightMode.traditional);
 
     await tester.sendKeyEvent(LogicalKeyboardKey.enter);

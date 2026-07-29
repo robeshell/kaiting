@@ -527,13 +527,13 @@ class _PlaylistOverviewHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final compact = context.soundIsCompact;
+    final touchShell = context.soundUsesMobileShell;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
-            if (compact)
+            if (touchShell)
               IconButton(
                 onPressed: onBack,
                 tooltip: '返回资料库',
@@ -548,7 +548,7 @@ class _PlaylistOverviewHeader extends StatelessWidget {
             ),
           ],
         ),
-        if (compact) ...[
+        if (touchShell) ...[
           const SizedBox(height: 12),
           SoundChoiceStrip<LibraryUserBrowseMode>(
             options: _userBrowseOptions(),
@@ -876,9 +876,7 @@ class _PlaylistTrackRow extends StatelessWidget {
         SoundMenuAction(
           value: 'favorite',
           label: favorite ? '取消收藏' : '收藏歌曲',
-          icon: favorite
-              ? KaitingIcons.favoriteFilled
-              : KaitingIcons.favorite,
+          icon: favorite ? KaitingIcons.favoriteFilled : KaitingIcons.favorite,
           selected: favorite,
         ),
         const SoundMenuAction(
@@ -967,14 +965,14 @@ class _UserLibraryHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final compact = context.soundIsCompact;
+    final touchShell = context.soundUsesMobileShell;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (compact || onClearHistory != null)
+        if (touchShell || onClearHistory != null)
           Row(
             children: [
-              if (compact)
+              if (touchShell)
                 IconButton(
                   onPressed: onBack,
                   tooltip: '返回资料库',
@@ -990,7 +988,7 @@ class _UserLibraryHeader extends StatelessWidget {
                 ),
             ],
           ),
-        if (compact) ...[
+        if (touchShell) ...[
           const SizedBox(height: 12),
           SoundChoiceStrip<LibraryUserBrowseMode>(
             options: _userBrowseOptions(),
@@ -998,7 +996,7 @@ class _UserLibraryHeader extends StatelessWidget {
             onSelected: onModeChanged,
           ),
         ],
-        if ((compact || onClearHistory != null) && sourceOptions.isNotEmpty)
+        if ((touchShell || onClearHistory != null) && sourceOptions.isNotEmpty)
           const SizedBox(height: 12),
         SoundChoiceStrip<LibrarySourceFilter>(
           options: [

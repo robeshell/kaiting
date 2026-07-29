@@ -10,6 +10,50 @@ bool get soundUsesDesktopPlatform =>
     defaultTargetPlatform == TargetPlatform.windows ||
     defaultTargetPlatform == TargetPlatform.linux;
 
+/// Raw shell decision for a window size.
+///
+/// iPhone and iPad keep one stable navigation model through rotation and
+/// split-view resizing. Android phones and foldables stay touch-first, while
+/// wide Android tablet windows retain the existing persistent-sidebar layout.
+bool soundUsesMobileShellForSize(Size size) {
+  if (soundUsesDesktopPlatform) return false;
+  if (defaultTargetPlatform == TargetPlatform.iOS) return true;
+  if (size.height < KaiBrandLayout.compactHeight) return true;
+  if (size.height >= size.width) return true;
+  return size.width < size.height * 1.3;
+}
+
+/// Whether a full-height landscape window can use a wider content composition.
+///
+/// This is deliberately independent from navigation: an iPad can retain
+/// touch-first navigation while its player uses a two-pane layout.
+bool soundUsesWideContentForSize(Size size) =>
+    soundUsesDesktopPlatform ||
+    (size.height >= KaiBrandLayout.compactHeight &&
+        size.width >= size.height * 1.3);
+
+/// Lets the app shell broadcast one shell decision so every descendant
+/// switches structure on the same frame.
+class SoundShellModeOverride extends InheritedWidget {
+  const SoundShellModeOverride({
+    super.key,
+    required this.mobileShell,
+    required super.child,
+  });
+
+  final bool mobileShell;
+
+  static bool? of(BuildContext context) {
+    return context
+        .dependOnInheritedWidgetOfExactType<SoundShellModeOverride>()
+        ?.mobileShell;
+  }
+
+  @override
+  bool updateShouldNotify(SoundShellModeOverride oldWidget) =>
+      mobileShell != oldWidget.mobileShell;
+}
+
 const soundMacOSTitlebarInset = KaiBrandLayout.macOSTitlebarInset;
 const soundWindowsTitlebarHeight = KaiBrandLayout.windowsTitlebarInset;
 const soundChromeSurfaceTransparency = 0.20;
@@ -127,14 +171,12 @@ extension SoundThemeContext on BuildContext {
 
   /// Whether the window should retain touch-first navigation.
   ///
-  /// Medium foldable screens deliberately keep the bottom navigation and
-  /// mobile now-playing gesture. A regular tablet can still promote itself to
-  /// the persistent sidebar once it has enough width.
+  /// Reads the value from [SoundShellModeOverride] when the app shell provides
+  /// one; otherwise computes directly from the live window size.
   bool get soundUsesMobileShell {
-    if (soundUsesDesktopPlatform) return false;
-    final size = MediaQuery.sizeOf(this);
-    return size.width < KaiBrandLayout.mobileShellWidth ||
-        size.height < KaiBrandLayout.compactHeight;
+    final override = SoundShellModeOverride.of(this);
+    if (override != null) return override;
+    return soundUsesMobileShellForSize(MediaQuery.sizeOf(this));
   }
 
   double get soundPageGutter => switch (soundWindowClass) {

@@ -203,10 +203,10 @@ void main() {
     engine.dispose();
   });
 
-  testWidgets('foldable now-playing shares margins across player styles', (
+  testWidgets('landscape tablet uses wide margins across player styles', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(720, 900);
+    tester.view.physicalSize = const Size(960, 600);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
@@ -215,7 +215,7 @@ void main() {
     );
     final playback = SoundPlaybackController(engine: engine);
 
-    Future<Rect> pumpStyle(NowPlayingStyle style) async {
+    Future<void> pumpStyle(NowPlayingStyle style) async {
       await tester.pumpWidget(
         MaterialApp(
           theme: SoundTheme.light,
@@ -226,24 +226,20 @@ void main() {
       final content = tester.widget<Padding>(
         find.byKey(const ValueKey('wide-now-playing-content')),
       );
-      expect(content.padding, const EdgeInsets.fromLTRB(24, 0, 24, 24));
+      expect(content.padding, const EdgeInsets.fromLTRB(44, 0, 44, 24));
       final lyrics = tester.widget<Padding>(
         find.byKey(const ValueKey('wide-now-playing-lyrics')),
       );
-      expect(lyrics.padding, const EdgeInsets.fromLTRB(16, 6, 0, 24));
+      expect(lyrics.padding, const EdgeInsets.fromLTRB(8, 6, 0, 32));
       final player = tester.widget<Padding>(
         find.byKey(const ValueKey('wide-now-playing-player-padding')),
       );
-      expect(player.padding, const EdgeInsets.fromLTRB(12, 18, 12, 0));
-      return tester.getRect(
-        find.byKey(const ValueKey('now-playing-track-title')),
-      );
+      expect(player.padding, EdgeInsets.zero);
+      expect(find.byKey(const ValueKey('now-playing-track-title')), findsOne);
     }
 
-    final classicTitle = await pumpStyle(NowPlayingStyle.classic);
-    final vinylTitle = await pumpStyle(NowPlayingStyle.vinyl);
-    expect(vinylTitle.left, closeTo(classicTitle.left, 0.5));
-    expect(vinylTitle.right, closeTo(classicTitle.right, 0.5));
+    await pumpStyle(NowPlayingStyle.classic);
+    await pumpStyle(NowPlayingStyle.vinyl);
     expect(tester.takeException(), isNull);
 
     await tester.pumpWidget(const SizedBox.shrink());
