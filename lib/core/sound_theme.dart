@@ -1259,7 +1259,10 @@ abstract final class SoundTheme {
         minVerticalPadding: 6,
         minLeadingWidth: 32,
         horizontalTitleGap: 10,
-        titleTextStyle: textTheme.bodyMedium?.copyWith(color: foreground),
+        titleTextStyle: textTheme.labelMedium?.copyWith(
+          color: foreground,
+          fontWeight: FontWeight.w500,
+        ),
         subtitleTextStyle: textTheme.bodySmall?.copyWith(color: secondary),
         shape: const RoundedRectangleBorder(),
       ),

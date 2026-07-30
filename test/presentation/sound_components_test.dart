@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kaiting/core/brand_tokens.g.dart';
 import 'package:kaiting/core/sound_theme.dart';
 import 'package:kaiting/presentation/widgets/sound_components.dart';
 
@@ -254,6 +255,8 @@ void main() {
   testWidgets('browse choices and song rows share the compact 开听 rhythm', (
     tester,
   ) async {
+    debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
+    addTearDown(() => debugDefaultTargetPlatformOverride = null);
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -307,10 +310,15 @@ void main() {
       tester.getSize(find.byKey(const ValueKey('shared-track-row'))).height,
       64,
     );
+    expect(
+      tester.widget<Text>(find.text('测试歌曲')).style?.fontSize,
+      KaiBrandMobileType.labelSize,
+    );
     await tester.tap(find.byKey(const ValueKey('choice-songs')));
     await tester.pumpAndSettle();
     expect(selected, 'songs');
     expect(tester.takeException(), isNull);
+    debugDefaultTargetPlatformOverride = null;
   });
 
   testWidgets('list rows remain usable at 200 percent text', (tester) async {

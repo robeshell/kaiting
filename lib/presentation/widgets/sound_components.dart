@@ -279,7 +279,10 @@ class SoundCompactMediaRow extends StatelessWidget {
                   title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: textTheme.bodyMedium?.copyWith(color: titleColor),
+                  style: textTheme.labelMedium?.copyWith(
+                    color: titleColor,
+                    fontWeight: FontWeight.w500,
+                  ),
                 ),
                 if (subtitleChild != null) ...[
                   const SizedBox(height: 3),
@@ -552,7 +555,7 @@ class SoundTrackListRow extends StatelessWidget {
                         title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: textTheme.bodyMedium?.copyWith(
+                        style: textTheme.labelMedium?.copyWith(
                           color: context.soundPrimaryText.withValues(
                             alpha: context.soundPrimaryText.a * 0.92,
                           ),
@@ -1453,7 +1456,7 @@ class SoundListRow extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         DefaultTextStyle(
-                          style: Theme.of(context).textTheme.bodyMedium!
+                          style: Theme.of(context).textTheme.labelMedium!
                               .copyWith(
                                 color: enabled
                                     ? context.soundPrimaryText

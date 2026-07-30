@@ -150,8 +150,8 @@ void main() {
     expect(
       theme.listTileTheme.titleTextStyle?.fontSize,
       profile == SoundComponentProfile.mobile
-          ? KaiBrandMobileType.bodySize
-          : KaiBrandDesktopType.bodySize,
+          ? KaiBrandMobileType.labelSize
+          : KaiBrandDesktopType.labelSize,
     );
     expect(
       theme.listTileTheme.subtitleTextStyle?.fontSize,
