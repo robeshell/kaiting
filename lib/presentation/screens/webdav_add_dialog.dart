@@ -197,7 +197,6 @@ class _WebDavAddDialogState extends State<WebDavAddDialog> {
             enabled: !_probing,
             onChanged: (value) => setState(() => _allowBadCertificate = value),
             title: const Text('允许自签名证书'),
-            subtitle: Text('适用于使用自签名 SSL 证书的家庭 NAS'),
           ),
           if (_errorMessage != null) ...[
             const SizedBox(height: 14),

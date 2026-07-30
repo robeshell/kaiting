@@ -2525,7 +2525,6 @@ class _LyricsPanelState extends State<_LyricsPanel> {
           const SoundMenuAction(
             value: _LyricsMenuAction.resumeFollow,
             label: '回到当前歌词',
-            subtitle: '恢复自动跟随',
             icon: KaitingIcons.locate,
           ),
         SoundMenuAction(
@@ -2537,7 +2536,6 @@ class _LyricsPanelState extends State<_LyricsPanel> {
         SoundMenuAction(
           value: _LyricsMenuAction.reset,
           label: '重置歌词偏移',
-          subtitle: '恢复到 +0.0s',
           icon: KaitingIcons.refresh,
           enabled: _offset != Duration.zero,
         ),
