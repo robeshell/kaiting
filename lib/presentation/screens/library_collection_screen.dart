@@ -1170,10 +1170,7 @@ class _CollectionTrackRow extends StatelessWidget {
                     track.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontSize: 14,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: context.soundListTitleStyle,
                   ),
                   subtitle: metadata,
                   trailing: Row(

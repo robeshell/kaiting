@@ -397,19 +397,15 @@ class _CompactSettingsSheet extends StatelessWidget {
           children: [
             Text(
               title,
-              style: TextStyle(
+              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                 color: _settingsPrimaryText(context),
-                fontSize: 20,
-                fontWeight: FontWeight.w600,
-                letterSpacing: -0.2,
               ),
             ),
             const SizedBox(height: 4),
             Text(
               subtitle,
-              style: TextStyle(
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
                 color: _settingsSecondaryText(context),
-                fontSize: 12,
               ),
             ),
             const SizedBox(height: 14),
@@ -471,12 +467,8 @@ class _CompactSettingsOption extends StatelessWidget {
                 Expanded(
                   child: Text(
                     label,
-                    style: TextStyle(
+                    style: context.soundListTitleStyle.copyWith(
                       color: foreground,
-                      fontSize: 14,
-                      fontWeight: selected || destructive
-                          ? FontWeight.w600
-                          : FontWeight.w600,
                     ),
                   ),
                 ),
@@ -787,10 +779,8 @@ class _OfflineStatRow extends StatelessWidget {
           Expanded(
             child: Text(
               label,
-              style: TextStyle(
+              style: context.soundListTitleStyle.copyWith(
                 color: _settingsPrimaryText(context),
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
               ),
             ),
           ),
@@ -908,10 +898,8 @@ class _OfflineDownloadsEmpty extends StatelessWidget {
         children: [
           Text(
             '还没有离线内容',
-            style: TextStyle(
+            style: context.soundListTitleStyle.copyWith(
               color: _settingsPrimaryText(context),
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 4),
@@ -1022,12 +1010,7 @@ class _OfflineDownloadRow extends StatelessWidget {
                 item.title,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: titleColor,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  height: 1.25,
-                ),
+                style: context.soundListTitleStyle.copyWith(color: titleColor),
               ),
               if (subtitle.isNotEmpty) ...[
                 const SizedBox(height: 3),
@@ -1245,10 +1228,8 @@ class _SettingsRow extends StatelessWidget {
                     children: [
                       Text(
                         title,
-                        style: TextStyle(
+                        style: context.soundListTitleStyle.copyWith(
                           color: _settingsPrimaryText(context),
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       const SizedBox(height: 3),
@@ -1344,18 +1325,17 @@ class _AboutInfoRow extends StatelessWidget {
               width: 52,
               child: Text(
                 label,
-                style: TextStyle(
+                style: context.soundListTitleStyle.copyWith(
                   color: _settingsSecondaryText(context),
-                  fontSize: 14,
+                  fontWeight: FontWeight.w400,
                 ),
               ),
             ),
             Expanded(
               child: SelectableText(
                 value,
-                style: TextStyle(
+                style: context.soundListTitleStyle.copyWith(
                   color: _settingsPrimaryText(context),
-                  fontSize: 14,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -1548,10 +1528,8 @@ class _SettingsToggleRow extends StatelessWidget {
                     children: [
                       Text(
                         title,
-                        style: TextStyle(
+                        style: context.soundListTitleStyle.copyWith(
                           color: _settingsPrimaryText(context),
-                          fontSize: 14,
-                          fontWeight: FontWeight.w600,
                         ),
                       ),
                       const SizedBox(height: 3),

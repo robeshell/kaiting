@@ -973,12 +973,8 @@ class _SourceRow extends StatelessWidget {
                   title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
+                  style: context.soundListTitleStyle.copyWith(
                     color: _sourcePrimaryText(context),
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                    height: 1.25,
-                    letterSpacing: -0.1,
                   ),
                 ),
                 if (subtitleText.isNotEmpty) ...[

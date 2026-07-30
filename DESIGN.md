@@ -63,14 +63,14 @@ components:
 
 | Token | Size | Weight | Tracking | Use |
 |---|---|---|---|---|
-| nowPlayingTitle | 27 | 800 | −0.55 | 正在播放曲名 |
+| nowPlayingTitle | 22–24 | 600 | −0.25 | 正在播放曲名（紧凑 / 宽布局） |
 | heroArtist | 15 | 600 | 0 | hero 艺人名（secondary；历史 28 w800 accent 已收敛） |
-| lyricsLine | 20–22 | 当前行 800 / 其余 700 | 0 | 歌词行 |
-| compactLyricsHeader | 18 | 800 | −0.25 | 移动歌词面板头 |
+| lyricsLine | 18–22 | 当前行 600 / 其余 400 | 0 | 歌词行 |
+| compactLyricsHeader | 18 | 600 | −0.25 | 移动歌词面板头 |
 
 ### Principles
 
-- w800 封顶，禁 w900；负字距只取 −0.8/−0.55/−0.25 三档；0.5 字号网格。
+- 全局 w600 封顶；行标题与按钮使用 w500；负字距只用于展示标题；产品增量仍落在 0.5 字号网格。
 - 歌词行强调靠字重对比，不靠颜色或字号跳变；时间标签 11.5 + tabular figures。
 
 ## Layout
@@ -126,7 +126,6 @@ components:
 
 - 资料库网格卡片 hover 反馈与信息区未规范（审计候选，未立项）。
 - 桌面双栏 ≥1600 超宽窗比例待评估（封面列上限可能偏小）。
-- 图标尺寸档未成文（品牌层 Known Gaps 同源）。
 
 ## Agent Prompt Guide
 

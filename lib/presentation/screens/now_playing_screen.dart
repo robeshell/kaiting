@@ -1840,28 +1840,26 @@ class _PlaybackTimelineAndControlsState
                   children: [
                     Text(
                       '睡眠定时',
-                      style: TextStyle(
-                        color: context.chromePrimaryText,
-                        fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        letterSpacing: -0.2,
-                      ),
+                      style: Theme.of(context).textTheme.headlineSmall
+                          ?.copyWith(color: context.chromePrimaryText),
                     ),
                     const SizedBox(height: 4),
                     Text(
                       timer.isActive
                           ? '当前：${_sleepTimerStatusLabel(timer)}'
                           : '到时后自动暂停播放',
-                      style: TextStyle(
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: context.chromeSecondaryText,
-                        fontSize: 12.5,
                       ),
                     ),
                     const SizedBox(height: 14),
                     for (final minutes in const [15, 30, 45, 60])
-                      ListTile(
+                      SoundListRow(
                         key: ValueKey('now-playing-sleep-timer-$minutes'),
-                        contentPadding: EdgeInsets.zero,
+                        minHeight: context
+                            .soundComponentProfile
+                            .minimumInteractiveTarget,
+                        padding: EdgeInsets.zero,
                         title: Text('$minutes 分钟'),
                         onTap: () {
                           timer.start(Duration(minutes: minutes));
@@ -1869,11 +1867,14 @@ class _PlaybackTimelineAndControlsState
                           showSoundSnackBar(context, '已设置 $minutes 分钟后暂停');
                         },
                       ),
-                    ListTile(
+                    SoundListRow(
                       key: const ValueKey(
                         'now-playing-sleep-timer-end-of-track',
                       ),
-                      contentPadding: EdgeInsets.zero,
+                      minHeight: context
+                          .soundComponentProfile
+                          .minimumInteractiveTarget,
+                      padding: EdgeInsets.zero,
                       enabled: playback.displayTrack != null,
                       title: const Text('播完当前歌曲'),
                       onTap: playback.displayTrack == null
@@ -1885,9 +1886,12 @@ class _PlaybackTimelineAndControlsState
                             },
                     ),
                     if (timer.isActive)
-                      ListTile(
+                      SoundListRow(
                         key: const ValueKey('now-playing-sleep-timer-cancel'),
-                        contentPadding: EdgeInsets.zero,
+                        minHeight: context
+                            .soundComponentProfile
+                            .minimumInteractiveTarget,
+                        padding: EdgeInsets.zero,
                         title: Text(
                           '关闭睡眠定时',
                           style: TextStyle(color: context.soundColors.error),

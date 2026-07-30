@@ -176,8 +176,7 @@ class _SearchScreenState extends State<SearchScreen> {
                   child: _SearchMessage(
                     icon: KaitingIcons.searchEmpty,
                     title: '没有找到结果',
-                    message:
-                        '没有与“${widget.search.query.trim()}”匹配的艺人、专辑或歌曲。',
+                    message: '没有与“${widget.search.query.trim()}”匹配的艺人、专辑或歌曲。',
                   ),
                 )
               else ...[
@@ -228,13 +227,13 @@ class _SearchScreenState extends State<SearchScreen> {
                             widget.search.truncated
                                 ? '歌曲（前 ${widget.search.hits.length} 首）'
                                 : '${widget.search.hits.length} 首歌曲',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: context.soundMutedText.withValues(
-                                alpha: context.soundMutedText.a * 0.76,
-                              ),
-                            ),
+                            style: Theme.of(context).textTheme.labelSmall
+                                ?.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                  color: context.soundMutedText.withValues(
+                                    alpha: context.soundMutedText.a * 0.76,
+                                  ),
+                                ),
                           ),
                           const Spacer(),
                           if (widget.search.status ==
@@ -247,13 +246,10 @@ class _SearchScreenState extends State<SearchScreen> {
                             TextButton.icon(
                               key: const ValueKey('search-play-results'),
                               onPressed: () => _playSearchResults(),
-                              icon: const Icon(
-                                KaitingIcons.playNext,
-                                size: 18,
-                              ),
+                              icon: const Icon(KaitingIcons.playNext, size: 18),
                               label: Text(
                                 compact ? '播放结果' : '用结果播放',
-                                style: const TextStyle(fontSize: 12),
+                                style: Theme.of(context).textTheme.labelSmall,
                               ),
                               style: TextButton.styleFrom(
                                 visualDensity: VisualDensity.compact,
@@ -271,10 +267,8 @@ class _SearchScreenState extends State<SearchScreen> {
                         child: Text(
                           '仅显示前 ${LibrarySearchController.resultLimit} 首，'
                           '请缩小关键词再试。',
-                          style: TextStyle(
-                            fontSize: 11.5,
-                            color: context.soundMutedText,
-                          ),
+                          style: Theme.of(context).textTheme.labelSmall
+                              ?.copyWith(color: context.soundMutedText),
                         ),
                       ),
                     ),
@@ -370,7 +364,9 @@ class _SearchScreenState extends State<SearchScreen> {
               focusNode: widget.focusNode,
               autofocus: false,
               cursorColor: SoundColors.accent,
-              style: const TextStyle(fontSize: 14),
+              style: context.soundListTitleStyle.copyWith(
+                fontWeight: FontWeight.w400,
+              ),
               textInputAction: TextInputAction.search,
               onChanged: widget.search.setQuery,
               decoration: InputDecoration(
@@ -437,8 +433,7 @@ class _EmptySearchBody extends StatelessWidget {
               alignment: Alignment.centerLeft,
               child: Text(
                 '最近搜索',
-                style: TextStyle(
-                  fontSize: 12.5,
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
                   fontWeight: FontWeight.w600,
                   color: context.soundSecondaryText,
                 ),
@@ -478,8 +473,7 @@ class _EntitySection extends StatelessWidget {
       children: [
         Text(
           title,
-          style: TextStyle(
-            fontSize: 12.5,
+          style: Theme.of(context).textTheme.labelSmall?.copyWith(
             fontWeight: FontWeight.w600,
             color: context.soundSecondaryText,
           ),
@@ -586,8 +580,7 @@ class _AlbumHitCard extends StatelessWidget {
               hit.album.title,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(
-                fontSize: 12,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
                 height: 1.15,
                 fontWeight: FontWeight.w600,
               ),
@@ -596,10 +589,10 @@ class _AlbumHitCard extends StatelessWidget {
               hit.album.artist,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontSize: 11.5,
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
                 height: 1.15,
                 color: context.soundMutedText,
+                fontWeight: FontWeight.w400,
               ),
             ),
           ],
@@ -657,9 +650,7 @@ class _SearchResultRow extends StatelessWidget {
                   : '收藏 ${hit.track.title}',
               color: favorite ? SoundColors.accent : null,
               icon: Icon(
-                favorite
-                    ? KaitingIcons.favoriteFilled
-                    : KaitingIcons.favorite,
+                favorite ? KaitingIcons.favoriteFilled : KaitingIcons.favorite,
               ),
             ),
           if (onAddToPlaylist != null)

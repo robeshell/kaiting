@@ -894,13 +894,11 @@ class _TrackRow extends StatelessWidget {
                       track.title,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
+                      style: context.soundListTitleStyle.copyWith(
                         color: active
                             ? SoundColors.accent
                             : pagePalette?.primaryText ??
                                   context.soundPrimaryText,
-                        fontSize: 15.5,
-                        fontWeight: FontWeight.w600,
                       ),
                     ),
                   ),
@@ -911,11 +909,11 @@ class _TrackRow extends StatelessWidget {
                   ],
                   Text(
                     formatDuration(track.duration),
-                    style: TextStyle(
-                      fontSize: 14,
+                    style: context.soundListTitleStyle.copyWith(
                       color:
                           pagePalette?.secondaryText ??
                           context.soundSecondaryText,
+                      fontWeight: FontWeight.w400,
                       fontFeatures: [FontFeature.tabularFigures()],
                     ),
                   ),

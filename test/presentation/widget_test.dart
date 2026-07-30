@@ -1248,6 +1248,15 @@ void main() {
       closeTo(12, 0.1),
     );
     expect(find.byKey(const ValueKey('show-now-playing-lyrics')), findsNothing);
+    await tester.tap(sleepButton);
+    await tester.pumpAndSettle();
+    final sleepTimerOption = find.byKey(
+      const ValueKey('now-playing-sleep-timer-15'),
+    );
+    expect(sleepTimerOption, findsOneWidget);
+    expect(tester.widget(sleepTimerOption), isA<SoundListRow>());
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
 
     final coverStage = tester.getRect(stage);
     final coverControls = tester.getRect(playbackControls);
