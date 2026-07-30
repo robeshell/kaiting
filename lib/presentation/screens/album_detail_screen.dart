@@ -416,7 +416,7 @@ class _Hero extends StatelessWidget {
                   metadata,
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 13.5,
+                    fontSize: 14,
                     color: palette.mutedText,
                     fontWeight: FontWeight.w600,
                   ),

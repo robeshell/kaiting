@@ -793,7 +793,7 @@ class _CollectionHero extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(
               color: palette.mutedText,
-              fontSize: 13.5,
+              fontSize: 14,
               fontWeight: FontWeight.w600,
             ),
           ),
@@ -1077,10 +1077,8 @@ class _CollectionAlbumCard extends StatelessWidget {
             album.title,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(
+            style: context.soundListTitleStyle.copyWith(
               color: pagePalette?.primaryText,
-              fontSize: 13.5,
-              fontWeight: FontWeight.w600,
             ),
           ),
           const SizedBox(height: 2),

@@ -619,12 +619,10 @@ class _PlaylistTile extends StatelessWidget {
                       playlist.name,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
+                      style: context.soundListTitleStyle.copyWith(
                         color: context.soundPrimaryText.withValues(
                           alpha: context.soundPrimaryText.a * 0.92,
                         ),
-                        fontSize: 13.5,
-                        fontWeight: FontWeight.w600,
                       ),
                     ),
                     const SizedBox(height: 3),
@@ -924,12 +922,10 @@ class _PlaylistTrackLabels extends StatelessWidget {
           track.title,
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
-          style: TextStyle(
+          style: context.soundListTitleStyle.copyWith(
             color: context.soundPrimaryText.withValues(
               alpha: context.soundPrimaryText.a * 0.92,
             ),
-            fontSize: 13.5,
-            fontWeight: FontWeight.w600,
           ),
         ),
         const SizedBox(height: 3),

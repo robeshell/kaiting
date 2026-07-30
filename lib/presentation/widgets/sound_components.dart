@@ -279,9 +279,8 @@ class SoundCompactMediaRow extends StatelessWidget {
                   title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: textTheme.labelMedium?.copyWith(
+                  style: context.soundListTitleStyle.copyWith(
                     color: titleColor,
-                    fontWeight: FontWeight.w500,
                   ),
                 ),
                 if (subtitleChild != null) ...[
@@ -555,7 +554,7 @@ class SoundTrackListRow extends StatelessWidget {
                         title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: textTheme.labelMedium?.copyWith(
+                        style: context.soundListTitleStyle.copyWith(
                           color: context.soundPrimaryText.withValues(
                             alpha: context.soundPrimaryText.a * 0.92,
                           ),
@@ -1456,15 +1455,14 @@ class SoundListRow extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         DefaultTextStyle(
-                          style: Theme.of(context).textTheme.labelMedium!
-                              .copyWith(
-                                color: enabled
-                                    ? context.soundPrimaryText
-                                    : context.soundSecondaryText.withValues(
-                                        alpha: 0.38,
-                                      ),
-                                fontWeight: FontWeight.w500,
-                              ),
+                          style: context.soundListTitleStyle.copyWith(
+                            color: enabled
+                                ? context.soundPrimaryText
+                                : context.soundSecondaryText.withValues(
+                                    alpha: 0.38,
+                                  ),
+                            fontWeight: FontWeight.w500,
+                          ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           child: title,

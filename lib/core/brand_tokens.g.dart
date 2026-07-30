@@ -1,11 +1,11 @@
 // GENERATED FILE — DO NOT EDIT.
 // Source: kai-brand-design/tokens/*.json
-// specVersion: 0.6.1 · sha256: 0527b7fa6df4c8704ec531fbfe51175f0514a94a4207a76c38d2a6c184166282
+// specVersion: 0.6.2 · sha256: 8f580680a2d49e0910db4536b83abfdbdd34248d62cd4e72ef73c3f60dc726c0
 
 import 'package:flutter/material.dart';
 
-const kaiBrandSpecVersion = '0.6.1';
-const kaiBrandTokenDigest = '0527b7fa6df4c8704ec531fbfe51175f0514a94a4207a76c38d2a6c184166282';
+const kaiBrandSpecVersion = '0.6.2';
+const kaiBrandTokenDigest = '8f580680a2d49e0910db4536b83abfdbdd34248d62cd4e72ef73c3f60dc726c0';
 
 abstract final class KaiBrandBasePalette {
   static const mainBackground = Color(0xFFF7F9FC);
@@ -104,6 +104,10 @@ abstract final class KaiBrandMobileType {
   static const double bodySecondaryLineHeight = 20.0;
   static const int bodySecondaryWeight = 400;
   static const double bodySecondaryLetterSpacing = 0.0;
+  static const double listTitleSize = 14.0;
+  static const double listTitleLineHeight = 20.0;
+  static const int listTitleWeight = 500;
+  static const double listTitleLetterSpacing = 0.0;
   static const double labelSize = 16.0;
   static const double labelLineHeight = 22.0;
   static const int labelWeight = 600;
@@ -155,6 +159,10 @@ abstract final class KaiBrandDesktopType {
   static const double bodySecondaryLineHeight = 18.0;
   static const int bodySecondaryWeight = 400;
   static const double bodySecondaryLetterSpacing = 0.0;
+  static const double listTitleSize = 14.0;
+  static const double listTitleLineHeight = 20.0;
+  static const int listTitleWeight = 500;
+  static const double listTitleLetterSpacing = 0.0;
   static const double labelSize = 14.0;
   static const double labelLineHeight = 20.0;
   static const int labelWeight = 600;

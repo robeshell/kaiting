@@ -57,6 +57,29 @@ extension SoundComponentProfileTokens on SoundComponentProfile {
     SoundComponentProfile.desktop => KaiBrandDesktopType.pageTitleSize,
   };
 
+  TextStyle listTitleStyle(TextStyle? base, {Color? color}) {
+    final mobile = this == SoundComponentProfile.mobile;
+    final size = mobile
+        ? KaiBrandMobileType.listTitleSize
+        : KaiBrandDesktopType.listTitleSize;
+    final lineHeight = mobile
+        ? KaiBrandMobileType.listTitleLineHeight
+        : KaiBrandDesktopType.listTitleLineHeight;
+    final weight = mobile
+        ? KaiBrandMobileType.listTitleWeight
+        : KaiBrandDesktopType.listTitleWeight;
+    final letterSpacing = mobile
+        ? KaiBrandMobileType.listTitleLetterSpacing
+        : KaiBrandDesktopType.listTitleLetterSpacing;
+    return (base ?? const TextStyle()).copyWith(
+      color: color,
+      fontSize: size,
+      height: lineHeight / size,
+      fontWeight: FontWeight.values[weight ~/ 100 - 1],
+      letterSpacing: letterSpacing,
+    );
+  }
+
   TextTheme applyTypeScale(
     TextTheme base, {
     required Color foreground,
@@ -395,6 +418,11 @@ extension SoundThemeContext on BuildContext {
   double get soundListGutter => soundPageGutter;
 
   double get soundPageTitleSize => soundComponentProfile.pageTitleSize;
+
+  TextStyle get soundListTitleStyle => soundComponentProfile.listTitleStyle(
+    soundTheme.textTheme.bodyMedium,
+    color: soundPrimaryText,
+  );
 
   /// Scroll padding under list content so the last rows clear the overlaid
   /// mini player / mobile dock (`Scaffold.extendBody` is always on).
@@ -1259,9 +1287,9 @@ abstract final class SoundTheme {
         minVerticalPadding: 6,
         minLeadingWidth: 32,
         horizontalTitleGap: 10,
-        titleTextStyle: textTheme.labelMedium?.copyWith(
+        titleTextStyle: componentProfile.listTitleStyle(
+          textTheme.bodyMedium,
           color: foreground,
-          fontWeight: FontWeight.w500,
         ),
         subtitleTextStyle: textTheme.bodySmall?.copyWith(color: secondary),
         shape: const RoundedRectangleBorder(),

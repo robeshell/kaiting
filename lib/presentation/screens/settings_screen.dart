@@ -1247,7 +1247,7 @@ class _SettingsRow extends StatelessWidget {
                         title,
                         style: TextStyle(
                           color: _settingsPrimaryText(context),
-                          fontSize: 13.5,
+                          fontSize: 14,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -1346,7 +1346,7 @@ class _AboutInfoRow extends StatelessWidget {
                 label,
                 style: TextStyle(
                   color: _settingsSecondaryText(context),
-                  fontSize: 13.5,
+                  fontSize: 14,
                 ),
               ),
             ),
@@ -1355,7 +1355,7 @@ class _AboutInfoRow extends StatelessWidget {
                 value,
                 style: TextStyle(
                   color: _settingsPrimaryText(context),
-                  fontSize: 13.5,
+                  fontSize: 14,
                   fontWeight: FontWeight.w500,
                 ),
               ),
@@ -1550,7 +1550,7 @@ class _SettingsToggleRow extends StatelessWidget {
                         title,
                         style: TextStyle(
                           color: _settingsPrimaryText(context),
-                          fontSize: 13.5,
+                          fontSize: 14,
                           fontWeight: FontWeight.w600,
                         ),
                       ),

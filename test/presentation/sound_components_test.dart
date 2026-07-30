@@ -312,7 +312,7 @@ void main() {
     );
     expect(
       tester.widget<Text>(find.text('测试歌曲')).style?.fontSize,
-      KaiBrandMobileType.labelSize,
+      KaiBrandMobileType.listTitleSize,
     );
     await tester.tap(find.byKey(const ValueKey('choice-songs')));
     await tester.pumpAndSettle();

@@ -213,7 +213,7 @@ class _PickerTitle extends StatelessWidget {
         Text(
           '已选 $selectedCount',
           style: TextStyle(
-            fontSize: 13.5,
+            fontSize: 14,
             color: context.soundSecondaryText,
             fontWeight: FontWeight.w400,
           ),
@@ -252,10 +252,7 @@ class _BreadcrumbBar extends StatelessWidget {
             path,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              fontSize: 11.5,
-              color: context.soundSecondaryText,
-            ),
+            style: TextStyle(fontSize: 11.5, color: context.soundSecondaryText),
           ),
         ),
       ],
@@ -316,11 +313,7 @@ class _ErrorBanner extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            KaitingIcons.error,
-            color: context.soundColors.error,
-            size: 16,
-          ),
+          Icon(KaitingIcons.error, color: context.soundColors.error, size: 16),
           const SizedBox(width: 8),
           Expanded(
             child: Text(

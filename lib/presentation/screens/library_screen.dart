@@ -841,7 +841,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
       ];
     }
     // Artists: compact horizontal rows (small circle + name), not a cover grid.
-    // Match list-row type scale (13.5) — larger names read as page titles.
+    // Match the shared 14px list-title role.
     final avatarSize = compact ? 40.0 : 44.0;
     final rowMinHeight = compact ? 54.0 : 58.0;
     return [
@@ -1667,7 +1667,7 @@ class _AlbumCard extends StatelessWidget {
             album.title,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: const TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500),
+            style: context.soundListTitleStyle,
           ),
           const SizedBox(height: 2),
           Text(
@@ -1700,12 +1700,7 @@ class _ArtistListRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Same tier as song/album list titles (brand rowTitle 13.5–14).
-    final titleStyle = TextStyle(
-      fontSize: 13.5,
-      fontWeight: FontWeight.w500,
-      letterSpacing: -0.1,
-      height: 1.25,
+    final titleStyle = context.soundListTitleStyle.copyWith(
       color: context.soundPrimaryText.withValues(
         alpha: context.soundPrimaryText.a * 0.92,
       ),

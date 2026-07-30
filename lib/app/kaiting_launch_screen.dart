@@ -82,7 +82,7 @@ class _KaitingLaunchLockup extends StatelessWidget {
                 '听自己的音乐',
                 style: TextStyle(
                   color: kaitingLaunchSubtitleColor,
-                  fontSize: 13.5,
+                  fontSize: 14,
                   fontWeight: FontWeight.w400,
                   letterSpacing: 0.4,
                   height: 1.25,
