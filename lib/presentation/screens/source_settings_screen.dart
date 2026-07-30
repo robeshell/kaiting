@@ -1082,7 +1082,7 @@ class _OrphanDirectoriesLabel extends StatelessWidget {
         '待确认归属的目录',
         style: TextStyle(
           color: context.settingsMuted,
-          fontSize: 11.5,
+          fontSize: 11,
           fontWeight: FontWeight.w600,
         ),
       ),

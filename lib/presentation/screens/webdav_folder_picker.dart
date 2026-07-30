@@ -252,7 +252,7 @@ class _BreadcrumbBar extends StatelessWidget {
             path,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: 11.5, color: context.soundSecondaryText),
+            style: TextStyle(fontSize: 11, color: context.soundSecondaryText),
           ),
         ),
       ],

@@ -1612,7 +1612,7 @@ class _CompactPlayAllButton extends StatelessWidget {
         minimumSize: const Size(0, 40),
         padding: const EdgeInsets.symmetric(horizontal: 8),
         foregroundColor: SoundColors.accent,
-        textStyle: const TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600),
+        textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
       ),
     );
   }

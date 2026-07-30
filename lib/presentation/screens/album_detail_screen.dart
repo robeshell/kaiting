@@ -768,7 +768,7 @@ class _DiscHeader extends StatelessWidget {
             '第 $number 碟',
             style: TextStyle(
               color: pagePalette?.secondaryText ?? context.soundSecondaryText,
-              fontSize: 12.5,
+              fontSize: 13,
               fontWeight: FontWeight.w600,
             ),
           ),

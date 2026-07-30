@@ -623,7 +623,7 @@ class _CollectionHero extends StatelessWidget {
                 collection.kind == LibraryCollectionKind.artist ? '艺人' : '流派',
                 style: TextStyle(
                   color: collection.palette.first,
-                  fontSize: 11.5,
+                  fontSize: 11,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.8,
                 ),
@@ -1179,7 +1179,7 @@ class _CollectionTrackRow extends StatelessWidget {
                       Text(
                         formatDuration(track.duration),
                         style: TextStyle(
-                          fontSize: 11.5,
+                          fontSize: 11,
                           color: context.soundSecondaryText,
                           fontFeatures: [FontFeature.tabularFigures()],
                         ),

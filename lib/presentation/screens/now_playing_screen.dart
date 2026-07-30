@@ -2194,7 +2194,7 @@ class _PlaybackErrorBanner extends StatelessWidget {
 
 TextStyle _timeStyle(BuildContext context) => TextStyle(
   color: context.chromeSecondaryText,
-  fontSize: 11.5,
+  fontSize: 11,
   fontFeatures: const [FontFeature.tabularFigures()],
 );
 
@@ -2571,7 +2571,7 @@ class _LyricsPanelState extends State<_LyricsPanel> {
             textAlign: TextAlign.center,
             style: TextStyle(
               color: context.chromeMutedText,
-              fontSize: 10.5,
+              fontSize: 10,
               height: 1.25,
               fontWeight: FontWeight.w600,
             ),
@@ -2609,7 +2609,7 @@ class _LyricsPanelState extends State<_LyricsPanel> {
                   color: context.chromeMutedText.withValues(
                     alpha: _offset == Duration.zero ? 0.56 : 0.86,
                   ),
-                  fontSize: 10.5,
+                  fontSize: 10,
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
@@ -2943,7 +2943,7 @@ class _LyricsPanelState extends State<_LyricsPanel> {
                       color: _offset == Duration.zero
                           ? context.chromeMutedText
                           : context.chromeSecondaryText,
-                      fontSize: 11.5,
+                      fontSize: 11,
                       fontFeatures: const [FontFeature.tabularFigures()],
                     ),
                   ),
@@ -2997,7 +2997,7 @@ class _LyricsOffsetButton extends StatelessWidget {
               label,
               style: TextStyle(
                 color: context.chromeSecondaryText,
-                fontSize: 11.5,
+                fontSize: 11,
                 fontWeight: FontWeight.w600,
               ),
             ),

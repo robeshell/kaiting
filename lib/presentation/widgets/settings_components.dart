@@ -406,7 +406,7 @@ class SoundSettingsRow extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             color: context.settingsSecondary,
-                            fontSize: 11.5,
+                            fontSize: 11,
                             height: 1.35,
                           ),
                         ),
@@ -420,7 +420,7 @@ class SoundSettingsRow extends StatelessWidget {
                     value!,
                     style: TextStyle(
                       color: context.settingsSecondary,
-                      fontSize: 12.5,
+                      fontSize: 13,
                       fontWeight: FontWeight.w500,
                     ),
                   ),
