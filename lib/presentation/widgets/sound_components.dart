@@ -235,7 +235,7 @@ class SoundCompactMediaRow extends StatelessWidget {
     this.trailing,
     this.titleColor,
     this.subtitleColor,
-    this.height = 64,
+    this.height,
     super.key,
   });
 
@@ -246,13 +246,13 @@ class SoundCompactMediaRow extends StatelessWidget {
   final Widget? trailing;
   final Color? titleColor;
   final Color? subtitleColor;
-  final double height;
+  final double? height;
 
   @override
   Widget build(BuildContext context) {
-    final mutedStyle = TextStyle(
+    final textTheme = Theme.of(context).textTheme;
+    final mutedStyle = textTheme.bodySmall!.copyWith(
       color: subtitleColor ?? context.soundMutedText,
-      fontSize: 12,
     );
     final subtitleChild =
         subtitleWidget ??
@@ -265,7 +265,7 @@ class SoundCompactMediaRow extends StatelessWidget {
               )
             : null);
     return SizedBox(
-      height: height,
+      height: height ?? context.soundComponentProfile.listRowDouble,
       child: Row(
         children: [
           SizedBox.square(dimension: 44, child: Center(child: leading)),
@@ -279,11 +279,7 @@ class SoundCompactMediaRow extends StatelessWidget {
                   title,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                    color: titleColor,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: textTheme.bodyMedium?.copyWith(color: titleColor),
                 ),
                 if (subtitleChild != null) ...[
                   const SizedBox(height: 3),
@@ -406,7 +402,7 @@ class _SoundChoiceButton<T> extends StatelessWidget {
           borderRadius: BorderRadius.circular(SoundRadii.pill),
           child: AnimatedContainer(
             duration: const Duration(milliseconds: 160),
-            height: 32,
+            height: context.soundComponentProfile.minimumInteractiveTarget,
             padding: const EdgeInsets.symmetric(horizontal: 11),
             decoration: BoxDecoration(
               color: selected
@@ -418,14 +414,13 @@ class _SoundChoiceButton<T> extends StatelessWidget {
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (option.icon case final icon?) ...[
-                  Icon(icon, size: 15, color: foreground),
+                  Icon(icon, size: KaiBrandIcons.compact, color: foreground),
                   const SizedBox(width: 6),
                 ],
                 Text(
                   option.label,
-                  style: TextStyle(
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
                     color: foreground,
-                    fontSize: 12,
                     fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
                   ),
                 ),
@@ -456,7 +451,7 @@ class SoundToolbarButton extends StatelessWidget {
     return Tooltip(
       message: tooltip,
       child: Container(
-        height: 32,
+        height: context.soundComponentProfile.compactControlHeight,
         padding: EdgeInsets.symmetric(horizontal: label == null ? 8 : 10),
         decoration: BoxDecoration(
           color: context.soundTint(0.025),
@@ -465,14 +460,17 @@ class SoundToolbarButton extends StatelessWidget {
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 16, color: context.soundSecondaryText),
+            Icon(
+              icon,
+              size: KaiBrandIcons.compact,
+              color: context.soundSecondaryText,
+            ),
             if (label case final value?) ...[
               const SizedBox(width: 6),
               Text(
                 value,
-                style: TextStyle(
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(
                   color: context.soundSecondaryText,
-                  fontSize: 12,
                   fontWeight: FontWeight.w600,
                 ),
               ),
@@ -522,11 +520,11 @@ class SoundTrackListRow extends StatelessWidget {
     final divider = context.soundDivider.withValues(
       alpha: context.soundDivider.a * 0.72,
     );
-    final mutedStyle = TextStyle(
+    final textTheme = Theme.of(context).textTheme;
+    final mutedStyle = textTheme.bodySmall!.copyWith(
       color: context.soundMutedText.withValues(
         alpha: context.soundMutedText.a * 0.82,
       ),
-      fontSize: 11.5,
     );
     return SoundTrackActivation(
       onActivate: onActivate,
@@ -554,11 +552,10 @@ class SoundTrackListRow extends StatelessWidget {
                         title,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
+                        style: textTheme.bodyMedium?.copyWith(
                           color: context.soundPrimaryText.withValues(
                             alpha: context.soundPrimaryText.a * 0.92,
                           ),
-                          fontSize: 13.5,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -633,7 +630,7 @@ class SoundEmptyState extends StatelessWidget {
               else
                 Icon(
                   icon,
-                  size: 30,
+                  size: KaiBrandIcons.display,
                   color: context.soundMutedText.withValues(
                     alpha: context.soundMutedText.a * 0.68,
                   ),
@@ -642,12 +639,10 @@ class SoundEmptyState extends StatelessWidget {
               Text(
                 title,
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   color: context.soundPrimaryText.withValues(
                     alpha: context.soundPrimaryText.a * 0.88,
                   ),
-                  fontSize: 16,
-                  fontWeight: FontWeight.w600,
                 ),
               ),
               if (message.trim().isNotEmpty) ...[
@@ -655,12 +650,10 @@ class SoundEmptyState extends StatelessWidget {
                 Text(
                   message,
                   textAlign: TextAlign.center,
-                  style: TextStyle(
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
                     color: context.soundMutedText.withValues(
                       alpha: context.soundMutedText.a * 0.76,
                     ),
-                    fontSize: 12,
-                    height: 1.45,
                   ),
                 ),
               ],
@@ -668,7 +661,10 @@ class SoundEmptyState extends StatelessWidget {
                 const SizedBox(height: 20),
                 FilledButton.tonalIcon(
                   onPressed: onAction,
-                  icon: const Icon(KaitingIcons.forward, size: 17),
+                  icon: const Icon(
+                    KaitingIcons.forward,
+                    size: KaiBrandIcons.compact,
+                  ),
                   label: Text(actionLabel!),
                 ),
               ],
@@ -690,6 +686,121 @@ class SoundLoadingIndicator extends StatelessWidget {
       dimension: KaiProductTokens.playbackBusySpinnerSize,
       child: CircularProgressIndicator(
         strokeWidth: KaiProductTokens.playbackBusySpinnerStroke,
+      ),
+    );
+  }
+}
+
+enum SoundStatusTone { info, success, warning, error }
+
+class SoundInlineStatus extends StatelessWidget {
+  const SoundInlineStatus({
+    required this.title,
+    required this.message,
+    this.tone = SoundStatusTone.info,
+    this.actionLabel,
+    this.onAction,
+    this.actionKey,
+    this.busy = false,
+    this.onDismiss,
+    this.titleColor,
+    this.messageColor,
+    super.key,
+  });
+
+  final String title;
+  final String message;
+  final SoundStatusTone tone;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+  final Key? actionKey;
+  final bool busy;
+  final VoidCallback? onDismiss;
+  final Color? titleColor;
+  final Color? messageColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final toneColor = switch (tone) {
+      SoundStatusTone.info => context.soundInfo,
+      SoundStatusTone.success => context.soundSuccess,
+      SoundStatusTone.warning => context.soundWarning,
+      SoundStatusTone.error => context.soundError,
+    };
+    final icon = switch (tone) {
+      SoundStatusTone.info => KaitingIcons.info,
+      SoundStatusTone.success => KaitingIcons.checkboxChecked,
+      SoundStatusTone.warning => KaitingIcons.warning,
+      SoundStatusTone.error => KaitingIcons.error,
+    };
+    final textTheme = Theme.of(context).textTheme;
+    return SoundGlassSurface(
+      strong: true,
+      color: context.soundChromeSurface,
+      borderRadius: BorderRadius.circular(SoundRadii.card),
+      borderColor: Colors.transparent,
+      shadowOffset: const Offset(0, 3),
+      shadowBlur: 10,
+      padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
+      child: Row(
+        children: [
+          SizedBox.square(
+            dimension: context.soundComponentProfile.minimumInteractiveTarget,
+            child: Icon(icon, size: KaiBrandIcons.regular, color: toneColor),
+          ),
+          const SizedBox(width: KaiBrandSpacing.x2),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: textTheme.bodyMedium?.copyWith(
+                    color: titleColor ?? context.soundPrimaryText,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                if (message.trim().isNotEmpty) ...[
+                  const SizedBox(height: KaiBrandSpacing.x1),
+                  Text(
+                    message,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: textTheme.bodySmall?.copyWith(
+                      color: messageColor ?? context.soundMutedText,
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          if (actionLabel != null && onAction != null) ...[
+            const SizedBox(width: KaiBrandSpacing.x2),
+            TextButton(
+              key: actionKey,
+              onPressed: busy ? null : onAction,
+              style: TextButton.styleFrom(foregroundColor: toneColor),
+              child: busy
+                  ? const SizedBox.square(
+                      dimension: KaiBrandIcons.compact,
+                      child: CircularProgressIndicator(
+                        strokeWidth: KaiProductTokens.playbackBusySpinnerStroke,
+                      ),
+                    )
+                  : Text(actionLabel!),
+            ),
+          ],
+          if (onDismiss != null)
+            IconButton(
+              onPressed: onDismiss,
+              tooltip: '暂时关闭',
+              color: context.soundMutedText,
+              icon: const Icon(KaitingIcons.close, size: KaiBrandIcons.compact),
+            ),
+        ],
       ),
     );
   }
@@ -923,7 +1034,10 @@ class SoundMenuButton<T> extends StatelessWidget {
     required this.tooltip,
     this.menuTitle,
     this.child,
-    this.icon = const Icon(KaitingIcons.moreHorizontal, size: 21),
+    this.icon = const Icon(
+      KaitingIcons.moreHorizontal,
+      size: KaiBrandIcons.regular,
+    ),
     this.padding = EdgeInsets.zero,
     this.enabled = true,
     super.key,
@@ -1032,7 +1146,7 @@ class _SoundAnchoredMenu<T> extends StatelessWidget {
     final viewport = MediaQuery.sizeOf(context);
     final estimatedHeight =
         actions.length * 36.0 + (title == null ? 8 : 48) + 8;
-    final menuWidth = _anchoredMenuWidth(actions);
+    final menuWidth = _anchoredMenuWidth(context, actions);
     const edge = 12.0;
     final left = (anchor.right - menuWidth)
         .clamp(edge, math.max(edge, viewport.width - menuWidth - edge))
@@ -1082,9 +1196,14 @@ class _SoundAnchoredMenu<T> extends StatelessWidget {
 }
 
 /// Content-hugging width for anchored menus (min 160 / max 280).
-double _anchoredMenuWidth<T>(List<SoundMenuAction<T>> actions) {
-  const labelStyle = TextStyle(fontSize: 13.5, fontWeight: FontWeight.w500);
-  const subtitleStyle = TextStyle(fontSize: 11.5);
+double _anchoredMenuWidth<T>(
+  BuildContext context,
+  List<SoundMenuAction<T>> actions,
+) {
+  final labelStyle = Theme.of(
+    context,
+  ).textTheme.bodyMedium!.copyWith(fontWeight: FontWeight.w500);
+  final subtitleStyle = Theme.of(context).textTheme.bodySmall!;
   final painter = TextPainter(textDirection: TextDirection.ltr);
   var maxLabel = 0.0;
   try {
@@ -1104,7 +1223,10 @@ double _anchoredMenuWidth<T>(List<SoundMenuAction<T>> actions) {
   final hasSelected = actions.any((action) => action.selected);
   // 12h×2 + icon 22 + gap 10 + label + optional check (10+16)
   final content = 24 + 22 + 10 + maxLabel + (hasSelected ? 26 : 0);
-  return content.clamp(160.0, 280.0);
+  return content.clamp(
+    KaiBrandComponentMetrics.menuMinWidth,
+    KaiBrandComponentMetrics.menuMaxWidth,
+  );
 }
 
 class _SoundMenuList<T> extends StatelessWidget {
@@ -1143,9 +1265,8 @@ class _SoundMenuList<T> extends StatelessWidget {
               value,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(
+              style: Theme.of(context).textTheme.labelSmall?.copyWith(
                 color: context.soundSecondaryText,
-                fontSize: compact ? 12.5 : 12,
                 fontWeight: FontWeight.w600,
               ),
             ),
@@ -1221,11 +1342,11 @@ class _SoundMenuActionRow<T> extends StatelessWidget {
                           action.label,
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            color: foreground,
-                            fontSize: compact ? 14 : 13.5,
-                            fontWeight: FontWeight.w600,
-                          ),
+                          style: Theme.of(context).textTheme.bodyMedium
+                              ?.copyWith(
+                                color: foreground,
+                                fontWeight: FontWeight.w600,
+                              ),
                         ),
                         if (action.subtitle case final value?) ...[
                           const SizedBox(height: 2),
@@ -1233,10 +1354,8 @@ class _SoundMenuActionRow<T> extends StatelessWidget {
                             value,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: context.soundSecondaryText,
-                              fontSize: 11.5,
-                            ),
+                            style: Theme.of(context).textTheme.bodySmall
+                                ?.copyWith(color: context.soundSecondaryText),
                           ),
                         ],
                       ],
@@ -1270,7 +1389,7 @@ class SoundListRow extends StatelessWidget {
     this.onTap,
     this.selected = false,
     this.enabled = true,
-    this.minHeight = 54,
+    this.minHeight,
     this.padding = const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
     this.selectedColor,
     this.borderRadius,
@@ -1285,7 +1404,7 @@ class SoundListRow extends StatelessWidget {
   final VoidCallback? onTap;
   final bool selected;
   final bool enabled;
-  final double minHeight;
+  final double? minHeight;
   final EdgeInsetsGeometry padding;
 
   /// 选中底色；默认前景 5%  tint，侧栏等场景传 accent 10% 胶囊。
@@ -1316,7 +1435,10 @@ class SoundListRow extends StatelessWidget {
           focusColor: context.soundTint(0.05),
           splashColor: Colors.transparent,
           child: ConstrainedBox(
-            constraints: BoxConstraints(minHeight: minHeight),
+            constraints: BoxConstraints(
+              minHeight:
+                  minHeight ?? context.soundComponentProfile.listRowSingle,
+            ),
             child: Padding(
               padding: padding,
               child: Row(
@@ -1331,15 +1453,15 @@ class SoundListRow extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         DefaultTextStyle(
-                          style: TextStyle(
-                            color: enabled
-                                ? context.soundPrimaryText
-                                : context.soundSecondaryText.withValues(
-                                    alpha: 0.38,
-                                  ),
-                            fontSize: 13.5,
-                            fontWeight: FontWeight.w500,
-                          ),
+                          style: Theme.of(context).textTheme.bodyMedium!
+                              .copyWith(
+                                color: enabled
+                                    ? context.soundPrimaryText
+                                    : context.soundSecondaryText.withValues(
+                                        alpha: 0.38,
+                                      ),
+                                fontWeight: FontWeight.w500,
+                              ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           child: title,
@@ -1347,10 +1469,8 @@ class SoundListRow extends StatelessWidget {
                         if (subtitle case final value?) ...[
                           const SizedBox(height: 2),
                           DefaultTextStyle(
-                            style: TextStyle(
-                              color: context.soundSecondaryText,
-                              fontSize: 11.5,
-                            ),
+                            style: Theme.of(context).textTheme.bodySmall!
+                                .copyWith(color: context.soundSecondaryText),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             child: value,
@@ -1400,7 +1520,7 @@ class SoundCheckRow extends StatelessWidget {
         onTap: enabled ? () => onChanged(!value) : null,
         leading: Icon(
           value ? KaitingIcons.checkboxChecked : KaitingIcons.checkbox,
-          size: 20,
+          size: KaiBrandIcons.regular,
           color: value ? SoundColors.accent : context.soundMutedText,
         ),
         title: title,
@@ -1502,10 +1622,8 @@ class _SoundNavigationButton extends StatelessWidget {
             child: AnimatedDefaultTextStyle(
               duration: const Duration(milliseconds: 160),
               curve: Curves.easeOutCubic,
-              style: TextStyle(
+              style: Theme.of(context).textTheme.labelSmall!.copyWith(
                 color: foreground,
-                fontSize: 10.5,
-                height: 1,
                 fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
               ),
               child: Column(
@@ -1513,7 +1631,7 @@ class _SoundNavigationButton extends StatelessWidget {
                 children: [
                   Icon(
                     selected ? item.selectedIcon : item.icon,
-                    size: 21,
+                    size: KaiBrandIcons.regular,
                     color: foreground,
                   ),
                   const SizedBox(height: 3),
@@ -1631,12 +1749,9 @@ void showSoundSnackBar(BuildContext context, String message) {
                   textAlign: TextAlign.center,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
+                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
                     color: foreground,
-                    fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    height: 1.3,
-                    letterSpacing: -0.1,
                   ),
                 ),
               ),

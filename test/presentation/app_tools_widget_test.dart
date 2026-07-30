@@ -93,7 +93,10 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('sleep-timer-15')));
     await tester.pump();
     expect(find.byKey(const ValueKey('sleep-timer-cancel')), findsOneWidget);
-    expect(find.byKey(const ValueKey('settings-diagnostics-row')), findsNothing);
+    expect(
+      find.byKey(const ValueKey('settings-diagnostics-row')),
+      findsNothing,
+    );
     expect(find.text('问题与诊断'), findsNothing);
 
     await tester.pumpWidget(const SizedBox.shrink());
@@ -155,10 +158,11 @@ void main() {
     ).style.merge(title.style);
     expect(titleStyle.fontSize, lessThanOrEqualTo(18));
     expect(titleStyle.decoration, isNot(TextDecoration.underline));
-    final failureSurface = tester.widget<SoundGlassSurface>(
+    final failureStatus = tester.widget<SoundInlineStatus>(
       find.byKey(const ValueKey('global-failure-banner')),
     );
-    expect(failureSurface.borderColor, Colors.transparent);
+    expect(failureStatus.tone, SoundStatusTone.error);
+    expect(failureStatus.actionLabel, '更新来源');
     expect(
       tester
           .getSize(find.byKey(const ValueKey('global-failure-banner')))

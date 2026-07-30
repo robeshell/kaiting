@@ -46,6 +46,7 @@ abstract final class KaitingIcons {
   static const IconData history = FluentIcons.history_24_regular;
   static const IconData minimize = FluentIcons.subtract_24_regular;
   static const IconData hourglass = FluentIcons.hourglass_24_regular;
+  static const IconData info = FluentIcons.info_24_regular;
   static const IconData keyboard = FluentIcons.keyboard_24_regular;
   static const IconData localSource = FluentIcons.desktop_mac_24_regular;
   static const IconData library = FluentIcons.library_24_regular;
@@ -98,6 +99,7 @@ abstract final class KaitingIcons {
   static const IconData volumeLow = FluentIcons.speaker_1_24_regular;
   static const IconData mute = FluentIcons.speaker_mute_24_regular;
   static const IconData volumeHigh = FluentIcons.speaker_2_24_regular;
+  static const IconData warning = FluentIcons.warning_24_regular;
   static const IconData arrowDown = FluentIcons.chevron_down_24_regular;
   static const IconData arrowUp = FluentIcons.chevron_up_24_regular;
 }

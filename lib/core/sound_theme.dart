@@ -36,9 +36,20 @@ extension SoundComponentProfileTokens on SoundComponentProfile {
     SoundComponentProfile.desktop => KaiBrandDesktopMetrics.controlHeight,
   };
 
+  double get compactControlHeight => switch (this) {
+    SoundComponentProfile.mobile => KaiBrandMobileMetrics.compactControlHeight,
+    SoundComponentProfile.desktop =>
+      KaiBrandDesktopMetrics.compactControlHeight,
+  };
+
   double get listRowSingle => switch (this) {
     SoundComponentProfile.mobile => KaiBrandMobileMetrics.listRowSingle,
     SoundComponentProfile.desktop => KaiBrandDesktopMetrics.listRowSingle,
+  };
+
+  double get listRowDouble => switch (this) {
+    SoundComponentProfile.mobile => KaiBrandMobileMetrics.listRowDouble,
+    SoundComponentProfile.desktop => KaiBrandDesktopMetrics.listRowDouble,
   };
 
   double get pageTitleSize => switch (this) {
@@ -255,6 +266,9 @@ int soundAlbumGridColumnCount({
 extension SoundThemeContext on BuildContext {
   ThemeData get soundTheme => Theme.of(this);
 
+  SoundComponentProfile get soundComponentProfile =>
+      resolveSoundComponentProfile(defaultTargetPlatform);
+
   ColorScheme get soundColors => Theme.of(this).colorScheme;
 
   SoundGlassTheme get soundGlass =>
@@ -280,6 +294,18 @@ extension SoundThemeContext on BuildContext {
   Color get soundWarning => soundTheme.brightness == Brightness.dark
       ? SoundColors.warningDark
       : SoundColors.warningLight;
+
+  Color get soundSuccess => soundTheme.brightness == Brightness.dark
+      ? KaiBrandStatusColors.successDark
+      : KaiBrandStatusColors.successLight;
+
+  Color get soundError => soundTheme.brightness == Brightness.dark
+      ? KaiBrandStatusColors.errorDark
+      : KaiBrandStatusColors.errorLight;
+
+  Color get soundInfo => soundTheme.brightness == Brightness.dark
+      ? KaiBrandStatusColors.infoDark
+      : KaiBrandStatusColors.infoLight;
 
   Color soundTint(double alpha) => soundPrimaryText.withValues(alpha: alpha);
 
@@ -368,8 +394,7 @@ extension SoundThemeContext on BuildContext {
   /// page edge (compact 16 / medium 24 / wide 32).
   double get soundListGutter => soundPageGutter;
 
-  double get soundPageTitleSize =>
-      resolveSoundComponentProfile(defaultTargetPlatform).pageTitleSize;
+  double get soundPageTitleSize => soundComponentProfile.pageTitleSize;
 
   /// Scroll padding under list content so the last rows clear the overlaid
   /// mini player / mobile dock (`Scaffold.extendBody` is always on).
@@ -861,6 +886,10 @@ abstract final class SoundTheme {
         ).copyWith(
           primary: SoundColors.accent,
           onPrimary: AccentPreset.readableForeground(SoundColors.accent),
+          error: dark
+              ? KaiBrandStatusColors.errorDark
+              : KaiBrandStatusColors.errorLight,
+          onError: dark ? Colors.black : Colors.white,
           surface: surface,
           onSurface: foreground,
           onSurfaceVariant: secondary,

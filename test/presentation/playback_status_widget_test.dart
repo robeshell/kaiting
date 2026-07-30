@@ -481,11 +481,11 @@ void main() {
 
     expect(find.text('操作没有完成'), findsOneWidget);
     expect(find.text('重试'), findsOneWidget);
-    final failureSurface = tester.widget<SoundGlassSurface>(
+    final failureStatus = tester.widget<SoundInlineStatus>(
       find.byKey(const ValueKey('playback-error-banner')),
     );
-    expect(failureSurface.borderColor, isNot(Colors.transparent));
-    expect(failureSurface.blur, isTrue);
+    expect(failureStatus.tone, SoundStatusTone.error);
+    expect(failureStatus.actionLabel, '重试');
     expect(
       tester
           .getSize(find.byKey(const ValueKey('playback-error-banner')))

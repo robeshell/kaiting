@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 
 import '../core/app_failure.dart';
 import '../app_update/app_update_ui.dart';
+import '../core/brand_tokens.g.dart';
 import '../core/now_playing_style.dart';
 import '../core/platform_window.dart';
 import '../core/sound_theme.dart';
@@ -1472,92 +1473,18 @@ class _AppFailureBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     return SafeArea(
       bottom: false,
-      child: SoundGlassSurface(
+      child: SoundInlineStatus(
         key: const ValueKey('global-failure-banner'),
-        strong: true,
-        color: context.soundChromeSurface,
-        borderRadius: BorderRadius.circular(14),
-        borderColor: Colors.transparent,
-        shadowOffset: const Offset(0, 3),
-        shadowBlur: 10,
-        padding: const EdgeInsets.fromLTRB(12, 10, 8, 10),
-        child: Row(
-          children: [
-            SizedBox(
-              width: 32,
-              height: 32,
-              child: Icon(
-                KaitingIcons.error,
-                size: 20,
-                color: SoundColors.accent.withValues(alpha: 0.82),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    event.failure.title,
-                    style: TextStyle(
-                      color: context.soundPrimaryText,
-                      fontSize: 13.5,
-                      height: 1.15,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 3),
-                  Text(
-                    event.failure.message,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      color: context.soundMutedText,
-                      fontSize: 11.5,
-                      height: 1.35,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(width: 6),
-            if (onAction != null)
-              TextButton(
-                key: const ValueKey('global-failure-action'),
-                onPressed: busy ? null : onAction,
-                style: TextButton.styleFrom(
-                  foregroundColor: SoundColors.accent,
-                  backgroundColor: Colors.transparent,
-                  minimumSize: const Size(48, 32),
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  textStyle: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(9),
-                  ),
-                ),
-                child: busy
-                    ? const SizedBox.square(
-                        dimension: 14,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : Text(_failureActionLabel(event.failure.action)),
-              ),
-            IconButton(
-              key: const ValueKey('global-failure-dismiss'),
-              onPressed: onDismiss,
-              tooltip: '暂时关闭',
-              visualDensity: VisualDensity.compact,
-              constraints: const BoxConstraints.tightFor(width: 32, height: 32),
-              color: context.soundMutedText,
-              icon: const Icon(KaitingIcons.close, size: 17),
-            ),
-          ],
-        ),
+        tone: SoundStatusTone.error,
+        title: event.failure.title,
+        message: event.failure.message,
+        actionLabel: onAction == null
+            ? null
+            : _failureActionLabel(event.failure.action),
+        onAction: onAction,
+        actionKey: const ValueKey('global-failure-action'),
+        busy: busy,
+        onDismiss: onDismiss,
       ),
     );
   }
@@ -1886,9 +1813,8 @@ class _SidebarHeading extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(10, 13, 10, 3),
       child: Text(
         label,
-        style: TextStyle(
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
           color: context.soundMutedText,
-          fontSize: 10.5,
           fontWeight: FontWeight.w600,
           letterSpacing: 0.8,
         ),
@@ -1913,7 +1839,7 @@ class _SidebarRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SoundListRow(
-      minHeight: 38,
+      minHeight: context.soundComponentProfile.controlHeight,
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
       selected: active,
       selectedColor: SoundColors.accent.withValues(alpha: 0.10),
@@ -1921,14 +1847,13 @@ class _SidebarRow extends StatelessWidget {
       hoverColor: context.soundTint(0.045),
       leading: Icon(
         icon,
-        size: 18,
+        size: KaiBrandIcons.regular,
         color: active ? SoundColors.accent : context.soundSecondaryText,
       ),
       title: Text(
         label,
-        style: TextStyle(
+        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
           color: active ? context.soundPrimaryText : context.soundSecondaryText,
-          fontSize: 13.5,
           fontWeight: active ? FontWeight.w600 : FontWeight.w500,
         ),
       ),

@@ -2173,74 +2173,15 @@ class _PlaybackErrorBanner extends StatelessWidget {
       top: false,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 14),
-        child: SoundGlassSurface(
+        child: SoundInlineStatus(
           key: const ValueKey('playback-error-banner'),
-          strong: true,
-          padding: const EdgeInsets.fromLTRB(10, 9, 8, 9),
-          borderRadius: BorderRadius.circular(SoundRadii.menu),
-          child: Row(
-            children: [
-              SizedBox(
-                width: 30,
-                height: 30,
-                child: Icon(
-                  KaitingIcons.error,
-                  size: 19,
-                  color: context.soundColors.error.withValues(alpha: 0.82),
-                ),
-              ),
-              const SizedBox(width: 10),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      failure.title,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: context.chromePrimaryText,
-                        fontSize: 13.5,
-                        height: 1.15,
-                        fontWeight: FontWeight.w600,
-                      ),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      failure.message,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: context.chromeMutedText,
-                        fontSize: 11.5,
-                        height: 1.3,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 6),
-              TextButton(
-                onPressed: onRetry,
-                style: TextButton.styleFrom(
-                  foregroundColor: context.soundColors.error,
-                  backgroundColor: Colors.transparent,
-                  minimumSize: const Size(48, 32),
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  textStyle: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.w600,
-                  ),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(9),
-                  ),
-                ),
-                child: const Text('重试'),
-              ),
-            ],
-          ),
+          tone: SoundStatusTone.error,
+          title: failure.title,
+          message: failure.message,
+          actionLabel: '重试',
+          onAction: onRetry,
+          titleColor: context.chromePrimaryText,
+          messageColor: context.chromeMutedText,
         ),
       ),
     );

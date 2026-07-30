@@ -1226,16 +1226,13 @@ class _SettingsRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final compact = context.soundIsCompact;
     return Semantics(
       button: onTap != null,
       child: InkWell(
         onTap: onTap,
         child: ConstrainedBox(
           constraints: BoxConstraints(
-            minHeight: compact
-                ? SoundSettingsMetrics.compactRowMinHeight
-                : SoundSettingsMetrics.rowMinHeight,
+            minHeight: SoundSettingsMetrics.rowMinHeight(context),
           ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
@@ -1532,16 +1529,13 @@ class _SettingsToggleRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final compact = context.soundIsCompact;
     return Semantics(
       toggled: value,
       child: InkWell(
         onTap: () => onChanged(!value),
         child: ConstrainedBox(
           constraints: BoxConstraints(
-            minHeight: compact
-                ? SoundSettingsMetrics.compactRowMinHeight
-                : SoundSettingsMetrics.rowMinHeight,
+            minHeight: SoundSettingsMetrics.rowMinHeight(context),
           ),
           child: Padding(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),

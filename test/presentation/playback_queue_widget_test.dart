@@ -45,11 +45,10 @@ void main() {
     expect(playback.playbackMode, PlaybackMode.shuffle);
     expect(find.text('3 首歌 · 随机播放'), findsOneWidget);
 
+    final thirdRow = find.byKey(const ValueKey('queue-track-row-third'));
     expect(
-      tester
-          .getSize(find.byKey(const ValueKey('queue-track-row-third')))
-          .height,
-      64,
+      tester.getSize(thirdRow).height,
+      tester.element(thirdRow).soundComponentProfile.listRowDouble,
     );
     await tester.tap(find.byKey(const ValueKey('queue-track-actions-third')));
     await tester.pumpAndSettle();

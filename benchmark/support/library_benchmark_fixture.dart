@@ -147,10 +147,7 @@ class BenchmarkLibraryRepository extends DriftLibraryRepository {
     Iterable<String> trackIds,
   ) async {
     final needed = trackIds.toSet();
-    return {
-      for (final id in needed)
-        if (fixture.lyricsByTrackId[id] case final lines?) id: lines,
-    };
+    return {for (final id in needed) id: ?fixture.lyricsByTrackId[id]};
   }
 
   @override

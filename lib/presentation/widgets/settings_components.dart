@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 
+import '../../core/brand_tokens.g.dart';
 import '../../core/sound_theme.dart';
 
 abstract final class SoundSettingsMetrics {
-  static const maxContentWidth = 920.0;
-  static const sectionGap = 28.0;
-  static const rowMinHeight = 64.0;
-  static const compactRowMinHeight = 58.0;
+  static const maxContentWidth = KaiBrandLayout.standardContentWidth;
+  static const sectionGap = KaiBrandDesktopMetrics.sectionGap;
+
+  static double rowMinHeight(BuildContext context) =>
+      context.soundComponentProfile.listRowDouble;
 }
 
 extension SoundSettingsContext on BuildContext {
@@ -104,11 +106,8 @@ class SoundSettingsPageHeader extends StatelessWidget {
             Expanded(
               child: Text(
                 title,
-                style: TextStyle(
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
                   color: context.settingsPrimary,
-                  fontSize: context.soundPageTitleSize,
-                  fontWeight: FontWeight.w600,
-                  letterSpacing: -0.25,
                 ),
               ),
             ),
@@ -121,11 +120,9 @@ class SoundSettingsPageHeader extends StatelessWidget {
             padding: EdgeInsets.only(left: onBack == null ? 0 : 56),
             child: Text(
               value,
-              style: TextStyle(
-                color: context.settingsSecondary,
-                fontSize: 12.5,
-                height: 1.45,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: context.settingsSecondary),
             ),
           ),
         ],
@@ -169,7 +166,7 @@ class SoundSettingsGroup extends StatelessWidget {
   }
 }
 
-/// 分组卡内的子块标签（如「皮肤」「主题色」），12.5 secondary。
+/// 分组卡内的子块标签（如「皮肤」「主题色」）。
 class SoundSettingsBlockLabel extends StatelessWidget {
   const SoundSettingsBlockLabel(this.label, {super.key});
 
@@ -181,9 +178,8 @@ class SoundSettingsBlockLabel extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(14, 12, 14, 2),
       child: Text(
         label,
-        style: TextStyle(
+        style: Theme.of(context).textTheme.labelSmall?.copyWith(
           color: context.settingsSecondary,
-          fontSize: 12.5,
           fontWeight: FontWeight.w600,
         ),
       ),

@@ -297,7 +297,12 @@ void main() {
       ),
     );
 
-    expect(tester.getSize(find.byKey(const ValueKey('choice-all'))).height, 32);
+    expect(
+      tester.getSize(find.byKey(const ValueKey('choice-all'))).height,
+      resolveSoundComponentProfile(
+        defaultTargetPlatform,
+      ).minimumInteractiveTarget,
+    );
     expect(
       tester.getSize(find.byKey(const ValueKey('shared-track-row'))).height,
       64,
