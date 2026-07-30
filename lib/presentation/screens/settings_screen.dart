@@ -104,23 +104,29 @@ class _SettingsScreenState extends State<SettingsScreen> {
     if (_destination == SettingsDestination.sources) {
       return _withCompactBackNavigation(
         context,
-        SourceSettingsScreen(
-          localSources: widget.localSources,
-          scanner: widget.scanner,
-          playback: widget.playback,
-          webDavService: widget.webDavService,
-          onBack: () =>
-              setState(() => _destination = SettingsDestination.overview),
+        ColoredBox(
+          color: context.settingsCanvas,
+          child: SourceSettingsScreen(
+            localSources: widget.localSources,
+            scanner: widget.scanner,
+            playback: widget.playback,
+            webDavService: widget.webDavService,
+            onBack: () =>
+                setState(() => _destination = SettingsDestination.overview),
+          ),
         ),
       );
     }
     if (_destination == SettingsDestination.offline && widget.offline != null) {
       return _withCompactBackNavigation(
         context,
-        OfflineSettingsView(
-          offline: widget.offline!,
-          onBack: () =>
-              setState(() => _destination = SettingsDestination.overview),
+        ColoredBox(
+          color: context.settingsCanvas,
+          child: OfflineSettingsView(
+            offline: widget.offline!,
+            onBack: () =>
+                setState(() => _destination = SettingsDestination.overview),
+          ),
         ),
       );
     }

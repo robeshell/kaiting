@@ -898,12 +898,16 @@ class _SourceMessage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 18),
-      child: Text(
-        message,
-        style: TextStyle(color: _sourceSecondaryText(context), fontSize: 12),
-      ),
+    return SoundSettingsGroup(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
+          child: Text(
+            message,
+            style: TextStyle(color: _sourceSecondaryText(context), fontSize: 12),
+          ),
+        ),
+      ],
     );
   }
 }

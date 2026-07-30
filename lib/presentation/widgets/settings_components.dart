@@ -182,30 +182,32 @@ class SoundSettingsBackButton extends StatelessWidget {
     final label = title;
     return Align(
       alignment: Alignment.centerLeft,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-            key: buttonKey,
-            onPressed: onPressed,
-            tooltip: '返回设置',
-            visualDensity: VisualDensity.compact,
-            icon: const Icon(KaitingIcons.back),
-          ),
-          if (label != null) ...[
-            const SizedBox(width: 2),
-            Flexible(
-              child: Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                  color: context.settingsPrimary,
+      child: Transform.translate(
+        // IconButton 自带点击热区内边距；负偏移让箭头与下方卡片左缘对齐。
+        offset: const Offset(-12, 0),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              key: buttonKey,
+              onPressed: onPressed,
+              tooltip: '返回设置',
+              visualDensity: VisualDensity.compact,
+              icon: const Icon(KaitingIcons.back),
+            ),
+            if (label != null)
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                    color: context.settingsPrimary,
+                  ),
                 ),
               ),
-            ),
           ],
-        ],
+        ),
       ),
     );
   }
