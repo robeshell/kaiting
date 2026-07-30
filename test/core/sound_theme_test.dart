@@ -1,9 +1,37 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kaiting/core/brand_tokens.g.dart';
 import 'package:kaiting/core/sound_theme.dart';
 
 void main() {
   tearDown(SoundColors.defaultAccentPreset.apply);
+
+  test(
+    'component profile follows form factor instead of changing visual skin',
+    () {
+      expect(
+        resolveSoundComponentProfile(TargetPlatform.iOS),
+        SoundComponentProfile.mobile,
+      );
+      expect(
+        resolveSoundComponentProfile(TargetPlatform.android),
+        SoundComponentProfile.mobile,
+      );
+      expect(
+        resolveSoundComponentProfile(TargetPlatform.macOS),
+        SoundComponentProfile.desktop,
+      );
+      expect(
+        resolveSoundComponentProfile(TargetPlatform.windows),
+        SoundComponentProfile.desktop,
+      );
+      expect(
+        resolveSoundComponentProfile(TargetPlatform.linux),
+        SoundComponentProfile.desktop,
+      );
+    },
+  );
 
   test('coral remains the default and presets use the muted palette', () {
     expect(SoundColors.defaultAccentPreset.id, 'coral');
@@ -90,7 +118,11 @@ void main() {
       primaryText.withValues(alpha: 0.11),
     );
     expect(filledStyle.foregroundColor?.resolve({}), SoundColors.accent);
-    expect(filledStyle.minimumSize?.resolve({}), const Size(36, 36));
+    final profile = resolveSoundComponentProfile(defaultTargetPlatform);
+    expect(
+      filledStyle.minimumSize?.resolve({}),
+      Size(0, profile.controlHeight),
+    );
     for (final style in [
       filledStyle,
       theme.elevatedButtonTheme.style!,
@@ -112,11 +144,21 @@ void main() {
     );
     expect(theme.floatingActionButtonTheme.shape, isA<CircleBorder>());
     expect(theme.listTileTheme.shape, const RoundedRectangleBorder());
-    expect(theme.listTileTheme.minTileHeight, 54);
+    expect(theme.listTileTheme.minTileHeight, profile.listRowSingle);
     expect(theme.listTileTheme.minLeadingWidth, 32);
     expect(theme.listTileTheme.horizontalTitleGap, 10);
-    expect(theme.listTileTheme.titleTextStyle?.fontSize, 13.5);
-    expect(theme.listTileTheme.subtitleTextStyle?.fontSize, 11.5);
+    expect(
+      theme.listTileTheme.titleTextStyle?.fontSize,
+      profile == SoundComponentProfile.mobile
+          ? KaiBrandMobileType.bodySize
+          : KaiBrandDesktopType.bodySize,
+    );
+    expect(
+      theme.listTileTheme.subtitleTextStyle?.fontSize,
+      profile == SoundComponentProfile.mobile
+          ? KaiBrandMobileType.bodySecondarySize
+          : KaiBrandDesktopType.bodySecondarySize,
+    );
     expect(
       theme.listTileTheme.selectedTileColor,
       SoundColors.accent.withValues(alpha: 0.035),

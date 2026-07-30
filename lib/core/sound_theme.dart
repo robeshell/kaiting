@@ -10,6 +10,183 @@ bool get soundUsesDesktopPlatform =>
     defaultTargetPlatform == TargetPlatform.windows ||
     defaultTargetPlatform == TargetPlatform.linux;
 
+enum SoundComponentProfile { mobile, desktop }
+
+SoundComponentProfile resolveSoundComponentProfile(TargetPlatform platform) {
+  return switch (platform) {
+    TargetPlatform.macOS ||
+    TargetPlatform.windows ||
+    TargetPlatform.linux => SoundComponentProfile.desktop,
+    TargetPlatform.android ||
+    TargetPlatform.fuchsia ||
+    TargetPlatform.iOS => SoundComponentProfile.mobile,
+  };
+}
+
+extension SoundComponentProfileTokens on SoundComponentProfile {
+  double get minimumInteractiveTarget => switch (this) {
+    SoundComponentProfile.mobile =>
+      KaiBrandMobileMetrics.minimumInteractiveTarget,
+    SoundComponentProfile.desktop =>
+      KaiBrandDesktopMetrics.minimumInteractiveTarget,
+  };
+
+  double get controlHeight => switch (this) {
+    SoundComponentProfile.mobile => KaiBrandMobileMetrics.controlHeight,
+    SoundComponentProfile.desktop => KaiBrandDesktopMetrics.controlHeight,
+  };
+
+  double get listRowSingle => switch (this) {
+    SoundComponentProfile.mobile => KaiBrandMobileMetrics.listRowSingle,
+    SoundComponentProfile.desktop => KaiBrandDesktopMetrics.listRowSingle,
+  };
+
+  double get pageTitleSize => switch (this) {
+    SoundComponentProfile.mobile => KaiBrandMobileType.pageTitleSize,
+    SoundComponentProfile.desktop => KaiBrandDesktopType.pageTitleSize,
+  };
+
+  TextTheme applyTypeScale(
+    TextTheme base, {
+    required Color foreground,
+    required Color secondary,
+  }) {
+    TextStyle role(
+      TextStyle? source, {
+      required double mobileSize,
+      required double mobileLineHeight,
+      required int mobileWeight,
+      required double mobileLetterSpacing,
+      required double desktopSize,
+      required double desktopLineHeight,
+      required int desktopWeight,
+      required double desktopLetterSpacing,
+      Color? color,
+    }) {
+      final mobile = this == SoundComponentProfile.mobile;
+      final size = mobile ? mobileSize : desktopSize;
+      final lineHeight = mobile ? mobileLineHeight : desktopLineHeight;
+      final weight = mobile ? mobileWeight : desktopWeight;
+      final letterSpacing = mobile ? mobileLetterSpacing : desktopLetterSpacing;
+      return (source ?? const TextStyle()).copyWith(
+        color: color ?? foreground,
+        fontSize: size,
+        height: lineHeight / size,
+        fontWeight: FontWeight.values[weight ~/ 100 - 1],
+        letterSpacing: letterSpacing,
+      );
+    }
+
+    final displayLarge = role(
+      base.displayLarge,
+      mobileSize: KaiBrandMobileType.displayLargeSize,
+      mobileLineHeight: KaiBrandMobileType.displayLargeLineHeight,
+      mobileWeight: KaiBrandMobileType.displayLargeWeight,
+      mobileLetterSpacing: KaiBrandMobileType.displayLargeLetterSpacing,
+      desktopSize: KaiBrandDesktopType.displayLargeSize,
+      desktopLineHeight: KaiBrandDesktopType.displayLargeLineHeight,
+      desktopWeight: KaiBrandDesktopType.displayLargeWeight,
+      desktopLetterSpacing: KaiBrandDesktopType.displayLargeLetterSpacing,
+    );
+    final pageTitle = role(
+      base.headlineMedium,
+      mobileSize: KaiBrandMobileType.pageTitleSize,
+      mobileLineHeight: KaiBrandMobileType.pageTitleLineHeight,
+      mobileWeight: KaiBrandMobileType.pageTitleWeight,
+      mobileLetterSpacing: KaiBrandMobileType.pageTitleLetterSpacing,
+      desktopSize: KaiBrandDesktopType.pageTitleSize,
+      desktopLineHeight: KaiBrandDesktopType.pageTitleLineHeight,
+      desktopWeight: KaiBrandDesktopType.pageTitleWeight,
+      desktopLetterSpacing: KaiBrandDesktopType.pageTitleLetterSpacing,
+    );
+    final sectionTitle = role(
+      base.headlineSmall,
+      mobileSize: KaiBrandMobileType.sectionTitleSize,
+      mobileLineHeight: KaiBrandMobileType.sectionTitleLineHeight,
+      mobileWeight: KaiBrandMobileType.sectionTitleWeight,
+      mobileLetterSpacing: KaiBrandMobileType.sectionTitleLetterSpacing,
+      desktopSize: KaiBrandDesktopType.sectionTitleSize,
+      desktopLineHeight: KaiBrandDesktopType.sectionTitleLineHeight,
+      desktopWeight: KaiBrandDesktopType.sectionTitleWeight,
+      desktopLetterSpacing: KaiBrandDesktopType.sectionTitleLetterSpacing,
+    );
+    final title = role(
+      base.titleLarge,
+      mobileSize: KaiBrandMobileType.titleSize,
+      mobileLineHeight: KaiBrandMobileType.titleLineHeight,
+      mobileWeight: KaiBrandMobileType.titleWeight,
+      mobileLetterSpacing: KaiBrandMobileType.titleLetterSpacing,
+      desktopSize: KaiBrandDesktopType.titleSize,
+      desktopLineHeight: KaiBrandDesktopType.titleLineHeight,
+      desktopWeight: KaiBrandDesktopType.titleWeight,
+      desktopLetterSpacing: KaiBrandDesktopType.titleLetterSpacing,
+    );
+    final body = role(
+      base.bodyMedium,
+      mobileSize: KaiBrandMobileType.bodySize,
+      mobileLineHeight: KaiBrandMobileType.bodyLineHeight,
+      mobileWeight: KaiBrandMobileType.bodyWeight,
+      mobileLetterSpacing: KaiBrandMobileType.bodyLetterSpacing,
+      desktopSize: KaiBrandDesktopType.bodySize,
+      desktopLineHeight: KaiBrandDesktopType.bodyLineHeight,
+      desktopWeight: KaiBrandDesktopType.bodyWeight,
+      desktopLetterSpacing: KaiBrandDesktopType.bodyLetterSpacing,
+    );
+    final bodySecondary = role(
+      base.bodySmall,
+      mobileSize: KaiBrandMobileType.bodySecondarySize,
+      mobileLineHeight: KaiBrandMobileType.bodySecondaryLineHeight,
+      mobileWeight: KaiBrandMobileType.bodySecondaryWeight,
+      mobileLetterSpacing: KaiBrandMobileType.bodySecondaryLetterSpacing,
+      desktopSize: KaiBrandDesktopType.bodySecondarySize,
+      desktopLineHeight: KaiBrandDesktopType.bodySecondaryLineHeight,
+      desktopWeight: KaiBrandDesktopType.bodySecondaryWeight,
+      desktopLetterSpacing: KaiBrandDesktopType.bodySecondaryLetterSpacing,
+      color: secondary,
+    );
+    final label = role(
+      base.labelLarge,
+      mobileSize: KaiBrandMobileType.labelSize,
+      mobileLineHeight: KaiBrandMobileType.labelLineHeight,
+      mobileWeight: KaiBrandMobileType.labelWeight,
+      mobileLetterSpacing: KaiBrandMobileType.labelLetterSpacing,
+      desktopSize: KaiBrandDesktopType.labelSize,
+      desktopLineHeight: KaiBrandDesktopType.labelLineHeight,
+      desktopWeight: KaiBrandDesktopType.labelWeight,
+      desktopLetterSpacing: KaiBrandDesktopType.labelLetterSpacing,
+    );
+    final caption = role(
+      base.labelSmall,
+      mobileSize: KaiBrandMobileType.captionSize,
+      mobileLineHeight: KaiBrandMobileType.captionLineHeight,
+      mobileWeight: KaiBrandMobileType.captionWeight,
+      mobileLetterSpacing: KaiBrandMobileType.captionLetterSpacing,
+      desktopSize: KaiBrandDesktopType.captionSize,
+      desktopLineHeight: KaiBrandDesktopType.captionLineHeight,
+      desktopWeight: KaiBrandDesktopType.captionWeight,
+      desktopLetterSpacing: KaiBrandDesktopType.captionLetterSpacing,
+      color: secondary,
+    );
+
+    return base.copyWith(
+      displayLarge: displayLarge,
+      displayMedium: displayLarge,
+      headlineLarge: pageTitle,
+      headlineMedium: pageTitle,
+      headlineSmall: sectionTitle,
+      titleLarge: title,
+      titleMedium: title,
+      titleSmall: title,
+      bodyLarge: body,
+      bodyMedium: body,
+      bodySmall: bodySecondary,
+      labelLarge: label,
+      labelMedium: label,
+      labelSmall: caption,
+    );
+  }
+}
+
 /// Raw shell decision for a window size.
 ///
 /// iPhone and iPad keep one stable navigation model through rotation and
@@ -191,9 +368,8 @@ extension SoundThemeContext on BuildContext {
   /// page edge (compact 16 / medium 24 / wide 32).
   double get soundListGutter => soundPageGutter;
 
-  double get soundPageTitleSize => soundIsCompact
-      ? KaiBrandLayout.compactPageTitle
-      : KaiBrandLayout.regularPageTitle;
+  double get soundPageTitleSize =>
+      resolveSoundComponentProfile(defaultTargetPlatform).pageTitleSize;
 
   /// Scroll padding under list content so the last rows clear the overlaid
   /// mini player / mobile dock (`Scaffold.extendBody` is always on).
@@ -656,6 +832,9 @@ abstract final class SoundTheme {
     final overlay = skin.overlay;
     final glass = skin.glass;
     final effects = skin.effects;
+    final componentProfile = resolveSoundComponentProfile(
+      defaultTargetPlatform,
+    );
     final foreground = glass.primaryText;
     final secondary = glass.secondaryText;
     final border = dark
@@ -701,27 +880,10 @@ abstract final class SoundTheme {
     final baseTextTheme = ThemeData(
       brightness: brightness,
     ).textTheme.apply(bodyColor: foreground, displayColor: foreground);
-    final textTheme = baseTextTheme.copyWith(
-      headlineLarge: baseTextTheme.headlineLarge?.copyWith(
-        fontWeight: FontWeight.w600,
-        letterSpacing: -0.25,
-      ),
-      headlineMedium: baseTextTheme.headlineMedium?.copyWith(
-        fontWeight: FontWeight.w600,
-        letterSpacing: -0.15,
-      ),
-      titleLarge: baseTextTheme.titleLarge?.copyWith(
-        fontWeight: FontWeight.w600,
-        letterSpacing: -0.1,
-      ),
-      titleMedium: baseTextTheme.titleMedium?.copyWith(
-        fontWeight: FontWeight.w500,
-      ),
-      labelLarge: baseTextTheme.labelLarge?.copyWith(
-        fontWeight: FontWeight.w500,
-        letterSpacing: 0,
-      ),
-      bodySmall: baseTextTheme.bodySmall?.copyWith(color: secondary),
+    final textTheme = componentProfile.applyTypeScale(
+      baseTextTheme,
+      foreground: foreground,
+      secondary: secondary,
     );
 
     final focusOverlay = WidgetStateProperty.resolveWith<Color?>((states) {
@@ -743,7 +905,9 @@ abstract final class SoundTheme {
     });
     final standardButtonStyle = ButtonStyle(
       animationDuration: _animationDuration,
-      minimumSize: const WidgetStatePropertyAll(Size(36, 36)),
+      minimumSize: WidgetStatePropertyAll(
+        Size(0, componentProfile.controlHeight),
+      ),
       padding: const WidgetStatePropertyAll(
         EdgeInsets.symmetric(horizontal: 14, vertical: 7),
       ),
@@ -1008,7 +1172,9 @@ abstract final class SoundTheme {
         style: standardButtonStyle.copyWith(
           backgroundColor: quietPillBackground,
           foregroundColor: pillForeground,
-          minimumSize: const WidgetStatePropertyAll(Size(36, 36)),
+          minimumSize: WidgetStatePropertyAll(
+            Size(0, componentProfile.controlHeight),
+          ),
           padding: const WidgetStatePropertyAll(
             EdgeInsets.symmetric(horizontal: 12, vertical: 8),
           ),
@@ -1017,8 +1183,10 @@ abstract final class SoundTheme {
       iconButtonTheme: IconButtonThemeData(
         style: ButtonStyle(
           animationDuration: _animationDuration,
-          minimumSize: const WidgetStatePropertyAll(Size.square(40)),
-          iconSize: const WidgetStatePropertyAll(20),
+          minimumSize: WidgetStatePropertyAll(
+            Size.square(componentProfile.minimumInteractiveTarget),
+          ),
+          iconSize: const WidgetStatePropertyAll(KaiBrandIcons.regular),
           foregroundColor: WidgetStateProperty.resolveWith<Color>((states) {
             if (states.contains(WidgetState.disabled)) {
               return secondary.withValues(alpha: 0.38);
@@ -1058,19 +1226,12 @@ abstract final class SoundTheme {
         selectedColor: SoundColors.accent,
         selectedTileColor: SoundColors.accent.withValues(alpha: 0.035),
         contentPadding: const EdgeInsets.symmetric(horizontal: 14),
-        minTileHeight: 54,
+        minTileHeight: componentProfile.listRowSingle,
         minVerticalPadding: 6,
         minLeadingWidth: 32,
         horizontalTitleGap: 10,
-        titleTextStyle: textTheme.bodyMedium?.copyWith(
-          color: foreground,
-          fontSize: 13.5,
-          fontWeight: FontWeight.w600,
-        ),
-        subtitleTextStyle: textTheme.bodySmall?.copyWith(
-          color: secondary,
-          fontSize: 11.5,
-        ),
+        titleTextStyle: textTheme.bodyMedium?.copyWith(color: foreground),
+        subtitleTextStyle: textTheme.bodySmall?.copyWith(color: secondary),
         shape: const RoundedRectangleBorder(),
       ),
       checkboxTheme: CheckboxThemeData(
@@ -1135,7 +1296,7 @@ abstract final class SoundTheme {
           color: SoundColors.accent,
           fontWeight: FontWeight.w600,
         ),
-        iconTheme: IconThemeData(size: 16, color: secondary),
+        iconTheme: IconThemeData(size: KaiBrandIcons.compact, color: secondary),
         padding: const EdgeInsets.symmetric(horizontal: 5),
         labelPadding: const EdgeInsets.symmetric(horizontal: 7),
         showCheckmark: false,
