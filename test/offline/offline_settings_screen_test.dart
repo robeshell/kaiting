@@ -27,6 +27,12 @@ void main() {
       );
       await tester.pump();
 
+      expect(find.text('离线与缓存'), findsOneWidget);
+      expect(find.text('主动保存的歌曲不会被临时缓存清理。'), findsNothing);
+      expect(
+        find.byKey(const ValueKey('offline-settings-back')),
+        findsOneWidget,
+      );
       expect(find.text('下载与离线内容'), findsOneWidget);
       expect(find.text('Downloading'), findsOneWidget);
       expect(find.text('Failed'), findsOneWidget);
@@ -91,6 +97,9 @@ void main() {
     );
     await tester.pump();
 
+    expect(find.text('离线与缓存'), findsOneWidget);
+    expect(find.text('主动保存的歌曲不会被临时缓存清理。'), findsNothing);
+    expect(find.byKey(const ValueKey('offline-settings-back')), findsOneWidget);
     final storageKey = _reference('downloaded').storageKey;
     await tester.ensureVisible(
       find.byKey(ValueKey('offline-item-$storageKey')),

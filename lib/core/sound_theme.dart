@@ -496,10 +496,13 @@ abstract final class SoundColors {
   static const darkSurface = KaiBrandDeepNightSkin.surface;
   static const darkElevated = KaiBrandDeepNightSkin.elevated;
   static const darkOverlay = KaiBrandDeepNightSkin.overlay;
-  static const lightCanvas = KaiBrandDefaultSkin.canvas;
-  static const lightSurface = KaiBrandDefaultSkin.surface;
+  // Keep Kaiting's everyday light chrome neutral white. Reusing the released
+  // elevated/surface tokens avoids introducing product-local raw colors while
+  // removing the cool blue-gray cast from large background areas.
+  static const lightCanvas = KaiBrandDefaultSkin.elevated;
+  static const lightSurface = KaiBrandDefaultSkin.elevated;
   static const lightElevated = KaiBrandDefaultSkin.elevated;
-  static const lightOverlay = KaiBrandDefaultSkin.overlay;
+  static const lightOverlay = KaiBrandDefaultSkin.surface;
   static const webDav = KaiProductTokens.sourceWebDav;
   static const local = KaiProductTokens.sourceLocal;
   static const warningLight = KaiBrandStatusColors.warningLight;
@@ -562,7 +565,7 @@ class SoundGlassTheme extends ThemeExtension<SoundGlassTheme> {
   });
 
   static const light = SoundGlassTheme(
-    canvasHighlight: KaiBrandDefaultSkin.glassCanvasHighlight,
+    canvasHighlight: KaiBrandDefaultSkin.elevated,
     surface: KaiBrandDefaultSkin.glassSurface,
     strongSurface: KaiBrandDefaultSkin.glassStrongSurface,
     border: KaiBrandDefaultSkin.glassBorder,
@@ -788,7 +791,7 @@ abstract final class SoundSkins {
   static const standard = SoundSkinPreset(
     id: 'default',
     name: '默认',
-    description: '开听 的中性浅色玻璃界面',
+    description: '干净明亮的中性白玻璃界面',
     brightness: Brightness.light,
     canvas: SoundColors.lightCanvas,
     surface: SoundColors.lightSurface,
@@ -1106,7 +1109,8 @@ abstract final class SoundTheme {
         }),
         labelTextStyle: WidgetStateProperty.resolveWith<TextStyle>((states) {
           return TextStyle(
-            fontSize: 10.5,
+            fontSize: 10,
+            height: 1.2,
             fontWeight: states.contains(WidgetState.selected)
                 ? FontWeight.w600
                 : FontWeight.w500,

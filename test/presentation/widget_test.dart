@@ -1834,7 +1834,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('settings-sources-row')));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('source-settings')), findsOneWidget);
-    expect(find.text('音乐来源'), findsNothing);
+    expect(find.text('音乐来源'), findsOneWidget);
     expect(find.byKey(const ValueKey('source-settings-back')), findsOneWidget);
     expect(find.text('添加文件夹'), findsOneWidget);
     expect(tester.takeException(), isNull);

@@ -551,13 +551,14 @@ class OfflineSettingsView extends StatelessWidget {
           key: const ValueKey('offline-settings'),
           padding: EdgeInsets.fromLTRB(
             context.soundPageGutter,
-            20,
+            8,
             context.soundPageGutter,
             context.soundContentBottomPadding,
           ),
           children: [
             SoundSettingsBackButton(
               onPressed: onBack,
+              title: '离线与缓存',
               buttonKey: const ValueKey('offline-settings-back'),
             ),
             const SizedBox(height: SoundSettingsMetrics.sectionGap),

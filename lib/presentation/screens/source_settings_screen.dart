@@ -636,7 +636,7 @@ class _SourceSettingsScreenState extends State<SourceSettingsScreen> {
         SoundSettingsContent(
           padding: EdgeInsets.fromLTRB(
             context.soundPageGutter,
-            28,
+            8,
             context.soundPageGutter,
             context.soundContentBottomPadding,
           ),
@@ -646,6 +646,7 @@ class _SourceSettingsScreenState extends State<SourceSettingsScreen> {
               if (widget.onBack case final onBack?) ...[
                 SoundSettingsBackButton(
                   onPressed: onBack,
+                  title: '音乐来源',
                   buttonKey: const ValueKey('source-settings-back'),
                 ),
                 const SizedBox(height: SoundSettingsMetrics.sectionGap),

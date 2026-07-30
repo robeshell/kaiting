@@ -163,30 +163,49 @@ class SoundSettingsPageHeader extends StatelessWidget {
   }
 }
 
-/// Settings detail pages keep only a compact way back to the overview.
-///
-/// The destination is already communicated by the selected overview row and
-/// the content below, so repeating a large title and explanatory subtitle here
-/// wastes the first screenful—especially on phones.
+/// Settings detail pages get a compact header: back button + page title on
+/// one line. Kept low so content starts near the top, like platform settings.
 class SoundSettingsBackButton extends StatelessWidget {
   const SoundSettingsBackButton({
     required this.onPressed,
+    this.title,
     this.buttonKey,
     super.key,
   });
 
   final VoidCallback onPressed;
+  final String? title;
   final Key? buttonKey;
 
   @override
   Widget build(BuildContext context) {
+    final label = title;
     return Align(
       alignment: Alignment.centerLeft,
-      child: IconButton(
-        key: buttonKey,
-        onPressed: onPressed,
-        tooltip: '返回设置',
-        icon: const Icon(KaitingIcons.back),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            key: buttonKey,
+            onPressed: onPressed,
+            tooltip: '返回设置',
+            visualDensity: VisualDensity.compact,
+            icon: const Icon(KaitingIcons.back),
+          ),
+          if (label != null) ...[
+            const SizedBox(width: 2),
+            Flexible(
+              child: Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  color: context.settingsPrimary,
+                ),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
