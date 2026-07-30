@@ -297,7 +297,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       maxWidth: 560,
       builder: (sheetContext) => _CompactSettingsSheet(
         title: '播放模式',
-        subtitle: '选择队列结束和切歌时的行为',
         children: [
           for (final mode in PlaybackMode.values)
             _CompactSettingsOption(
@@ -321,7 +320,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       maxWidth: 560,
       builder: (sheetContext) => _CompactSettingsSheet(
         title: '睡眠定时',
-        subtitle: '到时自动暂停播放',
         children: [
           for (final minutes in durations)
             _CompactSettingsOption(
@@ -363,14 +361,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
 }
 
 class _CompactSettingsSheet extends StatelessWidget {
-  const _CompactSettingsSheet({
-    required this.title,
-    required this.subtitle,
-    required this.children,
-  });
+  const _CompactSettingsSheet({required this.title, required this.children});
 
   final String title;
-  final String subtitle;
   final List<Widget> children;
 
   @override
@@ -378,25 +371,18 @@ class _CompactSettingsSheet extends StatelessWidget {
     return SafeArea(
       top: false,
       child: SingleChildScrollView(
-        padding: const EdgeInsets.fromLTRB(20, 18, 20, 16),
+        padding: const EdgeInsets.fromLTRB(20, 14, 20, 16),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
               title,
-              style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(
                 color: _settingsPrimaryText(context),
               ),
             ),
-            const SizedBox(height: 4),
-            Text(
-              subtitle,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: _settingsSecondaryText(context),
-              ),
-            ),
-            const SizedBox(height: 14),
+            const SizedBox(height: 10),
             for (var index = 0; index < children.length; index++) ...[
               children[index],
               if (index != children.length - 1)
