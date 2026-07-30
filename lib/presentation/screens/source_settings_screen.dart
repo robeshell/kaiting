@@ -643,15 +643,14 @@ class _SourceSettingsScreenState extends State<SourceSettingsScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              SoundSettingsPageHeader(
-                title: '音乐来源',
-                subtitle: kIsWeb
-                    ? '管理远程连接和已加入资料库的目录。'
-                    : '管理本地文件夹、远程连接和已加入资料库的目录。',
-                onBack: widget.onBack,
-              ),
-              if (!kIsWeb) ...[
+              if (widget.onBack case final onBack?) ...[
+                SoundSettingsBackButton(
+                  onPressed: onBack,
+                  buttonKey: const ValueKey('source-settings-back'),
+                ),
                 const SizedBox(height: SoundSettingsMetrics.sectionGap),
+              ],
+              if (!kIsWeb) ...[
                 _SourceSection(
                   title: '本机',
                   actionLabel: _addingSource ? '正在添加…' : '添加文件夹',
@@ -728,9 +727,10 @@ class _SourceSettingsScreenState extends State<SourceSettingsScreen> {
                   ),
                 ),
               ],
-              for (final adapter in _remoteAdapters) ...[
-                const SizedBox(height: SoundSettingsMetrics.sectionGap),
-                _remoteSection(adapter),
+              for (var index = 0; index < _remoteAdapters.length; index++) ...[
+                if (!kIsWeb || index > 0)
+                  const SizedBox(height: SoundSettingsMetrics.sectionGap),
+                _remoteSection(_remoteAdapters[index]),
               ],
             ],
           ),
@@ -870,20 +870,14 @@ class _SourceSection extends StatelessWidget {
               Expanded(
                 child: Text(
                   title,
-                  style: TextStyle(
+                  style: context.settingsInlineActionTextStyle.copyWith(
                     color: _sourceSecondaryText(context),
-                    fontSize: 12.5,
-                    fontWeight: FontWeight.w600,
                   ),
                 ),
               ),
               TextButton(
                 onPressed: onAction,
-                style: TextButton.styleFrom(
-                  minimumSize: const Size(0, 34),
-                  padding: const EdgeInsets.symmetric(horizontal: 8),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                ),
+                style: context.settingsInlineActionButtonStyle(),
                 child: Text(actionLabel),
               ),
             ],
@@ -1061,10 +1055,8 @@ class _EmptyDirectoryBranch extends StatelessWidget {
           if (onAddDirectory != null)
             TextButton(
               onPressed: onAddDirectory,
-              style: TextButton.styleFrom(
-                minimumSize: const Size(0, 32),
+              style: context.settingsInlineActionButtonStyle(
                 padding: const EdgeInsets.symmetric(horizontal: 10),
-                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
               ),
               child: const Text('选择目录'),
             ),

@@ -6,7 +6,9 @@ void main() {
   test('runtime theme consumes generated brand tokens', () {
     expect(kaiBrandSpecVersion, '0.6.2');
     expect(SoundRadii.card, KaiBrandRadii.card);
-    expect(SoundSkins.standard.canvas, KaiBrandDefaultSkin.canvas);
+    // Light chrome deliberately uses the neutral-white elevated token instead
+    // of the cool-tinted canvas (see SoundColors.lightCanvas comment).
+    expect(SoundSkins.standard.canvas, KaiBrandDefaultSkin.elevated);
     expect(
       SoundSkins.deepNight.glass.mutedText,
       KaiBrandDeepNightSkin.glassMutedText,

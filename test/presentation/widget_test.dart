@@ -1704,10 +1704,7 @@ void main() {
         .map((icon) => icon.icon)
         .toSet();
     expect(compactSettingsIcons, {KaitingIcons.chevronRight});
-    expect(
-      tester.widget<Text>(find.text('设置队列结束和切歌方式')).style?.color,
-      SoundGlassTheme.light.secondaryText,
-    );
+    expect(find.text('设置队列结束和切歌方式'), findsNothing);
     expect(
       tester.widget<Text>(find.text('播放模式')).style?.color,
       SoundGlassTheme.light.primaryText,
@@ -1837,7 +1834,8 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('settings-sources-row')));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('source-settings')), findsOneWidget);
-    expect(find.text('音乐来源'), findsOneWidget);
+    expect(find.text('音乐来源'), findsNothing);
+    expect(find.byKey(const ValueKey('source-settings-back')), findsOneWidget);
     expect(find.text('添加文件夹'), findsOneWidget);
     expect(tester.takeException(), isNull);
 

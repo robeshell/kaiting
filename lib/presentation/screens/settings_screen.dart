@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -26,8 +25,6 @@ enum SettingsDestination { overview, sources, offline }
 Color _settingsPrimaryText(BuildContext context) => context.settingsPrimary;
 
 Color _settingsSecondaryText(BuildContext context) => context.settingsSecondary;
-
-Color _settingsHairline(BuildContext context) => context.settingsHairline;
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({
@@ -136,7 +133,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ]),
       builder: (context, _) {
         return ColoredBox(
-          color: Theme.of(context).scaffoldBackgroundColor,
+          color: context.settingsCanvas,
           child: SoundSettingsScrollView(
             key: const ValueKey('settings-overview'),
             padding: EdgeInsets.fromLTRB(
@@ -178,10 +175,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _SettingsSection(
         title: '播放',
         children: [
-          _SettingsRow(
+          SoundSettingsRow(
             key: const ValueKey('settings-playback-mode-row'),
             title: '播放模式',
-            subtitle: compact ? '设置队列结束和切歌方式' : '控制队列结束和切歌时的行为',
             value: widget.playback.playbackMode.label,
             expanded: !compact && _playbackModesExpanded,
             onTap: () => compact
@@ -198,10 +194,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 setState(() => _playbackModesExpanded = false);
               },
             ),
-          _SettingsRow(
+          SoundSettingsRow(
             key: const ValueKey('settings-sleep-timer-row'),
             title: '睡眠定时',
-            subtitle: compact ? '定时停止播放' : '定时暂停，或在当前歌曲播放结束后停止',
             value: _sleepTimerLabel(widget.sleepTimer),
             expanded: !compact && _sleepTimerExpanded,
             onTap: () => compact
@@ -219,20 +214,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
       _SettingsSection(
         title: '资料库',
         children: [
-          _SettingsRow(
+          SoundSettingsRow(
             key: const ValueKey('settings-sources-row'),
             title: '音乐来源',
-            subtitle: kIsWeb
-                ? (compact ? '远程音乐目录' : '管理 WebDAV 服务器和扫描目录')
-                : (compact ? '本地文件夹与远程音乐目录' : '管理本地文件夹、WebDAV 服务器和扫描目录'),
             onTap: () =>
                 setState(() => _destination = SettingsDestination.sources),
           ),
           if (widget.offline != null)
-            _SettingsRow(
+            SoundSettingsRow(
               key: const ValueKey('settings-offline-row'),
               title: '离线与缓存',
-              subtitle: compact ? '下载内容与存储空间' : '管理远程来源的离线歌曲、临时缓存和存储空间',
               value: _formatBytes(widget.offline!.stats.totalBytes),
               onTap: () =>
                   setState(() => _destination = SettingsDestination.offline),
@@ -242,6 +233,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       gap,
       _SettingsSection(
         title: '外观',
+        showDividers: false,
         children: [
           const SoundSettingsBlockLabel('皮肤'),
           _SkinPresetSelector(
@@ -261,7 +253,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
           _SettingsToggleRow(
             key: const ValueKey('settings-open-lyrics-default-row'),
             title: '默认打开歌词',
-            subtitle: '手机端进入正在播放时直接显示歌词',
             value: widget.openLyricsByDefault,
             onChanged: widget.onOpenLyricsByDefaultChanged ?? (_) {},
           ),
@@ -272,24 +263,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _SettingsSection(
           title: '操作',
           children: [
-            _SettingsRow(
+            SoundSettingsRow(
               title: '键盘快捷键',
-              subtitle: '查看播放、导航和搜索快捷键',
               onTap: widget.onShowKeyboardShortcuts,
             ),
           ],
         ),
       ],
       gap,
-      const _AboutBrandHeader(),
       _SettingsSection(
         title: '关于',
         children: [
           _AboutInfoRow(label: '版本', value: _appVersion),
-          _SettingsRow(
+          SoundSettingsRow(
             key: const ValueKey('settings-check-update-row'),
             title: '检查更新',
-            subtitle: '从开听更新通道拉取最新版本',
             onTap: () => unawaited(_checkForUpdate(context)),
           ),
         ],
@@ -415,7 +403,7 @@ class _CompactSettingsSheet extends StatelessWidget {
                 Divider(
                   height: 1,
                   indent: 4,
-                  color: _settingsHairline(context),
+                  color: context.settingsHairline,
                 ),
             ],
           ],
@@ -582,11 +570,9 @@ class OfflineSettingsView extends StatelessWidget {
             context.soundContentBottomPadding,
           ),
           children: [
-            SoundSettingsPageHeader(
-              title: '离线与缓存',
-              subtitle: '主动保存的歌曲不会被临时缓存清理。',
-              onBack: onBack,
-              backButtonKey: const ValueKey('offline-settings-back'),
+            SoundSettingsBackButton(
+              onPressed: onBack,
+              buttonKey: const ValueKey('offline-settings-back'),
             ),
             const SizedBox(height: SoundSettingsMetrics.sectionGap),
             _OfflineStorageOverview(stats: stats),
@@ -601,19 +587,17 @@ class OfflineSettingsView extends StatelessWidget {
             _SettingsSection(
               title: '存储管理',
               children: [
-                _SettingsRow(
+                SoundSettingsRow(
                   key: const ValueKey('clear-transient-cache'),
                   title: '清理临时缓存',
-                  subtitle: '只删除播放时生成的缓存，保留主动离线保存的歌曲',
                   value: _formatBytes(stats.transientBytes),
                   onTap: stats.transientEntries == 0
                       ? null
                       : () => unawaited(_clearTransient(context)),
                 ),
-                _SettingsRow(
+                SoundSettingsRow(
                   key: const ValueKey('clear-all-offline'),
                   title: '删除全部音频缓存',
-                  subtitle: '同时移除离线下载和临时缓存，不影响来源文件',
                   value: '${stats.totalEntries} 个文件',
                   onTap: stats.totalEntries == 0
                       ? null
@@ -701,17 +685,7 @@ class _OfflineStorageOverview extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 10),
-          child: Text(
-            '存储占用',
-            style: TextStyle(
-              color: _settingsSecondaryText(context),
-              fontSize: 12.5,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-        ),
+        const SoundSettingsSectionLabel('存储占用'),
         SoundSettingsGroup(
           children: [
             Padding(
@@ -822,25 +796,9 @@ class _OfflineDownloadsPanel extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 10),
-          child: Row(
-            children: [
-              Text(
-                '下载与离线内容',
-                style: TextStyle(
-                  color: _settingsSecondaryText(context),
-                  fontSize: 12.5,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              const Spacer(),
-              Text(
-                '${items.length} 项',
-                style: TextStyle(color: context.settingsMuted, fontSize: 12),
-              ),
-            ],
-          ),
+        SoundSettingsSectionLabel(
+          '下载与离线内容',
+          trailing: Text('${items.length} 项'),
         ),
         if (items.isEmpty)
           const SoundSettingsGroup(children: [_OfflineDownloadsEmpty()])
@@ -875,7 +833,7 @@ class _OfflineDownloadsPanel extends StatelessWidget {
                     height: 1,
                     indent: 14,
                     endIndent: 14,
-                    color: _settingsHairline(context),
+                    color: context.settingsHairline,
                   ),
                 ),
               ),
@@ -1163,146 +1121,25 @@ IconData _playbackModeIcon(PlaybackMode mode) => switch (mode) {
 };
 
 class _SettingsSection extends StatelessWidget {
-  const _SettingsSection({required this.title, required this.children});
+  const _SettingsSection({
+    this.title,
+    required this.children,
+    this.showDividers = true,
+  });
 
-  final String title;
+  final String? title;
   final List<Widget> children;
+  final bool showDividers;
 
   @override
   Widget build(BuildContext context) {
+    final title = this.title;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Padding(
-          padding: const EdgeInsets.only(left: 4, bottom: 9),
-          child: Text(
-            title,
-            style: TextStyle(
-              color: context.settingsSecondary,
-              fontSize: 12.5,
-              fontWeight: FontWeight.w600,
-              letterSpacing: 0.15,
-            ),
-          ),
-        ),
-        SoundSettingsGroup(children: children),
+        if (title != null) SoundSettingsSectionLabel(title),
+        SoundSettingsGroup(showDividers: showDividers, children: children),
       ],
-    );
-  }
-}
-
-class _SettingsRow extends StatelessWidget {
-  const _SettingsRow({
-    required this.title,
-    required this.subtitle,
-    this.value,
-    this.onTap,
-    this.expanded = false,
-    super.key,
-  });
-
-  final String title;
-  final String subtitle;
-  final String? value;
-  final VoidCallback? onTap;
-  final bool expanded;
-
-  @override
-  Widget build(BuildContext context) {
-    return Semantics(
-      button: onTap != null,
-      child: InkWell(
-        onTap: onTap,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(
-            minHeight: SoundSettingsMetrics.rowMinHeight(context),
-          ),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text(
-                        title,
-                        style: context.soundListTitleStyle.copyWith(
-                          color: _settingsPrimaryText(context),
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        subtitle,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          color: _settingsSecondaryText(context),
-                          fontSize: 11.5,
-                          height: 1.35,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                if (value != null) ...[
-                  const SizedBox(width: 18),
-                  Text(
-                    value!,
-                    style: TextStyle(
-                      color: _settingsSecondaryText(context),
-                      fontSize: 12.5,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-                if (onTap != null) ...[
-                  const SizedBox(width: 10),
-                  Icon(
-                    expanded ? KaitingIcons.arrowUp : KaitingIcons.chevronRight,
-                    size: 19,
-                    color: _settingsSecondaryText(context),
-                  ),
-                ],
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _AboutBrandHeader extends StatelessWidget {
-  const _AboutBrandHeader();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(
-            '开听',
-            style: TextStyle(
-              color: _settingsPrimaryText(context),
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-            ),
-          ),
-          const SizedBox(height: 3),
-          Text(
-            kIsWeb ? '跨平台远程音乐播放器' : '跨平台本地与远程音乐播放器',
-            style: TextStyle(
-              color: _settingsSecondaryText(context),
-              fontSize: 12.5,
-              height: 1.4,
-            ),
-          ),
-        ],
-      ),
     );
   }
 }
@@ -1496,14 +1333,12 @@ class _NowPlayingStyleSelector extends StatelessWidget {
 class _SettingsToggleRow extends StatelessWidget {
   const _SettingsToggleRow({
     required this.title,
-    required this.subtitle,
     required this.value,
     required this.onChanged,
     super.key,
   });
 
   final String title;
-  final String subtitle;
   final bool value;
   final ValueChanged<bool> onChanged;
 
@@ -1530,15 +1365,6 @@ class _SettingsToggleRow extends StatelessWidget {
                         title,
                         style: context.soundListTitleStyle.copyWith(
                           color: _settingsPrimaryText(context),
-                        ),
-                      ),
-                      const SizedBox(height: 3),
-                      Text(
-                        subtitle,
-                        style: TextStyle(
-                          color: _settingsSecondaryText(context),
-                          fontSize: 11.5,
-                          height: 1.35,
                         ),
                       ),
                     ],
@@ -1726,20 +1552,27 @@ class _SkinPresetSelector extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final presets = SoundSkins.presets;
     return Padding(
       key: const ValueKey('skin-preset-selector'),
       padding: const EdgeInsets.fromLTRB(14, 6, 14, 14),
-      child: Wrap(
-        spacing: 14,
-        runSpacing: 14,
-        children: [
-          for (final preset in SoundSkins.presets)
-            _SkinPresetCard(
+      child: SizedBox(
+        height: 108,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          physics: const BouncingScrollPhysics(),
+          padding: const EdgeInsets.symmetric(horizontal: 2),
+          itemCount: presets.length,
+          separatorBuilder: (_, _) => const SizedBox(width: 12),
+          itemBuilder: (context, index) {
+            final preset = presets[index];
+            return _SkinPresetCard(
               preset: preset,
               selected: preset.id == selected.id,
               onTap: () => onSelected(preset),
-            ),
-        ],
+            );
+          },
+        ),
       ),
     );
   }
@@ -1773,14 +1606,14 @@ class _SkinPresetCard extends StatelessWidget {
             children: [
               AnimatedContainer(
                 duration: const Duration(milliseconds: 160),
-                width: 124,
-                height: 80,
+                width: 104,
+                height: 68,
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: selected
                         ? SoundColors.accent
-                        : _settingsHairline(context),
+                        : context.settingsHairline,
                     width: selected ? 2 : 1,
                   ),
                 ),
