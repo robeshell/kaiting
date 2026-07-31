@@ -103,20 +103,26 @@ class WebDavDiscoveryService {
         optionsResult.capabilities,
       );
     } on TimeoutException catch (error) {
-      debugPrint('WebDAV discovery timeout: $url\n${error.toString()}');
+      if (kDebugMode) {
+        debugPrint('WebDAV discovery timeout: $url\n${error.toString()}');
+      }
       return WebDavDiscoveryResult.error(
         WebDavConnectionError.timedOut,
         message: '连接超时',
       );
     } on http.ClientException catch (error) {
-      debugPrint('WebDAV discovery client error: $url\n${error.toString()}');
+      if (kDebugMode) {
+        debugPrint('WebDAV discovery client error: $url\n${error.toString()}');
+      }
       final message = _userFriendlyError(error);
       return WebDavDiscoveryResult.error(
         WebDavConnectionError.unreachable,
         message: message,
       );
     } on FormatException catch (error) {
-      debugPrint('WebDAV discovery format error: $url\n${error.toString()}');
+      if (kDebugMode) {
+        debugPrint('WebDAV discovery format error: $url\n${error.toString()}');
+      }
       return WebDavDiscoveryResult.error(
         WebDavConnectionError.unknown,
         message: '服务器响应格式无法识别',
@@ -124,16 +130,20 @@ class WebDavDiscoveryService {
     } catch (error, stackTrace) {
       final tlsMessage = tryGetTlsFriendlyMessage(error);
       if (tlsMessage != null) {
-        debugPrint('WebDAV discovery TLS error: $url\n${error.toString()}');
+        if (kDebugMode) {
+          debugPrint('WebDAV discovery TLS error: $url\n${error.toString()}');
+        }
         return WebDavDiscoveryResult.error(
           WebDavConnectionError.unreachable,
           message: tlsMessage,
         );
       }
-      debugPrint(
-        'WebDAV discovery unexpected error: $url\n'
-        '${error.toString()}\n$stackTrace',
-      );
+      if (kDebugMode) {
+        debugPrint(
+          'WebDAV discovery unexpected error: $url\n'
+          '${error.toString()}\n$stackTrace',
+        );
+      }
       return WebDavDiscoveryResult.error(
         WebDavConnectionError.unknown,
         message: _userFriendlyError(error),

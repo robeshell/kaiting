@@ -724,10 +724,16 @@ class JustAudioPlaybackEngine
         if (_disposed) return;
         unawaited(
           deferred.action().then(
-            (_) => debugPrint('Playback cache: background download complete'),
-            onError: (Object error) => debugPrint(
-              'Playback cache: background download failed: $error',
-            ),
+            (_) {
+              if (kDebugMode) {
+                debugPrint('Playback cache: background download complete');
+              }
+            },
+            onError: (Object error) {
+              if (kDebugMode) {
+                debugPrint('Playback cache: background download failed: $error');
+              }
+            },
           ),
         );
       });

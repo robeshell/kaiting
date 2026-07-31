@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
 import 'package:path/path.dart' as p;
 
 import '../../library/library_records.dart';
@@ -698,7 +699,9 @@ class WebDavFolderScanner {
     } finally {
       try {
         await tempFile.delete();
-      } catch (_) {}
+      } catch (_) {
+        debugPrint('WebDavFolderScanner: failed to delete temp file');
+      }
     }
   }
 
@@ -764,7 +767,8 @@ class WebDavFolderScanner {
       );
     } on _RejectedRemoteAudioException {
       rethrow;
-    } catch (_) {
+    } catch (error) {
+      debugPrint('WebDavFolderScanner: failed to extract remote metadata: $error');
       return null;
     }
   }
@@ -782,7 +786,8 @@ class WebDavFolderScanner {
         bytes: bytes,
         mimeType: mimeType ?? 'image/jpeg',
       );
-    } catch (_) {
+    } catch (error) {
+      debugPrint('WebDavFolderScanner: failed to store artwork: $error');
       return null;
     }
   }

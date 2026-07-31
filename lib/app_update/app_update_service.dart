@@ -37,7 +37,8 @@ class AppUpdateService {
         return const AppUpdateUnavailable('更新信息格式无效');
       }
       root = decoded;
-    } catch (_) {
+    } catch (error) {
+      debugPrint('AppUpdateService: check failed: $error');
       return const AppUpdateUnavailable('暂时无法检查更新');
     }
 

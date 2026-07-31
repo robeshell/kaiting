@@ -1,5 +1,6 @@
 import 'dart:io';
-import 'dart:typed_data';
+
+import 'package:flutter/foundation.dart';
 
 import 'artwork_uri.dart';
 
@@ -84,7 +85,8 @@ bool _artworkFileLooksValidUncached(String artworkUri) {
     } finally {
       raf.closeSync();
     }
-  } catch (_) {
+  } catch (error) {
+    debugPrint('image_bytes: validation failed: $error');
     return false;
   }
 }

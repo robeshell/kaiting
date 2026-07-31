@@ -43,7 +43,9 @@ class WebDavCache {
           await entry.delete();
         }
       }
-    } catch (_) {}
+    } catch (_) {
+      debugPrint('WebDavCache: failed to clean stale files');
+    }
   }
 
   /// Returns the local file path if [url] is cached, or `null` otherwise.
@@ -265,8 +267,11 @@ class WebDavCache {
       // Clean up partial file on failure.
       try {
         await partialFile.delete();
-      } catch (_) {}
+      } catch (_) {
+        debugPrint('WebDavCache: failed to delete partial file on error');
+      }
       if (active.cancelled) {
+
         throw const WebDavDownloadCancelledException();
       }
       rethrow;
@@ -278,7 +283,9 @@ class WebDavCache {
     if (active.cancelled) {
       try {
         await partialFile.delete();
-      } catch (_) {}
+      } catch (_) {
+        debugPrint('WebDavCache: failed to delete partial file (cancelled)');
+      }
       throw const WebDavDownloadCancelledException();
     }
 
@@ -287,7 +294,9 @@ class WebDavCache {
     if (size < 1024) {
       try {
         await partialFile.delete();
-      } catch (_) {}
+      } catch (_) {
+        debugPrint('WebDavCache: failed to delete partial file (rejected, too small)');
+      }
       throw HttpException(
         'Downloaded file too small ($size bytes) — likely an error page',
       );
@@ -295,7 +304,9 @@ class WebDavCache {
     if (size > maxBytes && !active.pinRequested) {
       try {
         await partialFile.delete();
-      } catch (_) {}
+      } catch (_) {
+        debugPrint('WebDavCache: failed to delete partial file (rejected, exceeds limit)');
+      }
       throw HttpException(
         'Downloaded file exceeds cache limit ($size > $maxBytes bytes)',
       );
@@ -315,7 +326,9 @@ class WebDavCache {
     } catch (_) {
       try {
         await partialFile.delete();
-      } catch (_) {}
+      } catch (_) {
+        debugPrint('WebDavCache: failed to delete partial file (rename fallback)');
+      }
       rethrow;
     }
 
@@ -479,7 +492,7 @@ class WebDavCache {
     try {
       await file.writeAsString(jsonEncode(json), flush: true);
     } catch (error) {
-      debugPrint('WebDavCache: failed to save manifest: $error');
+      if (kDebugMode) debugPrint('WebDavCache: failed to save manifest: $error');
     }
   }
 

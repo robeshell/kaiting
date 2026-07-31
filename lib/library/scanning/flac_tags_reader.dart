@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
+
+import 'package:flutter/foundation.dart';
 
 /// Lightweight FLAC identity reader for scan providers.
 ///
@@ -146,10 +147,9 @@ FlacTags? readFlacTags(File file) {
       isCompilation: isCompilation,
       duration: duration,
     );
-  } catch (_) {
+  } catch (error) {
+    debugPrint('readFlacTags: parse failed: $error');
     return null;
-  } finally {
-    reader?.closeSync();
   }
 }
 
@@ -188,7 +188,8 @@ Map<String, String>? _parseVorbisCommentBlock(Uint8List bytes) {
       out.putIfAbsent(key, () => value);
     }
     return out;
-  } catch (_) {
+  } catch (error) {
+    debugPrint('readFlacTags: comment parse failed: $error');
     return null;
   }
 }

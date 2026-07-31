@@ -224,12 +224,12 @@ class PlaybackSessionStore {
             session = session._withCheckpoint(checkpoint);
           }
         } catch (error) {
-          debugPrint('Failed to load playback checkpoint: $error');
+          if (kDebugMode) debugPrint('Failed to load playback checkpoint: $error');
         }
       }
       return session;
     } catch (error) {
-      debugPrint('Failed to load playback session: $error');
+      if (kDebugMode) debugPrint('Failed to load playback session: $error');
       return null;
     }
   }
@@ -252,7 +252,7 @@ class PlaybackSessionStore {
         jsonEncode(_PlaybackSessionCheckpoint.fromSession(session).toJson()),
       );
     } catch (error) {
-      debugPrint('Failed to save playback session: $error');
+      if (kDebugMode) debugPrint('Failed to save playback session: $error');
     }
   }
 
@@ -263,7 +263,7 @@ class PlaybackSessionStore {
       _persistedLyricsTrackId = null;
       _requiresStructureWrite = false;
     } catch (error) {
-      debugPrint('Failed to clear playback session: $error');
+      if (kDebugMode) debugPrint('Failed to clear playback session: $error');
     }
   }
 }

@@ -1,9 +1,9 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:isolate';
-import 'dart:typed_data';
-import 'dart:convert';
 
 import 'package:audio_metadata_reader/audio_metadata_reader.dart';
+import 'package:flutter/foundation.dart';
 
 import 'flac_tags_reader.dart';
 import 'image_bytes.dart';
@@ -121,7 +121,8 @@ ExtractedAudioMetadata extractAudioFileMetadata(String path) {
       return withArt;
     }
     return withArt.copyWith(clearArtwork: true);
-  } catch (_) {
+  } catch (error) {
+    debugPrint('AudioMetadataExtractor: artwork extraction failed: $error');
     // Fall through to tags-only paths.
   }
   try {
