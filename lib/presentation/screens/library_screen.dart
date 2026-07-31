@@ -497,7 +497,6 @@ class _LibraryScreenState extends State<LibraryScreen> {
           _albumByTrackIdCached(allAlbums),
           gutter,
           bottomPadding,
-          showHeader: !context.soundUsesMobileShell,
           reserveFastIndex: showFastIndex,
         ),
       };
@@ -878,23 +877,10 @@ class _LibraryScreenState extends State<LibraryScreen> {
     Map<String, Album> albumByTrackId,
     double gutter,
     double bottomPadding, {
-    required bool showHeader,
     required bool reserveFastIndex,
   }) {
     final indexInset = reserveFastIndex ? _songFastIndexContentInset : 0.0;
     return [
-      // Desktop shows count + play-all inside the list; the mobile shell
-      // already carries them in the toolbar row above.
-      if (showHeader)
-        SliverPadding(
-          padding: EdgeInsets.fromLTRB(gutter, 12, gutter + indexInset, 12),
-          sliver: SliverToBoxAdapter(
-            child: _SongHeader(
-              trackCount: tracks.length,
-              onPlayAll: () => widget.onPlayTrack(tracks.first, tracks),
-            ),
-          ),
-        ),
       SliverPadding(
         padding: EdgeInsets.fromLTRB(
           gutter,
@@ -1517,13 +1503,19 @@ class _LibraryToolbar extends StatelessWidget {
       runSpacing: 10,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        if (mode != LibraryBrowseMode.songs)
-          Text(
-            _resultLabel,
-            style: TextStyle(
-              color: context.soundMutedText,
-              fontSize: KaiProductTokens.typographyLibraryToolbarResult,
-            ),
+        Text(
+          _resultLabel,
+          style: TextStyle(
+            color: context.soundMutedText,
+            fontSize: KaiProductTokens.typographyLibraryToolbarResult,
+          ),
+        ),
+        if (onPlayAll != null)
+          FilledButton.icon(
+            key: const ValueKey('desktop-library-play-all'),
+            onPressed: onPlayAll,
+            icon: const Icon(KaitingIcons.play),
+            label: const Text('播放全部'),
           ),
         _sortMenu(
           child: _ToolbarIconButton(
@@ -1623,34 +1615,6 @@ class _CompactPlayAllButton extends StatelessWidget {
           fontWeight: FontWeight.w600,
         ),
       ),
-    );
-  }
-}
-
-class _SongHeader extends StatelessWidget {
-  const _SongHeader({required this.trackCount, required this.onPlayAll});
-
-  final int trackCount;
-  final VoidCallback onPlayAll;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Text(
-          '$trackCount 首歌曲',
-          style: TextStyle(
-            fontSize: KaiProductTokens.typographyLibrarySongHeader,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
-        const Spacer(),
-        FilledButton.icon(
-          onPressed: onPlayAll,
-          icon: const Icon(KaitingIcons.play),
-          label: const Text('播放全部'),
-        ),
-      ],
     );
   }
 }
