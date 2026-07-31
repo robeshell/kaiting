@@ -5,7 +5,8 @@
 import 'package:flutter/material.dart';
 
 const kaiBrandSpecVersion = '0.7.0';
-const kaiBrandTokenDigest = '7658f9fe04cc246e759573e0360570533d58f1ccba65fc3510b2aff5bc915a40';
+const kaiBrandTokenDigest =
+    '7658f9fe04cc246e759573e0360570533d58f1ccba65fc3510b2aff5bc915a40';
 
 abstract final class KaiBrandBasePalette {
   static const mainBackground = Color(0xFFF7F9FC);
@@ -582,6 +583,10 @@ abstract final class KaiProductTokens {
   static const double typographyLibraryFastIndexOverlay = 15.0;
   static const double typographyLyricsControlLabel = 10.0;
   static const double typographyLyricsOffsetValue = 10.0;
+  static const double typographyLyricsLineActive = 22.0;
+  static const double typographyLyricsLineActiveNarrow = 20.0;
+  static const double typographyLyricsLineInactive = 20.0;
+  static const double typographyLyricsLineInactiveNarrow = 18.0;
   static const double typographyAlbumArtworkTitleOverlay = 18.0;
   static const double typographyAlbumArtworkArtistOverlay = 9.0;
   static const double typographyNowPlayingTitleCompact = 22.0;

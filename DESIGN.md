@@ -40,9 +40,11 @@ components:
 - **组件前缀 `Sound*`**：主题层 `lib/core/sound_theme.dart`，组件 kit `lib/presentation/widgets/sound_components.dart`，设置 kit `widgets/settings_components.dart`。
 - **无状态徽章**：播放相位由传输按钮图标 + busy spinner 表达（映射表见 kai-brand-design `products/kaiting/tokens.md`），不渲染相位徽章。
 
-## Colors
+## Typography migration status
 
-### Accent（产品轴：coral 珊瑚）
+Kaiting UI字号已完成从页面级硬编码向两层 token 收敛：通用层使用 `KaiBrandMobileType` / `KaiBrandDesktopType`，产品特例使用 `KaiProductTokens`。字号值保持 Kai Design 0.7.0 的整数网格；歌词行的当前/非当前、窄布局字号也已纳入产品 token，页面代码不再直接承载字号数值。
+
+## Colors（产品轴：coral 珊瑚）
 
 - **accent** `#FF5A4D` / hover `#FF7567` / pressed `#E3483E`；6 预设（玫瑰/靛蓝/青绿/暖金/紫罗兰）+ 自定义（hover=lerp白 14%、pressed=lerp黑 13%）。
 - 只用于选中/进度/主操作：当前队列项、进度条、主传输按钮、选中导航。**展示文字（曲名、hero 标题、歌词）不染 accent。**

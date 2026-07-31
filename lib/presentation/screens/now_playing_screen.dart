@@ -2778,8 +2778,12 @@ class _LyricsPanelState extends State<_LyricsPanel> {
         // fewer "甩一字" wraps before balancing.
         final narrow = constraints.maxWidth < 340;
         final fontSize = isActive
-            ? (narrow ? 20.0 : 22.0)
-            : (narrow ? 18.0 : 20.0);
+            ? (narrow
+                  ? KaiProductTokens.typographyLyricsLineActiveNarrow
+                  : KaiProductTokens.typographyLyricsLineActive)
+            : (narrow
+                  ? KaiProductTokens.typographyLyricsLineInactiveNarrow
+                  : KaiProductTokens.typographyLyricsLineInactive);
         final primary = context.chromePrimaryText;
         final style = TextStyle(
           color: primary.withValues(
