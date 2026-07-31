@@ -216,7 +216,8 @@ class _WebDavAddDialogState extends State<WebDavAddDialog> {
                       _errorMessage!,
                       style: TextStyle(
                         color: context.soundColors.error,
-                        fontSize: 14,
+                        fontSize:
+                            context.soundComponentProfile.bodySecondarySize,
                       ),
                     ),
                   ),

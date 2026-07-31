@@ -26,7 +26,7 @@ class FirstRunDialog extends StatelessWidget {
             '之后可以随时在设置中添加、移除或重新扫描来源。',
             style: TextStyle(
               color: context.soundMutedText,
-              fontSize: 12,
+              fontSize: context.soundComponentProfile.bodySecondarySize,
               height: 1.45,
             ),
           ),

@@ -213,7 +213,7 @@ class _PickerTitle extends StatelessWidget {
         Text(
           '已选 $selectedCount',
           style: TextStyle(
-            fontSize: 14,
+            fontSize: context.soundComponentProfile.labelSize,
             color: context.soundSecondaryText,
             fontWeight: FontWeight.w400,
           ),
@@ -252,7 +252,10 @@ class _BreadcrumbBar extends StatelessWidget {
             path,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: 11, color: context.soundSecondaryText),
+            style: TextStyle(
+              fontSize: context.soundComponentProfile.captionSmallSize,
+              color: context.soundSecondaryText,
+            ),
           ),
         ),
       ],
@@ -318,7 +321,10 @@ class _ErrorBanner extends StatelessWidget {
           Expanded(
             child: Text(
               message,
-              style: TextStyle(color: context.soundColors.error, fontSize: 12),
+              style: TextStyle(
+                color: context.soundColors.error,
+                fontSize: context.soundComponentProfile.captionSize,
+              ),
             ),
           ),
         ],

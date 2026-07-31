@@ -4,7 +4,7 @@ import 'package:kaiting/core/sound_theme.dart';
 
 void main() {
   test('runtime theme consumes generated brand tokens', () {
-    expect(kaiBrandSpecVersion, '0.6.2');
+    expect(kaiBrandSpecVersion, '0.7.0');
     expect(SoundRadii.card, KaiBrandRadii.card);
     // Light chrome deliberately uses the neutral-white elevated token instead
     // of the cool-tinted canvas (see SoundColors.lightCanvas comment).

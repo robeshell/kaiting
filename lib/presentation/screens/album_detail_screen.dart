@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../core/brand_tokens.g.dart';
 import '../../core/sound_theme.dart';
 import '../../domain/library_models.dart';
 import '../../offline/offline_media_provider.dart';
@@ -385,7 +386,7 @@ class _Hero extends StatelessWidget {
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     color: palette.primaryText,
-                    fontSize: 24,
+                    fontSize: context.soundPageTitleSize,
                     height: 1.12,
                     fontWeight: FontWeight.w600,
                     letterSpacing: -0.25,
@@ -404,8 +405,7 @@ class _Hero extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      color: palette.secondaryText,
-                      fontSize: 15,
+                      fontSize: context.soundComponentProfile.bodySecondarySize,
                       height: 1.22,
                       fontWeight: FontWeight.w600,
                     ),
@@ -416,8 +416,7 @@ class _Hero extends StatelessWidget {
                   metadata,
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 14,
-                    color: palette.mutedText,
+                    fontSize: context.soundComponentProfile.captionSize,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -569,8 +568,8 @@ class _Hero extends StatelessWidget {
                             album.title,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                              fontSize: 28,
+                            style: TextStyle(
+                              fontSize: context.soundPageTitleSize,
                               height: 1.1,
                               fontWeight: FontWeight.w600,
                               letterSpacing: -0.3,
@@ -591,7 +590,8 @@ class _Hero extends StatelessWidget {
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
                                 color: context.soundSecondaryText,
-                                fontSize: 15,
+                                fontSize:
+                                    KaiProductTokens.typographyNowPlayingArtist,
                                 height: 1.22,
                                 fontWeight: FontWeight.w600,
                               ),
@@ -602,7 +602,8 @@ class _Hero extends StatelessWidget {
                             metadata,
                             style: TextStyle(
                               color: context.soundMutedText,
-                              fontSize: 14,
+                              fontSize: KaiProductTokens
+                                  .typographyNowPlayingPanelLabel,
                               fontWeight: FontWeight.w600,
                             ),
                           ),
@@ -768,8 +769,7 @@ class _DiscHeader extends StatelessWidget {
             '第 $number 碟',
             style: TextStyle(
               color: pagePalette?.secondaryText ?? context.soundSecondaryText,
-              fontSize: 13,
-              fontWeight: FontWeight.w600,
+              fontSize: context.soundComponentProfile.captionSize,
             ),
           ),
           const SizedBox(width: 10),

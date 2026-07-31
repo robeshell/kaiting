@@ -105,11 +105,21 @@ void main() {
     );
     await tester.pumpAndSettle();
 
+    expect(find.text('音乐来源'), findsNothing);
+    expect(find.textContaining('管理本地文件夹'), findsNothing);
     expect(find.text('本机'), findsOneWidget);
     expect(find.text('远程连接'), findsOneWidget);
     expect(find.text('添加文件夹'), findsOneWidget);
     expect(find.text('添加连接'), findsOneWidget);
     expect(find.textContaining('选择 开听 要索引'), findsNothing);
+    final localLabelStyle = _effectiveTextStyle(tester, find.text('本机'));
+    final localActionStyle = _effectiveTextStyle(tester, find.text('添加文件夹'));
+    final remoteLabelStyle = _effectiveTextStyle(tester, find.text('远程连接'));
+    final remoteActionStyle = _effectiveTextStyle(tester, find.text('添加连接'));
+    expect(localActionStyle.fontSize, localLabelStyle.fontSize);
+    expect(localActionStyle.fontWeight, localLabelStyle.fontWeight);
+    expect(remoteActionStyle.fontSize, remoteLabelStyle.fontSize);
+    expect(remoteActionStyle.fontWeight, remoteLabelStyle.fontWeight);
 
     final connection = find.byKey(const ValueKey('source-connection-nas'));
     final directory = find.byKey(const ValueKey('source-directory-music'));
@@ -134,6 +144,11 @@ void main() {
     engine.dispose();
     await repository.close();
   });
+}
+
+TextStyle _effectiveTextStyle(WidgetTester tester, Finder finder) {
+  final text = tester.widget<Text>(finder);
+  return DefaultTextStyle.of(tester.element(finder)).style.merge(text.style);
 }
 
 class _Connections implements SourceConnectionProvider {

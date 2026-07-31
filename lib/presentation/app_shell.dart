@@ -1754,7 +1754,7 @@ class _Sidebar extends StatelessWidget {
                         '开听',
                         style: TextStyle(
                           color: context.soundPrimaryText,
-                          fontSize: 17,
+                          fontSize: KaiProductTokens.typographyShellBrandTitle,
                           fontWeight: FontWeight.w600,
                           letterSpacing: -0.25,
                         ),

@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 
 import '../core/brand_tokens.g.dart';
 
-const kaitingLaunchBackground = KaiBrandBasePalette.mainBackground;
+const kaitingLaunchBackground = KaiBrandDefaultSkin.elevated;
 const kaitingLaunchTitleColor = Color(0xFF1C1C22);
 const kaitingLaunchSubtitleColor = Color(0xFF70707A);
 
@@ -65,11 +65,11 @@ class _KaitingLaunchLockup extends StatelessWidget {
             ),
             Transform.translate(
               offset: const Offset(0, 28),
-              child: const Text(
+              child: Text(
                 '开听',
                 style: TextStyle(
                   color: kaitingLaunchTitleColor,
-                  fontSize: 24,
+                  fontSize: KaiProductTokens.typographyLaunchLockupTitle,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.2,
                   height: 1.15,
@@ -78,11 +78,11 @@ class _KaitingLaunchLockup extends StatelessWidget {
             ),
             Transform.translate(
               offset: const Offset(0, 58),
-              child: const Text(
+              child: Text(
                 '听自己的音乐',
                 style: TextStyle(
                   color: kaitingLaunchSubtitleColor,
-                  fontSize: 14,
+                  fontSize: KaiProductTokens.typographyLaunchLockupSubtitle,
                   fontWeight: FontWeight.w400,
                   letterSpacing: 0.4,
                   height: 1.25,

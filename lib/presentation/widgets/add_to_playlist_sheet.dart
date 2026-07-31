@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import '../../core/brand_tokens.g.dart';
 import '../../core/sound_theme.dart';
 import '../../domain/library_models.dart';
 import '../controllers/library_user_state_controller.dart';
@@ -136,10 +137,11 @@ class _AddToPlaylistSheet extends StatelessWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
+                            Text(
                               '添加到播放列表',
                               style: TextStyle(
-                                fontSize: 20,
+                                fontSize: KaiProductTokens
+                                    .typographySettingsSheetTitle,
                                 fontWeight: FontWeight.w600,
                               ),
                             ),

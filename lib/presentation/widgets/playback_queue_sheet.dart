@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/brand_tokens.g.dart';
 import '../../core/sound_theme.dart';
 import '../../domain/library_models.dart';
 import '../../playback/playback_controller.dart';
@@ -110,14 +111,22 @@ class PlaybackQueuePanel extends StatelessWidget {
                           embedded ? '播放清单' : '播放队列',
                           style: TextStyle(
                             color: primaryText,
-                            fontSize: embedded ? 16 : 22,
+                            fontSize: embedded
+                                ? KaiProductTokens
+                                      .typographyPlaybackQueueTitleCompact
+                                : KaiProductTokens
+                                      .typographyPlaybackQueueTitleWide,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
                         const SizedBox(height: 3),
                         Text(
                           '${queue.length} 首歌 · ${playback.playbackMode.label}',
-                          style: TextStyle(color: secondaryText, fontSize: 12),
+                          style: TextStyle(
+                            color: secondaryText,
+                            fontSize: KaiProductTokens
+                                .typographyPlaybackQueueMetadata,
+                          ),
                         ),
                       ],
                     ),
@@ -246,7 +255,8 @@ class PlaybackQueuePanel extends StatelessWidget {
                                   onOpenAlbum: openAlbum,
                                   style: TextStyle(
                                     color: mutedText,
-                                    fontSize: 12,
+                                    fontSize: KaiProductTokens
+                                        .typographyPlaybackQueueMetadata,
                                   ),
                                 ),
                                 trailing: Row(

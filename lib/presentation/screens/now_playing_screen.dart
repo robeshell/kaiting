@@ -10,6 +10,7 @@ import 'package:flutter/services.dart';
 import '../../core/app_failure.dart';
 import '../../core/now_playing_style.dart';
 import '../../core/platform_window.dart';
+import '../../core/brand_tokens.g.dart';
 import '../../core/sound_theme.dart';
 import '../../domain/library_models.dart';
 import '../../playback/playback_controller.dart';
@@ -1274,7 +1275,8 @@ class _PlayerColumn extends StatelessWidget {
                           text: track.title,
                           style: TextStyle(
                             color: context.chromePrimaryText,
-                            fontSize: 22,
+                            fontSize: KaiProductTokens
+                                .typographyNowPlayingTitleCompact,
                             height: 1.08,
                             fontWeight: FontWeight.w600,
                             letterSpacing: -0.25,
@@ -1300,7 +1302,8 @@ class _PlayerColumn extends StatelessWidget {
                               : '打开艺人 ${track.artist}',
                           style: TextStyle(
                             color: context.chromeSecondaryText,
-                            fontSize: 13,
+                            fontSize:
+                                KaiProductTokens.typographyNowPlayingArtist,
                             height: 1.2,
                           ),
                         ),
@@ -1337,7 +1340,8 @@ class _PlayerColumn extends StatelessWidget {
                         text: track.title,
                         style: TextStyle(
                           color: context.chromePrimaryText,
-                          fontSize: 24,
+                          fontSize:
+                              KaiProductTokens.typographyNowPlayingTitleWide,
                           height: 1.08,
                           fontWeight: FontWeight.w600,
                           letterSpacing: -0.25,
@@ -1360,7 +1364,7 @@ class _PlayerColumn extends StatelessWidget {
                             : '打开艺人 ${track.artist}',
                         style: TextStyle(
                           color: context.chromeSecondaryText,
-                          fontSize: 13,
+                          fontSize: KaiProductTokens.typographyNowPlayingArtist,
                           height: 1.2,
                         ),
                       ),
@@ -2194,7 +2198,7 @@ class _PlaybackErrorBanner extends StatelessWidget {
 
 TextStyle _timeStyle(BuildContext context) => TextStyle(
   color: context.chromeSecondaryText,
-  fontSize: 11,
+  fontSize: KaiProductTokens.typographyNowPlayingTime,
   fontFeatures: const [FontFeature.tabularFigures()],
 );
 
@@ -2571,7 +2575,7 @@ class _LyricsPanelState extends State<_LyricsPanel> {
             textAlign: TextAlign.center,
             style: TextStyle(
               color: context.chromeMutedText,
-              fontSize: 10,
+              fontSize: KaiProductTokens.typographyLyricsControlLabel,
               height: 1.25,
               fontWeight: FontWeight.w600,
             ),
@@ -2609,7 +2613,7 @@ class _LyricsPanelState extends State<_LyricsPanel> {
                   color: context.chromeMutedText.withValues(
                     alpha: _offset == Duration.zero ? 0.56 : 0.86,
                   ),
-                  fontSize: 10,
+                  fontSize: KaiProductTokens.typographyLyricsOffsetValue,
                   fontFeatures: const [FontFeature.tabularFigures()],
                 ),
               ),
@@ -2851,8 +2855,7 @@ class _LyricsPanelState extends State<_LyricsPanel> {
             '歌词',
             style: TextStyle(
               color: context.chromeSecondaryText,
-              fontSize: 12,
-              fontWeight: FontWeight.w600,
+              fontSize: KaiProductTokens.typographyNowPlayingPanelLabel,
             ),
           ),
           Expanded(
@@ -2905,8 +2908,7 @@ class _LyricsPanelState extends State<_LyricsPanel> {
               synchronized && _timeline.hasTimedContent ? '同步歌词' : '歌词',
               style: TextStyle(
                 color: context.chromeSecondaryText,
-                fontSize: 12,
-                fontWeight: FontWeight.w600,
+                fontSize: KaiProductTokens.typographyNowPlayingPanelLabel,
               ),
             ),
             if (synchronized && _timeline.hasTimedContent) ...[
@@ -2943,7 +2945,7 @@ class _LyricsPanelState extends State<_LyricsPanel> {
                       color: _offset == Duration.zero
                           ? context.chromeMutedText
                           : context.chromeSecondaryText,
-                      fontSize: 11,
+                      fontSize: KaiProductTokens.typographyNowPlayingTime,
                       fontFeatures: const [FontFeature.tabularFigures()],
                     ),
                   ),
@@ -2997,8 +2999,7 @@ class _LyricsOffsetButton extends StatelessWidget {
               label,
               style: TextStyle(
                 color: context.chromeSecondaryText,
-                fontSize: 11,
-                fontWeight: FontWeight.w600,
+                fontSize: KaiProductTokens.typographyNowPlayingControlLabel,
               ),
             ),
           ),

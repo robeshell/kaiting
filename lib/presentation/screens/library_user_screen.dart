@@ -634,7 +634,8 @@ class _PlaylistTile extends StatelessWidget {
                         color: context.soundMutedText.withValues(
                           alpha: context.soundMutedText.a * 0.82,
                         ),
-                        fontSize: 11,
+                        fontSize:
+                            context.soundComponentProfile.captionSmallSize,
                       ),
                     ),
                   ],

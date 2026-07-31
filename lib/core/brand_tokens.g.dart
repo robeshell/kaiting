@@ -1,11 +1,11 @@
 // GENERATED FILE — DO NOT EDIT.
 // Source: kai-brand-design/tokens/*.json
-// specVersion: 0.6.2 · sha256: 8f580680a2d49e0910db4536b83abfdbdd34248d62cd4e72ef73c3f60dc726c0
+// specVersion: 0.7.0 · sha256: 7658f9fe04cc246e759573e0360570533d58f1ccba65fc3510b2aff5bc915a40
 
 import 'package:flutter/material.dart';
 
-const kaiBrandSpecVersion = '0.6.2';
-const kaiBrandTokenDigest = '8f580680a2d49e0910db4536b83abfdbdd34248d62cd4e72ef73c3f60dc726c0';
+const kaiBrandSpecVersion = '0.7.0';
+const kaiBrandTokenDigest = '7658f9fe04cc246e759573e0360570533d58f1ccba65fc3510b2aff5bc915a40';
 
 abstract final class KaiBrandBasePalette {
   static const mainBackground = Color(0xFFF7F9FC);
@@ -55,6 +55,8 @@ abstract final class KaiBrandLayout {
   static const double mobileShellWidth = 820.0;
   static const double compactWidth = 600.0;
   static const double compactHeight = 600.0;
+  static const double compactPageTitle = 26.0;
+  static const double regularPageTitle = 28.0;
   static const double defaultWindowWidth = 1280.0;
   static const double defaultWindowHeight = 800.0;
   static const double minWindowWidth = 1024.0;
@@ -572,4 +574,41 @@ abstract final class KaiProductTokens {
   static const sourceLocal = Color(0xFF55B889);
   static const double playbackBusySpinnerSize = 24.0;
   static const double playbackBusySpinnerStroke = 2.0;
+  static const double typographyMiniPlayerTitleDocked = 15.0;
+  static const double typographyMiniPlayerTitleCondensed = 13.0;
+  static const double typographyMiniPlayerMetadataDocked = 12.0;
+  static const double typographyMiniPlayerMetadataCondensed = 11.0;
+  static const double typographyNavigationMobileLabel = 10.0;
+  static const double typographyLibraryFastIndexOverlay = 15.0;
+  static const double typographyLyricsControlLabel = 10.0;
+  static const double typographyLyricsOffsetValue = 10.0;
+  static const double typographyAlbumArtworkTitleOverlay = 18.0;
+  static const double typographyAlbumArtworkArtistOverlay = 9.0;
+  static const double typographyNowPlayingTitleCompact = 22.0;
+  static const double typographyNowPlayingTitleWide = 24.0;
+  static const double typographyNowPlayingArtist = 13.0;
+  static const double typographyNowPlayingTime = 11.0;
+  static const double typographyNowPlayingPanelLabel = 12.0;
+  static const double typographyNowPlayingControlLabel = 11.0;
+  static const double typographySettingsStorageTotal = 24.0;
+  static const double typographySettingsAccentPreview = 15.0;
+  static const double typographySettingsSheetTitle = 20.0;
+  static const double typographyShellBrandTitle = 17.0;
+  static const double typographyPlaybackQueueMetadata = 12.0;
+  static const double typographyPlaybackQueueTitleCompact = 16.0;
+  static const double typographyPlaybackQueueTitleWide = 22.0;
+  static const double typographyLaunchLockupTitle = 24.0;
+  static const double typographyLaunchLockupSubtitle = 14.0;
+  static const double typographyLaunchFailureTitle = 20.0;
+  static const double typographyLaunchFailureMessage = 12.0;
+  static const double typographyLibraryAlbumSection = 14.0;
+  static const double typographyLibraryAlbumSectionWide = 15.0;
+  static const double typographyLibraryCollectionEyebrow = 11.0;
+  static const double typographyLibraryCollectionStats = 14.0;
+  static const double typographyLibraryAlbumCardMetadata = 12.0;
+  static const double typographyLibraryTrackMetadata = 12.0;
+  static const double typographyLibraryModeLabel = 14.0;
+  static const double typographyLibraryToolbarResult = 12.0;
+  static const double typographyLibraryPlayAllLabel = 11.0;
+  static const double typographyLibrarySongHeader = 20.0;
 }

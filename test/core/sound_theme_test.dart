@@ -85,6 +85,11 @@ void main() {
     final glass = theme.extension<SoundGlassTheme>();
 
     expect(theme.scaffoldBackgroundColor, SoundColors.lightCanvas);
+    expect(theme.scaffoldBackgroundColor, Colors.white);
+    expect(theme.colorScheme.surface, Colors.white);
+    expect(theme.colorScheme.surfaceContainerLow, Colors.white);
+    expect(theme.colorScheme.surfaceContainer, Colors.white);
+    expect(theme.colorScheme.surfaceContainerHigh, KaiBrandDefaultSkin.surface);
     expect(theme.colorScheme.primary, SoundColors.accent);
     expect(theme.colorScheme.outline.a, closeTo(0.08, 0.005));
     expect(theme.colorScheme.outlineVariant.a, closeTo(0.055, 0.005));
@@ -93,6 +98,7 @@ void main() {
       lessThan(theme.colorScheme.outline.a),
     );
     expect(glass, isNotNull);
+    expect(glass?.canvasHighlight, Colors.white);
     expect(glass?.surface.a, closeTo(0.72, 0.01));
     expect(glass?.strongSurface.a, closeTo(0.87, 0.01));
     expect(soundChromeSurfaceTransparency, 0.20);

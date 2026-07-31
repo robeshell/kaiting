@@ -23,6 +23,7 @@ extension SoundSettingsContext on BuildContext {
       : Colors.black.withValues(alpha: 0.04);
   Color get settingsInlineSurface =>
       soundColors.surfaceContainerLow.withValues(alpha: 0.72);
+
   /// 设置画布：比主画布再浅灰一点，纯白分组卡自然分层（无边框无阴影）。
   Color get settingsCanvas => soundTheme.brightness == Brightness.dark
       ? soundColors.surfaceContainerLowest
@@ -288,7 +289,7 @@ class SoundSettingsSectionLabel extends StatelessWidget {
       title,
       style: TextStyle(
         color: context.settingsSecondary,
-        fontSize: 13,
+        fontSize: context.soundComponentProfile.captionSize,
         fontWeight: FontWeight.w600,
         letterSpacing: 0.3,
       ),
@@ -303,7 +304,7 @@ class SoundSettingsSectionLabel extends StatelessWidget {
                 DefaultTextStyle(
                   style: TextStyle(
                     color: context.settingsMuted,
-                    fontSize: 12,
+                    fontSize: context.soundComponentProfile.captionSize,
                   ),
                   child: trailing!,
                 ),
@@ -343,7 +344,9 @@ class SoundSettingsRowIcon extends StatelessWidget {
           color: context.settingsRowIconTint,
           borderRadius: BorderRadius.circular(SoundRadii.control + 2),
         ),
-        child: Center(child: Icon(icon, size: iconSize, color: iconColor)),
+        child: Center(
+          child: Icon(icon, size: iconSize, color: iconColor),
+        ),
       ),
     );
   }
@@ -406,7 +409,8 @@ class SoundSettingsRow extends StatelessWidget {
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
                             color: context.settingsSecondary,
-                            fontSize: 11,
+                            fontSize:
+                                context.soundComponentProfile.bodySecondarySize,
                             height: 1.35,
                           ),
                         ),
@@ -420,7 +424,7 @@ class SoundSettingsRow extends StatelessWidget {
                     value!,
                     style: TextStyle(
                       color: context.settingsSecondary,
-                      fontSize: 13,
+                      fontSize: context.soundComponentProfile.captionSize,
                       fontWeight: FontWeight.w500,
                     ),
                   ),

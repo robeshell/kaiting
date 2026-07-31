@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../../core/brand_tokens.g.dart';
 import '../../core/sound_theme.dart';
 import '../../domain/library_models.dart';
 import '../../playback/playback_controller.dart';
@@ -227,7 +228,9 @@ class _LibraryCollectionScreenState extends State<LibraryCollectionScreen> {
                     '专辑',
                     style: TextStyle(
                       color: pagePalette?.primaryText,
-                      fontSize: compact ? 14 : 15,
+                      fontSize: compact
+                          ? KaiProductTokens.typographyLibraryAlbumSection
+                          : KaiProductTokens.typographyLibraryAlbumSectionWide,
                       fontWeight: FontWeight.w600,
                       letterSpacing: -0.1,
                     ),
@@ -505,7 +508,7 @@ class _CollectionTrackHeader extends StatelessWidget {
           label,
           style: TextStyle(
             color: pagePalette?.primaryText,
-            fontSize: compact ? 14 : 15,
+            fontSize: KaiProductTokens.typographyLibraryModeLabel,
             fontWeight: FontWeight.w600,
             letterSpacing: -0.1,
           ),
@@ -550,8 +553,7 @@ class _CollectionTrackHeader extends StatelessWidget {
                       sort.label,
                       style: TextStyle(
                         color: pagePalette?.primaryText,
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
+                        fontSize: context.soundComponentProfile.labelSize,
                       ),
                     ),
                     const SizedBox(width: 5),
@@ -623,7 +625,7 @@ class _CollectionHero extends StatelessWidget {
                 collection.kind == LibraryCollectionKind.artist ? '艺人' : '流派',
                 style: TextStyle(
                   color: collection.palette.first,
-                  fontSize: 11,
+                  fontSize: KaiProductTokens.typographyLibraryCollectionEyebrow,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.8,
                 ),
@@ -633,7 +635,7 @@ class _CollectionHero extends StatelessWidget {
             Text(
               collection.title,
               style: TextStyle(
-                fontSize: compact ? 24 : 28,
+                fontSize: context.soundPageTitleSize,
                 height: 1.1,
                 fontWeight: FontWeight.w600,
                 letterSpacing: -0.3,
@@ -642,7 +644,10 @@ class _CollectionHero extends StatelessWidget {
             SizedBox(height: compact ? 6 : 10),
             Text(
               _collectionStatsLine(collection),
-              style: TextStyle(fontSize: 12, color: context.soundMutedText),
+              style: TextStyle(
+                fontSize: context.soundComponentProfile.captionSize,
+                color: context.soundMutedText,
+              ),
             ),
             SizedBox(height: compact ? 14 : 20),
             FilledButton.icon(
@@ -781,7 +786,7 @@ class _CollectionHero extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(
               color: palette.primaryText,
-              fontSize: 24,
+              fontSize: context.soundPageTitleSize,
               height: 1.1,
               fontWeight: FontWeight.w600,
               letterSpacing: -0.25,
@@ -793,8 +798,7 @@ class _CollectionHero extends StatelessWidget {
             textAlign: TextAlign.center,
             style: TextStyle(
               color: palette.mutedText,
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
+              fontSize: context.soundComponentProfile.captionSize,
             ),
           ),
           const SizedBox(height: 19),
@@ -906,8 +910,8 @@ class _CollectionHero extends StatelessWidget {
                         collection.title,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                          fontSize: 28,
+                        style: TextStyle(
+                          fontSize: context.soundPageTitleSize,
                           height: 1.1,
                           fontWeight: FontWeight.w600,
                           letterSpacing: -0.3,
@@ -918,7 +922,8 @@ class _CollectionHero extends StatelessWidget {
                         _collectionStatsLine(collection),
                         style: TextStyle(
                           color: context.soundMutedText,
-                          fontSize: 14,
+                          fontSize:
+                              KaiProductTokens.typographyLibraryCollectionStats,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -1087,7 +1092,7 @@ class _CollectionAlbumCard extends StatelessWidget {
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
-              fontSize: 12,
+              fontSize: KaiProductTokens.typographyLibraryAlbumCardMetadata,
               color: pagePalette?.secondaryText ?? context.soundSecondaryText,
             ),
           ),
@@ -1126,7 +1131,7 @@ class _CollectionTrackRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final compact = context.soundIsCompact;
     final metaStyle = TextStyle(
-      fontSize: compact ? 12 : 12,
+      fontSize: KaiProductTokens.typographyLibraryTrackMetadata,
       color: pagePalette?.mutedText ?? context.soundSecondaryText,
     );
     final metadata = SoundMetadataLine(
@@ -1179,7 +1184,7 @@ class _CollectionTrackRow extends StatelessWidget {
                       Text(
                         formatDuration(track.duration),
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: context.soundComponentProfile.captionSize,
                           color: context.soundSecondaryText,
                           fontFeatures: [FontFeature.tabularFigures()],
                         ),

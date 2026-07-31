@@ -39,10 +39,9 @@ class SoundMetadataLine extends StatelessWidget {
           color: context.soundMutedText.withValues(
             alpha: context.soundMutedText.a * 0.82,
           ),
-          fontSize: 11,
+          fontSize: context.soundComponentProfile.captionSmallSize,
         );
-    final artistLabel =
-        artist.trim().isEmpty ? '未知艺人' : artist.trim();
+    final artistLabel = artist.trim().isEmpty ? '未知艺人' : artist.trim();
     final albumLabel = album.trim().isEmpty ? '未知专辑' : album.trim();
 
     return Row(

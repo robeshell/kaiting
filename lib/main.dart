@@ -11,6 +11,7 @@ import 'app/sound_app.dart';
 import 'app/kaiting_launch_screen.dart';
 import 'presentation/widgets/artwork_image_provider.dart';
 import 'app/theme_preferences.dart';
+import 'core/brand_tokens.g.dart';
 import 'core/sound_theme.dart';
 import 'library/persistence/drift_library_repository.dart';
 import 'playback/just_audio_playback_engine.dart';
@@ -116,11 +117,11 @@ class _KaitingBootstrapErrorApp extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Spacer(),
-                const Text(
+                Text(
                   '启动失败',
                   style: TextStyle(
                     color: kaitingLaunchTitleColor,
-                    fontSize: 20,
+                    fontSize: KaiProductTokens.typographyLaunchFailureTitle,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
@@ -131,9 +132,10 @@ class _KaitingBootstrapErrorApp extends StatelessWidget {
                       kDebugMode
                           ? '$error\n\n$stackTrace'
                           : '请重新启动开听。如果问题持续出现，请更新到最新版本后重试。',
-                      style: const TextStyle(
+                      style: TextStyle(
                         color: kaitingLaunchSubtitleColor,
-                        fontSize: 12,
+                        fontSize:
+                            KaiProductTokens.typographyLaunchFailureMessage,
                         height: 1.4,
                       ),
                     ),

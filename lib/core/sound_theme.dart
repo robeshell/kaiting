@@ -57,6 +57,41 @@ extension SoundComponentProfileTokens on SoundComponentProfile {
     SoundComponentProfile.desktop => KaiBrandDesktopType.pageTitleSize,
   };
 
+  double get sectionTitleSize => switch (this) {
+    SoundComponentProfile.mobile => KaiBrandMobileType.sectionTitleSize,
+    SoundComponentProfile.desktop => KaiBrandDesktopType.sectionTitleSize,
+  };
+
+  double get titleSize => switch (this) {
+    SoundComponentProfile.mobile => KaiBrandMobileType.titleSize,
+    SoundComponentProfile.desktop => KaiBrandDesktopType.titleSize,
+  };
+
+  double get listTitleSize => switch (this) {
+    SoundComponentProfile.mobile => KaiBrandMobileType.listTitleSize,
+    SoundComponentProfile.desktop => KaiBrandDesktopType.listTitleSize,
+  };
+
+  double get labelSize => switch (this) {
+    SoundComponentProfile.mobile => KaiBrandMobileType.labelSize,
+    SoundComponentProfile.desktop => KaiBrandDesktopType.labelSize,
+  };
+
+  double get bodySecondarySize => switch (this) {
+    SoundComponentProfile.mobile => KaiBrandMobileType.bodySecondarySize,
+    SoundComponentProfile.desktop => KaiBrandDesktopType.bodySecondarySize,
+  };
+
+  double get captionSize => switch (this) {
+    SoundComponentProfile.mobile => KaiBrandMobileType.captionSize,
+    SoundComponentProfile.desktop => KaiBrandDesktopType.captionSize,
+  };
+
+  double get captionSmallSize => switch (this) {
+    SoundComponentProfile.mobile => KaiBrandMobileType.captionSmallSize,
+    SoundComponentProfile.desktop => KaiBrandDesktopType.captionSmallSize,
+  };
+
   TextStyle listTitleStyle(TextStyle? base, {Color? color}) {
     final mobile = this == SoundComponentProfile.mobile;
     final size = mobile
@@ -1109,7 +1144,7 @@ abstract final class SoundTheme {
         }),
         labelTextStyle: WidgetStateProperty.resolveWith<TextStyle>((states) {
           return TextStyle(
-            fontSize: 10,
+            fontSize: KaiProductTokens.typographyNavigationMobileLabel,
             height: 1.2,
             fontWeight: states.contains(WidgetState.selected)
                 ? FontWeight.w600

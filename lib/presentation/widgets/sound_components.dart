@@ -1625,7 +1625,7 @@ class _SoundNavigationButton extends StatelessWidget {
               curve: Curves.easeOutCubic,
               style: Theme.of(context).textTheme.labelSmall!.copyWith(
                 color: foreground,
-                fontSize: 10,
+                fontSize: KaiProductTokens.typographyNavigationMobileLabel,
                 height: 1.2,
                 fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
               ),

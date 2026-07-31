@@ -3,6 +3,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../core/brand_tokens.g.dart';
 import '../../core/sound_theme.dart';
 import '../../domain/library_models.dart';
 import '../../playback/playback_controller.dart';
@@ -501,7 +502,15 @@ class _TrackIdentity extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final metaSize = prominent ? 12.0 : 11.0;
+    final componentProfile = context.soundComponentProfile;
+    final titleFontSize =
+        titleSize ??
+        (prominent
+            ? KaiProductTokens.typographyMiniPlayerTitleDocked
+            : KaiProductTokens.typographyMiniPlayerTitleCondensed);
+    final metadataFontSize = prominent
+        ? KaiProductTokens.typographyMiniPlayerMetadataDocked
+        : KaiProductTokens.typographyMiniPlayerMetadataCondensed;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 2),
       child: Column(
@@ -512,11 +521,12 @@ class _TrackIdentity extends StatelessWidget {
             track.title,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(
-              color: context.soundPrimaryText,
-              fontSize: titleSize ?? (prominent ? 15 : 13),
-              fontWeight: FontWeight.w600,
-            ),
+            style: componentProfile
+                .listTitleStyle(
+                  context.soundTheme.textTheme.bodyMedium,
+                  color: context.soundPrimaryText,
+                )
+                .copyWith(fontSize: titleFontSize),
           ),
           const SizedBox(height: 2),
           Text(
@@ -525,7 +535,12 @@ class _TrackIdentity extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
               color: context.soundSecondaryText,
-              fontSize: metaSize,
+              fontSize: metadataFontSize,
+              height: componentProfile == SoundComponentProfile.mobile
+                  ? KaiBrandMobileType.captionSmallLineHeight /
+                        KaiBrandMobileType.captionSmallSize
+                  : KaiBrandDesktopType.captionSmallLineHeight /
+                        KaiBrandDesktopType.captionSmallSize,
             ),
           ),
         ],

@@ -904,7 +904,10 @@ class _SourceMessage extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 18),
           child: Text(
             message,
-            style: TextStyle(color: _sourceSecondaryText(context), fontSize: 12),
+            style: TextStyle(
+              color: _sourceSecondaryText(context),
+              fontSize: context.soundComponentProfile.bodySecondarySize,
+            ),
           ),
         ),
       ],
@@ -984,7 +987,7 @@ class _SourceRow extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
                       color: _subtitleColor(context),
-                      fontSize: 12,
+                      fontSize: context.soundComponentProfile.bodySecondarySize,
                       height: 1.35,
                       fontWeight: FontWeight.w500,
                     ),
@@ -1052,7 +1055,7 @@ class _EmptyDirectoryBranch extends StatelessWidget {
               '尚未选择目录',
               style: TextStyle(
                 color: context.settingsMuted,
-                fontSize: 12,
+                fontSize: context.soundComponentProfile.bodySecondarySize,
                 height: 1.3,
               ),
             ),
@@ -1082,7 +1085,7 @@ class _OrphanDirectoriesLabel extends StatelessWidget {
         '待确认归属的目录',
         style: TextStyle(
           color: context.settingsMuted,
-          fontSize: 11,
+          fontSize: context.soundComponentProfile.captionSize,
           fontWeight: FontWeight.w600,
         ),
       ),

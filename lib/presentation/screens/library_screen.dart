@@ -6,6 +6,7 @@ import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:pinyin/pinyin.dart';
 
+import '../../core/brand_tokens.g.dart';
 import '../../core/sound_theme.dart';
 import '../../domain/library_models.dart';
 import '../controllers/library_catalog_controller.dart';
@@ -1147,11 +1148,9 @@ class _SongFastIndexState extends State<_SongFastIndex> {
                                 color: index == activeIndex
                                     ? SoundColors.accent
                                     : context.soundMutedText,
-                                fontSize: widget.entries[index].label.length > 2
-                                    ? 8
-                                    : index == activeIndex
-                                    ? 10.5
-                                    : 9.5,
+                                fontSize: context
+                                    .soundComponentProfile
+                                    .captionSmallSize,
                                 height: 1,
                                 fontWeight: index == activeIndex
                                     ? FontWeight.w600
@@ -1187,7 +1186,8 @@ class _SongFastIndexState extends State<_SongFastIndex> {
                           activeLabel,
                           style: TextStyle(
                             color: SoundColors.accent,
-                            fontSize: 15,
+                            fontSize: KaiProductTokens
+                                .typographyLibraryFastIndexOverlay,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -1429,7 +1429,7 @@ class _CompactLibraryModeItem extends StatelessWidget {
           child: Text(
             mode.label,
             style: TextStyle(
-              fontSize: 14,
+              fontSize: KaiProductTokens.typographyLibraryModeLabel,
               fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
               color: selected ? SoundColors.accent : context.soundSecondaryText,
             ),
@@ -1485,7 +1485,10 @@ class _LibraryToolbar extends StatelessWidget {
                 _resultLabel,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
-                style: TextStyle(color: context.soundMutedText, fontSize: 12),
+                style: TextStyle(
+                  color: context.soundMutedText,
+                  fontSize: KaiProductTokens.typographyLibraryToolbarResult,
+                ),
               ),
             ),
             if (onPlayAll != null) ...[
@@ -1517,7 +1520,10 @@ class _LibraryToolbar extends StatelessWidget {
         if (mode != LibraryBrowseMode.songs)
           Text(
             _resultLabel,
-            style: TextStyle(color: context.soundMutedText, fontSize: 12),
+            style: TextStyle(
+              color: context.soundMutedText,
+              fontSize: KaiProductTokens.typographyLibraryToolbarResult,
+            ),
           ),
         _sortMenu(
           child: _ToolbarIconButton(
@@ -1612,7 +1618,10 @@ class _CompactPlayAllButton extends StatelessWidget {
         minimumSize: const Size(0, 40),
         padding: const EdgeInsets.symmetric(horizontal: 8),
         foregroundColor: SoundColors.accent,
-        textStyle: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600),
+        textStyle: TextStyle(
+          fontSize: KaiProductTokens.typographyLibraryPlayAllLabel,
+          fontWeight: FontWeight.w600,
+        ),
       ),
     );
   }
@@ -1630,7 +1639,10 @@ class _SongHeader extends StatelessWidget {
       children: [
         Text(
           '$trackCount 首歌曲',
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+          style: TextStyle(
+            fontSize: KaiProductTokens.typographyLibrarySongHeader,
+            fontWeight: FontWeight.w600,
+          ),
         ),
         const Spacer(),
         FilledButton.icon(
@@ -1674,7 +1686,10 @@ class _AlbumCard extends StatelessWidget {
             album.artist,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: 12, color: context.soundSecondaryText),
+            style: TextStyle(
+              fontSize: KaiProductTokens.typographyLibraryAlbumCardMetadata,
+              color: context.soundSecondaryText,
+            ),
           ),
         ],
       ),

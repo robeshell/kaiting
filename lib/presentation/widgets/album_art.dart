@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../../core/brand_tokens.g.dart';
 import '../../core/sound_theme.dart';
 import '../../domain/library_models.dart';
 import 'artwork_image_provider.dart';
@@ -128,7 +129,7 @@ class _ArtworkPlaceholder extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: const TextStyle(
                   color: Colors.white,
-                  fontSize: 18,
+                  fontSize: KaiProductTokens.typographyAlbumArtworkTitleOverlay,
                   height: 1.05,
                   fontWeight: FontWeight.w600,
                   letterSpacing: -0.4,
@@ -141,7 +142,8 @@ class _ArtworkPlaceholder extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
                   color: Colors.white.withValues(alpha: 0.62),
-                  fontSize: 9,
+                  fontSize:
+                      KaiProductTokens.typographyAlbumArtworkArtistOverlay,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 1.2,
                 ),

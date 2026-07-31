@@ -6,6 +6,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 
 import '../../app_update/app_update_service.dart';
 import '../../app_update/app_update_ui.dart';
+import '../../core/brand_tokens.g.dart';
 import '../../core/sound_theme.dart';
 import '../../core/now_playing_style.dart';
 import '../../library/scanning/local_library_scanner.dart';
@@ -392,11 +393,7 @@ class _CompactSettingsSheet extends StatelessWidget {
             for (var index = 0; index < children.length; index++) ...[
               children[index],
               if (index != children.length - 1)
-                Divider(
-                  height: 1,
-                  indent: 4,
-                  color: context.settingsHairline,
-                ),
+                Divider(height: 1, indent: 4, color: context.settingsHairline),
             ],
           ],
         ),
@@ -691,7 +688,7 @@ class _OfflineStorageOverview extends StatelessWidget {
                     key: const ValueKey('offline-total-size'),
                     style: TextStyle(
                       color: _settingsPrimaryText(context),
-                      fontSize: 24,
+                      fontSize: KaiProductTokens.typographySettingsStorageTotal,
                       height: 1.1,
                       fontWeight: FontWeight.w600,
                       letterSpacing: -0.45,
@@ -702,7 +699,7 @@ class _OfflineStorageOverview extends StatelessWidget {
                     '音频文件合计 · ${stats.totalEntries} 个',
                     style: TextStyle(
                       color: context.settingsMuted,
-                      fontSize: 12,
+                      fontSize: context.soundComponentProfile.captionSize,
                       height: 1.3,
                     ),
                   ),
@@ -753,14 +750,17 @@ class _OfflineStatRow extends StatelessWidget {
           ),
           Text(
             detail,
-            style: TextStyle(color: context.settingsMuted, fontSize: 12),
+            style: TextStyle(
+              color: context.settingsMuted,
+              fontSize: context.soundComponentProfile.captionSize,
+            ),
           ),
           const SizedBox(width: 12),
           Text(
             value,
             style: TextStyle(
               color: _settingsSecondaryText(context),
-              fontSize: 13,
+              fontSize: context.soundComponentProfile.captionSize,
               fontWeight: FontWeight.w600,
               fontFeatures: const [FontFeature.tabularFigures()],
             ),
@@ -858,7 +858,7 @@ class _OfflineDownloadsEmpty extends StatelessWidget {
             '在专辑或歌曲菜单中选择「离线保存」。',
             style: TextStyle(
               color: context.settingsMuted,
-              fontSize: 12,
+              fontSize: context.soundComponentProfile.bodySecondarySize,
               height: 1.35,
             ),
           ),
@@ -971,9 +971,7 @@ class _OfflineDownloadRow extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
                     color: subtitleColor,
-                    fontSize: 12,
-                    height: 1.3,
-                    fontWeight: FontWeight.w500,
+                    fontSize: context.soundComponentProfile.captionSize,
                   ),
                 ),
               ],
@@ -1264,8 +1262,7 @@ class _PlaybackModeChoice extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 12,
-                    fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                    fontSize: context.soundComponentProfile.labelSize,
                     color: selected
                         ? SoundColors.accent
                         : _settingsSecondaryText(context),
@@ -1521,7 +1518,7 @@ class _NowPlayingStyleCard extends StatelessWidget {
                           color: selected
                               ? SoundColors.accent
                               : _settingsPrimaryText(context),
-                          fontSize: 12,
+                          fontSize: context.soundComponentProfile.captionSize,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
@@ -1679,8 +1676,7 @@ class _SkinPresetCard extends StatelessWidget {
                   color: selected
                       ? SoundColors.accent
                       : _settingsSecondaryText(context),
-                  fontSize: 12,
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+                  fontSize: context.soundComponentProfile.captionSize,
                 ),
               ),
             ],
@@ -1846,7 +1842,7 @@ class _CustomAccentSwatch extends StatelessWidget {
                   color: selected
                       ? AccentPreset.readableForeground(color)
                       : Colors.white,
-                  fontSize: 15,
+                  fontSize: KaiProductTokens.typographySettingsAccentPreview,
                   fontWeight: FontWeight.w600,
                   height: 1,
                   shadows: selected
@@ -1980,8 +1976,7 @@ class _CustomAccentDialogState extends State<_CustomAccentDialog> {
             '为保证按钮和图标清晰可读，饱和度与明度限制在安全范围内。',
             style: TextStyle(
               color: _settingsSecondaryText(context),
-              fontSize: 12,
-              height: 1.4,
+              fontSize: context.soundComponentProfile.bodySecondarySize,
             ),
           ),
         ],
