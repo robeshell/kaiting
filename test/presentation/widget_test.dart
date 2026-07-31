@@ -1206,7 +1206,7 @@ void main() {
     expect(tester.getSize(topActions).height, lessThan(72));
     expect(
       tester.getTopLeft(artwork).dy - tester.getBottomLeft(topActions).dy,
-      inInclusiveRange(36, 44),
+      inInclusiveRange(28, 36),
     );
     expect(tester.getSize(stage).height, lessThanOrEqualTo(370));
     expect(tester.getSize(title).width, inInclusiveRange(160, 270));
@@ -2228,6 +2228,42 @@ void main() {
     expect(resumed.discTurns, closeTo(frozenTurns, 0.001));
 
     await _unmountAndFlush(tester);
+  });
+
+  testWidgets('narrow Android compact player sizes stage to available width', (
+    tester,
+  ) async {
+    _simulatePlatform(TargetPlatform.android);
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final engine = SimulatedPlaybackEngine();
+    final playback = SoundPlaybackController(engine: engine);
+    await playback.playTrack(_testTrack, queue: const [_testTrack]);
+
+    await tester.pumpWidget(
+      MaterialApp(home: NowPlayingScreen(playback: playback)),
+    );
+    await tester.pump();
+
+    final stage = tester.getRect(
+      find.byKey(const ValueKey('compact-visual-stage')),
+    );
+    final artwork = tester.getRect(
+      find.byKey(const ValueKey('compact-now-playing-artwork')),
+    );
+    final title = tester.getRect(
+      find.byKey(const ValueKey('now-playing-track-title')),
+    );
+    expect(stage.height, closeTo(320, 0.1));
+    expect(artwork.bottom, lessThanOrEqualTo(stage.bottom + 0.1));
+    expect(title.top - stage.bottom, closeTo(48, 0.1));
+    expect(tester.takeException(), isNull);
+
+    await _unmountAndFlush(tester);
+    playback.dispose();
+    engine.dispose();
   });
 
   testWidgets('vinyl freezes spin when inactive without requiring pause', (

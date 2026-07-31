@@ -121,10 +121,10 @@ class NowPlayingScreen extends StatelessWidget {
     final foldableChrome = usesMobileShell && !compactChrome;
     final mediaSize = MediaQuery.sizeOf(context);
     final artworkBrightness = Theme.of(context).brightness;
-    // Keep touch navigation on iPad, but still use the space-efficient
-    // two-pane player when a full-height tablet is in landscape.
-    final usesWidePlayer = soundUsesWideContentForSize(mediaSize);
-    final wideIntegratedQueue = usesWidePlayer && mediaSize.width >= 680;
+    final iosPortrait =
+        defaultTargetPlatform == TargetPlatform.iOS &&
+        mediaSize.height >= mediaSize.width;
+    final wideIntegratedQueue = mediaSize.width >= 680 && !iosPortrait;
     return NowPlayingMotionHost(
       isActive: isActive,
       isPlaying: snapshot.isPlaying,
@@ -240,6 +240,8 @@ class NowPlayingScreen extends StatelessWidget {
                           Expanded(
                             child: LayoutBuilder(
                               builder: (context, constraints) {
+                                final usesWidePlayer =
+                                    constraints.maxWidth >= 680 && !iosPortrait;
                                 // Navigation and content adapt independently:
                                 // iPad keeps touch navigation while landscape
                                 // can still use the two-pane player.
@@ -670,6 +672,9 @@ class _WideNowPlayingState extends State<_WideNowPlaying> {
                               isActive: widget.isActive,
                               onOpenAlbum: widget.onOpenAlbum,
                               onOpenArtist: widget.onOpenArtist,
+                              artworkOffsetY: foldableWidth ? -8 : 0,
+                              artworkTitleGap: foldableWidth ? 42 : 34,
+                              titleControlsGap: foldableWidth ? 22 : 30,
                               artSize: artSize,
                             ),
                           ),
@@ -839,11 +844,13 @@ class _WidePaneIconSwitch extends StatelessWidget {
 double _compactVisualStageHeight(BuildContext context) {
   final size = MediaQuery.sizeOf(context);
   final maxClamp = context.soundIsCompact ? 370.0 : 500.0;
-  return (size.height * 0.45).clamp(320.0, maxClamp);
+  final heightStage = (size.height * 0.45).clamp(280.0, maxClamp);
+  final widthStage = (size.width - 40).clamp(280.0, double.infinity);
+  return math.min(heightStage, widthStage);
 }
 
 double _compactArtworkTopInset(NowPlayingStyle style) =>
-    style == NowPlayingStyle.vinyl ? 16 : 28;
+    style == NowPlayingStyle.vinyl ? 8 : 20;
 
 double _compactVisualArtSize(
   BuildContext context, {
@@ -1127,6 +1134,9 @@ class _PlayerColumn extends StatelessWidget {
     this.onToggleLyrics,
     this.onOpenAlbum,
     this.onOpenArtist,
+    this.artworkOffsetY = 0,
+    this.artworkTitleGap,
+    this.titleControlsGap,
   });
 
   final Album album;
@@ -1143,6 +1153,9 @@ class _PlayerColumn extends StatelessWidget {
   final VoidCallback? onToggleLyrics;
   final ValueChanged<Album>? onOpenAlbum;
   final ValueChanged<String>? onOpenArtist;
+  final double artworkOffsetY;
+  final double? artworkTitleGap;
+  final double? titleControlsGap;
 
   @override
   Widget build(BuildContext context) {
@@ -1253,8 +1266,11 @@ class _PlayerColumn extends StatelessWidget {
             ),
           )
         else
-          Center(child: artwork),
-        SizedBox(height: compactLayout ? 24 : 34),
+          Transform.translate(
+            offset: Offset(0, artworkOffsetY),
+            child: Center(child: artwork),
+          ),
+        SizedBox(height: compactLayout ? 48 : (artworkTitleGap ?? 34)),
         if (compactLayout) ...[
           Padding(
             padding: detailsPadding,
@@ -1305,6 +1321,7 @@ class _PlayerColumn extends StatelessWidget {
                             fontSize:
                                 KaiProductTokens.typographyNowPlayingArtist,
                             height: 1.2,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                       ),
@@ -1382,7 +1399,7 @@ class _PlayerColumn extends StatelessWidget {
             ],
           ),
         ],
-        const SizedBox(height: 30),
+        SizedBox(height: compactLayout ? 10 : (titleControlsGap ?? 30)),
         Padding(
           padding: detailsPadding,
           child: _PlaybackTimelineAndControls(
@@ -2200,6 +2217,7 @@ TextStyle _timeStyle(BuildContext context) => TextStyle(
   color: context.chromeSecondaryText,
   fontSize: KaiProductTokens.typographyNowPlayingTime,
   fontFeatures: const [FontFeature.tabularFigures()],
+  fontWeight: FontWeight.w600,
 );
 
 class _LyricsPanel extends StatefulWidget {
