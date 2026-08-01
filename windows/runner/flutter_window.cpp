@@ -46,7 +46,7 @@ bool FlutterWindow::OnCreate() {
           flutter_controller_->engine()->messenger(), kWindowChannelName,
           &flutter::StandardMethodCodec::GetInstance());
   window_channel_->SetMethodCallHandler(
-      [window_handle = GetHandle()](
+      [this, window_handle = GetHandle()](
           const flutter::MethodCall<flutter::EncodableValue>& call,
           std::unique_ptr<flutter::MethodResult<flutter::EncodableValue>>
               result) {
@@ -62,6 +62,17 @@ bool FlutterWindow::OnCreate() {
           result->Success();
         } else if (method == "close") {
           PostMessage(window_handle, WM_CLOSE, 0, 0);
+          result->Success();
+        } else if (method == "setCloseToBackground") {
+          const auto* close_to_background =
+              std::get_if<bool>(static_cast<
+                  const flutter::internal::EncodableValueVariant*>(
+                  call.arguments()));
+          if (close_to_background == nullptr) {
+            result->Error("invalid_arguments", "Expected a boolean", nullptr);
+            return;
+          }
+          SetCloseToBackground(*close_to_background);
           result->Success();
         } else if (method == "isMaximized") {
           BOOL maximized = IsZoomed(window_handle);

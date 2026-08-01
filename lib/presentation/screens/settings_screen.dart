@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -27,6 +28,9 @@ Color _settingsPrimaryText(BuildContext context) => context.settingsPrimary;
 
 Color _settingsSecondaryText(BuildContext context) => context.settingsSecondary;
 
+String _closeToBackgroundLabel() =>
+    defaultTargetPlatform == TargetPlatform.macOS ? '关闭时保留在 Dock' : '关闭时缩到任务栏';
+
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({
     required this.playback,
@@ -45,6 +49,8 @@ class SettingsScreen extends StatefulWidget {
     this.onNowPlayingStyleChanged,
     this.openLyricsByDefault = false,
     this.onOpenLyricsByDefaultChanged,
+    this.closeToBackground = true,
+    this.onCloseToBackgroundChanged,
     super.key,
   });
 
@@ -64,6 +70,8 @@ class SettingsScreen extends StatefulWidget {
   final ValueChanged<NowPlayingStyle>? onNowPlayingStyleChanged;
   final bool openLyricsByDefault;
   final ValueChanged<bool>? onOpenLyricsByDefaultChanged;
+  final bool closeToBackground;
+  final ValueChanged<bool>? onCloseToBackgroundChanged;
 
   @override
   State<SettingsScreen> createState() => _SettingsScreenState();
@@ -265,15 +273,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
         ],
       ),
-      if (!compact && soundUsesDesktopPlatform) ...[
+      if (soundUsesDesktopPlatform) ...[
         gap,
         _SettingsSection(
           title: '操作',
           children: [
-            SoundSettingsRow(
-              title: '键盘快捷键',
-              onTap: widget.onShowKeyboardShortcuts,
+            _SettingsToggleRow(
+              key: const ValueKey('settings-close-to-background-row'),
+              title: _closeToBackgroundLabel(),
+              value: widget.closeToBackground,
+              onChanged: widget.onCloseToBackgroundChanged ?? (_) {},
             ),
+            if (!compact)
+              SoundSettingsRow(
+                title: '键盘快捷键',
+                onTap: widget.onShowKeyboardShortcuts,
+              ),
           ],
         ),
       ],

@@ -10,6 +10,7 @@ class MainFlutterWindow: NSWindow {
 
   private var localDirectoryAccessPlugin: LocalDirectoryAccessPlugin?
   private var launchScreenBridge: LaunchScreenBridge?
+  private var closeBehaviorBridge: CloseBehaviorBridge?
 
   override func awakeFromNib() {
     let flutterViewController = FlutterViewController()
@@ -79,11 +80,17 @@ class MainFlutterWindow: NSWindow {
     launchScreenBridge = LaunchScreenBridge(
       messenger: flutterViewController.engine.binaryMessenger,
       containerView: containerView)
+    closeBehaviorBridge = CloseBehaviorBridge(
+      messenger: flutterViewController.engine.binaryMessenger,
+      onChange: { value in
+        (NSApp.delegate as? AppDelegate)?.setCloseToBackground(value)
+      })
     localDirectoryAccessPlugin = LocalDirectoryAccessPlugin(
       messenger: flutterViewController.engine.binaryMessenger,
       window: self)
 
     super.awakeFromNib()
+    (NSApp.delegate as? AppDelegate)?.attach(mainWindow: self)
   }
 }
 
@@ -130,6 +137,31 @@ private final class LaunchScreenBridge {
       launchView.animator().alphaValue = 0
     } completionHandler: {
       launchView.removeFromSuperview()
+    }
+  }
+}
+
+private final class CloseBehaviorBridge {
+  private let channel: FlutterMethodChannel
+
+  init(messenger: FlutterBinaryMessenger, onChange: @escaping (Bool) -> Void) {
+    channel = FlutterMethodChannel(
+      name: "com.kaiting.player/window",
+      binaryMessenger: messenger)
+    channel.setMethodCallHandler { call, result in
+      guard call.method == "setCloseToBackground" else {
+        result(FlutterMethodNotImplemented)
+        return
+      }
+      guard let value = call.arguments as? Bool else {
+        result(FlutterError(
+          code: "invalid_arguments",
+          message: "Expected a boolean",
+          details: nil))
+        return
+      }
+      onChange(value)
+      result(nil)
     }
   }
 }

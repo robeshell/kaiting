@@ -7,6 +7,7 @@ Future<void> minimizeWindow() async {}
 Future<void> maximizeWindow() async {}
 Future<void> restoreWindow() async {}
 Future<void> closeWindow() async {}
+Future<void> setCloseToBackground(bool value) async {}
 Future<bool> isWindowMaximized() async => false;
 Future<void> startWindowDrag() async {}
 

@@ -132,6 +132,8 @@ class AppShell extends StatefulWidget {
     this.onNowPlayingStyleChanged,
     this.openLyricsByDefault = false,
     this.onOpenLyricsByDefaultChanged,
+    this.closeToBackground = true,
+    this.onCloseToBackgroundChanged,
     this.failureOverlayController,
     super.key,
   });
@@ -150,6 +152,8 @@ class AppShell extends StatefulWidget {
   final ValueChanged<NowPlayingStyle>? onNowPlayingStyleChanged;
   final bool openLyricsByDefault;
   final ValueChanged<bool>? onOpenLyricsByDefaultChanged;
+  final bool closeToBackground;
+  final ValueChanged<bool>? onCloseToBackgroundChanged;
   final AppFailureOverlayController? failureOverlayController;
 
   @override
@@ -1063,6 +1067,9 @@ class _AppShellState extends State<AppShell>
                       openLyricsByDefault: widget.openLyricsByDefault,
                       onOpenLyricsByDefaultChanged:
                           widget.onOpenLyricsByDefaultChanged ?? (_) {},
+                      closeToBackground: widget.closeToBackground,
+                      onCloseToBackgroundChanged:
+                          widget.onCloseToBackgroundChanged ?? (_) {},
                     ),
                   };
 

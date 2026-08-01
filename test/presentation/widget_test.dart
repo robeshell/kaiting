@@ -1542,16 +1542,43 @@ void main() {
     final toggleCenter = tester.getCenter(
       find.byKey(const ValueKey('mini-player-playback-toggle')),
     );
-    // Top progress band is flush to the dock edge; the visible track stays
-    // 3pt thin while the widget carries a taller hover hit area.
+    // The progress hit band begins at the dock's top edge; the visible track
+    // itself is flush with that edge and no permanent time row is reserved.
     expect(progressRect.top, closeTo(rect.top, 0.5));
     expect(progressRect.height, closeTo(20, 0.5));
+    expect(
+      find.byKey(const ValueKey('mini-player-position-label')),
+      findsNothing,
+    );
+    expect(
+      find.byKey(const ValueKey('mini-player-duration-label')),
+      findsNothing,
+    );
     final scrubber = tester.widget<ProgressScrubber>(
       find.byKey(const ValueKey('mini-player-progress')),
     );
     expect(scrubber.trackHeight, 3);
     expect(scrubber.trackVerticalOffset, closeTo(-8.5, 0.5));
     expect((toggleCenter.dy - rect.center.dy).abs(), lessThan(8));
+
+    await tester.tap(find.byKey(const ValueKey('desktop-settings-action')));
+    await tester.pumpAndSettle();
+    final settingsScrollable = find
+        .descendant(
+          of: find.byKey(const ValueKey('settings-overview')),
+          matching: find.byType(Scrollable),
+        )
+        .first;
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('settings-close-to-background-row')),
+      240,
+      scrollable: settingsScrollable,
+    );
+    expect(
+      find.byKey(const ValueKey('settings-close-to-background-row')),
+      findsOneWidget,
+    );
+    expect(find.text('关闭时保留在 Dock'), findsOneWidget);
 
     await _unmountAndFlush(tester);
     playback.dispose();
@@ -1712,6 +1739,10 @@ void main() {
         .toSet();
     expect(compactSettingsIcons, {KaitingIcons.chevronRight});
     expect(find.text('设置队列结束和切歌方式'), findsNothing);
+    expect(
+      find.byKey(const ValueKey('settings-close-to-background-row')),
+      findsNothing,
+    );
     expect(
       tester.widget<Text>(find.text('播放模式')).style?.color,
       SoundGlassTheme.light.primaryText,

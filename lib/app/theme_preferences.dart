@@ -15,6 +15,7 @@ class ThemePreferences {
     this.selectedSkinPreset,
     this.selectedNowPlayingStyle,
     this.openLyricsByDefault,
+    this.closeToBackground,
   );
 
   final File _file;
@@ -24,6 +25,10 @@ class ThemePreferences {
 
   /// When true, the compact now-playing surface opens on the lyrics pane.
   bool openLyricsByDefault;
+
+  /// When true, closing the desktop window keeps the app running instead of
+  /// terminating the process.
+  bool closeToBackground;
 
   /// Kept as a compatibility alias for callers created before skin support.
   AccentPreset get selectedPreset => selectedAccentPreset;
@@ -63,12 +68,16 @@ class ThemePreferences {
         final openLyrics = json.containsKey('openLyricsByDefault')
             ? json['openLyricsByDefault'] == true
             : openLyricsByDefaultFromLegacyStyleId(styleId);
+        final closeToBackground = json.containsKey('closeToBackground')
+            ? json['closeToBackground'] == true
+            : true;
         return ThemePreferences._(
           file,
           accentPreset ?? SoundColors.defaultAccentPreset,
           skinPreset ?? SoundSkins.defaultPreset,
           nowPlayingStyleFromId(styleId),
           openLyrics,
+          closeToBackground,
         );
       }
     } catch (_) {
@@ -80,6 +89,7 @@ class ThemePreferences {
       SoundSkins.defaultPreset,
       NowPlayingStyle.classic,
       false,
+      true,
     );
   }
 
@@ -88,11 +98,13 @@ class ThemePreferences {
     SoundSkinPreset? skinPreset,
     NowPlayingStyle? nowPlayingStyle,
     bool? openLyricsByDefault,
+    bool? closeToBackground,
   }) async {
     final nextAccent = accentPreset ?? selectedAccentPreset;
     final nextSkin = skinPreset ?? selectedSkinPreset;
     final nextNowPlayingStyle = nowPlayingStyle ?? selectedNowPlayingStyle;
     final nextOpenLyrics = openLyricsByDefault ?? this.openLyricsByDefault;
+    final nextCloseToBackground = closeToBackground ?? this.closeToBackground;
     await _file.parent.create(recursive: true);
     await _file.writeAsString(
       jsonEncode({
@@ -102,6 +114,7 @@ class ThemePreferences {
         'skinPreset': nextSkin.id,
         'nowPlayingStyle': nextNowPlayingStyle.id,
         'openLyricsByDefault': nextOpenLyrics,
+        'closeToBackground': nextCloseToBackground,
       }),
       flush: true,
     );
@@ -109,5 +122,6 @@ class ThemePreferences {
     selectedSkinPreset = nextSkin;
     selectedNowPlayingStyle = nextNowPlayingStyle;
     this.openLyricsByDefault = nextOpenLyrics;
+    this.closeToBackground = nextCloseToBackground;
   }
 }

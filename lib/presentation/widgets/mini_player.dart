@@ -16,6 +16,9 @@ import 'playback_visual_state.dart';
 import 'progress_scrubber.dart';
 import 'sound_components.dart';
 
+const _dockedPlayerBodyHeight = 76.0;
+const _dockedScrubberHitHeight = 20.0;
+
 class MiniPlayer extends StatelessWidget {
   const MiniPlayer({
     required this.playback,
@@ -57,7 +60,7 @@ class MiniPlayer extends StatelessWidget {
           child: LayoutBuilder(
             builder: (context, constraints) {
               final height = docked
-                  ? 76.0
+                  ? _dockedPlayerBodyHeight
                   : (compact
                         ? (embedded ? 66.0 : 72.0)
                         : (embedded ? 70.0 : 82.0));
@@ -260,8 +263,7 @@ class _DockedMiniPlayer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Stack(
-      // The hover scrubber's time bubble overflows above the bar.
-      clipBehavior: Clip.none,
+      clipBehavior: Clip.hardEdge,
       children: [
         // Whole bar opens now-playing; nested buttons win the arena.
         Positioned.fill(
@@ -336,13 +338,11 @@ class _DockedMiniPlayer extends StatelessWidget {
             ),
           ),
         ),
-        // Top progress flush to the bar edge. Hovering grows the track,
-        // reveals a thumb, and floats the scrub time above it.
         Positioned(
           left: 0,
           right: 0,
           top: 0,
-          height: 20,
+          height: _dockedScrubberHitHeight,
           child: ProgressScrubber(
             key: const ValueKey('mini-player-progress'),
             position: position,
@@ -352,16 +352,16 @@ class _DockedMiniPlayer extends StatelessWidget {
             inactiveColor: context.soundTint(0.1),
             trackHeight: 3,
             hoverTrackHeight: 6,
-            thumbRadius: 5,
-            minInteractiveHeight: 20,
-            // The 3px track must start exactly at the dock edge; -7 leaves a
-            // 1.5px gap above it inside the 20px hit band.
+            thumbRadius: 7,
+            minInteractiveHeight: _dockedScrubberHitHeight,
+            // The 3px track is flush with the player's top edge. Its larger
+            // invisible hit band extends downward into the dock.
             trackVerticalOffset: -8.5,
             padding: EdgeInsets.zero,
             interactive: true,
             hoverReveal: true,
             timeBubbleBuilder: (context, time) =>
-                _MiniPlayerTimeBubble(time: time),
+                _MiniPlayerTimeBubble(current: time, total: duration),
           ),
         ),
       ],
@@ -370,17 +370,19 @@ class _DockedMiniPlayer extends StatelessWidget {
 }
 
 class _MiniPlayerTimeBubble extends StatelessWidget {
-  const _MiniPlayerTimeBubble({required this.time});
+  const _MiniPlayerTimeBubble({required this.current, required this.total});
 
-  final Duration time;
+  final Duration current;
+  final Duration total;
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      key: const ValueKey('mini-player-time-bubble'),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
         color: context.soundGlass.strongSurface,
-        borderRadius: BorderRadius.circular(7),
+        borderRadius: BorderRadius.circular(12),
         border: Border.all(color: context.soundGlass.border),
         boxShadow: [
           BoxShadow(
@@ -390,15 +392,41 @@ class _MiniPlayerTimeBubble extends StatelessWidget {
           ),
         ],
       ),
-      child: Text(
-        formatDuration(time),
-        style: TextStyle(
-          color: context.soundPrimaryText,
-          fontSize: 11,
-          fontWeight: FontWeight.w600,
-          height: 1.2,
-          fontFeatures: const [FontFeature.tabularFigures()],
-        ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(
+            key: const ValueKey('mini-player-bubble-current-time'),
+            formatDuration(current),
+            style: TextStyle(
+              color: context.soundPrimaryText,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              height: 1.2,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+          Text(
+            ' / ',
+            style: TextStyle(
+              color: context.soundMutedText,
+              fontSize: 11,
+              fontWeight: FontWeight.w500,
+              height: 1.2,
+            ),
+          ),
+          Text(
+            key: const ValueKey('mini-player-bubble-total-time'),
+            formatDuration(total),
+            style: TextStyle(
+              color: context.soundSecondaryText,
+              fontSize: 11,
+              fontWeight: FontWeight.w600,
+              height: 1.2,
+              fontFeatures: const [FontFeature.tabularFigures()],
+            ),
+          ),
+        ],
       ),
     );
   }

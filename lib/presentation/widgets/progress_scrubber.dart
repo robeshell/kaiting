@@ -69,10 +69,9 @@ class ProgressScrubber extends StatefulWidget {
   /// Track height while hovered/dragging in [hoverReveal] mode.
   final double? hoverTrackHeight;
 
-  /// Renders a time label above the thumb while hovering/dragging. The
-  /// returned widget is horizontally centered on the thumb and clamped to the
-  /// scrubber width; it may overflow above the widget bounds (use a
-  /// non-clipping ancestor if that is intended).
+  /// Renders a time label above the thumb while actively dragging. The label
+  /// is placed in the nearest overlay, so it can float above clipped player
+  /// chrome without reserving layout space.
   final Widget Function(BuildContext context, Duration time)? timeBubbleBuilder;
 
   @override
@@ -90,9 +89,13 @@ class _ProgressScrubberState extends State<ProgressScrubber> {
   bool _globalRouteInstalled = false;
   int? _activePointer;
   bool _hovered = false;
-  double? _hoverFraction;
+  bool _bubblePortalVisible = false;
+  bool _thumbPortalVisible = false;
 
   final GlobalKey _hitKey = GlobalKey(debugLabel: 'progress-scrubber-hit');
+  final LayerLink _bubbleLayerLink = LayerLink();
+  final OverlayPortalController _bubblePortal = OverlayPortalController();
+  final OverlayPortalController _thumbPortal = OverlayPortalController();
 
   double get _durationMs =>
       widget.duration.inMilliseconds.toDouble().clamp(1, double.infinity);
@@ -109,11 +112,20 @@ class _ProgressScrubberState extends State<ProgressScrubber> {
       ? (_displayMs / _durationMs).clamp(0.0, 1.0)
       : 0.0;
 
-  /// Thumb position: the drag preview when active, otherwise the hover
-  /// position, otherwise the playback fraction.
-  double get _thumbFraction {
-    if (_dragging || _previewMilliseconds != null) return _fraction;
-    return _hoverFraction ?? _fraction;
+  /// The thumb follows the pointer only while actively dragging. Hovering is
+  /// an affordance, not a preview, so it stays at the playback position.
+  double get _thumbFraction => _fraction;
+
+  void _showThumbPortal() {
+    if (!widget.hoverReveal || _thumbPortalVisible) return;
+    _thumbPortal.show();
+    _thumbPortalVisible = true;
+  }
+
+  void _hideThumbPortal() {
+    if (!_thumbPortalVisible) return;
+    _thumbPortal.hide();
+    _thumbPortalVisible = false;
   }
 
   void _notifyInteraction(bool active, {int? pointer}) {
@@ -141,6 +153,13 @@ class _ProgressScrubberState extends State<ProgressScrubber> {
   }
 
   void _handleGlobalPointer(PointerEvent event) {
+    if (_dragging && event is PointerHoverEvent && event.buttons == 0) {
+      final dx = _localDxFromGlobal(event.position);
+      if (dx != null) _setFractionFromLocalDx(dx);
+      final pointer = _activePointer;
+      if (pointer != null) _endDrag(pointer, commit: true);
+      return;
+    }
     if (event.pointer != _activePointer) return;
     if (event is PointerMoveEvent) {
       final dx = _localDxFromGlobal(event.position);
@@ -201,6 +220,11 @@ class _ProgressScrubberState extends State<ProgressScrubber> {
   void _beginDrag(int pointer, Offset globalPosition) {
     _activePointer = pointer;
     _dragging = true;
+    _showThumbPortal();
+    if (widget.timeBubbleBuilder != null) {
+      _bubblePortal.show();
+      _bubblePortalVisible = true;
+    }
     _ensureGlobalRoute();
     // Notify first so ancestor cover-dismiss handlers see the flag on the
     // same pointer-down (child listeners run before parents).
@@ -210,10 +234,15 @@ class _ProgressScrubberState extends State<ProgressScrubber> {
   }
 
   void _endDrag(int pointer, {required bool commit}) {
-    if (_activePointer != null && _activePointer != pointer) return;
+    if (_activePointer == null || _activePointer != pointer) return;
     final preview = _previewMilliseconds;
     _activePointer = null;
     _dragging = false;
+    if (_bubblePortalVisible) {
+      _bubblePortal.hide();
+      _bubblePortalVisible = false;
+    }
+    if (!_hovered) _hideThumbPortal();
     _removeGlobalRoute();
     _notifyInteraction(false);
     // Preview is only a drag affordance. Once the pointer is released, turn it
@@ -304,8 +333,16 @@ class _ProgressScrubberState extends State<ProgressScrubber> {
           onPointerDown: enabled
               ? (event) => _beginDrag(event.pointer, event.position)
               : null,
-          // Move/up handled by the global route so vertical drift off the
-          // 44px band does not kill the scrub.
+          onPointerUp: enabled
+              ? (event) => _endDrag(event.pointer, commit: true)
+              : null,
+          onPointerCancel: enabled
+              ? (event) => _endDrag(event.pointer, commit: false)
+              : null,
+          // Move remains on the global route so vertical drift off the 44px
+          // band does not kill the scrub. Local up/cancel is a second path
+          // for desktop embedders that do not reliably forward the terminal
+          // event through the global route.
           child: SizedBox(
             key: _hitKey,
             height: height,
@@ -339,7 +376,6 @@ class _ProgressScrubberState extends State<ProgressScrubber> {
     final trackHeight = reveal
         ? (widget.hoverTrackHeight ?? widget.trackHeight + 3)
         : widget.trackHeight;
-    final showThumb = enabled && reveal;
     final height = math.max(widget.minInteractiveHeight, 16.0);
     final thumbFraction = _thumbFraction;
     final bubbleBuilder = widget.timeBubbleBuilder;
@@ -349,18 +385,16 @@ class _ProgressScrubberState extends State<ProgressScrubber> {
 
     return MouseRegion(
       cursor: enabled ? SystemMouseCursors.click : MouseCursor.defer,
-      onEnter: enabled ? (_) => setState(() => _hovered = true) : null,
-      onExit: enabled
-          ? (_) => setState(() {
-              _hovered = false;
-              _hoverFraction = null;
-            })
+      onEnter: enabled
+          ? (_) {
+              setState(() => _hovered = true);
+              _showThumbPortal();
+            }
           : null,
-      onHover: enabled
-          ? (event) {
-              final dx = _localDxFromGlobal(event.position);
-              if (dx == null) return;
-              setState(() => _hoverFraction = _fractionFromDx(dx));
+      onExit: enabled
+          ? (_) {
+              setState(() => _hovered = false);
+              if (!_dragging) _hideThumbPortal();
             }
           : null,
       child: Padding(
@@ -368,21 +402,72 @@ class _ProgressScrubberState extends State<ProgressScrubber> {
         child: LayoutBuilder(
           builder: (context, constraints) {
             final width = constraints.maxWidth;
-            final thumbX = (thumbFraction * width).clamp(
-              widget.thumbRadius,
-              math.max(widget.thumbRadius, width - widget.thumbRadius),
-            );
-            final alignX = width > 0
-                ? ((thumbX / (width / 2)) - 1).clamp(-1.0, 1.0)
-                : 0.0;
-            return SizedBox(
-              key: _hitKey,
-              height: height,
-              width: double.infinity,
-              child: Stack(
-                clipBehavior: Clip.none,
-                children: [
-                  Positioned.fill(
+            final thumbX = (thumbFraction * width)
+                .clamp(
+                  widget.thumbRadius,
+                  math.max(widget.thumbRadius, width - widget.thumbRadius),
+                )
+                .toDouble();
+            return OverlayPortal(
+              controller: _thumbPortal,
+              overlayChildBuilder: (overlayContext) => Positioned(
+                left: 0,
+                top: 0,
+                child: CompositedTransformFollower(
+                  link: _bubbleLayerLink,
+                  showWhenUnlinked: false,
+                  targetAnchor: Alignment.topLeft,
+                  followerAnchor: Alignment.center,
+                  offset: Offset(thumbX, trackHeight / 2),
+                  child: IgnorePointer(
+                    child: Container(
+                      key: const ValueKey('mini-player-scrubber-thumb'),
+                      width: widget.thumbRadius * 2,
+                      height: widget.thumbRadius * 2,
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: overlayContext.soundGlass.shadow,
+                            blurRadius: 6,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              child: OverlayPortal(
+                controller: _bubblePortal,
+                overlayChildBuilder: (overlayContext) {
+                  if (bubbleBuilder == null) return const SizedBox.shrink();
+                  // Overlay children receive the theater's full constraints by
+                  // default. A positioned child with only top/left specified is
+                  // loose on both axes, so the bubble shrink-wraps its content
+                  // instead of expanding into a full-window glass mask.
+                  return Positioned(
+                    left: 0,
+                    top: 0,
+                    child: CompositedTransformFollower(
+                      link: _bubbleLayerLink,
+                      showWhenUnlinked: false,
+                      targetAnchor: Alignment.topLeft,
+                      followerAnchor: Alignment.bottomCenter,
+                      offset: Offset(thumbX, -6),
+                      child: IgnorePointer(
+                        child: bubbleBuilder(overlayContext, bubbleTime),
+                      ),
+                    ),
+                  );
+                },
+                child: CompositedTransformTarget(
+                  link: _bubbleLayerLink,
+                  child: SizedBox(
+                    key: _hitKey,
+                    height: height,
+                    width: double.infinity,
                     child: GestureDetector(
                       // Prevent the dock's parent tap recognizer from
                       // interpreting a scrubber click as "open now playing".
@@ -394,8 +479,14 @@ class _ProgressScrubberState extends State<ProgressScrubber> {
                             ? (event) =>
                                   _beginDrag(event.pointer, event.position)
                             : null,
-                        // Move/up handled by the global route so vertical
-                        // drift off the thin band does not kill the scrub.
+                        onPointerUp: enabled
+                            ? (event) => _endDrag(event.pointer, commit: true)
+                            : null,
+                        onPointerCancel: enabled
+                            ? (event) => _endDrag(event.pointer, commit: false)
+                            : null,
+                        // Move remains on the global route so vertical drift
+                        // off the thin band does not kill the scrub.
                         child: CustomPaint(
                           key: const ValueKey('progress-scrubber-hit-target'),
                           painter: _ScrubberPainter(
@@ -405,28 +496,14 @@ class _ProgressScrubberState extends State<ProgressScrubber> {
                             thumbRadius: widget.thumbRadius,
                             activeColor: activeColor,
                             inactiveColor: inactiveColor,
-                            showThumb: showThumb,
-                            // Hovered/dragging track sits a touch lower so the
-                            // thicker track and thumb stay inside the bar.
-                            verticalOffset:
-                                widget.trackVerticalOffset + (reveal ? 3 : 0),
+                            showThumb: false,
+                            verticalOffset: widget.trackVerticalOffset,
                           ),
                         ),
                       ),
                     ),
                   ),
-                  if (showThumb && bubbleBuilder != null)
-                    Positioned.fill(
-                      // Display-only: the bubble must never steal pointer
-                      // events from the track underneath.
-                      child: IgnorePointer(
-                        child: Align(
-                          alignment: Alignment(alignX, -1),
-                          child: bubbleBuilder(context, bubbleTime),
-                        ),
-                      ),
-                    ),
-                ],
+                ),
               ),
             );
           },
@@ -457,19 +534,30 @@ class _ScrubberPainter extends CustomPainter {
   final bool showThumb;
   final double verticalOffset;
 
+  double trackTopForSize(Size size) {
+    final desiredCenterY = size.height / 2 + verticalOffset;
+    final trackCenterY = desiredCenterY.clamp(
+      trackHeight / 2,
+      math.max(trackHeight / 2, size.height - trackHeight / 2),
+    );
+    return trackCenterY - trackHeight / 2;
+  }
+
+  double _thumbCenterYForSize(Size size) {
+    final desiredCenterY = size.height / 2 + verticalOffset;
+    final safeInset = math.max(thumbRadius, trackHeight / 2);
+    return desiredCenterY.clamp(
+      safeInset,
+      math.max(safeInset, size.height - safeInset),
+    );
+  }
+
   @override
   void paint(Canvas canvas, Size size) {
-    final maxOffset = math.max(
-      0.0,
-      // The thumb keeps the track away from the widget edge when visible; a
-      // hidden thumb (thin mini-player track) may sit flush at the top.
-      size.height / 2 -
-          (showThumb
-              ? math.max(thumbRadius, trackHeight / 2)
-              : trackHeight / 2),
-    );
-    final cy = size.height / 2 + verticalOffset.clamp(-maxOffset, maxOffset);
-    final trackTop = cy - trackHeight / 2;
+    // The track and thumb have different edge constraints. The track may sit
+    // flush against the player's top edge, while the larger thumb moves down
+    // just enough to remain fully visible.
+    final trackTop = trackTopForSize(size);
     final trackRect = Rect.fromLTWH(0, trackTop, size.width, trackHeight);
     canvas.drawRect(trackRect, Paint()..color = inactiveColor);
 
@@ -482,12 +570,13 @@ class _ScrubberPainter extends CustomPainter {
     }
 
     if (!showThumb) return;
+    final thumbCenterY = _thumbCenterYForSize(size);
     final thumbX = ((thumbFraction ?? fraction) * size.width).clamp(
       thumbRadius,
       size.width - thumbRadius,
     );
     canvas.drawCircle(
-      Offset(thumbX, cy),
+      Offset(thumbX, thumbCenterY),
       thumbRadius,
       Paint()..color = activeColor,
     );

@@ -52,6 +52,9 @@ class Win32Window {
   // If true, closing this window will quit the application.
   void SetQuitOnClose(bool quit_on_close);
 
+  // If true, closing this window minimizes it instead of destroying it.
+  void SetCloseToBackground(bool close_to_background);
+
   // Return a RECT representing the bounds of the current client area.
   RECT GetClientArea();
 
@@ -91,6 +94,7 @@ class Win32Window {
   static void UpdateTheme(HWND const window);
 
   bool quit_on_close_ = false;
+  bool close_to_background_ = true;
 
   // window handle for top level window.
   HWND window_handle_ = nullptr;

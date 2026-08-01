@@ -36,6 +36,7 @@ void main() {
         accentPreset: violet,
         skinPreset: SoundSkins.deepNight,
         nowPlayingStyle: NowPlayingStyle.vinyl,
+        closeToBackground: false,
       );
 
       SoundColors.defaultAccentPreset.apply();
@@ -46,6 +47,7 @@ void main() {
       expect(restored.selectedAccentPreset, same(violet));
       expect(restored.selectedSkinPreset, same(SoundSkins.deepNight));
       expect(restored.selectedNowPlayingStyle, NowPlayingStyle.vinyl);
+      expect(restored.closeToBackground, isFalse);
       expect(SoundColors.accent, SoundColors.defaultAccentPreset.accent);
     },
   );
@@ -65,6 +67,7 @@ void main() {
     );
     expect(restored.selectedSkinPreset, same(SoundSkins.defaultPreset));
     expect(restored.selectedNowPlayingStyle, NowPlayingStyle.classic);
+    expect(restored.closeToBackground, isTrue);
   });
 
   test('migrates an accent-only preference to the default skin', () async {
@@ -78,6 +81,7 @@ void main() {
 
     expect(restored.selectedAccentPreset.id, 'indigo');
     expect(restored.selectedSkinPreset, same(SoundSkins.standard));
+    expect(restored.closeToBackground, isTrue);
     expect(restored.selectedNowPlayingStyle, NowPlayingStyle.classic);
   });
 

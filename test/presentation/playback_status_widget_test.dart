@@ -333,33 +333,84 @@ void main() {
       expect(surface.clip, isTrue);
 
       final band = find.byKey(const ValueKey('progress-scrubber-hit-target'));
-      // Idle state: no time bubble and no hover reveal yet.
-      expect(find.text('1:30'), findsNothing);
+      final thumb = find.byKey(const ValueKey('mini-player-scrubber-thumb'));
+      bool thumbVisible() => thumb.evaluate().isNotEmpty;
+      double visibleTrackHeight() =>
+          (tester.widget<CustomPaint>(band).painter as dynamic).trackHeight
+              as double;
+      double trackTop() =>
+          (tester.widget<CustomPaint>(band).painter as dynamic).trackTopForSize(
+                tester.getSize(band),
+              )
+              as double;
+      // The dock has no permanent time labels; time appears only as a drag
+      // bubble above the top-edge track.
+      expect(find.text('0:24'), findsNothing);
+      expect(find.text('3:00'), findsNothing);
+      expect(thumbVisible(), isFalse);
+      expect(visibleTrackHeight(), 3);
+      expect(trackTop(), 0);
 
       final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
       await mouse.addPointer(location: const Offset(10, 10));
       await tester.pump();
 
-      // Hovering the middle of the track reveals the thumb + time bubble.
+      // Hovering reveals the thumb, but the time bubble is reserved for an
+      // active drag.
       final center = tester.getCenter(band);
       await mouse.moveTo(center);
       await tester.pump();
-      expect(find.text('1:30'), findsOneWidget);
+      expect(find.text('1:30'), findsNothing);
+      expect(thumbVisible(), isTrue);
+      expect(visibleTrackHeight(), 6);
+      expect(trackTop(), 0);
+      final bandRect = tester.getRect(band);
+      final expectedPlaybackX = bandRect.left + bandRect.width * (24 / 180);
+      // Hover only exposes the affordance. It stays on the actual playback
+      // position instead of chasing the mouse.
+      expect(tester.getCenter(thumb).dx, closeTo(expectedPlaybackX, 0.5));
+      expect(tester.getCenter(thumb).dy, closeTo(bandRect.top + 3, 0.5));
+      expect(tester.getSize(thumb), const Size.square(14));
+      final thumbDecoration =
+          tester.widget<Container>(thumb).decoration! as BoxDecoration;
+      expect(thumbDecoration.color, Colors.white);
+      expect(thumbDecoration.border, isNull);
 
       // A scrubber tap seeks but must not bubble into the dock's open action.
       await mouse.down(center);
       await tester.pump();
+      expect(tester.getCenter(thumb).dx, closeTo(center.dx, 0.5));
+      expect(find.text('1:30'), findsOneWidget);
+      expect(find.text('3:00'), findsOneWidget);
+      final bubble = find.byKey(const ValueKey('mini-player-time-bubble'));
+      final bubbleRect = tester.getRect(bubble);
+      expect(bubbleRect.width, lessThan(180));
+      expect(bubbleRect.height, lessThan(40));
+      final bubbleDecoration =
+          tester.widget<Container>(bubble).decoration! as BoxDecoration;
+      expect(bubbleDecoration.color, SoundGlassTheme.light.strongSurface);
+      expect(bubbleDecoration.gradient, isNull);
+      expect(bubbleRect.bottom, lessThan(tester.getRect(band).top));
       await mouse.up();
       await tester.pump();
       expect(openCount, 0);
+      expect(find.text('1:30'), findsNothing);
+      expect(find.text('3:00'), findsNothing);
+      // Releasing hides only the drag bubble. Since the pointer is still over
+      // the bar, the thicker track and thumb continue to advertise scrubbing.
+      expect(thumbVisible(), isTrue);
+      expect(visibleTrackHeight(), 6);
+      expect(trackTop(), 0);
 
-      // Dragging to 75% moves the bubble and commits a seek on release.
+      // Dragging to 75% updates the floating preview and commits a seek on
+      // release.
       await mouse.down(center);
       await tester.pump();
       await mouse.moveTo(Offset(center.dx + 300, center.dy));
       await tester.pump();
       expect(interactions, contains(true));
       expect(find.text('2:15'), findsOneWidget);
+      expect(find.text('3:00'), findsOneWidget);
       await mouse.up();
       await tester.pump();
       expect(engine.seekPositions, isNotEmpty);
@@ -368,12 +419,86 @@ void main() {
       // the committed target visible even though this paused test engine does
       // not publish a follow-up position snapshot.
       expect(playback.displayPosition, const Duration(seconds: 135));
+      expect(find.text('2:15'), findsNothing);
+      expect(find.text('3:00'), findsNothing);
+      expect(thumbVisible(), isTrue);
+
+      await mouse.moveTo(const Offset(10, 80));
+      await tester.pump();
+      expect(thumbVisible(), isFalse);
+      expect(visibleTrackHeight(), 3);
+      expect(trackTop(), 0);
 
       await tester.pumpWidget(const SizedBox.shrink());
       playback.dispose();
       engine.dispose();
     },
   );
+
+  testWidgets('docked scrub bubble follows the dark theme', (tester) async {
+    tester.view.physicalSize = const Size(1200, 160);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final engine = StaticPlaybackEngine(
+      _snapshot(PlaybackPhase.paused, track: _track),
+    );
+    final playback = SoundPlaybackController(engine: engine);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: SoundTheme.dark,
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.bottomCenter,
+            child: MiniPlayer(
+              playback: playback,
+              compact: false,
+              docked: true,
+              onOpen: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final band = find.byKey(const ValueKey('progress-scrubber-hit-target'));
+    final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await mouse.addPointer(location: tester.getCenter(band));
+    await mouse.down(tester.getCenter(band));
+    await tester.pump();
+
+    final bubble = find.byKey(const ValueKey('mini-player-time-bubble'));
+    final decoration =
+        tester.widget<Container>(bubble).decoration! as BoxDecoration;
+    expect(decoration.color, SoundGlassTheme.dark.strongSurface);
+    expect(
+      tester
+          .widget<Text>(
+            find.byKey(const ValueKey('mini-player-bubble-current-time')),
+          )
+          .style
+          ?.color,
+      SoundGlassTheme.dark.primaryText,
+    );
+    expect(
+      tester
+          .widget<Text>(
+            find.byKey(const ValueKey('mini-player-bubble-total-time')),
+          )
+          .style
+          ?.color,
+      SoundGlassTheme.dark.secondaryText,
+    );
+    expect(find.text('1:30'), findsOneWidget);
+    expect(find.text('3:00'), findsOneWidget);
+
+    await mouse.up();
+    await tester.pumpWidget(const SizedBox.shrink());
+    playback.dispose();
+    engine.dispose();
+  });
 
   testWidgets('landscape tablet uses wide margins across player styles', (
     tester,

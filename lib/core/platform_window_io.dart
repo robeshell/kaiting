@@ -60,6 +60,11 @@ Future<void> closeWindow() async {
   await _invokeOrIgnore('close');
 }
 
+Future<void> setCloseToBackground(bool value) async {
+  if (!_supportsCloseBehavior) return;
+  await _invokeOrIgnore('setCloseToBackground', value);
+}
+
 Future<bool> isWindowMaximized() async {
   if (!_supportsWindowControls) return false;
   return _invokeBoolOrFalse('isMaximized');
@@ -81,6 +86,9 @@ Stream<bool> get windowMaximizedChanges {
 }
 
 bool get _supportsWindowControls => !kIsWeb && Platform.isWindows;
+
+bool get _supportsCloseBehavior =>
+    !kIsWeb && (Platform.isWindows || Platform.isMacOS || Platform.isLinux);
 
 /// 44 logical pixels — kept in sync with `kCustomTitleBarHeight` in
 /// `windows/runner/win32_window.cpp` and `soundMacOSTitlebarInset` for

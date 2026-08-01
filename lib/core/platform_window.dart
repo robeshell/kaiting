@@ -14,6 +14,11 @@ Future<void> restoreWindow() => implementation.restoreWindow();
 /// Closes the application window.
 Future<void> closeWindow() => implementation.closeWindow();
 
+/// Configures whether closing the desktop window should minimize the app
+/// instead of terminating it.
+Future<void> setCloseToBackground(bool value) =>
+    implementation.setCloseToBackground(value);
+
 /// Returns whether the window is currently maximized.
 Future<bool> isWindowMaximized() => implementation.isWindowMaximized();
 

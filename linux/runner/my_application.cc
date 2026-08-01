@@ -7,6 +7,8 @@
 struct _MyApplication {
   GtkApplication parent_instance;
   char** dart_entrypoint_arguments;
+  FlMethodChannel* window_channel;
+  gboolean close_to_background;
 };
 
 G_DEFINE_TYPE(MyApplication, my_application, GTK_TYPE_APPLICATION)
@@ -16,11 +18,44 @@ static void first_frame_cb(MyApplication* self, FlView* view) {
   gtk_widget_show(gtk_widget_get_toplevel(GTK_WIDGET(view)));
 }
 
+static gboolean window_delete_event_cb(GtkWindow* window,
+                                      GdkEvent* event,
+                                      MyApplication* self) {
+  (void)event;
+  if (!self->close_to_background) return FALSE;
+  gtk_window_iconify(window);
+  return TRUE;
+}
+
+static void window_channel_method_cb(FlMethodChannel* channel,
+                                     FlMethodCall* method_call,
+                                     gpointer user_data) {
+  (void)channel;
+  MyApplication* self = MY_APPLICATION(user_data);
+  const gchar* method = fl_method_call_get_name(method_call);
+  if (g_str_equal(method, "setCloseToBackground")) {
+    FlValue* args = fl_method_call_get_args(method_call);
+    if (fl_value_get_type(args) != FL_VALUE_TYPE_BOOL) {
+      fl_method_call_respond_error(
+          method_call, "invalid_arguments", "Expected a boolean", nullptr,
+          nullptr);
+      return;
+    }
+    self->close_to_background = fl_value_get_bool(args);
+    fl_method_call_respond_success(method_call, nullptr, nullptr);
+    return;
+  }
+  fl_method_call_respond_not_implemented(method_call, nullptr);
+}
+
 // Implements GApplication::activate.
 static void my_application_activate(GApplication* application) {
   MyApplication* self = MY_APPLICATION(application);
   GtkWindow* window =
       GTK_WINDOW(gtk_application_window_new(GTK_APPLICATION(application)));
+  self->close_to_background = TRUE;
+  g_signal_connect(window, "delete-event", G_CALLBACK(window_delete_event_cb),
+                   self);
 
   // Always use a client-side header bar so the window decoration is
   // consistent across desktop environments.  Title text and the built-in
@@ -58,6 +93,15 @@ static void my_application_activate(GApplication* application) {
   gtk_widget_realize(GTK_WIDGET(view));
 
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
+
+  FlEngine* engine = fl_view_get_engine(view);
+  g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();
+  self->window_channel = fl_method_channel_new(
+      fl_engine_get_binary_messenger(engine), "com.kaiting.player/window",
+      FL_METHOD_CODEC(codec));
+  fl_method_channel_set_method_call_handler(
+      self->window_channel, window_channel_method_cb, g_object_ref(self),
+      g_object_unref);
 
   gtk_widget_grab_focus(GTK_WIDGET(view));
 }
@@ -104,6 +148,7 @@ static void my_application_shutdown(GApplication* application) {
 // Implements GObject::dispose.
 static void my_application_dispose(GObject* object) {
   MyApplication* self = MY_APPLICATION(object);
+  g_clear_object(&self->window_channel);
   g_clear_pointer(&self->dart_entrypoint_arguments, g_strfreev);
   G_OBJECT_CLASS(my_application_parent_class)->dispose(object);
 }
