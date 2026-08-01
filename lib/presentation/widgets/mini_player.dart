@@ -260,7 +260,8 @@ class _DockedMiniPlayer extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Stack(
-      clipBehavior: Clip.hardEdge,
+      // The hover scrubber's time bubble overflows above the bar.
+      clipBehavior: Clip.none,
       children: [
         // Whole bar opens now-playing; nested buttons win the arena.
         Positioned.fill(
@@ -305,7 +306,8 @@ class _DockedMiniPlayer extends StatelessWidget {
                               tooltip: state.isFavorite(track.id)
                                   ? '取消收藏'
                                   : '收藏歌曲',
-                              onTap: () => unawaited(state.toggleFavorite(track)),
+                              onTap: () =>
+                                  unawaited(state.toggleFavorite(track)),
                             ),
                           ],
                         ],
@@ -334,27 +336,70 @@ class _DockedMiniPlayer extends StatelessWidget {
             ),
           ),
         ),
-        // Top progress is active-only and flush to the bar edge.
-        // Container height must match trackHeight: a taller box + center
-        // alignment leaves a white hairline above the accent fill.
+        // Top progress flush to the bar edge. Hovering grows the track,
+        // reveals a thumb, and floats the scrub time above it.
         Positioned(
           left: 0,
           right: 0,
           top: 0,
-          height: 3,
+          height: 20,
           child: ProgressScrubber(
             key: const ValueKey('mini-player-progress'),
             position: position,
             duration: duration,
             onSeek: playback.seek,
             activeColor: SoundColors.accent,
-            inactiveColor: Colors.transparent,
+            inactiveColor: context.soundTint(0.1),
             trackHeight: 3,
+            hoverTrackHeight: 6,
+            thumbRadius: 5,
+            minInteractiveHeight: 20,
+            // The 3px track must start exactly at the dock edge; -7 leaves a
+            // 1.5px gap above it inside the 20px hit band.
+            trackVerticalOffset: -8.5,
             padding: EdgeInsets.zero,
-            interactive: false,
+            interactive: true,
+            hoverReveal: true,
+            timeBubbleBuilder: (context, time) =>
+                _MiniPlayerTimeBubble(time: time),
           ),
         ),
       ],
+    );
+  }
+}
+
+class _MiniPlayerTimeBubble extends StatelessWidget {
+  const _MiniPlayerTimeBubble({required this.time});
+
+  final Duration time;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: context.soundGlass.strongSurface,
+        borderRadius: BorderRadius.circular(7),
+        border: Border.all(color: context.soundGlass.border),
+        boxShadow: [
+          BoxShadow(
+            color: context.soundGlass.shadow,
+            blurRadius: 12,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Text(
+        formatDuration(time),
+        style: TextStyle(
+          color: context.soundPrimaryText,
+          fontSize: 11,
+          fontWeight: FontWeight.w600,
+          height: 1.2,
+          fontFeatures: const [FontFeature.tabularFigures()],
+        ),
+      ),
     );
   }
 }
@@ -657,8 +702,7 @@ double _dockedPrimaryIconSize(PlaybackVisualState visual) {
     PlaybackPrimaryVisual.play => 32,
     // Two solid pause bars carry more visual mass than the play triangle.
     PlaybackPrimaryVisual.pause => 26,
-    PlaybackPrimaryVisual.replay ||
-    PlaybackPrimaryVisual.retry => 25,
+    PlaybackPrimaryVisual.replay || PlaybackPrimaryVisual.retry => 25,
     PlaybackPrimaryVisual.none => 22,
   };
 }

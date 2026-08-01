@@ -166,7 +166,10 @@ void main() {
       embedded: false,
     );
     expect(find.byIcon(KaitingIcons.previousMini), findsOneWidget);
-    expect(find.byKey(const ValueKey('mini-player-mode-cycle')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey('mini-player-mode-cycle')),
+      findsOneWidget,
+    );
     expect(find.byKey(const ValueKey('mini-player-queue')), findsOneWidget);
     expect(find.byTooltip('打开播放队列'), findsNothing);
     expect(tester.widget<Text>(find.text(_track.title)).style?.fontSize, 16);
@@ -271,15 +274,106 @@ void main() {
     ].reduce((a, b) => a > b ? a : b);
     // The icon button has zero padding, so only the small SizedBox gap plus
     // the track-identity side padding may separate text from icon.
-    expect(
-      tester.getRect(favorite).left - blockRight,
-      inInclusiveRange(0, 24),
-    );
+    expect(tester.getRect(favorite).left - blockRight, inInclusiveRange(0, 24));
 
     await tester.pumpWidget(const SizedBox.shrink());
     playback.dispose();
     engine.dispose();
   });
+
+  testWidgets(
+    'docked mini player scrubber reveals on hover and seeks on drag',
+    (tester) async {
+      tester.view.physicalSize = const Size(1200, 160);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final engine = StaticPlaybackEngine(
+        _snapshot(PlaybackPhase.paused, track: _track),
+      );
+      final playback = SoundPlaybackController(engine: engine);
+      final interactions = <bool>[];
+      var openCount = 0;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: SoundTheme.light,
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.bottomCenter,
+              child: NotificationListener<ProgressScrubInteractionNotification>(
+                onNotification: (notification) {
+                  interactions.add(notification.active);
+                  return false;
+                },
+                child: MiniPlayer(
+                  playback: playback,
+                  compact: false,
+                  docked: true,
+                  onOpen: () => openCount++,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final scrubber = tester.widget<ProgressScrubber>(
+        find.byKey(const ValueKey('mini-player-progress')),
+      );
+      expect(scrubber.interactive, isTrue);
+      expect(scrubber.hoverReveal, isTrue);
+      final surface = tester.widget<SoundGlassSurface>(
+        find.descendant(
+          of: find.byType(MiniPlayer),
+          matching: find.byType(SoundGlassSurface),
+        ),
+      );
+      expect(surface.clip, isTrue);
+
+      final band = find.byKey(const ValueKey('progress-scrubber-hit-target'));
+      // Idle state: no time bubble and no hover reveal yet.
+      expect(find.text('1:30'), findsNothing);
+
+      final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await mouse.addPointer(location: const Offset(10, 10));
+      await tester.pump();
+
+      // Hovering the middle of the track reveals the thumb + time bubble.
+      final center = tester.getCenter(band);
+      await mouse.moveTo(center);
+      await tester.pump();
+      expect(find.text('1:30'), findsOneWidget);
+
+      // A scrubber tap seeks but must not bubble into the dock's open action.
+      await mouse.down(center);
+      await tester.pump();
+      await mouse.up();
+      await tester.pump();
+      expect(openCount, 0);
+
+      // Dragging to 75% moves the bubble and commits a seek on release.
+      await mouse.down(center);
+      await tester.pump();
+      await mouse.moveTo(Offset(center.dx + 300, center.dy));
+      await tester.pump();
+      expect(interactions, contains(true));
+      expect(find.text('2:15'), findsOneWidget);
+      await mouse.up();
+      await tester.pump();
+      expect(engine.seekPositions, isNotEmpty);
+      expect(engine.seekPositions.last, const Duration(seconds: 135));
+      // Releasing the drag hides the preview, but the controller must keep
+      // the committed target visible even though this paused test engine does
+      // not publish a follow-up position snapshot.
+      expect(playback.displayPosition, const Duration(seconds: 135));
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      playback.dispose();
+      engine.dispose();
+    },
+  );
 
   testWidgets('landscape tablet uses wide margins across player styles', (
     tester,

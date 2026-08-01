@@ -3,7 +3,6 @@ import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/scheduler.dart';
 
 import '../../core/sound_theme.dart';
 
@@ -40,6 +39,9 @@ class ProgressScrubber extends StatefulWidget {
     this.minInteractiveHeight = 44,
     this.trackVerticalOffset = 0,
     this.interactive = true,
+    this.hoverReveal = false,
+    this.hoverTrackHeight,
+    this.timeBubbleBuilder,
     super.key,
   });
 
@@ -60,20 +62,35 @@ class ProgressScrubber extends StatefulWidget {
   final double trackVerticalOffset;
   final bool interactive;
 
+  /// Mini-player style: a thin track by default that grows and reveals a
+  /// thumb (plus an optional time bubble) while the pointer hovers or drags.
+  final bool hoverReveal;
+
+  /// Track height while hovered/dragging in [hoverReveal] mode.
+  final double? hoverTrackHeight;
+
+  /// Renders a time label above the thumb while hovering/dragging. The
+  /// returned widget is horizontally centered on the thumb and clamped to the
+  /// scrubber width; it may overflow above the widget bounds (use a
+  /// non-clipping ancestor if that is intended).
+  final Widget Function(BuildContext context, Duration time)? timeBubbleBuilder;
+
   @override
   State<ProgressScrubber> createState() => _ProgressScrubberState();
 }
 
 class _ProgressScrubberState extends State<ProgressScrubber> {
-  static const _settleToleranceMs = 800.0;
-  static const _settleTimeout = Duration(milliseconds: 1500);
-
   double? _previewMilliseconds;
-  Timer? _settleTimer;
+  // The committed seek target remains the visual playback position until the
+  // source position catches up. Unlike [_previewMilliseconds], this does not
+  // keep the drag affordance visible.
+  double? _committedMilliseconds;
   bool _dragging = false;
   bool _interactionNotified = false;
   bool _globalRouteInstalled = false;
   int? _activePointer;
+  bool _hovered = false;
+  double? _hoverFraction;
 
   final GlobalKey _hitKey = GlobalKey(debugLabel: 'progress-scrubber-hit');
 
@@ -82,12 +99,22 @@ class _ProgressScrubberState extends State<ProgressScrubber> {
 
   double get _displayMs {
     final engine = widget.position.inMilliseconds.toDouble();
-    return (_previewMilliseconds ?? engine).clamp(0, _durationMs);
+    return (_previewMilliseconds ?? _committedMilliseconds ?? engine).clamp(
+      0,
+      _durationMs,
+    );
   }
 
   double get _fraction => widget.duration > Duration.zero
       ? (_displayMs / _durationMs).clamp(0.0, 1.0)
       : 0.0;
+
+  /// Thumb position: the drag preview when active, otherwise the hover
+  /// position, otherwise the playback fraction.
+  double get _thumbFraction {
+    if (_dragging || _previewMilliseconds != null) return _fraction;
+    return _hoverFraction ?? _fraction;
+  }
 
   void _notifyInteraction(bool active, {int? pointer}) {
     if (!active && !_interactionNotified) return;
@@ -141,12 +168,17 @@ class _ProgressScrubberState extends State<ProgressScrubber> {
     callback(ms == null ? null : Duration(milliseconds: ms.round()));
   }
 
-  void _setFractionFromLocalDx(double dx) {
-    if (widget.duration <= Duration.zero) return;
+  double? _fractionFromDx(double dx) {
+    if (widget.duration <= Duration.zero) return null;
     final box = _hitKey.currentContext?.findRenderObject() as RenderBox?;
     final width = box?.size.width ?? 0;
-    if (width <= 0) return;
-    final fraction = (dx / width).clamp(0.0, 1.0);
+    if (width <= 0) return null;
+    return (dx / width).clamp(0.0, 1.0);
+  }
+
+  void _setFractionFromLocalDx(double dx) {
+    final fraction = _fractionFromDx(dx);
+    if (fraction == null) return;
     final ms = fraction * _durationMs;
     if (_previewMilliseconds != null &&
         (ms - _previewMilliseconds!).abs() < 0.5) {
@@ -158,23 +190,12 @@ class _ProgressScrubberState extends State<ProgressScrubber> {
 
   Future<void> _commitSeek(double valueMs) async {
     final target = Duration(milliseconds: valueMs.round());
-    if (mounted) {
-      setState(() => _previewMilliseconds = valueMs);
-    } else {
-      _previewMilliseconds = valueMs;
-    }
-    _emitPreview(valueMs);
-    try {
-      await widget.onSeek(target);
-    } finally {
-      _settleTimer?.cancel();
-      _settleTimer = Timer(_settleTimeout, () {
-        if (mounted && _previewMilliseconds == valueMs && !_dragging) {
-          setState(() => _previewMilliseconds = null);
-          _emitPreview(null);
-        }
-      });
-    }
+    await widget.onSeek(target);
+  }
+
+  bool _engineHasSettled(double targetMs) {
+    final engineMs = widget.position.inMilliseconds.toDouble();
+    return (engineMs - targetMs).abs() <= 800.0;
   }
 
   void _beginDrag(int pointer, Offset globalPosition) {
@@ -195,51 +216,42 @@ class _ProgressScrubberState extends State<ProgressScrubber> {
     _dragging = false;
     _removeGlobalRoute();
     _notifyInteraction(false);
-    if (commit && preview != null && widget.duration > Duration.zero) {
-      unawaited(_commitSeek(preview));
+    // Preview is only a drag affordance. Once the pointer is released, turn it
+    // into a committed playback position and hide the drag chrome. The
+    // playback controller normally publishes the same pending seek; the local
+    // committed value bridges the async gap and prevents a snap-back if its
+    // source position is temporarily stale.
+    final shouldCommit =
+        commit && preview != null && widget.duration > Duration.zero;
+    if (mounted) {
+      setState(() {
+        _previewMilliseconds = null;
+        if (shouldCommit) _committedMilliseconds = preview;
+      });
     } else {
-      // Cancelled drag — drop preview so labels fall back to engine.
-      _emitPreview(null);
+      _previewMilliseconds = null;
+      if (shouldCommit) _committedMilliseconds = preview;
+    }
+    _emitPreview(null);
+    if (shouldCommit) {
+      unawaited(_commitSeek(preview));
     }
   }
 
   @override
   void didUpdateWidget(covariant ProgressScrubber oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final preview = _previewMilliseconds;
-    if (preview == null || _dragging) return;
-    final engineValue = widget.position.inMilliseconds.toDouble();
-    if ((engineValue - preview).abs() <= _settleToleranceMs) {
-      _settleTimer?.cancel();
-      // Clear field only — build() follows didUpdateWidget. Do not setState
-      // or synchronously notify the parent: ancestors (e.g. AnimatedBuilder)
-      // may already be building when position catches the scrub target.
-      _previewMilliseconds = null;
-      _emitPreviewDeferred(null);
+    final committed = _committedMilliseconds;
+    if (committed == null || _dragging) return;
+    if (widget.duration <= Duration.zero || _engineHasSettled(committed)) {
+      // The engine has taken ownership of the final position. The visual
+      // value remains unchanged; only the fallback source is released.
+      _committedMilliseconds = null;
     }
-  }
-
-  /// Notify [onPreviewChanged] after the current frame when we may be inside
-  /// a parent build (didUpdateWidget / dispose).
-  void _emitPreviewDeferred(double? ms) {
-    final callback = widget.onPreviewChanged;
-    if (callback == null) return;
-    final value = ms == null ? null : Duration(milliseconds: ms.round());
-    final phase = SchedulerBinding.instance.schedulerPhase;
-    if (phase == SchedulerPhase.idle ||
-        phase == SchedulerPhase.postFrameCallbacks) {
-      callback(value);
-      return;
-    }
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted && ms != null) return;
-      callback(value);
-    });
   }
 
   @override
   void dispose() {
-    _settleTimer?.cancel();
     _removeGlobalRoute();
     if (_dragging || _interactionNotified) {
       _dragging = false;
@@ -268,34 +280,156 @@ class _ProgressScrubberState extends State<ProgressScrubber> {
       );
     }
 
+    if (widget.hoverReveal) {
+      return _buildHoverReveal(
+        context,
+        enabled: enabled,
+        activeColor: activeColor,
+        inactiveColor: inactiveColor,
+      );
+    }
+
     final height = math.max(widget.minInteractiveHeight, 44.0);
     final thumbR = widget.thumbRadius;
 
     return Padding(
       padding: widget.padding ?? EdgeInsets.zero,
-      child: Listener(
+      child: GestureDetector(
+        // Claim taps inside the scrubber so an ancestor (for example the
+        // dock's whole-bar onTap) cannot also open the now-playing screen.
         behavior: HitTestBehavior.opaque,
-        onPointerDown: enabled
-            ? (event) => _beginDrag(event.pointer, event.position)
-            : null,
-        // Move/up handled by the global route so vertical drift off the
-        // 44px band does not kill the scrub.
-        child: SizedBox(
-          key: _hitKey,
-          height: height,
-          width: double.infinity,
-          child: CustomPaint(
-            key: const ValueKey('progress-scrubber-hit-target'),
-            painter: _ScrubberPainter(
-              fraction: fraction,
-              trackHeight: widget.trackHeight,
-              thumbRadius: thumbR,
-              activeColor: activeColor,
-              inactiveColor: inactiveColor,
-              showThumb: enabled,
-              verticalOffset: widget.trackVerticalOffset,
+        onTap: () {},
+        child: Listener(
+          behavior: HitTestBehavior.opaque,
+          onPointerDown: enabled
+              ? (event) => _beginDrag(event.pointer, event.position)
+              : null,
+          // Move/up handled by the global route so vertical drift off the
+          // 44px band does not kill the scrub.
+          child: SizedBox(
+            key: _hitKey,
+            height: height,
+            width: double.infinity,
+            child: CustomPaint(
+              key: const ValueKey('progress-scrubber-hit-target'),
+              painter: _ScrubberPainter(
+                fraction: fraction,
+                trackHeight: widget.trackHeight,
+                thumbRadius: thumbR,
+                activeColor: activeColor,
+                inactiveColor: inactiveColor,
+                showThumb: enabled,
+                verticalOffset: widget.trackVerticalOffset,
+              ),
             ),
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildHoverReveal(
+    BuildContext context, {
+    required bool enabled,
+    required Color activeColor,
+    required Color inactiveColor,
+  }) {
+    final fraction = _fraction;
+    final reveal = _hovered || _dragging || _previewMilliseconds != null;
+    final trackHeight = reveal
+        ? (widget.hoverTrackHeight ?? widget.trackHeight + 3)
+        : widget.trackHeight;
+    final showThumb = enabled && reveal;
+    final height = math.max(widget.minInteractiveHeight, 16.0);
+    final thumbFraction = _thumbFraction;
+    final bubbleBuilder = widget.timeBubbleBuilder;
+    final bubbleTime = Duration(
+      milliseconds: (thumbFraction * _durationMs).round(),
+    );
+
+    return MouseRegion(
+      cursor: enabled ? SystemMouseCursors.click : MouseCursor.defer,
+      onEnter: enabled ? (_) => setState(() => _hovered = true) : null,
+      onExit: enabled
+          ? (_) => setState(() {
+              _hovered = false;
+              _hoverFraction = null;
+            })
+          : null,
+      onHover: enabled
+          ? (event) {
+              final dx = _localDxFromGlobal(event.position);
+              if (dx == null) return;
+              setState(() => _hoverFraction = _fractionFromDx(dx));
+            }
+          : null,
+      child: Padding(
+        padding: widget.padding ?? EdgeInsets.zero,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final width = constraints.maxWidth;
+            final thumbX = (thumbFraction * width).clamp(
+              widget.thumbRadius,
+              math.max(widget.thumbRadius, width - widget.thumbRadius),
+            );
+            final alignX = width > 0
+                ? ((thumbX / (width / 2)) - 1).clamp(-1.0, 1.0)
+                : 0.0;
+            return SizedBox(
+              key: _hitKey,
+              height: height,
+              width: double.infinity,
+              child: Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  Positioned.fill(
+                    child: GestureDetector(
+                      // Prevent the dock's parent tap recognizer from
+                      // interpreting a scrubber click as "open now playing".
+                      behavior: HitTestBehavior.opaque,
+                      onTap: () {},
+                      child: Listener(
+                        behavior: HitTestBehavior.opaque,
+                        onPointerDown: enabled
+                            ? (event) =>
+                                  _beginDrag(event.pointer, event.position)
+                            : null,
+                        // Move/up handled by the global route so vertical
+                        // drift off the thin band does not kill the scrub.
+                        child: CustomPaint(
+                          key: const ValueKey('progress-scrubber-hit-target'),
+                          painter: _ScrubberPainter(
+                            fraction: fraction,
+                            thumbFraction: thumbFraction,
+                            trackHeight: trackHeight,
+                            thumbRadius: widget.thumbRadius,
+                            activeColor: activeColor,
+                            inactiveColor: inactiveColor,
+                            showThumb: showThumb,
+                            // Hovered/dragging track sits a touch lower so the
+                            // thicker track and thumb stay inside the bar.
+                            verticalOffset:
+                                widget.trackVerticalOffset + (reveal ? 3 : 0),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (showThumb && bubbleBuilder != null)
+                    Positioned.fill(
+                      // Display-only: the bubble must never steal pointer
+                      // events from the track underneath.
+                      child: IgnorePointer(
+                        child: Align(
+                          alignment: Alignment(alignX, -1),
+                          child: bubbleBuilder(context, bubbleTime),
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            );
+          },
         ),
       ),
     );
@@ -305,6 +439,7 @@ class _ProgressScrubberState extends State<ProgressScrubber> {
 class _ScrubberPainter extends CustomPainter {
   _ScrubberPainter({
     required this.fraction,
+    this.thumbFraction,
     required this.trackHeight,
     required this.thumbRadius,
     required this.activeColor,
@@ -314,6 +449,7 @@ class _ScrubberPainter extends CustomPainter {
   });
 
   final double fraction;
+  final double? thumbFraction;
   final double trackHeight;
   final double thumbRadius;
   final Color activeColor;
@@ -325,30 +461,31 @@ class _ScrubberPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     final maxOffset = math.max(
       0.0,
-      size.height / 2 - math.max(thumbRadius, trackHeight / 2),
+      // The thumb keeps the track away from the widget edge when visible; a
+      // hidden thumb (thin mini-player track) may sit flush at the top.
+      size.height / 2 -
+          (showThumb
+              ? math.max(thumbRadius, trackHeight / 2)
+              : trackHeight / 2),
     );
     final cy = size.height / 2 + verticalOffset.clamp(-maxOffset, maxOffset);
     final trackTop = cy - trackHeight / 2;
-    final radius = Radius.circular(trackHeight);
-    final trackRect = RRect.fromRectAndRadius(
-      Rect.fromLTWH(0, trackTop, size.width, trackHeight),
-      radius,
-    );
-    canvas.drawRRect(trackRect, Paint()..color = inactiveColor);
+    final trackRect = Rect.fromLTWH(0, trackTop, size.width, trackHeight);
+    canvas.drawRect(trackRect, Paint()..color = inactiveColor);
 
     final activeWidth = (size.width * fraction).clamp(0.0, size.width);
     if (activeWidth > 0) {
-      canvas.drawRRect(
-        RRect.fromRectAndRadius(
-          Rect.fromLTWH(0, trackTop, activeWidth, trackHeight),
-          radius,
-        ),
+      canvas.drawRect(
+        Rect.fromLTWH(0, trackTop, activeWidth, trackHeight),
         Paint()..color = activeColor,
       );
     }
 
     if (!showThumb) return;
-    final thumbX = activeWidth.clamp(thumbRadius, size.width - thumbRadius);
+    final thumbX = ((thumbFraction ?? fraction) * size.width).clamp(
+      thumbRadius,
+      size.width - thumbRadius,
+    );
     canvas.drawCircle(
       Offset(thumbX, cy),
       thumbRadius,
@@ -359,6 +496,7 @@ class _ScrubberPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _ScrubberPainter oldDelegate) {
     return oldDelegate.fraction != fraction ||
+        oldDelegate.thumbFraction != thumbFraction ||
         oldDelegate.trackHeight != trackHeight ||
         oldDelegate.thumbRadius != thumbRadius ||
         oldDelegate.activeColor != activeColor ||

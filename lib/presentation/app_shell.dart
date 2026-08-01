@@ -1069,10 +1069,15 @@ class _AppShellState extends State<AppShell>
             // Always extend body under the bottom chrome so the canvas
             // continues behind the mini player / mobile dock. The default
             final shell = Scaffold(
+              backgroundColor: Colors.transparent,
               extendBody: true,
               body: Stack(
                 children: [
-                  Positioned.fill(
+                  Positioned(
+                    top: 0,
+                    right: 0,
+                    bottom: 0,
+                    left: desktop ? sidebarWidth : 0,
                     child: DecoratedBox(
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
@@ -1723,9 +1728,20 @@ class _Sidebar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final usesNativeBackdrop =
+        !kIsWeb && defaultTargetPlatform == TargetPlatform.macOS;
     return SoundGlassSurface(
       strong: true,
-      color: context.soundChromeSurface,
+      // Keep the same dense surface language as the mini player while letting
+      // a restrained amount of native behind-window color show through.
+      color: usesNativeBackdrop
+          ? context.soundGlass.strongSurface.withValues(
+              alpha: Theme.of(context).brightness == Brightness.dark
+                  ? 0.76
+                  : 0.86,
+            )
+          : context.soundChromeSurface,
+      blur: !usesNativeBackdrop,
       borderRadius: BorderRadius.zero,
       shadowOffset: const Offset(1, 0),
       shadowBlur: 6,

@@ -39,6 +39,7 @@ class SoundGlassSurface extends StatelessWidget {
     this.shadowBlur,
     this.color,
     this.borderColor,
+    this.clip = true,
     super.key,
   });
 
@@ -52,6 +53,11 @@ class SoundGlassSurface extends StatelessWidget {
   final double? shadowBlur;
   final Color? color;
   final Color? borderColor;
+
+  /// Whether child overflow is clipped to [borderRadius]. Disable for
+  /// edge-flush surfaces that intentionally paint above their bounds (for
+  /// example the docked mini player's hover time bubble).
+  final bool clip;
 
   @override
   Widget build(BuildContext context) {
@@ -70,20 +76,23 @@ class SoundGlassSurface extends StatelessWidget {
       ),
       child: Padding(padding: padding ?? EdgeInsets.zero, child: child),
     );
-    final clipped = ClipRRect(
-      borderRadius: borderRadius,
-      // Keep this node in the tree when keyboard insets change. Swapping the
-      // wrapper out remounts any descendant TextField, drops its focus, and
-      // makes Android immediately hide the keyboard it just opened.
-      child: BackdropFilter(
-        enabled: useBackdropBlur,
-        filter: ImageFilter.blur(
-          sigmaX: strong ? glass.strongBlur : glass.blur,
-          sigmaY: strong ? glass.strongBlur : glass.blur,
-        ),
-        child: surface,
+    final blurred = BackdropFilter(
+      enabled: useBackdropBlur,
+      filter: ImageFilter.blur(
+        sigmaX: strong ? glass.strongBlur : glass.blur,
+        sigmaY: strong ? glass.strongBlur : glass.blur,
       ),
+      child: surface,
     );
+    final clipped = clip
+        ? ClipRRect(
+            borderRadius: borderRadius,
+            // Keep this node in the tree when keyboard insets change. Swapping
+            // the wrapper out remounts any descendant TextField, drops its
+            // focus, and makes Android immediately hide the keyboard.
+            child: blurred,
+          )
+        : blurred;
     if (!showShadow) return clipped;
     return DecoratedBox(
       decoration: BoxDecoration(

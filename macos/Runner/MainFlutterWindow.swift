@@ -1,18 +1,60 @@
 import Cocoa
+import CoreImage
 import FlutterMacOS
 
 class MainFlutterWindow: NSWindow {
   /// Brand `layoutMetrics.desktopWindow` — keep side rail (medium min / wide default).
   private let minContentSize = NSSize(width: 1024, height: 700)
   private let defaultContentSize = NSSize(width: 1280, height: 800)
+  private let sidebarMaterialWidth: CGFloat = 236
 
   private var localDirectoryAccessPlugin: LocalDirectoryAccessPlugin?
   private var launchScreenBridge: LaunchScreenBridge?
 
   override func awakeFromNib() {
     let flutterViewController = FlutterViewController()
-    self.contentViewController = flutterViewController
-    self.backgroundColor = LaunchScreenView.backgroundColor
+    let containerViewController = NSViewController()
+    let containerView = NSView()
+    let sidebarVibrancy = PassThroughVisualEffectView()
+
+    containerView.wantsLayer = true
+    containerView.layer?.backgroundColor = NSColor.clear.cgColor
+    // Codex's light sidebar keeps a bright milky base even over dark windows.
+    // Force the light sidebar appearance, then let Flutter add the final veil.
+    sidebarVibrancy.material = .sidebar
+    sidebarVibrancy.appearance = NSAppearance(named: .vibrantLight)
+    sidebarVibrancy.blendingMode = .behindWindow
+    // Keep the blur/color response stable when another application is focused.
+    sidebarVibrancy.state = .active
+    sidebarVibrancy.wantsLayer = true
+    if let colorControls = CIFilter(name: "CIColorControls") {
+      // Keep neutral backdrops neutral while allowing saturated windows to
+      // tint the milky veil, matching the color bleed in the Codex reference.
+      colorControls.setValue(1.8, forKey: kCIInputSaturationKey)
+      sidebarVibrancy.layer?.filters = [colorControls]
+    }
+    sidebarVibrancy.translatesAutoresizingMaskIntoConstraints = false
+    flutterViewController.backgroundColor = .clear
+    flutterViewController.view.translatesAutoresizingMaskIntoConstraints = false
+
+    containerView.addSubview(sidebarVibrancy)
+    containerView.addSubview(flutterViewController.view)
+    containerViewController.view = containerView
+    containerViewController.addChild(flutterViewController)
+    NSLayoutConstraint.activate([
+      sidebarVibrancy.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
+      sidebarVibrancy.topAnchor.constraint(equalTo: containerView.topAnchor),
+      sidebarVibrancy.bottomAnchor.constraint(equalTo: containerView.bottomAnchor),
+      sidebarVibrancy.widthAnchor.constraint(equalToConstant: sidebarMaterialWidth),
+      flutterViewController.view.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
+      flutterViewController.view.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
+      flutterViewController.view.topAnchor.constraint(equalTo: containerView.topAnchor),
+      flutterViewController.view.bottomAnchor.constraint(equalTo: containerView.bottomAnchor),
+    ])
+
+    self.contentViewController = containerViewController
+    self.isOpaque = false
+    self.backgroundColor = .clear
     self.contentMinSize = minContentSize
     self.minSize = self.frameRect(
       forContentRect: NSRect(origin: .zero, size: minContentSize)
@@ -36,13 +78,18 @@ class MainFlutterWindow: NSWindow {
     RegisterGeneratedPlugins(registry: flutterViewController)
     launchScreenBridge = LaunchScreenBridge(
       messenger: flutterViewController.engine.binaryMessenger,
-      containerView: flutterViewController.view)
+      containerView: containerView)
     localDirectoryAccessPlugin = LocalDirectoryAccessPlugin(
       messenger: flutterViewController.engine.binaryMessenger,
       window: self)
 
     super.awakeFromNib()
   }
+}
+
+/// The vibrancy layer only paints the backdrop. Flutter owns all interaction.
+private final class PassThroughVisualEffectView: NSVisualEffectView {
+  override func hitTest(_ point: NSPoint) -> NSView? { nil }
 }
 
 private final class LaunchScreenBridge {

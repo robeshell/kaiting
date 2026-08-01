@@ -746,11 +746,7 @@ class _DesktopAlbumActionButton extends StatelessWidget {
     }
     return FilledButton.icon(
       onPressed: onPressed,
-      icon: Transform.translate(
-        // Fluent 图标字形的墨迹偏向 em 盒上半区，微调使其与文字垂直居中。
-        offset: const Offset(0, 1.5),
-        child: Icon(icon),
-      ),
+      icon: Icon(icon),
       label: Text(label, maxLines: 1),
       style: style,
     );

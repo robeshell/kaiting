@@ -1047,7 +1047,8 @@ void main() {
     );
     expect(restoredProgress.position, const Duration(milliseconds: 60000));
     expect(restoredProgress.duration, const Duration(milliseconds: 180000));
-    expect(restoredProgress.interactive, isFalse);
+    expect(restoredProgress.interactive, isTrue);
+    expect(restoredProgress.hoverReveal, isTrue);
     expect(find.byIcon(KaitingIcons.playMini), findsOneWidget);
 
     await _unmountAndFlush(tester);
@@ -1541,9 +1542,15 @@ void main() {
     final toggleCenter = tester.getCenter(
       find.byKey(const ValueKey('mini-player-playback-toggle')),
     );
-    // Top progress track is 3pt tall and flush to the dock edge.
+    // Top progress band is flush to the dock edge; the visible track stays
+    // 3pt thin while the widget carries a taller hover hit area.
     expect(progressRect.top, closeTo(rect.top, 0.5));
-    expect(progressRect.height, closeTo(3, 0.5));
+    expect(progressRect.height, closeTo(20, 0.5));
+    final scrubber = tester.widget<ProgressScrubber>(
+      find.byKey(const ValueKey('mini-player-progress')),
+    );
+    expect(scrubber.trackHeight, 3);
+    expect(scrubber.trackVerticalOffset, closeTo(-8.5, 0.5));
     expect((toggleCenter.dy - rect.center.dy).abs(), lessThan(8));
 
     await _unmountAndFlush(tester);
@@ -1966,11 +1973,12 @@ void main() {
     engine.dispose();
   });
 
-  testWidgets('scrubber holds the seek preview until the engine catches up', (
+  testWidgets('scrubber releases the preview after committing a seek', (
     tester,
   ) async {
     var positionMs = 10000;
     Duration? sought;
+    Duration? preview;
     late StateSetter rebuild;
 
     await tester.pumpWidget(
@@ -1983,6 +1991,7 @@ void main() {
                 position: Duration(milliseconds: positionMs),
                 duration: const Duration(seconds: 100),
                 onSeek: (target) => sought = target,
+                onPreviewChanged: (value) => preview = value,
               );
             },
           ),
@@ -2005,15 +2014,11 @@ void main() {
     expect(target, isNotNull);
     expect(target!.inMilliseconds, greaterThan(positionMs));
 
-    // The engine still reports the pre-seek position. Preview must keep the
-    // committed target until position ticks catch up (no snap-back).
+    // The drag affordance is released immediately after the seek is committed.
     rebuild(() {});
     await tester.pump();
-    // Re-open seek target still held until parent position advances.
     expect(sought, target);
-
-    rebuild(() => positionMs = target.inMilliseconds);
-    await tester.pump();
+    expect(preview, isNull);
     expect(tester.takeException(), isNull);
 
     await _unmountAndFlush(tester);
@@ -2061,24 +2066,29 @@ void main() {
       final hit = find.byKey(const ValueKey('progress-scrubber-hit-target'));
       final start = tester.getTopLeft(hit);
       final size = tester.getSize(hit);
-      await tester.timedDragFrom(
+      final gesture = await tester.startGesture(
         start + Offset(size.width * 0.1, size.height / 2),
-        Offset(size.width * 0.6, 0),
-        const Duration(milliseconds: 250),
       );
+      await gesture.moveBy(Offset(size.width * 0.6, 0));
       await tester.pump();
 
-      expect(sought, isNotNull);
-      expect(
-        sought!.inMilliseconds,
-        greaterThan(enginePosition.inMilliseconds),
-      );
-      // Label must have left the frozen engine time while (or after) the drag.
+      // Label must leave the frozen engine time while the pointer is down.
       expect(find.text('0:10'), findsNothing);
       final label = tester.widget<Text>(
         find.byKey(const ValueKey('scrub-preview-label')),
       );
       expect(label.data, isNot(equals('0:10')));
+
+      await gesture.up();
+      await tester.pump();
+      expect(sought, isNotNull);
+      expect(
+        sought!.inMilliseconds,
+        greaterThan(enginePosition.inMilliseconds),
+      );
+      // The frozen engine owns the value again after release; production
+      // playback publishes the pending seek immediately in this same moment.
+      expect(find.text('0:10'), findsOneWidget);
       expect(tester.takeException(), isNull);
 
       await _unmountAndFlush(tester);
