@@ -1,12 +1,11 @@
 // GENERATED FILE — DO NOT EDIT.
 // Source: kai-brand-design/tokens/*.json
-// specVersion: 0.7.0 · sha256: 7658f9fe04cc246e759573e0360570533d58f1ccba65fc3510b2aff5bc915a40
+// specVersion: 0.7.1 · sha256: 997bd0f0aa4bee02e5783b77270971cc0fd01e4ebf0c0b71c5fc391e7b0cba99
 
 import 'package:flutter/material.dart';
 
-const kaiBrandSpecVersion = '0.7.0';
-const kaiBrandTokenDigest =
-    '7658f9fe04cc246e759573e0360570533d58f1ccba65fc3510b2aff5bc915a40';
+const kaiBrandSpecVersion = '0.7.1';
+const kaiBrandTokenDigest = '997bd0f0aa4bee02e5783b77270971cc0fd01e4ebf0c0b71c5fc391e7b0cba99';
 
 abstract final class KaiBrandBasePalette {
   static const mainBackground = Color(0xFFF7F9FC);
@@ -601,7 +600,7 @@ abstract final class KaiProductTokens {
   static const double typographyShellBrandTitle = 17.0;
   static const double typographyPlaybackQueueMetadata = 12.0;
   static const double typographyPlaybackQueueTitleCompact = 16.0;
-  static const double typographyPlaybackQueueTitleWide = 22.0;
+  static const double typographyPlaybackQueueTitleWide = 20.0;
   static const double typographyLaunchLockupTitle = 24.0;
   static const double typographyLaunchLockupSubtitle = 14.0;
   static const double typographyLaunchFailureTitle = 20.0;

@@ -469,8 +469,8 @@ class _Hero extends StatelessWidget {
           );
         }
 
-        final artworkSize = (constraints.maxWidth * 0.36)
-            .clamp(280.0, 420.0)
+        final artworkSize = (constraints.maxWidth * 0.24)
+            .clamp(200.0, 256.0)
             .toDouble();
         final buttonWidth = constraints.maxWidth >= 1040 ? 146.0 : 132.0;
         final horizontalGap = constraints.maxWidth >= 1000 ? 48.0 : 32.0;
@@ -746,7 +746,11 @@ class _DesktopAlbumActionButton extends StatelessWidget {
     }
     return FilledButton.icon(
       onPressed: onPressed,
-      icon: Icon(icon),
+      icon: Transform.translate(
+        // Fluent 图标字形的墨迹偏向 em 盒上半区，微调使其与文字垂直居中。
+        offset: const Offset(0, 1.5),
+        child: Icon(icon),
+      ),
       label: Text(label, maxLines: 1),
       style: style,
     );

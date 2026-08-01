@@ -1,13 +1,18 @@
 import 'dart:async';
 
+import 'package:drift/native.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:kaiting/core/now_playing_style.dart';
 import 'package:kaiting/core/sound_theme.dart';
 import 'package:kaiting/domain/library_models.dart';
+import 'package:kaiting/library/persistence/drift_library_repository.dart';
+import 'package:kaiting/library/persistence/library_database.dart';
 import 'package:kaiting/playback/playback_controller.dart';
 import 'package:kaiting/playback/playback_engine.dart';
+import 'package:kaiting/presentation/controllers/library_catalog_controller.dart';
+import 'package:kaiting/presentation/controllers/library_user_state_controller.dart';
 import 'package:kaiting/presentation/screens/now_playing_screen.dart';
 import 'package:kaiting/presentation/widgets/mini_player.dart';
 import 'package:kaiting/presentation/widgets/playback_visual_state.dart';
@@ -132,7 +137,7 @@ void main() {
       );
       final toggleIcon = tester.widget<Icon>(toggleIconFinder);
       expect(toggleIcon.icon, KaitingIcons.playMini);
-      expect(toggleIcon.size, compact ? 24 : 28);
+      expect(toggleIcon.size, compact ? 24 : (docked ? 32 : 28));
       expect(toggleIcon.color, SoundColors.accent.withValues(alpha: 0.96));
       expect(
         toggleButton.style?.backgroundColor?.resolve(<WidgetState>{}),
@@ -140,7 +145,10 @@ void main() {
       );
       final nextIconFinder = find.byIcon(KaitingIcons.nextMini);
       expect(nextIconFinder, findsOneWidget);
-      expect(tester.widget<Icon>(nextIconFinder).size, compact ? 20 : 23);
+      expect(
+        tester.widget<Icon>(nextIconFinder).size,
+        compact ? 20 : (docked ? 20 : 23),
+      );
       if (compact) {
         expect(
           tester.getCenter(nextIconFinder).dx -
@@ -158,6 +166,9 @@ void main() {
       embedded: false,
     );
     expect(find.byIcon(KaitingIcons.previousMini), findsOneWidget);
+    expect(find.byKey(const ValueKey('mini-player-mode-cycle')), findsOneWidget);
+    expect(find.byKey(const ValueKey('mini-player-queue')), findsOneWidget);
+    expect(find.byTooltip('打开播放队列'), findsNothing);
     expect(tester.widget<Text>(find.text(_track.title)).style?.fontSize, 16);
 
     // Phone: preserve metadata space; play and next remain.
@@ -197,6 +208,73 @@ void main() {
       const EdgeInsets.symmetric(horizontal: 8, vertical: 5),
     );
     expect(tester.takeException(), isNull);
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    playback.dispose();
+    engine.dispose();
+  });
+
+  testWidgets('docked mini player keeps favorite right beside track identity', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 160);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final engine = StaticPlaybackEngine(
+      _snapshot(PlaybackPhase.paused, track: _track),
+    );
+    final playback = SoundPlaybackController(engine: engine);
+    final repository = DriftLibraryRepository(
+      LibraryDatabase(NativeDatabase.memory()),
+    );
+    addTearDown(repository.close);
+    final catalog = LibraryCatalogController(repository: repository);
+    final userState = LibraryUserStateController(
+      repository: repository,
+      catalog: catalog,
+    );
+    addTearDown(() {
+      userState.dispose();
+      catalog.dispose();
+    });
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: SoundTheme.light,
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.bottomCenter,
+            child: MiniPlayer(
+              playback: playback,
+              userState: userState,
+              compact: false,
+              docked: true,
+              onOpen: () {},
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+
+    final title = find.text(_track.title);
+    final metadata = find.text('${_track.artist} — ${_track.albumTitle}');
+    final favorite = find.byTooltip('收藏歌曲');
+    expect(title, findsOneWidget);
+    expect(metadata, findsOneWidget);
+    expect(favorite, findsOneWidget);
+    // The identity block shrink-wraps to its widest line (title or artist).
+    final blockRight = [
+      tester.getRect(title).right,
+      tester.getRect(metadata).right,
+    ].reduce((a, b) => a > b ? a : b);
+    // The icon button has zero padding, so only the small SizedBox gap plus
+    // the track-identity side padding may separate text from icon.
+    expect(
+      tester.getRect(favorite).left - blockRight,
+      inInclusiveRange(0, 24),
+    );
 
     await tester.pumpWidget(const SizedBox.shrink());
     playback.dispose();
@@ -335,7 +413,7 @@ void main() {
     expect(popup, findsOneWidget);
     expect(tester.getSize(popup), const Size(44, 132));
 
-    await tester.tap(find.byTooltip('打开播放队列'));
+    await tester.tap(find.byKey(const ValueKey('mini-player-queue')));
     await tester.pump();
     expect(queueOpenCount, 1);
 

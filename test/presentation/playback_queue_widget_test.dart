@@ -575,7 +575,7 @@ void main() {
     final artworkSize = tester.getSize(
       find.byKey(const ValueKey('album-detail-artwork')),
     );
-    expect(artworkSize.width, inInclusiveRange(280, 420));
+    expect(artworkSize.width, inInclusiveRange(200, 256));
     expect(
       tester
           .getSize(find.byKey(const ValueKey('album-track-row-first')))

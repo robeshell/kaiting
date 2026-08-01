@@ -134,7 +134,12 @@ class PlaybackQueuePanel extends StatelessWidget {
                   TextButton(
                     onPressed: queue.isEmpty ? null : playback.clearQueue,
                     style: context.soundDestructiveButtonStyle,
-                    child: const Text('清空'),
+                    child: Text(
+                      '清空',
+                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
                   ),
                   if (onClose != null)
                     IconButton(

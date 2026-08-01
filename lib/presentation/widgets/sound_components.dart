@@ -421,7 +421,7 @@ class _SoundChoiceButton<T> extends StatelessWidget {
                 ],
                 Text(
                   option.label,
-                  style: Theme.of(context).textTheme.labelMedium?.copyWith(
+                  style: Theme.of(context).textTheme.labelSmall?.copyWith(
                     color: foreground,
                     fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
                   ),

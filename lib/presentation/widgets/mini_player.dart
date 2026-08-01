@@ -7,6 +7,7 @@ import '../../core/brand_tokens.g.dart';
 import '../../core/sound_theme.dart';
 import '../../domain/library_models.dart';
 import '../../playback/playback_controller.dart';
+import '../../playback/playback_mode.dart';
 import '../controllers/library_user_state_controller.dart';
 import 'album_art.dart';
 import 'animated_artwork_background.dart';
@@ -258,94 +259,102 @@ class _DockedMiniPlayer extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final identityWidth = (constraints.maxWidth * 0.22)
-            .clamp(170.0, 320.0)
-            .toDouble();
-        return Stack(
-          clipBehavior: Clip.hardEdge,
-          children: [
-            // Whole bar opens now-playing; nested buttons win the arena.
-            Positioned.fill(
-              child: GestureDetector(
-                key: const ValueKey('mini-player-open-now-playing'),
-                behavior: HitTestBehavior.opaque,
-                onTap: onOpen,
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 6, 16, 6),
-                  child: Row(
-                    children: [
-                      _MiniArtwork(album: album, dimension: 48),
-                      const SizedBox(width: 12),
-                      SizedBox(
-                        width: identityWidth,
-                        child: _TrackIdentity(
-                          track: track,
-                          visual: visual,
-                          prominent: false,
-                          titleSize: 16,
-                        ),
+    return Stack(
+      clipBehavior: Clip.hardEdge,
+      children: [
+        // Whole bar opens now-playing; nested buttons win the arena.
+        Positioned.fill(
+          child: GestureDetector(
+            key: const ValueKey('mini-player-open-now-playing'),
+            behavior: HitTestBehavior.opaque,
+            onTap: onOpen,
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 6, 16, 6),
+              child: Row(
+                children: [
+                  _MiniArtwork(album: album, dimension: 48),
+                  const SizedBox(width: 12),
+                  // Title/artist + favorite stay together as one shrink-wrapped
+                  // unit on the left; Expanded keeps the right-side controls
+                  // pinned to the bar edge (a loose Flexible would leave slack
+                  // that drags volume/lyrics toward the center).
+                  Expanded(
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          ConstrainedBox(
+                            constraints: const BoxConstraints(maxWidth: 320),
+                            child: _TrackIdentity(
+                              track: track,
+                              visual: visual,
+                              prominent: false,
+                              titleSize: 16,
+                            ),
+                          ),
+                          if (userState case final state?) ...[
+                            const SizedBox(width: 4),
+                            _MiniIconButton(
+                              icon: state.isFavorite(track.id)
+                                  ? KaitingIcons.favoriteFilled
+                                  : KaitingIcons.favorite,
+                              color: state.isFavorite(track.id)
+                                  ? SoundColors.accent
+                                  : null,
+                              tooltip: state.isFavorite(track.id)
+                                  ? '取消收藏'
+                                  : '收藏歌曲',
+                              onTap: () => unawaited(state.toggleFavorite(track)),
+                            ),
+                          ],
+                        ],
                       ),
-                      if (userState case final state?) ...[
-                        const SizedBox(width: 5),
-                        _MiniIconButton(
-                          icon: state.isFavorite(track.id)
-                              ? KaitingIcons.favoriteFilled
-                              : KaitingIcons.favorite,
-                          color: state.isFavorite(track.id)
-                              ? SoundColors.accent
-                              : null,
-                          tooltip: state.isFavorite(track.id) ? '取消收藏' : '收藏歌曲',
-                          onTap: () => unawaited(state.toggleFavorite(track)),
-                        ),
-                      ],
-                      const Spacer(),
-                      _VolumeControl(playback: playback),
-                      _MiniIconButton(
-                        icon: KaitingIcons.lyrics,
-                        tooltip: '打开歌词',
-                        onTap: onOpen,
-                      ),
-                      _MiniIconButton(
-                        icon: KaitingIcons.queue,
-                        tooltip: '打开播放队列',
-                        onTap: onOpenQueue ?? onOpen,
-                      ),
-                    ],
+                    ),
                   ),
-                ),
+                  _VolumeControl(playback: playback),
+                  _MiniIconButton(
+                    icon: KaitingIcons.lyrics,
+                    tooltip: '打开歌词',
+                    onTap: onOpen,
+                  ),
+                ],
               ),
             ),
-            Positioned.fill(
-              child: Align(
-                alignment: const Alignment(0, 0.12),
-                child: _TransportControls(playback: playback, visual: visual),
-              ),
+          ),
+        ),
+        Positioned.fill(
+          child: Align(
+            alignment: const Alignment(0, 0.12),
+            child: _TransportControls(
+              playback: playback,
+              visual: visual,
+              onOpen: onOpen,
+              onOpenQueue: onOpenQueue,
             ),
-            // Top progress is active-only and flush to the bar edge.
-            // Container height must match trackHeight: a taller box + center
-            // alignment leaves a white hairline above the accent fill.
-            Positioned(
-              left: 0,
-              right: 0,
-              top: 0,
-              height: 3,
-              child: ProgressScrubber(
-                key: const ValueKey('mini-player-progress'),
-                position: position,
-                duration: duration,
-                onSeek: playback.seek,
-                activeColor: SoundColors.accent,
-                inactiveColor: Colors.transparent,
-                trackHeight: 3,
-                padding: EdgeInsets.zero,
-                interactive: false,
-              ),
-            ),
-          ],
-        );
-      },
+          ),
+        ),
+        // Top progress is active-only and flush to the bar edge.
+        // Container height must match trackHeight: a taller box + center
+        // alignment leaves a white hairline above the accent fill.
+        Positioned(
+          left: 0,
+          right: 0,
+          top: 0,
+          height: 3,
+          child: ProgressScrubber(
+            key: const ValueKey('mini-player-progress'),
+            position: position,
+            duration: duration,
+            onSeek: playback.seek,
+            activeColor: SoundColors.accent,
+            inactiveColor: Colors.transparent,
+            trackHeight: 3,
+            padding: EdgeInsets.zero,
+            interactive: false,
+          ),
+        ),
+      ],
     );
   }
 }
@@ -550,23 +559,43 @@ class _TrackIdentity extends StatelessWidget {
 }
 
 class _TransportControls extends StatelessWidget {
-  const _TransportControls({required this.playback, required this.visual});
+  const _TransportControls({
+    required this.playback,
+    required this.visual,
+    required this.onOpen,
+    this.onOpenQueue,
+  });
 
   final SoundPlaybackController playback;
   final PlaybackVisualState visual;
+  final VoidCallback onOpen;
+  final VoidCallback? onOpenQueue;
 
   @override
   Widget build(BuildContext context) {
+    final sideColor = context.soundPrimaryText.withValues(alpha: 0.60);
     return SizedBox(
       height: 40,
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           _MiniIconButton(
+            key: const ValueKey('mini-player-mode-cycle'),
+            icon: playback.playbackMode.icon,
+            tooltip: playback.playbackMode.label,
+            color: sideColor,
+            onTap: () {
+              playback.cycleCombinedPlaybackMode();
+              showSoundSnackBar(context, playback.playbackMode.label);
+            },
+            size: 18,
+          ),
+          const SizedBox(width: 4),
+          _MiniIconButton(
             icon: KaitingIcons.previousMini,
             tooltip: '上一首',
             onTap: playback.previous,
-            size: 23,
+            size: 20,
           ),
           const SizedBox(width: 4),
           _MiniIconButton(
@@ -576,7 +605,7 @@ class _TransportControls extends StatelessWidget {
             onTap: visual.primaryEnabled ? playback.toggle : null,
             busy: visual.busy && !visual.primaryEnabled,
             prominent: true,
-            size: _miniPrimaryIconSize(visual),
+            size: _dockedPrimaryIconSize(visual),
             opticalOffset: _miniPrimaryOpticalOffset(visual),
           ),
           const SizedBox(width: 4),
@@ -584,7 +613,16 @@ class _TransportControls extends StatelessWidget {
             icon: KaitingIcons.nextMini,
             tooltip: '下一首',
             onTap: playback.next,
-            size: 23,
+            size: 20,
+          ),
+          const SizedBox(width: 4),
+          _MiniIconButton(
+            key: const ValueKey('mini-player-queue'),
+            icon: KaitingIcons.queue,
+            tooltip: '播放清单',
+            color: sideColor,
+            onTap: onOpenQueue ?? onOpen,
+            size: 18,
           ),
         ],
       ),
@@ -611,6 +649,17 @@ double _miniPrimaryIconSize(
     PlaybackPrimaryVisual.replay ||
     PlaybackPrimaryVisual.retry => compact ? 20 : 22,
     PlaybackPrimaryVisual.none => compact ? 18 : 20,
+  };
+}
+
+double _dockedPrimaryIconSize(PlaybackVisualState visual) {
+  return switch (visual.primaryVisual) {
+    PlaybackPrimaryVisual.play => 32,
+    // Two solid pause bars carry more visual mass than the play triangle.
+    PlaybackPrimaryVisual.pause => 26,
+    PlaybackPrimaryVisual.replay ||
+    PlaybackPrimaryVisual.retry => 25,
+    PlaybackPrimaryVisual.none => 22,
   };
 }
 
