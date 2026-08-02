@@ -400,7 +400,7 @@ class _MiniPlayerTimeBubble extends StatelessWidget {
             formatDuration(current),
             style: TextStyle(
               color: context.soundPrimaryText,
-              fontSize: 11,
+              fontSize: context.soundComponentProfile.captionSmallSize,
               fontWeight: FontWeight.w600,
               height: 1.2,
               fontFeatures: const [FontFeature.tabularFigures()],
@@ -410,7 +410,7 @@ class _MiniPlayerTimeBubble extends StatelessWidget {
             ' / ',
             style: TextStyle(
               color: context.soundMutedText,
-              fontSize: 11,
+              fontSize: context.soundComponentProfile.captionSmallSize,
               fontWeight: FontWeight.w500,
               height: 1.2,
             ),
@@ -420,7 +420,7 @@ class _MiniPlayerTimeBubble extends StatelessWidget {
             formatDuration(total),
             style: TextStyle(
               color: context.soundSecondaryText,
-              fontSize: 11,
+              fontSize: context.soundComponentProfile.captionSmallSize,
               fontWeight: FontWeight.w600,
               height: 1.2,
               fontFeatures: const [FontFeature.tabularFigures()],

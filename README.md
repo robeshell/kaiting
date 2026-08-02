@@ -2,7 +2,7 @@
 
 本地与 WebDAV 音乐播放器。封面与歌词优先，界面克制。
 
-Flutter · 当前版本 **1.0.8** · 包名 `com.kaiting.player`
+Flutter · 当前版本 **1.0.15+18** · 包名 `com.kaiting.player`
 
 | | |
 |---|---|
@@ -12,7 +12,8 @@ Flutter · 当前版本 **1.0.8** · 包名 `com.kaiting.player`
 | 更新日志 | [CHANGELOG.md](CHANGELOG.md) |
 | 文档索引 | [docs/README.md](docs/README.md) |
 | 设计 | [DESIGN.md](DESIGN.md) · [`kai-brand-design`](https://github.com/robeshell/kai-brand-design) |
-| 架构 / 路线图 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · [docs/ROADMAP.md](docs/ROADMAP.md) |
+| 当前状态 | [docs/STATUS.md](docs/STATUS.md) |
+| 架构 / 路线 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · [docs/ROADMAP.md](docs/ROADMAP.md) |
 
 ## 平台
 
