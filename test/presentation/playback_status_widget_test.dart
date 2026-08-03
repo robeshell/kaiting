@@ -4,6 +4,7 @@ import 'package:drift/native.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:kaiting/core/brand_tokens.g.dart';
 import 'package:kaiting/core/now_playing_style.dart';
 import 'package:kaiting/core/sound_theme.dart';
 import 'package:kaiting/domain/library_models.dart';
@@ -83,7 +84,10 @@ void main() {
         matching: find.byType(SoundGlassSurface),
       ),
     );
-    expect(miniPlayerSurface.color?.a, closeTo(0.80, 0.01));
+    expect(
+      miniPlayerSurface.color,
+      KaiBrandDeepNightSkin.glassChromeSurface,
+    );
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(const SizedBox.shrink());
     playback.dispose();
@@ -434,6 +438,45 @@ void main() {
       engine.dispose();
     },
   );
+
+  testWidgets('mini player progress follows position-only engine ticks', (
+    tester,
+  ) async {
+    final initial = _snapshot(PlaybackPhase.playing, track: _track);
+    final engine = StaticPlaybackEngine(initial);
+    final playback = SoundPlaybackController(engine: engine);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: SoundTheme.light,
+        home: Scaffold(
+          body: MiniPlayer(
+            playback: playback,
+            compact: false,
+            docked: true,
+            onOpen: () {},
+          ),
+        ),
+      ),
+    );
+
+    ProgressScrubber progress() => tester.widget<ProgressScrubber>(
+      find.byKey(const ValueKey('mini-player-progress')),
+    );
+    expect(progress().position, const Duration(seconds: 24));
+
+    // A normal playback tick is intentionally not a structural controller
+    // notification. The mini-player timeline must listen to positionListenable
+    // directly or it remains frozen while the song is playing.
+    engine.emit(initial.copyWith(position: const Duration(seconds: 45)));
+    await tester.pump();
+
+    expect(progress().position, const Duration(seconds: 45));
+
+    await tester.pumpWidget(const SizedBox.shrink());
+    playback.dispose();
+    engine.dispose();
+  });
 
   testWidgets('docked scrub bubble follows the dark theme', (tester) async {
     tester.view.physicalSize = const Size(1200, 160);
@@ -838,7 +881,7 @@ const _longTrack = Track(
 class StaticPlaybackEngine implements PlaybackEngine {
   StaticPlaybackEngine(this._current);
 
-  final PlaybackSnapshot _current;
+  PlaybackSnapshot _current;
   final StreamController<PlaybackSnapshot> _snapshots =
       StreamController<PlaybackSnapshot>.broadcast(sync: true);
   final List<Duration> seekPositions = [];
@@ -849,6 +892,11 @@ class StaticPlaybackEngine implements PlaybackEngine {
 
   @override
   Stream<PlaybackSnapshot> get snapshots => _snapshots.stream;
+
+  void emit(PlaybackSnapshot snapshot) {
+    _current = snapshot;
+    _snapshots.add(snapshot);
+  }
 
   @override
   Future<void> load(Track track, {required int sessionId}) async {}

@@ -4,8 +4,8 @@ import 'package:flutter/services.dart';
 import '../core/brand_tokens.g.dart';
 
 const kaitingLaunchBackground = KaiBrandDefaultSkin.elevated;
-const kaitingLaunchTitleColor = Color(0xFF1C1C22);
-const kaitingLaunchSubtitleColor = Color(0xFF70707A);
+const kaitingLaunchTitleColor = KaiBrandDefaultSkin.glassPrimaryText;
+const kaitingLaunchSubtitleColor = KaiBrandDefaultSkin.glassMutedText;
 
 class KaitingLaunchApp extends StatelessWidget {
   const KaitingLaunchApp({super.key});

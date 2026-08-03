@@ -706,7 +706,8 @@ class _ImmersiveAlbumAction extends StatelessWidget {
                   alpha: palette.useLightText ? 0.20 : 0.14,
                 )
               : palette.controlSurface,
-          disabledForegroundColor: palette.primaryText.withValues(alpha: 0.38),
+          disabledForegroundColor:
+              palette.primaryText.withValues(alpha: soundDisabledForegroundOpacity),
           disabledBackgroundColor: palette.controlSurface.withValues(
             alpha: 0.45,
           ),
@@ -828,7 +829,9 @@ class _TrackRow extends StatelessWidget {
           color: active
               ? compact && pagePalette != null
                     ? pagePalette!.controlSurface
-                    : SoundColors.accent.withValues(alpha: 0.035)
+                    : SoundColors.accent.withValues(
+                        alpha: soundListTileSelectedOpacity,
+                      )
               : Colors.transparent,
           border: Border(
             bottom: BorderSide(

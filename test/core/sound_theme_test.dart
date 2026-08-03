@@ -39,11 +39,22 @@ void main() {
     expect(SoundColors.accentPresets.map((preset) => preset.accent), const [
       Color(0xFFFF5A4D),
       Color(0xFFD95770),
-      Color(0xFF6673C7),
+      Color(0xFF5A66B8),
       Color(0xFF3F9E98),
       Color(0xFFC7842F),
       Color(0xFF8067BC),
     ]);
+    expect(
+      SoundColors.accentPresets.map((preset) => preset.onAccent),
+      const [
+        Color(0xFF1C1C22),
+        Color(0xFF141418),
+        Color(0xFFFFFFFF),
+        Color(0xFF1C1C22),
+        Color(0xFF1C1C22),
+        Color(0xFFFFFFFF),
+      ],
+    );
   });
 
   test('custom accents derive readable interaction states', () {
@@ -99,13 +110,13 @@ void main() {
     );
     expect(glass, isNotNull);
     expect(glass?.canvasHighlight, Colors.white);
-    expect(glass?.surface.a, closeTo(0.72, 0.01));
-    expect(glass?.strongSurface.a, closeTo(0.87, 0.01));
-    expect(soundChromeSurfaceTransparency, 0.20);
-    expect(soundChromeSurfaceOpacity, closeTo(0.80, 0.001));
+    expect(glass?.surface.a, closeTo(0.85, 0.01));
+    expect(glass?.strongSurface.a, closeTo(0.90, 0.01));
+    expect(glass?.chromeSurface, KaiBrandDefaultSkin.glassChromeSurface);
+    expect(glass?.chromeSurface.a, closeTo(0.88, 0.01));
     expect(glass?.primaryText, const Color(0xFF1C1C22));
     expect(glass?.secondaryText, const Color(0xFF5A5A62));
-    expect(glass?.mutedText, const Color(0xFF77747D));
+    expect(glass?.mutedText, const Color(0xFF64616A));
     expect(glass?.blur, 20);
     expect(glass?.strongBlur, 28);
     expect(theme.chipTheme.disabledColor?.a, lessThan(0.04));
@@ -167,7 +178,7 @@ void main() {
     );
     expect(
       theme.listTileTheme.selectedTileColor,
-      SoundColors.accent.withValues(alpha: 0.035),
+      SoundColors.accent.withValues(alpha: soundListTileSelectedOpacity),
     );
     expect(theme.focusColor, primaryText.withValues(alpha: 0.065));
   });

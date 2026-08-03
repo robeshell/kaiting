@@ -1,11 +1,11 @@
 // GENERATED FILE — DO NOT EDIT.
 // Source: kai-brand-design/tokens/*.json
-// specVersion: 0.7.2 · sha256: ef91f9507033c88c8ef72147328570561045a739094bf87f91d4fd3a93b5713a
+// specVersion: 0.8.0 · sha256: b2fd457b866c415b5f723cdd422f16ef8e82d91a42117b5768c67f34caae24de
 
 import 'package:flutter/material.dart';
 
-const kaiBrandSpecVersion = '0.7.2';
-const kaiBrandTokenDigest = 'ef91f9507033c88c8ef72147328570561045a739094bf87f91d4fd3a93b5713a';
+const kaiBrandSpecVersion = '0.8.0';
+const kaiBrandTokenDigest = 'b2fd457b866c415b5f723cdd422f16ef8e82d91a42117b5768c67f34caae24de';
 
 abstract final class KaiBrandBasePalette {
   static const mainBackground = Color(0xFFF7F9FC);
@@ -85,15 +85,15 @@ abstract final class KaiBrandMobileType {
   static const double displayLargeSize = 34.0;
   static const double displayLargeLineHeight = 42.0;
   static const int displayLargeWeight = 600;
-  static const double displayLargeLetterSpacing = 0.0;
+  static const double displayLargeLetterSpacing = -0.2;
   static const double pageTitleSize = 28.0;
   static const double pageTitleLineHeight = 36.0;
   static const int pageTitleWeight = 600;
-  static const double pageTitleLetterSpacing = 0.0;
+  static const double pageTitleLetterSpacing = -0.2;
   static const double sectionTitleSize = 22.0;
   static const double sectionTitleLineHeight = 28.0;
   static const int sectionTitleWeight = 600;
-  static const double sectionTitleLetterSpacing = 0.0;
+  static const double sectionTitleLetterSpacing = -0.15;
   static const double titleSize = 17.0;
   static const double titleLineHeight = 24.0;
   static const int titleWeight = 600;
@@ -107,15 +107,15 @@ abstract final class KaiBrandMobileType {
   static const int inputTextWeight = 400;
   static const double inputTextLetterSpacing = 0.0;
   static const double bodySecondarySize = 15.0;
-  static const double bodySecondaryLineHeight = 20.0;
+  static const double bodySecondaryLineHeight = 22.0;
   static const int bodySecondaryWeight = 400;
   static const double bodySecondaryLetterSpacing = 0.0;
-  static const double listTitleSize = 14.0;
-  static const double listTitleLineHeight = 20.0;
+  static const double listTitleSize = 15.0;
+  static const double listTitleLineHeight = 22.0;
   static const int listTitleWeight = 500;
   static const double listTitleLetterSpacing = 0.0;
-  static const double gridTitleSize = 14.0;
-  static const double gridTitleLineHeight = 20.0;
+  static const double gridTitleSize = 15.0;
+  static const double gridTitleLineHeight = 22.0;
   static const int gridTitleWeight = 500;
   static const double gridTitleLetterSpacing = 0.0;
   static const double labelSize = 16.0;
@@ -126,7 +126,7 @@ abstract final class KaiBrandMobileType {
   static const double captionLineHeight = 18.0;
   static const int captionWeight = 400;
   static const double captionLetterSpacing = 0.0;
-  static const double captionSmallSize = 11.0;
+  static const double captionSmallSize = 12.0;
   static const double captionSmallLineHeight = 16.0;
   static const int captionSmallWeight = 500;
   static const double captionSmallLetterSpacing = 0.0;
@@ -148,15 +148,15 @@ abstract final class KaiBrandDesktopType {
   static const double displayLargeSize = 32.0;
   static const double displayLargeLineHeight = 40.0;
   static const int displayLargeWeight = 600;
-  static const double displayLargeLetterSpacing = 0.0;
+  static const double displayLargeLetterSpacing = -0.2;
   static const double pageTitleSize = 24.0;
   static const double pageTitleLineHeight = 32.0;
   static const int pageTitleWeight = 600;
-  static const double pageTitleLetterSpacing = 0.0;
+  static const double pageTitleLetterSpacing = -0.2;
   static const double sectionTitleSize = 18.0;
   static const double sectionTitleLineHeight = 24.0;
   static const int sectionTitleWeight = 600;
-  static const double sectionTitleLetterSpacing = 0.0;
+  static const double sectionTitleLetterSpacing = -0.1;
   static const double titleSize = 14.0;
   static const double titleLineHeight = 20.0;
   static const int titleWeight = 600;
@@ -189,7 +189,7 @@ abstract final class KaiBrandDesktopType {
   static const double captionLineHeight = 16.0;
   static const int captionWeight = 400;
   static const double captionLetterSpacing = 0.0;
-  static const double captionSmallSize = 11.0;
+  static const double captionSmallSize = 12.0;
   static const double captionSmallLineHeight = 16.0;
   static const int captionSmallWeight = 500;
   static const double captionSmallLetterSpacing = 0.0;
@@ -479,14 +479,15 @@ abstract final class KaiBrandDefaultSkin {
   static const elevated = Color(0xFFFFFFFF);
   static const overlay = Color(0xFFF1F2F4);
   static const glassCanvasHighlight = Color(0xFFFBFBFC);
-  static const glassSurface = Color(0xB8FFFFFF);
-  static const glassStrongSurface = Color(0xDEFFFFFF);
+  static const glassSurface = Color(0xD9FFFFFF);
+  static const glassStrongSurface = Color(0xE6FFFFFF);
+  static const glassChromeSurface = Color(0xE0FFFFFF);
   static const glassBorder = Color(0x12000000);
   static const glassInnerHighlight = Color(0x8CFFFFFF);
   static const glassShadow = Color(0x17000000);
   static const glassPrimaryText = Color(0xFF1C1C22);
   static const glassSecondaryText = Color(0xFF5A5A62);
-  static const glassMutedText = Color(0xFF77747D);
+  static const glassMutedText = Color(0xFF64616A);
   static const double glassBlur = 20.0;
   static const double glassStrongBlur = 28.0;
   static const int effectMotionDurationS = 14;
@@ -507,12 +508,13 @@ abstract final class KaiBrandPureSkin {
   static const glassCanvasHighlight = Color(0xFFF8FBFF);
   static const glassSurface = Color(0xFFFFFFFF);
   static const glassStrongSurface = Color(0xFFFFFFFF);
+  static const glassChromeSurface = Color(0xFFFFFFFF);
   static const glassBorder = Color(0x1F526174);
   static const glassInnerHighlight = Color(0xFFFFFFFF);
   static const glassShadow = Color(0x00000000);
   static const glassPrimaryText = Color(0xFF18202A);
   static const glassSecondaryText = Color(0xFF536171);
-  static const glassMutedText = Color(0xFF718092);
+  static const glassMutedText = Color(0xFF5A6473);
   static const double glassBlur = 0.0;
   static const double glassStrongBlur = 0.0;
   static const int effectMotionDurationS = 26;
@@ -531,14 +533,15 @@ abstract final class KaiBrandDeepNightSkin {
   static const elevated = Color(0xFF202024);
   static const overlay = Color(0xFF29292E);
   static const glassCanvasHighlight = Color(0xFF17171A);
-  static const glassSurface = Color(0xB817171A);
-  static const glassStrongSurface = Color(0xE6202024);
+  static const glassSurface = Color(0xD917171A);
+  static const glassStrongSurface = Color(0xEB202024);
+  static const glassChromeSurface = Color(0xE6202024);
   static const glassBorder = Color(0x1CFFFFFF);
   static const glassInnerHighlight = Color(0x1FFFFFFF);
   static const glassShadow = Color(0x6B000000);
   static const glassPrimaryText = Color(0xFFF7F3F4);
-  static const glassSecondaryText = Color(0x99FFFFFF);
-  static const glassMutedText = Color(0xB3FFFFFF);
+  static const glassSecondaryText = Color(0xB8FFFFFF);
+  static const glassMutedText = Color(0x8CFFFFFF);
   static const double glassBlur = 20.0;
   static const double glassStrongBlur = 28.0;
   static const int effectMotionDurationS = 18;
@@ -551,36 +554,49 @@ abstract final class KaiBrandDeepNightSkin {
   static const double effectShadowScale = 1.12;
 }
 
+abstract final class KaiBrandFocusRing {
+  static const double width = 2.0;
+  static const double offset = 2.0;
+  static const colorRole = 'accent';
+  static const fallbackColorRole = 'primaryText';
+}
+
 abstract final class KaiProductAccents {
   static const defaultId = 'coral';
   static const coralId = 'coral';
   static const coralLabel = '珊瑚';
   static const coral = Color(0xFFFF5A4D);
+  static const coralOnAccent = Color(0xFF1C1C22);
   static const coralHover = Color(0xFFFF7567);
   static const coralPressed = Color(0xFFE3483E);
   static const roseId = 'rose';
   static const roseLabel = '玫瑰';
   static const rose = Color(0xFFD95770);
+  static const roseOnAccent = Color(0xFF141418);
   static const roseHover = Color(0xFFE66C82);
   static const rosePressed = Color(0xFFBF465D);
   static const indigoId = 'indigo';
   static const indigoLabel = '靛蓝';
-  static const indigo = Color(0xFF6673C7);
-  static const indigoHover = Color(0xFF7884D2);
-  static const indigoPressed = Color(0xFF5360AE);
+  static const indigo = Color(0xFF5A66B8);
+  static const indigoOnAccent = Color(0xFFFFFFFF);
+  static const indigoHover = Color(0xFF717BC2);
+  static const indigoPressed = Color(0xFF4E59A0);
   static const tealId = 'teal';
   static const tealLabel = '青绿';
   static const teal = Color(0xFF3F9E98);
+  static const tealOnAccent = Color(0xFF1C1C22);
   static const tealHover = Color(0xFF51ADA7);
   static const tealPressed = Color(0xFF338781);
   static const amberId = 'amber';
   static const amberLabel = '暖金';
   static const amber = Color(0xFFC7842F);
+  static const amberOnAccent = Color(0xFF1C1C22);
   static const amberHover = Color(0xFFD4953F);
   static const amberPressed = Color(0xFFAB6E24);
   static const violetId = 'violet';
   static const violetLabel = '紫罗兰';
   static const violet = Color(0xFF8067BC);
+  static const violetOnAccent = Color(0xFFFFFFFF);
   static const violetHover = Color(0xFF9279C8);
   static const violetPressed = Color(0xFF6D54A5);
 }

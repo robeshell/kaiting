@@ -222,7 +222,7 @@ class PlaybackQueuePanel extends StatelessWidget {
                               decoration: BoxDecoration(
                                 color: active
                                     ? SoundColors.accent.withValues(
-                                        alpha: 0.035,
+                                        alpha: soundListTileSelectedOpacity,
                                       )
                                     : Colors.transparent,
                                 border: Border(

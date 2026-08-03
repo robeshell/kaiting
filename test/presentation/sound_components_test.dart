@@ -492,7 +492,10 @@ void main() {
         matching: find.byType(SoundGlassSurface),
       ),
     );
-    expect(navigationSurface.color?.a, closeTo(0.80, 0.01));
+    expect(
+      navigationSurface.color,
+      KaiBrandDeepNightSkin.glassChromeSurface,
+    );
     await tester.tap(find.text('打开'));
     await tester.pumpAndSettle();
 

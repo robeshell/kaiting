@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -302,8 +304,10 @@ class SoundShellModeOverride extends InheritedWidget {
 
 const soundMacOSTitlebarInset = KaiBrandLayout.macOSTitlebarInset;
 const soundWindowsTitlebarHeight = KaiBrandLayout.windowsTitlebarInset;
-const soundChromeSurfaceTransparency = 0.20;
-const soundChromeSurfaceOpacity = 1 - soundChromeSurfaceTransparency;
+/// Disabled foreground: secondary × this alpha (brand `derivedAlphas.disabledForeground`).
+const soundDisabledForegroundOpacity = 0.55;
+/// List / surface accent wash (brand `derivedAlphas.selection.listTileSelected`).
+const soundListTileSelectedOpacity = 0.04;
 
 /// Keeps phone album covers comfortably tappable instead of adding a third
 /// narrow column when a wide phone crosses a fractional breakpoint.
@@ -341,11 +345,7 @@ extension SoundThemeContext on BuildContext {
 
   Color get soundMutedText => soundGlass.mutedText;
 
-  Color get soundChromeSurface {
-    return soundGlass.strongSurface.withValues(
-      alpha: soundChromeSurfaceOpacity,
-    );
-  }
+  Color get soundChromeSurface => soundGlass.chromeSurface;
 
   Color get soundDivider => soundColors.outlineVariant;
 
@@ -372,7 +372,7 @@ extension SoundThemeContext on BuildContext {
     return ButtonStyle(
       foregroundColor: WidgetStateProperty.resolveWith<Color>((states) {
         if (states.contains(WidgetState.disabled)) {
-          return error.withValues(alpha: 0.38);
+          return error.withValues(alpha: soundDisabledForegroundOpacity);
         }
         return error;
       }),
@@ -482,6 +482,7 @@ class AccentPreset {
     required this.accent,
     required this.accentHover,
     required this.accentPressed,
+    required this.onAccent,
   });
 
   final String id;
@@ -489,6 +490,7 @@ class AccentPreset {
   final Color accent;
   final Color accentHover;
   final Color accentPressed;
+  final Color onAccent;
 
   factory AccentPreset.custom(Color color) {
     final opaque = color.withValues(alpha: 1);
@@ -498,20 +500,56 @@ class AccentPreset {
       accent: opaque,
       accentHover: Color.lerp(opaque, Colors.white, 0.14)!,
       accentPressed: Color.lerp(opaque, Colors.black, 0.13)!,
+      onAccent: readableForeground(opaque),
     );
   }
 
-  static Color readableForeground(Color color) =>
-      ThemeData.estimateBrightnessForColor(color) == Brightness.dark
-      ? Colors.white
-      : const Color(0xFF1C1C22);
+  /// Fallback for custom accents: pick the candidate with the highest contrast.
+  /// Registered presets use brand `onAccent` tokens instead.
+  static Color readableForeground(Color color) {
+    const candidates = <Color>[
+      Colors.white,
+      Color(0xFF1C1C22),
+      Color(0xFF141418),
+    ];
+    Color best = candidates.first;
+    var bestRatio = 0.0;
+    for (final candidate in candidates) {
+      final ratio = _contrastRatio(candidate, color);
+      if (ratio > bestRatio) {
+        bestRatio = ratio;
+        best = candidate;
+      }
+    }
+    return best;
+  }
 
-  Color get onAccent => readableForeground(accent);
+  static double _relativeLuminance(Color color) {
+    // Color.r/g/b are 0–1 component values in current Flutter.
+    double channel(double c) {
+      return c <= 0.04045
+          ? c / 12.92
+          : math.pow((c + 0.055) / 1.055, 2.4).toDouble();
+    }
+
+    return 0.2126 * channel(color.r) +
+        0.7152 * channel(color.g) +
+        0.0722 * channel(color.b);
+  }
+
+  static double _contrastRatio(Color a, Color b) {
+    final l1 = _relativeLuminance(a);
+    final l2 = _relativeLuminance(b);
+    final lighter = l1 > l2 ? l1 : l2;
+    final darker = l1 > l2 ? l2 : l1;
+    return (lighter + 0.05) / (darker + 0.05);
+  }
 
   void apply() {
     SoundColors.accent = accent;
     SoundColors.accentHover = accentHover;
     SoundColors.accentPressed = accentPressed;
+    SoundColors.onAccent = onAccent;
   }
 }
 
@@ -522,11 +560,13 @@ abstract final class SoundColors {
     accent: KaiProductAccents.coral,
     accentHover: KaiProductAccents.coralHover,
     accentPressed: KaiProductAccents.coralPressed,
+    onAccent: KaiProductAccents.coralOnAccent,
   );
 
   static Color accent = defaultAccentPreset.accent;
   static Color accentHover = defaultAccentPreset.accentHover;
   static Color accentPressed = defaultAccentPreset.accentPressed;
+  static Color onAccent = defaultAccentPreset.onAccent;
   static const darkCanvas = KaiBrandDeepNightSkin.canvas;
   static const darkSurface = KaiBrandDeepNightSkin.surface;
   static const darkElevated = KaiBrandDeepNightSkin.elevated;
@@ -551,6 +591,7 @@ abstract final class SoundColors {
       accent: KaiProductAccents.rose,
       accentHover: KaiProductAccents.roseHover,
       accentPressed: KaiProductAccents.rosePressed,
+      onAccent: KaiProductAccents.roseOnAccent,
     ),
     AccentPreset(
       id: KaiProductAccents.indigoId,
@@ -558,6 +599,7 @@ abstract final class SoundColors {
       accent: KaiProductAccents.indigo,
       accentHover: KaiProductAccents.indigoHover,
       accentPressed: KaiProductAccents.indigoPressed,
+      onAccent: KaiProductAccents.indigoOnAccent,
     ),
     AccentPreset(
       id: KaiProductAccents.tealId,
@@ -565,6 +607,7 @@ abstract final class SoundColors {
       accent: KaiProductAccents.teal,
       accentHover: KaiProductAccents.tealHover,
       accentPressed: KaiProductAccents.tealPressed,
+      onAccent: KaiProductAccents.tealOnAccent,
     ),
     AccentPreset(
       id: KaiProductAccents.amberId,
@@ -572,6 +615,7 @@ abstract final class SoundColors {
       accent: KaiProductAccents.amber,
       accentHover: KaiProductAccents.amberHover,
       accentPressed: KaiProductAccents.amberPressed,
+      onAccent: KaiProductAccents.amberOnAccent,
     ),
     AccentPreset(
       id: KaiProductAccents.violetId,
@@ -579,6 +623,7 @@ abstract final class SoundColors {
       accent: KaiProductAccents.violet,
       accentHover: KaiProductAccents.violetHover,
       accentPressed: KaiProductAccents.violetPressed,
+      onAccent: KaiProductAccents.violetOnAccent,
     ),
   ];
 }
@@ -589,6 +634,7 @@ class SoundGlassTheme extends ThemeExtension<SoundGlassTheme> {
     required this.canvasHighlight,
     required this.surface,
     required this.strongSurface,
+    required this.chromeSurface,
     required this.border,
     required this.innerHighlight,
     required this.shadow,
@@ -603,6 +649,7 @@ class SoundGlassTheme extends ThemeExtension<SoundGlassTheme> {
     canvasHighlight: KaiBrandDefaultSkin.elevated,
     surface: KaiBrandDefaultSkin.glassSurface,
     strongSurface: KaiBrandDefaultSkin.glassStrongSurface,
+    chromeSurface: KaiBrandDefaultSkin.glassChromeSurface,
     border: KaiBrandDefaultSkin.glassBorder,
     innerHighlight: KaiBrandDefaultSkin.glassInnerHighlight,
     shadow: KaiBrandDefaultSkin.glassShadow,
@@ -617,6 +664,7 @@ class SoundGlassTheme extends ThemeExtension<SoundGlassTheme> {
     canvasHighlight: KaiBrandDeepNightSkin.glassCanvasHighlight,
     surface: KaiBrandDeepNightSkin.glassSurface,
     strongSurface: KaiBrandDeepNightSkin.glassStrongSurface,
+    chromeSurface: KaiBrandDeepNightSkin.glassChromeSurface,
     border: KaiBrandDeepNightSkin.glassBorder,
     innerHighlight: KaiBrandDeepNightSkin.glassInnerHighlight,
     shadow: KaiBrandDeepNightSkin.glassShadow,
@@ -630,6 +678,7 @@ class SoundGlassTheme extends ThemeExtension<SoundGlassTheme> {
   final Color canvasHighlight;
   final Color surface;
   final Color strongSurface;
+  final Color chromeSurface;
   final Color border;
   final Color innerHighlight;
   final Color shadow;
@@ -644,6 +693,7 @@ class SoundGlassTheme extends ThemeExtension<SoundGlassTheme> {
     Color? canvasHighlight,
     Color? surface,
     Color? strongSurface,
+    Color? chromeSurface,
     Color? border,
     Color? innerHighlight,
     Color? shadow,
@@ -657,6 +707,7 @@ class SoundGlassTheme extends ThemeExtension<SoundGlassTheme> {
       canvasHighlight: canvasHighlight ?? this.canvasHighlight,
       surface: surface ?? this.surface,
       strongSurface: strongSurface ?? this.strongSurface,
+      chromeSurface: chromeSurface ?? this.chromeSurface,
       border: border ?? this.border,
       innerHighlight: innerHighlight ?? this.innerHighlight,
       shadow: shadow ?? this.shadow,
@@ -675,6 +726,7 @@ class SoundGlassTheme extends ThemeExtension<SoundGlassTheme> {
       canvasHighlight: Color.lerp(canvasHighlight, other.canvasHighlight, t)!,
       surface: Color.lerp(surface, other.surface, t)!,
       strongSurface: Color.lerp(strongSurface, other.strongSurface, t)!,
+      chromeSurface: Color.lerp(chromeSurface, other.chromeSurface, t)!,
       border: Color.lerp(border, other.border, t)!,
       innerHighlight: Color.lerp(innerHighlight, other.innerHighlight, t)!,
       shadow: Color.lerp(shadow, other.shadow, t)!,
@@ -849,6 +901,7 @@ abstract final class SoundSkins {
       canvasHighlight: KaiBrandPureSkin.glassCanvasHighlight,
       surface: KaiBrandPureSkin.glassSurface,
       strongSurface: KaiBrandPureSkin.glassStrongSurface,
+      chromeSurface: KaiBrandPureSkin.glassChromeSurface,
       border: KaiBrandPureSkin.glassBorder,
       innerHighlight: KaiBrandPureSkin.glassInnerHighlight,
       shadow: KaiBrandPureSkin.glassShadow,
@@ -951,7 +1004,7 @@ abstract final class SoundTheme {
           surface: surface,
         ).copyWith(
           primary: SoundColors.accent,
-          onPrimary: AccentPreset.readableForeground(SoundColors.accent),
+          onPrimary: SoundColors.onAccent,
           error: dark
               ? KaiBrandStatusColors.errorDark
               : KaiBrandStatusColors.errorLight,
@@ -1045,7 +1098,7 @@ abstract final class SoundTheme {
     });
     final pillForeground = WidgetStateProperty.resolveWith<Color>((states) {
       if (states.contains(WidgetState.disabled)) {
-        return secondary.withValues(alpha: 0.38);
+        return secondary.withValues(alpha: soundDisabledForegroundOpacity);
       }
       return SoundColors.accent;
     });
@@ -1068,7 +1121,7 @@ abstract final class SoundTheme {
       splashColor: Colors.transparent,
       splashFactory: NoSplash.splashFactory,
       dividerColor: hairline,
-      disabledColor: secondary.withValues(alpha: 0.38),
+      disabledColor: secondary.withValues(alpha: soundDisabledForegroundOpacity),
       visualDensity: VisualDensity.standard,
       materialTapTargetSize: MaterialTapTargetSize.padded,
       extensions: <ThemeExtension<dynamic>>[glass, effects],
@@ -1285,7 +1338,7 @@ abstract final class SoundTheme {
           iconSize: const WidgetStatePropertyAll(KaiBrandIcons.regular),
           foregroundColor: WidgetStateProperty.resolveWith<Color>((states) {
             if (states.contains(WidgetState.disabled)) {
-              return secondary.withValues(alpha: 0.38);
+              return secondary.withValues(alpha: soundDisabledForegroundOpacity);
             }
             if (states.contains(WidgetState.selected)) {
               return SoundColors.accent;
@@ -1320,7 +1373,8 @@ abstract final class SoundTheme {
         iconColor: secondary,
         textColor: foreground,
         selectedColor: SoundColors.accent,
-        selectedTileColor: SoundColors.accent.withValues(alpha: 0.035),
+        selectedTileColor:
+            SoundColors.accent.withValues(alpha: soundListTileSelectedOpacity),
         contentPadding: const EdgeInsets.symmetric(horizontal: 14),
         minTileHeight: componentProfile.listRowSingle,
         minVerticalPadding: 6,

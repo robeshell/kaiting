@@ -56,7 +56,7 @@ Kaiting UI字号已完成从页面级硬编码向两层 token 收敛：通用层
 
 ### Text & Palette
 
-- 文字三档 `context.soundPrimaryText / soundSecondaryText / soundMutedText`；禁用 secondary@0.38；hairline 直接用 `soundDivider` 不衰减。
+- 文字三档 `context.soundPrimaryText / soundSecondaryText / soundMutedText`；禁用 `soundDisabledForegroundOpacity`（secondary@0.55）；chrome 用 `context.soundChromeSurface`（皮肤 chromeSurface token）；onAccent 用 accent preset 登记值；hairline 直接用 `soundDivider` 不衰减。
 - 封面取色 palette 只影响氛围背景与 hero 控件（内容层），不改变 chrome token。
 
 ## Typography

@@ -1832,13 +1832,13 @@ class _CustomAccentSwatch extends StatelessWidget {
                   ? null
                   : const SweepGradient(
                       colors: [
-                        Color(0xFFFF5A4D),
-                        Color(0xFFC7842F),
-                        Color(0xFF3F9E98),
-                        Color(0xFF6673C7),
-                        Color(0xFF8067BC),
-                        Color(0xFFD95770),
-                        Color(0xFFFF5A4D),
+                        KaiProductAccents.coral,
+                        KaiProductAccents.amber,
+                        KaiProductAccents.teal,
+                        KaiProductAccents.indigo,
+                        KaiProductAccents.violet,
+                        KaiProductAccents.rose,
+                        KaiProductAccents.coral,
                       ],
                     ),
               color: selected ? color : null,
