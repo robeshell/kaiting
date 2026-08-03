@@ -51,9 +51,6 @@ class MiniPlayer extends StatelessWidget {
           hasDisplayTrack: true,
         );
         final album = albumForTrack(track);
-        final position = playback.displayPosition;
-        final duration = playback.displayDuration;
-
         return _NowPlayingArtworkWarmup(
           album: album,
           compact: compact,
@@ -75,8 +72,6 @@ class MiniPlayer extends StatelessWidget {
                         userState: userState,
                         onOpen: onOpen,
                         onOpenQueue: onOpenQueue,
-                        position: position,
-                        duration: duration,
                       )
                     : _CondensedMiniPlayer(
                         track: track,
@@ -85,8 +80,6 @@ class MiniPlayer extends StatelessWidget {
                         playback: playback,
                         onOpen: onOpen,
                         onOpenQueue: onOpenQueue,
-                        position: position,
-                        duration: duration,
                         compact: compact,
                         embedded: embedded,
                         availableWidth: constraints.maxWidth,
@@ -246,8 +239,6 @@ class _DockedMiniPlayer extends StatelessWidget {
     required this.userState,
     required this.onOpen,
     required this.onOpenQueue,
-    required this.position,
-    required this.duration,
   });
 
   final Track track;
@@ -257,9 +248,6 @@ class _DockedMiniPlayer extends StatelessWidget {
   final LibraryUserStateController? userState;
   final VoidCallback onOpen;
   final VoidCallback? onOpenQueue;
-  final Duration position;
-  final Duration duration;
-
   @override
   Widget build(BuildContext context) {
     return Stack(
@@ -343,11 +331,8 @@ class _DockedMiniPlayer extends StatelessWidget {
           right: 0,
           top: 0,
           height: _dockedScrubberHitHeight,
-          child: ProgressScrubber(
-            key: const ValueKey('mini-player-progress'),
-            position: position,
-            duration: duration,
-            onSeek: playback.seek,
+          child: _MiniPlayerProgress(
+            playback: playback,
             activeColor: SoundColors.accent,
             inactiveColor: context.soundTint(0.1),
             trackHeight: 3,
@@ -357,11 +342,9 @@ class _DockedMiniPlayer extends StatelessWidget {
             // The 3px track is flush with the player's top edge. Its larger
             // invisible hit band extends downward into the dock.
             trackVerticalOffset: -8.5,
-            padding: EdgeInsets.zero,
             interactive: true,
             hoverReveal: true,
-            timeBubbleBuilder: (context, time) =>
-                _MiniPlayerTimeBubble(current: time, total: duration),
+            showTimeBubble: true,
           ),
         ),
       ],
@@ -440,8 +423,6 @@ class _CondensedMiniPlayer extends StatelessWidget {
     required this.playback,
     required this.onOpen,
     required this.onOpenQueue,
-    required this.position,
-    required this.duration,
     required this.compact,
     required this.embedded,
     required this.availableWidth,
@@ -453,8 +434,6 @@ class _CondensedMiniPlayer extends StatelessWidget {
   final SoundPlaybackController playback;
   final VoidCallback onOpen;
   final VoidCallback? onOpenQueue;
-  final Duration position;
-  final Duration duration;
   final bool compact;
   final bool embedded;
   final double availableWidth;
@@ -535,21 +514,80 @@ class _CondensedMiniPlayer extends StatelessWidget {
           left: 0,
           right: 0,
           bottom: 0,
-          child: ProgressScrubber(
-            key: const ValueKey('mini-player-progress'),
-            position: position,
-            duration: duration,
-            onSeek: playback.seek,
+          child: _MiniPlayerProgress(
+            playback: playback,
             activeColor: embedded
                 ? SoundColors.accent.withValues(alpha: 0.88)
                 : context.soundPrimaryText,
             inactiveColor: context.soundTint(embedded ? 0.075 : 0.12),
             trackHeight: embedded ? 1.5 : 2.5,
-            padding: EdgeInsets.zero,
             interactive: false,
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Keeps high-frequency playback clock ticks scoped to the progress bar.
+///
+/// [SoundPlaybackController] deliberately publishes position-only snapshots
+/// through [SoundPlaybackController.positionListenable] so album art, labels,
+/// and transport controls do not rebuild many times per second.
+class _MiniPlayerProgress extends StatelessWidget {
+  const _MiniPlayerProgress({
+    required this.playback,
+    required this.activeColor,
+    required this.inactiveColor,
+    required this.trackHeight,
+    this.hoverTrackHeight,
+    this.thumbRadius = 6,
+    this.minInteractiveHeight = 44,
+    this.trackVerticalOffset = 0,
+    required this.interactive,
+    this.hoverReveal = false,
+    this.showTimeBubble = false,
+  });
+
+  final SoundPlaybackController playback;
+  final Color activeColor;
+  final Color inactiveColor;
+  final double trackHeight;
+  final double? hoverTrackHeight;
+  final double thumbRadius;
+  final double minInteractiveHeight;
+  final double trackVerticalOffset;
+  final bool interactive;
+  final bool hoverReveal;
+  final bool showTimeBubble;
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: playback.positionListenable,
+      builder: (context, _) {
+        final duration = playback.displayDuration;
+        return ProgressScrubber(
+          key: const ValueKey('mini-player-progress'),
+          position: playback.displayPosition,
+          duration: duration,
+          onSeek: playback.seek,
+          activeColor: activeColor,
+          inactiveColor: inactiveColor,
+          trackHeight: trackHeight,
+          hoverTrackHeight: hoverTrackHeight,
+          thumbRadius: thumbRadius,
+          minInteractiveHeight: minInteractiveHeight,
+          trackVerticalOffset: trackVerticalOffset,
+          padding: EdgeInsets.zero,
+          interactive: interactive,
+          hoverReveal: hoverReveal,
+          timeBubbleBuilder: showTimeBubble
+              ? (context, time) =>
+                    _MiniPlayerTimeBubble(current: time, total: duration)
+              : null,
+        );
+      },
     );
   }
 }
