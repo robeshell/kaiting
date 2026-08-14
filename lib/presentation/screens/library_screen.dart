@@ -9,6 +9,7 @@ import 'package:pinyin/pinyin.dart';
 import '../../core/brand_tokens.g.dart';
 import '../../core/sound_theme.dart';
 import '../../domain/library_models.dart';
+import '../../playback/playback_controller.dart';
 import '../controllers/library_catalog_controller.dart';
 import '../controllers/library_user_state_controller.dart';
 import '../models/library_source_filter.dart';
@@ -64,6 +65,7 @@ class LibraryScreen extends StatefulWidget {
     required this.onOpenAlbum,
     required this.onOpenCollection,
     required this.onPlayTrack,
+    this.playback,
     this.userState,
     this.onOpenUserMode,
     required this.onManageSources,
@@ -76,6 +78,7 @@ class LibraryScreen extends StatefulWidget {
   final ValueChanged<Album> onOpenAlbum;
   final ValueChanged<LibraryCollection> onOpenCollection;
   final void Function(Track track, List<Track> queue) onPlayTrack;
+  final SoundPlaybackController? playback;
   final LibraryUserStateController? userState;
   final ValueChanged<LibraryUserBrowseMode>? onOpenUserMode;
   final VoidCallback onManageSources;
@@ -548,10 +551,8 @@ class _LibraryScreenState extends State<LibraryScreen> {
         context,
         albums: albums,
         initialIndex: index,
-        onPlayAlbum: (album) {
-          if (album.tracks.isEmpty) return;
-          widget.onPlayTrack(album.tracks.first, album.tracks);
-        },
+        onPlayTrack: widget.onPlayTrack,
+        playback: widget.playback,
         onOpenAlbum: widget.onOpenAlbum,
       ),
     );

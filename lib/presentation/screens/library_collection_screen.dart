@@ -100,10 +100,10 @@ class _LibraryCollectionScreenState extends State<LibraryCollectionScreen> {
         context,
         albums: albums,
         initialIndex: index < 0 ? 0 : index,
-        onPlayAlbum: (album) {
-          if (album.tracks.isEmpty) return;
-          widget.playback.playTrack(album.tracks.first, queue: album.tracks);
+        onPlayTrack: (track, queue) {
+          unawaited(widget.playback.playTrack(track, queue: queue));
         },
+        playback: widget.playback,
         onOpenAlbum: widget.onOpenAlbum,
       ),
     );
@@ -1033,8 +1033,9 @@ class _CollectionImmersiveAction extends StatelessWidget {
         style: IconButton.styleFrom(
           foregroundColor: palette.primaryText,
           backgroundColor: surface,
-          disabledForegroundColor:
-              palette.primaryText.withValues(alpha: soundDisabledForegroundOpacity),
+          disabledForegroundColor: palette.primaryText.withValues(
+            alpha: soundDisabledForegroundOpacity,
+          ),
           disabledBackgroundColor: surface.withValues(alpha: 0.45),
           shape: const CircleBorder(),
         ),

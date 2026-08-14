@@ -1008,6 +1008,7 @@ class _AppShellState extends State<AppShell>
                           ? LibraryScreen(
                               catalog: _libraryCatalog,
                               userState: _libraryUserState,
+                              playback: widget.playback,
                               mode: _libraryBrowseMode,
                               onModeChanged: _selectLibraryMode,
                               onOpenAlbum: _openAlbum,

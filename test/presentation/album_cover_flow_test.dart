@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -7,9 +9,12 @@ import 'package:kaiting/domain/library_models.dart';
 import 'package:kaiting/library/library_records.dart';
 import 'package:kaiting/library/persistence/drift_library_repository.dart';
 import 'package:kaiting/library/persistence/library_database.dart';
+import 'package:kaiting/playback/playback_controller.dart';
+import 'package:kaiting/playback/playback_engine.dart';
 import 'package:kaiting/presentation/controllers/library_catalog_controller.dart';
 import 'package:kaiting/presentation/screens/library_screen.dart';
 import 'package:kaiting/presentation/widgets/album_cover_flow.dart';
+import 'package:kaiting/presentation/widgets/ipod_album_flip_card.dart';
 
 void main() {
   group('coverFlowPlacement', () {
@@ -72,54 +77,71 @@ void main() {
       expect(dragging.rotateY, closeTo(-0.4 * kCoverFlowMaxAngle, 0.001));
     });
 
-    test('maps a stage tap to the nearest cover, not just a one-step nudge', () {
+    test('flipped track list is larger than the cover it sits over', () {
       const coverSize = 200.0;
-      const stageWidth = 800.0;
-      expect(
-        coverFlowIndexAtX(
-          localX: 400,
-          stageWidth: stageWidth,
-          page: 0,
-          albumCount: 6,
-          coverSize: coverSize,
-        ),
-        0,
+      final list = coverFlowFlipListSize(
+        coverSize: coverSize,
+        stageSize: const Size(800, 600),
       );
-      final first =
-          400 + coverFlowPlacement(offset: 1, coverSize: coverSize).translateX;
-      final third =
-          400 + coverFlowPlacement(offset: 3, coverSize: coverSize).translateX;
-      expect(
-        coverFlowIndexAtX(
-          localX: first,
-          stageWidth: stageWidth,
-          page: 0,
-          albumCount: 6,
-          coverSize: coverSize,
-        ),
-        1,
-      );
-      expect(
-        coverFlowIndexAtX(
-          localX: third,
-          stageWidth: stageWidth,
-          page: 0,
-          albumCount: 6,
-          coverSize: coverSize,
-        ),
-        3,
-      );
+      expect(list.width, greaterThan(coverSize));
+      expect(list.height, greaterThan(coverSize));
+      expect(list.width, lessThanOrEqualTo(800));
+      expect(list.height, lessThanOrEqualTo(600));
     });
+
+    test(
+      'maps a stage tap to the nearest cover, not just a one-step nudge',
+      () {
+        const coverSize = 200.0;
+        const stageWidth = 800.0;
+        expect(
+          coverFlowIndexAtX(
+            localX: 400,
+            stageWidth: stageWidth,
+            page: 0,
+            albumCount: 6,
+            coverSize: coverSize,
+          ),
+          0,
+        );
+        final first =
+            400 +
+            coverFlowPlacement(offset: 1, coverSize: coverSize).translateX;
+        final third =
+            400 +
+            coverFlowPlacement(offset: 3, coverSize: coverSize).translateX;
+        expect(
+          coverFlowIndexAtX(
+            localX: first,
+            stageWidth: stageWidth,
+            page: 0,
+            albumCount: 6,
+            coverSize: coverSize,
+          ),
+          1,
+        );
+        expect(
+          coverFlowIndexAtX(
+            localX: third,
+            stageWidth: stageWidth,
+            page: 0,
+            albumCount: 6,
+            coverSize: coverSize,
+          ),
+          3,
+        );
+      },
+    );
   });
 
   group('AlbumCoverFlowPage', () {
     testWidgets('shows the focused album and plays it on tap', (tester) async {
       final albums = [_album('a', 'Night Drive'), _album('b', 'Dawn Chorus')];
-      Album? played;
+      Track? played;
       await tester.pumpWidget(
         _coverFlowApp(
           albums: albums,
-          onPlayAlbum: (album) => played = album,
+          onPlayTrack: (track, _) => played = track,
         ),
       );
       await _openCoverFlow(tester);
@@ -129,29 +151,257 @@ void main() {
         find.byKey(const ValueKey('cover-flow-caption-a')),
         findsOneWidget,
       );
-      expect(find.byKey(const ValueKey('album-cover-flow-play')), findsOneWidget);
-      expect(find.byKey(const ValueKey('album-cover-flow-info')), findsNothing);
+      expect(find.byKey(const ValueKey('album-cover-flow-play')), findsNothing);
+      expect(
+        find.byKey(const ValueKey('cover-flow-mini-player')),
+        findsNothing,
+      );
+      expect(
+        find.byKey(const ValueKey('album-cover-flow-info')),
+        findsOneWidget,
+      );
 
-      await tester.tap(find.byKey(const ValueKey('album-cover-flow-play')));
+      await tester.tap(find.byKey(const ValueKey('album-cover-flow-info')));
       await tester.pumpAndSettle();
-      expect(played?.id, 'a');
+      await tester.tap(find.byKey(const ValueKey('ipod-track-track:a')));
+      await tester.pumpAndSettle();
+      expect(played?.id, 'track:a');
       expect(find.byKey(const ValueKey('album-cover-flow')), findsNothing);
     });
 
-    testWidgets('tapping the center cover plays and closes', (tester) async {
-      Album? played;
+    testWidgets('tapping the center cover flips to the track list', (
+      tester,
+    ) async {
+      Track? played;
       await tester.pumpWidget(
         _coverFlowApp(
           albums: [_album('a', 'Night Drive'), _album('b', 'Dawn Chorus')],
-          onPlayAlbum: (album) => played = album,
+          onPlayTrack: (track, _) => played = track,
         ),
       );
       await _openCoverFlow(tester);
 
       await tester.tap(find.byKey(const ValueKey('album-cover-flow-stage')));
       await tester.pumpAndSettle();
-      expect(played?.id, 'a');
-      expect(find.byKey(const ValueKey('album-cover-flow')), findsNothing);
+      expect(played, isNull);
+      expect(find.byKey(const ValueKey('album-cover-flow')), findsOneWidget);
+      expect(find.byKey(const ValueKey('ipod-flip-back-a')), findsOneWidget);
+      expect(find.byKey(const ValueKey('ipod-track-track:a')), findsOneWidget);
+      expect(find.text('Song Night Drive'), findsOneWidget);
+
+      final stage = tester.getRect(
+        find.byKey(const ValueKey('album-cover-flow-stage')),
+      );
+      final coverSize = coverFlowCoverSize(
+        stageSize: stage.size,
+        landscape: stage.size.aspectRatio > 1.15,
+      );
+      final list = tester.getSize(
+        find.byKey(const ValueKey('ipod-flip-back-a')),
+      );
+      expect(list.width, greaterThan(coverSize));
+      expect(list.height, greaterThan(coverSize));
+    });
+
+    testWidgets('info button flips to the track list', (tester) async {
+      await tester.pumpWidget(
+        _coverFlowApp(
+          albums: [_album('a', 'Night Drive'), _album('b', 'Dawn Chorus')],
+        ),
+      );
+      await _openCoverFlow(tester);
+
+      await tester.tap(find.byKey(const ValueKey('album-cover-flow-info')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('ipod-flip-back-a')), findsOneWidget);
+      expect(find.byKey(const ValueKey('album-cover-flow')), findsOneWidget);
+    });
+
+    testWidgets('flip back returns to Cover Flow', (tester) async {
+      await tester.pumpWidget(
+        _coverFlowApp(albums: [_album('a', 'Night Drive')]),
+      );
+      await _openCoverFlow(tester);
+
+      await tester.tap(find.byKey(const ValueKey('album-cover-flow-info')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('ipod-flip-back')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('ipod-flip-back-a')), findsNothing);
+      expect(
+        find.byKey(const ValueKey('cover-flow-caption-a')),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('tapping a flipped track opens iPod now playing', (
+      tester,
+    ) async {
+      final engine = _FakePlaybackEngine();
+      final playback = SoundPlaybackController(engine: engine);
+      addTearDown(playback.dispose);
+      addTearDown(engine.dispose);
+
+      Track? played;
+      await tester.pumpWidget(
+        _coverFlowApp(
+          albums: [
+            _album(
+              'a',
+              'Night Drive',
+              extraTracks: [
+                Track(
+                  id: 'track:a2',
+                  title: 'Second Gear',
+                  artist: 'Test Artist',
+                  albumTitle: 'Night Drive',
+                  duration: const Duration(minutes: 4),
+                  source: SourceKind.local,
+                  mediaUri: 'file:///test/a2.flac',
+                ),
+              ],
+            ),
+          ],
+          playback: playback,
+          onPlayTrack: (track, queue) {
+            played = track;
+            unawaited(playback.playTrack(track, queue: queue));
+          },
+        ),
+      );
+      await _openCoverFlow(tester);
+
+      await tester.tap(find.byKey(const ValueKey('album-cover-flow-stage')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('ipod-track-track:a2')));
+      await tester.pumpAndSettle();
+
+      expect(played?.id, 'track:a2');
+      expect(find.byKey(const ValueKey('ipod-now-playing')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('ipod-now-playing-art-a')),
+        findsOneWidget,
+      );
+      expect(find.text('正在播放'), findsOneWidget);
+      expect(find.text('Second Gear'), findsWidgets);
+
+      await tester.tap(find.byKey(const ValueKey('ipod-now-playing-menu')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('ipod-now-playing')), findsNothing);
+      expect(find.byKey(const ValueKey('ipod-flip-back-a')), findsOneWidget);
+    });
+
+    testWidgets('mini player appears after leaving now playing', (
+      tester,
+    ) async {
+      final engine = _FakePlaybackEngine();
+      final playback = SoundPlaybackController(engine: engine);
+      addTearDown(playback.dispose);
+      addTearDown(engine.dispose);
+
+      await tester.pumpWidget(
+        _coverFlowApp(
+          albums: [_album('a', 'Night Drive')],
+          playback: playback,
+          onPlayTrack: (track, queue) {
+            unawaited(playback.playTrack(track, queue: queue));
+          },
+        ),
+      );
+      await _openCoverFlow(tester);
+
+      expect(
+        find.byKey(const ValueKey('cover-flow-mini-player')),
+        findsNothing,
+      );
+
+      await tester.tap(find.byKey(const ValueKey('album-cover-flow-info')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('ipod-track-track:a')));
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(const ValueKey('ipod-now-playing')), findsOneWidget);
+      expect(find.byKey(const ValueKey('album-cover-flow')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('cover-flow-mini-player')),
+        findsNothing,
+      );
+
+      await tester.tap(find.byKey(const ValueKey('ipod-now-playing-menu')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('ipod-flip-back-a')), findsOneWidget);
+      expect(
+        find.byKey(const ValueKey('cover-flow-mini-player')),
+        findsOneWidget,
+      );
+      expect(find.byKey(const ValueKey('album-cover-flow-play')), findsNothing);
+
+      await tester.tap(find.byKey(const ValueKey('cover-flow-mini-art')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('ipod-now-playing')), findsOneWidget);
+    });
+
+    testWidgets('now playing cover follows the current album', (tester) async {
+      final engine = _FakePlaybackEngine();
+      final playback = SoundPlaybackController(engine: engine);
+      addTearDown(playback.dispose);
+      addTearDown(engine.dispose);
+
+      await tester.pumpWidget(
+        _coverFlowApp(
+          albums: [_album('a', 'Night Drive'), _album('b', 'Dawn Chorus')],
+          playback: playback,
+          onPlayTrack: (track, queue) {
+            unawaited(playback.playTrack(track, queue: queue));
+          },
+        ),
+      );
+      await _openCoverFlow(tester);
+
+      await tester.tap(find.byKey(const ValueKey('album-cover-flow-info')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('ipod-track-track:a')));
+      await tester.pumpAndSettle();
+      expect(
+        find.byKey(const ValueKey('ipod-now-playing-art-a')),
+        findsOneWidget,
+      );
+
+      await tester.tap(find.byKey(const ValueKey('ipod-now-playing-menu')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('ipod-flip-back')));
+      await tester.pumpAndSettle();
+
+      final stage = tester.getRect(
+        find.byKey(const ValueKey('album-cover-flow-stage')),
+      );
+      final coverSize = coverFlowCoverSize(
+        stageSize: stage.size,
+        landscape: stage.size.aspectRatio > 1.15,
+      );
+      final targetX =
+          stage.left +
+          stage.width / 2 +
+          coverFlowPlacement(offset: 1, coverSize: coverSize).translateX;
+      await tester.tapAt(Offset(targetX, stage.center.dy));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.byKey(const ValueKey('album-cover-flow-info')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('ipod-track-track:b')));
+      await tester.pumpAndSettle();
+
+      expect(
+        find.byKey(const ValueKey('ipod-now-playing-art-b')),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(const ValueKey('ipod-now-playing-art-a')),
+        findsNothing,
+      );
+      expect(find.text('Song Dawn Chorus'), findsWidgets);
     });
 
     testWidgets('tapping a side cover scrolls to that album', (tester) async {
@@ -282,16 +532,20 @@ void main() {
       await _openCoverFlow(tester);
 
       expect(
-        tester.getTopLeft(find.byKey(const ValueKey('album-cover-flow-close'))).dy,
+        tester
+            .getTopLeft(find.byKey(const ValueKey('album-cover-flow-close')))
+            .dy,
         greaterThanOrEqualTo(59),
       );
       expect(
-        tester.getTopLeft(find.byKey(const ValueKey('album-cover-flow-stage'))).dx,
+        tester
+            .getTopLeft(find.byKey(const ValueKey('album-cover-flow-stage')))
+            .dx,
         greaterThanOrEqualTo(12),
       );
       expect(
         tester
-            .getBottomLeft(find.byKey(const ValueKey('album-cover-flow-play')))
+            .getBottomLeft(find.byKey(const ValueKey('album-cover-flow-info')))
             .dy,
         lessThanOrEqualTo(844 - 34),
       );
@@ -322,16 +576,20 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.byKey(const ValueKey('album-cover-flow')), findsOneWidget);
       expect(
-        tester.getTopLeft(find.byKey(const ValueKey('album-cover-flow-close'))).dx,
+        tester
+            .getTopLeft(find.byKey(const ValueKey('album-cover-flow-close')))
+            .dx,
         greaterThanOrEqualTo(59),
       );
       expect(
-        tester.getTopLeft(find.byKey(const ValueKey('album-cover-flow-stage'))).dx,
+        tester
+            .getTopLeft(find.byKey(const ValueKey('album-cover-flow-stage')))
+            .dx,
         greaterThanOrEqualTo(59),
       );
     });
 
-    testWidgets('info button opens the focused album', (
+    testWidgets('long-pressing the center cover opens the focused album', (
       tester,
     ) async {
       Album? opened;
@@ -343,12 +601,19 @@ void main() {
       );
       await _openCoverFlow(tester);
 
-      await tester.tap(find.byKey(const ValueKey('album-cover-flow-info')));
+      await tester.longPress(
+        find.byKey(const ValueKey('album-cover-flow-stage')),
+      );
       await tester.pumpAndSettle();
 
       expect(opened?.id, 'a');
       expect(find.byKey(const ValueKey('album-cover-flow')), findsNothing);
     });
+  });
+
+  test('formatIpodDuration pads seconds', () {
+    expect(formatIpodDuration(Duration.zero), '0:00');
+    expect(formatIpodDuration(const Duration(minutes: 3, seconds: 7)), '3:07');
   });
 
   testWidgets('showAlbumCoverFlow does nothing when the library is empty', (
@@ -362,7 +627,7 @@ void main() {
               onPressed: () => showAlbumCoverFlow(
                 context,
                 albums: const [],
-                onPlayAlbum: (_) {},
+                onPlayTrack: (_, _) {},
               ),
               child: const Text('open'),
             );
@@ -425,7 +690,9 @@ void main() {
     expect(find.byKey(const ValueKey('album-cover-flow')), findsOneWidget);
     expect(find.text('Night Drive'), findsWidgets);
 
-    await tester.tap(find.byKey(const ValueKey('album-cover-flow-play')));
+    await tester.tap(find.byKey(const ValueKey('album-cover-flow-info')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('ipod-track-track:night')));
     await tester.pumpAndSettle();
     expect(played?.id, 'album:night');
   });
@@ -438,8 +705,9 @@ Future<void> _openCoverFlow(WidgetTester tester) async {
 
 Widget _coverFlowApp({
   required List<Album> albums,
-  ValueChanged<Album>? onPlayAlbum,
+  void Function(Track track, List<Track> queue)? onPlayTrack,
   ValueChanged<Album>? onOpenAlbum,
+  SoundPlaybackController? playback,
   int initialIndex = 0,
 }) {
   return MaterialApp(
@@ -452,7 +720,8 @@ Widget _coverFlowApp({
                 context,
                 albums: albums,
                 initialIndex: initialIndex,
-                onPlayAlbum: onPlayAlbum ?? (_) {},
+                onPlayTrack: onPlayTrack ?? (_, _) {},
+                playback: playback,
                 onOpenAlbum: onOpenAlbum,
               );
             },
@@ -464,7 +733,7 @@ Widget _coverFlowApp({
   );
 }
 
-Album _album(String id, String title) {
+Album _album(String id, String title, {List<Track> extraTracks = const []}) {
   return Album(
     id: id,
     title: title,
@@ -481,8 +750,69 @@ Album _album(String id, String title) {
         source: SourceKind.local,
         mediaUri: 'file:///test/$id.flac',
       ),
+      ...extraTracks,
     ],
   );
+}
+
+class _FakePlaybackEngine implements PlaybackEngine {
+  final _controller = StreamController<PlaybackSnapshot>.broadcast(sync: true);
+  PlaybackSnapshot _current = const PlaybackSnapshot.idle();
+
+  @override
+  PlaybackSnapshot get current => _current;
+
+  @override
+  Stream<PlaybackSnapshot> get snapshots => _controller.stream;
+
+  void _emit(PlaybackSnapshot snapshot) {
+    _current = snapshot;
+    if (!_controller.isClosed) _controller.add(snapshot);
+  }
+
+  @override
+  Future<void> load(Track track, {required int sessionId}) async {
+    _emit(
+      PlaybackSnapshot(
+        sessionId: sessionId,
+        phase: PlaybackPhase.ready,
+        position: Duration.zero,
+        duration: track.duration,
+        track: track,
+      ),
+    );
+  }
+
+  @override
+  Future<void> play() async {
+    _emit(_current.copyWith(phase: PlaybackPhase.playing, playWhenReady: true));
+  }
+
+  @override
+  Future<void> pause() async {
+    _emit(_current.copyWith(phase: PlaybackPhase.paused, playWhenReady: false));
+  }
+
+  @override
+  Future<void> seek(Duration position) async {
+    _emit(_current.copyWith(position: position));
+  }
+
+  @override
+  Future<void> stop() async {
+    _emit(const PlaybackSnapshot.idle());
+  }
+
+  @override
+  Future<void> setVolume(double value) async {}
+
+  @override
+  double get volume => 1.0;
+
+  @override
+  void dispose() {
+    _controller.close();
+  }
 }
 
 Future<DriftLibraryRepository> _repositoryWithAlbums() async {
