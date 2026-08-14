@@ -40,6 +40,22 @@ void main() {
     expect(find.text('Second'), findsOneWidget);
     expect(find.text('Third'), findsOneWidget);
 
+    final clearButton = find.ancestor(
+      of: find.text('清除'),
+      matching: find.byType(TextButton),
+    );
+    expect(clearButton, findsOneWidget);
+    expect(
+      tester.widget<Text>(find.text('清除')).style,
+      isNull,
+      reason: 'The button style must provide the state-aware foreground color.',
+    );
+    final clearButtonStyle = tester.widget<TextButton>(clearButton).style!;
+    expect(
+      clearButtonStyle.foregroundColor?.resolve({}),
+      Theme.of(tester.element(clearButton)).colorScheme.primary,
+    );
+
     await tester.tap(find.text('随机播放'));
     await tester.pump();
     expect(playback.playbackMode, PlaybackMode.shuffle);
@@ -57,7 +73,7 @@ void main() {
     expect(playback.queue.map((track) => track.id), isNot(contains('third')));
     expect(find.text('Third'), findsNothing);
 
-    await tester.tap(find.text('清空'));
+    await tester.tap(find.text('清除'));
     await tester.pump();
     expect(playback.queue, isEmpty);
     expect(find.text('播放队列是空的'), findsOneWidget);
@@ -489,6 +505,15 @@ void main() {
       find.byKey(const ValueKey('embedded-queue-title')),
     );
     expect(queueTitle.style?.color, queueContext.chromePrimaryText);
+    final clearButton = find.ancestor(
+      of: find.text('清除'),
+      matching: find.byType(TextButton),
+    );
+    final clearButtonStyle = tester.widget<TextButton>(clearButton).style!;
+    expect(
+      clearButtonStyle.foregroundColor?.resolve({}),
+      Theme.of(queueContext).colorScheme.primary,
+    );
     expect(find.text('3 首歌 · 列表循环'), findsOneWidget);
     expect(find.byType(ChoiceChip), findsNothing);
     final activeRow = find.byKey(const ValueKey('queue-track-row-second'));

@@ -14,6 +14,7 @@ import '../controllers/library_user_state_controller.dart';
 import '../models/library_source_filter.dart';
 import '../widgets/add_to_playlist_sheet.dart';
 import '../widgets/album_art.dart';
+import '../widgets/album_cover_flow.dart';
 import '../widgets/artist_avatar.dart';
 import '../widgets/sound_components.dart';
 import '../widgets/sound_metadata_line.dart';
@@ -307,6 +308,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 mode: widget.mode,
                 onModeChanged: widget.onModeChanged,
                 onOpenUserMode: widget.onOpenUserMode,
+                onOpenCoverFlow: hasCatalogBody ? _openCoverFlow : null,
               ),
             ),
           if (hasCatalogBody)
@@ -328,6 +330,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 sourceOptions: sourceOptions,
                 onSortChanged: _changeSortOrder,
                 onSourceChanged: _changeSourceFilter,
+                onOpenCoverFlow: _openCoverFlow,
                 onPlayAll:
                     widget.mode == LibraryBrowseMode.songs && tracks.isNotEmpty
                     ? () => widget.onPlayTrack(tracks.first, tracks)
@@ -527,6 +530,31 @@ class _LibraryScreenState extends State<LibraryScreen> {
       );
     }
     return scroll;
+  }
+
+  /// Hidden Cover Flow: long-press an album card, the 专辑 chip, or the count.
+  void _openCoverFlow({Album? focused}) {
+    if (widget.catalog.status != LibraryCatalogStatus.ready) return;
+    final albums = _sortedAlbumsCached(widget.catalog.albums);
+    if (albums.isEmpty) return;
+    var index = 0;
+    if (focused != null) {
+      final found = albums.indexWhere((album) => album.id == focused.id);
+      if (found >= 0) index = found;
+    }
+    unawaited(HapticFeedback.lightImpact());
+    unawaited(
+      showAlbumCoverFlow(
+        context,
+        albums: albums,
+        initialIndex: index,
+        onPlayAlbum: (album) {
+          if (album.tracks.isEmpty) return;
+          widget.onPlayTrack(album.tracks.first, album.tracks);
+        },
+        onOpenAlbum: widget.onOpenAlbum,
+      ),
+    );
   }
 
   void _changeSortOrder(LibrarySortOrder value) {
@@ -812,6 +840,7 @@ class _LibraryScreenState extends State<LibraryScreen> {
                 return _AlbumCard(
                   album: album,
                   onTap: () => widget.onOpenAlbum(album),
+                  onOpenCoverFlow: () => _openCoverFlow(focused: album),
                 );
               },
             );
@@ -1325,11 +1354,13 @@ class _CompactLibraryNavigation extends StatelessWidget {
     required this.mode,
     required this.onModeChanged,
     required this.onOpenUserMode,
+    this.onOpenCoverFlow,
   });
 
   final LibraryBrowseMode mode;
   final ValueChanged<LibraryBrowseMode> onModeChanged;
   final ValueChanged<LibraryUserBrowseMode>? onOpenUserMode;
+  final VoidCallback? onOpenCoverFlow;
 
   @override
   Widget build(BuildContext context) {
@@ -1343,6 +1374,9 @@ class _CompactLibraryNavigation extends StatelessWidget {
               mode: candidate,
               selected: mode == candidate,
               onTap: () => onModeChanged(candidate),
+              onLongPress: candidate == LibraryBrowseMode.albums
+                  ? onOpenCoverFlow
+                  : null,
             ),
             const SizedBox(width: 8),
           ],
@@ -1386,11 +1420,13 @@ class _CompactLibraryModeItem extends StatelessWidget {
     required this.mode,
     required this.selected,
     required this.onTap,
+    this.onLongPress,
   });
 
   final LibraryBrowseMode mode;
   final bool selected;
   final VoidCallback onTap;
+  final VoidCallback? onLongPress;
 
   @override
   Widget build(BuildContext context) {
@@ -1400,6 +1436,7 @@ class _CompactLibraryModeItem extends StatelessWidget {
       child: InkWell(
         key: ValueKey('library-mode-${mode.name}'),
         onTap: onTap,
+        onLongPress: onLongPress,
         borderRadius: BorderRadius.circular(SoundRadii.pill),
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 160),
@@ -1437,6 +1474,7 @@ class _LibraryToolbar extends StatelessWidget {
     required this.onSortChanged,
     required this.onSourceChanged,
     required this.onPlayAll,
+    this.onOpenCoverFlow,
   });
 
   final LibraryBrowseMode mode;
@@ -1448,6 +1486,7 @@ class _LibraryToolbar extends StatelessWidget {
   final ValueChanged<LibrarySortOrder> onSortChanged;
   final ValueChanged<LibrarySourceFilter> onSourceChanged;
   final VoidCallback? onPlayAll;
+  final VoidCallback? onOpenCoverFlow;
 
   String get _resultLabel => switch (mode) {
     LibraryBrowseMode.albums => '$resultCount 张专辑',
@@ -1467,13 +1506,21 @@ class _LibraryToolbar extends StatelessWidget {
         child: Row(
           children: [
             Expanded(
-              child: Text(
-                _resultLabel,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                  color: context.soundMutedText,
-                  fontSize: KaiProductTokens.typographyLibraryToolbarResult,
+              child: GestureDetector(
+                onLongPress: mode == LibraryBrowseMode.albums
+                    ? onOpenCoverFlow
+                    : null,
+                onSecondaryTap: mode == LibraryBrowseMode.albums
+                    ? onOpenCoverFlow
+                    : null,
+                child: Text(
+                  _resultLabel,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: context.soundMutedText,
+                    fontSize: KaiProductTokens.typographyLibraryToolbarResult,
+                  ),
                 ),
               ),
             ),
@@ -1503,11 +1550,19 @@ class _LibraryToolbar extends StatelessWidget {
       runSpacing: 10,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        Text(
-          _resultLabel,
-          style: TextStyle(
-            color: context.soundMutedText,
-            fontSize: KaiProductTokens.typographyLibraryToolbarResult,
+        GestureDetector(
+          onLongPress: mode == LibraryBrowseMode.albums
+              ? onOpenCoverFlow
+              : null,
+          onSecondaryTap: mode == LibraryBrowseMode.albums
+              ? onOpenCoverFlow
+              : null,
+          child: Text(
+            _resultLabel,
+            style: TextStyle(
+              color: context.soundMutedText,
+              fontSize: KaiProductTokens.typographyLibraryToolbarResult,
+            ),
           ),
         ),
         if (onPlayAll != null)
@@ -1620,15 +1675,23 @@ class _CompactPlayAllButton extends StatelessWidget {
 }
 
 class _AlbumCard extends StatelessWidget {
-  const _AlbumCard({required this.album, required this.onTap});
+  const _AlbumCard({
+    required this.album,
+    required this.onTap,
+    this.onOpenCoverFlow,
+  });
 
   final Album album;
   final VoidCallback onTap;
+  final VoidCallback? onOpenCoverFlow;
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
+      key: ValueKey('library-album-card-${album.id}'),
       onTap: onTap,
+      onLongPress: onOpenCoverFlow,
+      onSecondaryTap: onOpenCoverFlow,
       borderRadius: BorderRadius.circular(14),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1638,7 +1701,7 @@ class _AlbumCard extends StatelessWidget {
             album: album,
             showShadow: false,
           ),
-          const SizedBox(height: 7),
+          const SizedBox(height: 5),
           Text(
             album.title,
             maxLines: 1,

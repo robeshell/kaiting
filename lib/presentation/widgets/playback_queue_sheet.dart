@@ -5,6 +5,7 @@ import '../../core/sound_theme.dart';
 import '../../domain/library_models.dart';
 import '../../playback/playback_controller.dart';
 import '../../playback/playback_mode.dart';
+import 'album_art.dart';
 import 'animated_artwork_background.dart';
 import 'sound_components.dart';
 import 'sound_metadata_line.dart';
@@ -133,13 +134,12 @@ class PlaybackQueuePanel extends StatelessWidget {
                   ),
                   TextButton(
                     onPressed: queue.isEmpty ? null : playback.clearQueue,
-                    style: context.soundDestructiveButtonStyle,
-                    child: Text(
-                      '清空',
-                      style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                    style: TextButton.styleFrom(
+                      foregroundColor: context.soundColors.primary,
+                      textStyle: Theme.of(context).textTheme.labelSmall
+                          ?.copyWith(fontWeight: FontWeight.w600),
                     ),
+                    child: const Text('清除'),
                   ),
                   if (onClose != null)
                     IconButton(
@@ -189,7 +189,7 @@ class PlaybackQueuePanel extends StatelessWidget {
                         embedded ? 0 : 12,
                         8,
                         embedded ? 0 : 12,
-                        24,
+                        24 + MediaQuery.paddingOf(context).bottom,
                       ),
                       buildDefaultDragHandles: false,
                       itemCount: queue.length,
@@ -235,16 +235,11 @@ class PlaybackQueuePanel extends StatelessWidget {
                               ),
                               child: SoundCompactMediaRow(
                                 key: ValueKey('queue-track-row-${track.id}'),
-                                leading: active
-                                    ? Icon(
-                                        KaitingIcons.playing,
-                                        color: SoundColors.accent,
-                                        size: 18,
-                                      )
-                                    : Text(
-                                        '${index + 1}',
-                                        style: TextStyle(color: mutedText),
-                                      ),
+                                leading: _QueueTrackLeading(
+                                  album: album,
+                                  index: index,
+                                  active: active,
+                                ),
                                 title: track.title,
                                 titleColor: active
                                     ? SoundColors.accent.withValues(alpha: 0.9)
@@ -314,21 +309,11 @@ class PlaybackQueuePanel extends StatelessWidget {
                           key: ValueKey(track.id),
                           selected: active,
                           onTap: () => playback.playQueueIndex(index),
-                          leading: SizedBox(
-                            width: 30,
-                            child: active
-                                ? Icon(
-                                    KaitingIcons.playing,
-                                    color: SoundColors.accent,
-                                  )
-                                : Center(
-                                    child: Text(
-                                      '${index + 1}',
-                                      style: TextStyle(
-                                        color: context.soundMutedText,
-                                      ),
-                                    ),
-                                  ),
+                          leading: _QueueTrackLeading(
+                            album: album,
+                            index: index,
+                            active: active,
+                            size: 40,
                           ),
                           title: Text(
                             track.title,
@@ -376,6 +361,79 @@ class PlaybackQueuePanel extends StatelessWidget {
         );
       },
     );
+  }
+}
+
+class _QueueTrackLeading extends StatelessWidget {
+  const _QueueTrackLeading({
+    required this.album,
+    required this.index,
+    required this.active,
+    this.size,
+  });
+
+  final Album album;
+  final int index;
+  final bool active;
+  final double? size;
+
+  @override
+  Widget build(BuildContext context) {
+    final plate = Stack(
+      fit: StackFit.expand,
+      children: [
+        AlbumArt(
+          album: album,
+          size: size,
+          borderRadius: 8,
+          showShadow: false,
+          cacheExtent: 80,
+        ),
+        if (active)
+          const DecoratedBox(
+            decoration: BoxDecoration(
+              color: Color(0x8A000000),
+              borderRadius: BorderRadius.all(Radius.circular(8)),
+            ),
+            child: Icon(
+              KaitingIcons.playing,
+              color: Color(0xFFF5F5F5),
+              size: 16,
+            ),
+          )
+        else
+          Align(
+            alignment: Alignment.bottomLeft,
+            child: Padding(
+              padding: const EdgeInsets.all(3),
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: const Color(0xB3000000),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 4,
+                    vertical: 1,
+                  ),
+                  child: Text(
+                    '${index + 1}',
+                    style: const TextStyle(
+                      color: Color(0xFFF0F0F0),
+                      fontSize: 9,
+                      fontWeight: FontWeight.w600,
+                      fontFeatures: [FontFeature.tabularFigures()],
+                      height: 1.1,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    );
+    if (size == null) return plate;
+    return SizedBox.square(dimension: size, child: plate);
   }
 }
 

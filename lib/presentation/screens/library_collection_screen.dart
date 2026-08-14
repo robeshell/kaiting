@@ -11,6 +11,7 @@ import '../../playback/playback_controller.dart';
 import '../controllers/library_user_state_controller.dart';
 import '../widgets/add_to_playlist_sheet.dart';
 import '../widgets/album_art.dart';
+import '../widgets/album_cover_flow.dart';
 import '../widgets/animated_artwork_background.dart';
 import '../widgets/artist_avatar.dart';
 import '../widgets/progress_scrubber.dart';
@@ -87,6 +88,25 @@ class _LibraryCollectionScreenState extends State<LibraryCollectionScreen> {
         extractArtwork: _paletteCompact ?? context.soundIsCompact,
       );
     }
+  }
+
+  void _openCoverFlow(Album focused) {
+    final albums = widget.collection.albums;
+    if (albums.isEmpty) return;
+    final index = albums.indexWhere((album) => album.id == focused.id);
+    unawaited(HapticFeedback.lightImpact());
+    unawaited(
+      showAlbumCoverFlow(
+        context,
+        albums: albums,
+        initialIndex: index < 0 ? 0 : index,
+        onPlayAlbum: (album) {
+          if (album.tracks.isEmpty) return;
+          widget.playback.playTrack(album.tracks.first, queue: album.tracks);
+        },
+        onOpenAlbum: widget.onOpenAlbum,
+      ),
+    );
   }
 
   void _refreshPalette({
@@ -272,6 +292,7 @@ class _LibraryCollectionScreenState extends State<LibraryCollectionScreen> {
                           album: album,
                           pagePalette: pagePalette,
                           onTap: () => widget.onOpenAlbum(album),
+                          onOpenCoverFlow: () => _openCoverFlow(album),
                         );
                       },
                     );
@@ -1067,22 +1088,26 @@ class _CollectionAlbumCard extends StatelessWidget {
     required this.album,
     required this.onTap,
     required this.pagePalette,
+    this.onOpenCoverFlow,
   });
 
   final Album album;
   final VoidCallback onTap;
   final ArtworkPagePalette? pagePalette;
+  final VoidCallback? onOpenCoverFlow;
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
+      onLongPress: onOpenCoverFlow,
+      onSecondaryTap: onOpenCoverFlow,
       borderRadius: BorderRadius.circular(12),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           AlbumArt(album: album),
-          const SizedBox(height: 7),
+          const SizedBox(height: 5),
           Text(
             album.title,
             maxLines: 1,
